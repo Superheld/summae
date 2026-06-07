@@ -15,12 +15,12 @@ final class PostTest extends LedgerTestCase
         $first = $ledger->post($this->draft([
             ['1200', 'debit', '119.00'],
             ['8400', 'credit', '119.00'],
-        ]));
+        ]))->entry;
 
         $second = $ledger->post($this->draft([
             ['1200', 'debit', '59.50'],
             ['8400', 'credit', '59.50'],
-        ]));
+        ]))->entry;
 
         self::assertSame(1, $first->sequenceNumber);
         self::assertSame(2, $second->sequenceNumber);

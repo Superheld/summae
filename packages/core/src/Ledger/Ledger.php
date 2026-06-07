@@ -9,6 +9,7 @@ use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\AuditTrail;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
 use Rechnungswesen\Core\Port\JournalRepository;
+use Rechnungswesen\Core\Port\OpenItemRepository;
 use Rechnungswesen\Core\Port\VoucherRepository;
 use Rechnungswesen\Core\Shared\AccountNumber;
 use Rechnungswesen\Core\Shared\CalendarDate;
@@ -41,6 +42,7 @@ final readonly class Ledger
         private FiscalYearRepository $fiscalYears,
         private VoucherRepository $vouchers,
         private JournalRepository $journal,
+        private OpenItemRepository $openItems,
         private AuditTrail $audit,
         private DimensionRegistry $dimensions,
         private Clock $clock,
@@ -51,7 +53,7 @@ final readonly class Ledger
     /**
      * @param array<string, mixed> $input
      */
-    public function post(array $input): JournalEntry
+    public function post(array $input): PostResult
     {
         $actor = $this->actor($input);
 
@@ -98,7 +100,189 @@ final readonly class Ledger
         $this->journal->append($entry);
         $this->recordAudit($actor, 'journalEntry', $entry->id, 'created');
 
-        return $entry;
+        return new PostResult($entry, $this->createOpenItems($entry));
+    }
+
+    /**
+     * AR/AP-Automatik: Soll auf Forderungskonto -> receivable,
+     * Haben auf Verbindlichkeitskonto -> payable (natürliche Saldoseite).
+     * Stornobuchungen erzeugen keine neuen Posten.
+     *
+     * @return list<OpenItem>
+     */
+    private function createOpenItems(JournalEntry $entry): array
+    {
+        if ($entry->reverses !== null) {
+            return [];
+        }
+
+        $created = [];
+
+        foreach ($entry->lines() as $index => $line) {
+            $account = $this->accounts->byId($line->accountId);
+            $kind = match (true) {
+                $account?->subtype === 'ar' && $line->side === Side::Debit => OpenItemKind::Receivable,
+                $account?->subtype === 'ap' && $line->side === Side::Credit => OpenItemKind::Payable,
+                default => null,
+            };
+
+            if ($kind === null) {
+                continue;
+            }
+
+            $item = new OpenItem(
+                $this->ids->next(),
+                $kind,
+                $entry->id,
+                $index,
+                $line->money,
+                $entry->voucherId,
+                $entry->entryDate,
+            );
+
+            $this->openItems->add($item);
+            $created[] = $item;
+        }
+
+        return $created;
+    }
+
+    /**
+     * Ausgleich: Zuordnung Zahlung -> offene(r) Posten, auch teilweise;
+     * immer explizit, kein FIFO-Automatismus (determinismus.md §3).
+     * Differenzen (Skonto/Ausfall/Kleindifferenz) nach api.md G2 (v0.3).
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return list<OpenItem> die betroffenen Posten
+     */
+    public function settle(array $input): array
+    {
+        $actor = $this->actor($input);
+        $entry = $this->requireEntry($input['entryId'] ?? null);
+
+        $allocations = is_array($input['allocations'] ?? null) ? array_values($input['allocations']) : [];
+        if ($allocations === []) {
+            throw new DomainError('E_OPENITEM_UNKNOWN', 'settle ohne Zuordnungen');
+        }
+
+        /** @var list<array{item: OpenItem, settlement: Settlement}> $plan */
+        $plan = [];
+        /** @var array<string, Money> $planned bereits verplante Beträge je Posten */
+        $planned = [];
+
+        foreach ($allocations as $allocation) {
+            if (!is_array($allocation)) {
+                throw new DomainError('E_OPENITEM_UNKNOWN', 'Zuordnung ist keine Struktur');
+            }
+
+            $openItemId = $allocation['openItemId'] ?? null;
+            $item = null;
+            if (is_string($openItemId)) {
+                try {
+                    $item = $this->openItems->byId(Uuid::fromString($openItemId));
+                } catch (InvalidValue) {
+                    $item = null;
+                }
+            }
+
+            if ($item === null) {
+                throw new DomainError('E_OPENITEM_UNKNOWN', sprintf(
+                    'Offener Posten %s existiert nicht',
+                    is_string($openItemId) ? $openItemId : '?',
+                ));
+            }
+
+            $money = $this->parseSettlementMoney($allocation['money'] ?? null, 'Zuordnungsbetrag');
+            [$differenceMoney, $differenceKind] = $this->parseDifference($allocation['difference'] ?? null, $item);
+
+            // Erst vollständig validieren, dann anwenden — kein Teilzustand.
+            $alreadyPlanned = $planned[$item->id->value] ?? Money::zero($this->baseCurrency);
+            if ($money->add($alreadyPlanned)->compareTo($item->remaining()) > 0) {
+                throw new DomainError('E_SETTLEMENT_EXCEEDS_ITEM', sprintf(
+                    'Zuordnung %s übersteigt Restbetrag %s des Postens %s',
+                    $money->amountAsString(),
+                    $item->remaining()->subtract($alreadyPlanned)->amountAsString(),
+                    $item->id->value,
+                ), ['openItemId' => $item->id->value]);
+            }
+
+            $planned[$item->id->value] = $money->add($alreadyPlanned);
+            $plan[] = [
+                'item' => $item,
+                'settlement' => new Settlement($entry->id, $money, $entry->entryDate, $differenceMoney, $differenceKind),
+            ];
+        }
+
+        $affected = [];
+
+        foreach ($plan as $step) {
+            $before = $step['item']->remaining()->amountAsString();
+            $step['item']->settle($step['settlement']);
+            $this->openItems->save($step['item']);
+            $this->recordAudit($actor, 'openItem', $step['item']->id, 'settled', [
+                'remaining' => ['from' => $before, 'to' => $step['item']->remaining()->amountAsString()],
+            ]);
+            $affected[] = $step['item'];
+        }
+
+        return $affected;
+    }
+
+    private function parseSettlementMoney(mixed $raw, string $label): Money
+    {
+        $amount = is_array($raw) && is_string($raw['amount'] ?? null) ? $raw['amount'] : null;
+        $currency = is_array($raw) && is_string($raw['currency'] ?? null) ? $raw['currency'] : null;
+
+        if ($amount === null || $currency !== $this->baseCurrency->code) {
+            throw new InvalidValue(sprintf('%s fehlt oder falsche Währung', $label));
+        }
+
+        $money = Money::of($amount, $this->baseCurrency);
+
+        if (!$money->isPositive()) {
+            throw new InvalidValue(sprintf('%s muss > 0 sein', $label));
+        }
+
+        return $money;
+    }
+
+    /**
+     * @return array{0: ?Money, 1: ?SettlementDifferenceKind}
+     */
+    private function parseDifference(mixed $raw, OpenItem $item): array
+    {
+        if ($raw === null) {
+            return [null, null];
+        }
+
+        if (!is_array($raw)) {
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference ist keine Struktur');
+        }
+
+        $kind = SettlementDifferenceKind::tryFrom(is_string($raw['kind'] ?? null) ? $raw['kind'] : '');
+        if ($kind === null) {
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
+                'Unbekannte Differenzart "%s"',
+                is_string($raw['kind'] ?? null) ? $raw['kind'] : '?',
+            ));
+        }
+
+        try {
+            $money = $this->parseSettlementMoney($raw['money'] ?? null, 'Differenzbetrag');
+        } catch (InvalidValue) {
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Differenzbetrag ungültig (≤ 0 oder Format)');
+        }
+
+        if ($money->compareTo($item->remaining()) > 0) {
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
+                'Differenz %s übersteigt Restbetrag %s',
+                $money->amountAsString(),
+                $item->remaining()->amountAsString(),
+            ));
+        }
+
+        return [$money, $kind];
     }
 
     /**

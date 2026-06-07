@@ -16,6 +16,7 @@ use Rechnungswesen\Core\Shared\CalendarDate;
 use Rechnungswesen\Core\Shared\Currency;
 use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Core\Shared\Uuid;
+use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
 use Rechnungswesen\Core\Tenant;
 
@@ -96,10 +97,13 @@ final class CoreSubject implements Subject
 
         try {
             return match ($op) {
-                'post' => $this->serialize($ledger->post($input)),
+                'post' => $this->postResult($ledger->post($input)),
                 'correct' => $this->serialize($ledger->correct($input)),
                 'finalize' => ['finalizedCount' => $ledger->finalize($input)],
                 'reverse' => $this->serialize($ledger->reverse($input)),
+                'settle' => [
+                    'openItems' => array_map($this->serialize(...), $ledger->settle($input)),
+                ],
                 'closePeriod' => $this->periodResult($input, $ledger->closePeriod($input)->status()->value),
                 'reopenPeriod' => $this->periodResult($input, $ledger->reopenPeriod($input)->status()->value),
                 'closeFiscalYear' => [
@@ -121,10 +125,30 @@ final class CoreSubject implements Subject
 
     public function project(string $name, array $params): array
     {
-        throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
-            'Projektion "%s" ist noch nicht implementiert',
-            $name,
-        ));
+        $tenant = $this->tenant ?? throw new \LogicException('setup() wurde nicht aufgerufen');
+
+        try {
+            return match ($name) {
+                'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal))
+                    ->compute($params),
+                default => throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
+                    'Projektion "%s" ist noch nicht implementiert',
+                    $name,
+                )),
+            };
+        } catch (DomainError $e) {
+            throw new SubjectError($e->errorCode, $e->getMessage());
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function postResult(\Rechnungswesen\Core\Ledger\PostResult $result): array
+    {
+        return $this->serialize($result->entry) + [
+            'openItemsCreated' => array_map($this->serialize(...), $result->openItemsCreated),
+        ];
     }
 
     /**
