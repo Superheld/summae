@@ -51,6 +51,14 @@ final class CoreSubject implements Subject
 {
     private const string FIXED_NOW = '2026-06-07T12:00:00+02:00';
 
+    /** @var \Closure(string, mixed...): Tenant|null Adapter-Hook: baut den Mandanten (Default: In-Memory) */
+    private readonly ?\Closure $tenantBuilder;
+
+    public function __construct(?\Closure $tenantBuilder = null)
+    {
+        $this->tenantBuilder = $tenantBuilder;
+    }
+
     private ?Tenant $tenant = null;
 
     /** @var array<string, Tenant> per createTenant angelegte Mandanten */
@@ -106,7 +114,12 @@ final class CoreSubject implements Subject
         /** @var list<array{accountRange: array{from: string, to: string}, requiredDimension: string}> $dimensionRules */
         $dimensionRules = is_array($ruleModules['dimensionRules'] ?? null) ? array_values($ruleModules['dimensionRules']) : [];
 
-        $tenant = Tenant::inMemory(
+        $builder = $this->tenantBuilder ?? static function (string $n, mixed ...$args): Tenant {
+            /** @phpstan-ignore-next-line Builder-Vertrag: Argumente entsprechen Tenant::inMemory */
+            return Tenant::inMemory($n, ...$args);
+        };
+        /** @var Tenant $tenant */
+        $tenant = $builder(
             $name,
             $currency,
             $clock,

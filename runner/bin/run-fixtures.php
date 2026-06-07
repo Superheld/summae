@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Rechnungswesen\Runner\FixtureResult;
 use Rechnungswesen\Runner\FixtureStatus;
 use Rechnungswesen\Runner\Subject\CoreSubjectFactory;
+use Rechnungswesen\Runner\Subject\EloquentSubjectFactory;
 use Rechnungswesen\Runner\SuiteRunner;
 
 require __DIR__ . '/../../vendor/autoload.php';
@@ -15,6 +16,7 @@ $root = dirname(__DIR__, 2);
 $argvList = $_SERVER['argv'] ?? [];
 $filter = null;
 $strict = false;
+$subject = 'core';
 $expectedFile = $root . '/runner/expected-green.txt';
 
 foreach (array_slice($argvList, 1) as $arg) {
@@ -22,16 +24,21 @@ foreach (array_slice($argvList, 1) as $arg) {
         $filter = substr($arg, 9);
     } elseif ($arg === '--strict') {
         $strict = true;
+    } elseif (str_starts_with($arg, '--subject=')) {
+        $subject = substr($arg, 10);
     } elseif (str_starts_with($arg, '--expected=')) {
         $expectedFile = substr($arg, 11);
     } else {
         fwrite(STDERR, "Unbekanntes Argument: {$arg}\n");
-        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--expected=datei]\n");
+        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--subject=core|eloquent] [--expected=datei]\n");
         exit(2);
     }
 }
 
-$suite = (new SuiteRunner(new CoreSubjectFactory()))->run($root . '/testsuite/fixtures', $filter);
+$factory = $subject === 'eloquent' ? new EloquentSubjectFactory() : new CoreSubjectFactory();
+printf("Subject: %s\n", $subject);
+
+$suite = (new SuiteRunner($factory))->run($root . '/testsuite/fixtures', $filter);
 
 $colors = [
     FixtureStatus::Pass->value => "\033[32m",

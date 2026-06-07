@@ -58,6 +58,22 @@ final class FiscalYear
         return new self($id, $year, $start, $end, $periods);
     }
 
+    /**
+     * Rehydrierung aus Persistenz (Adapter): Status bleibt erhalten.
+     *
+     * @param list<Period> $periods
+     */
+    public static function restore(
+        Uuid $id,
+        int $year,
+        CalendarDate $start,
+        CalendarDate $end,
+        FiscalYearStatus $status,
+        array $periods,
+    ): self {
+        return new self($id, $year, $start, $end, $periods, $status);
+    }
+
     /** @return list<Period> */
     private static function monthlyPeriods(CalendarDate $start, CalendarDate $end): array
     {
