@@ -1,8 +1,12 @@
-# Abdeckungsstand (2026-06-07, nach Review-Einarbeitung v0.3)
+# Abdeckungsstand (2026-06-08, nach Buchhalter-/StB-Review v0.4)
 
-Automatisch prüfbar via `python3 validate.py`. Fixtures: 31.
+Automatisch prüfbar via `python3 validate.py`. Fixtures: 40.
 
-## Fehlercodes: 29 / 29 ✅
+## Fehlercodes: 31 / 31 ✅
+
+## Standardfälle: 25 / 26 — offen nur SF-15 (braucht zweite Implementierung)
+
+Neu (v0.4): SF-21 partner-and-ec-sales · SF-22 payroll-entry · SF-23 entertainment-split · SF-24 customer-credit-note · SF-25 profit-appropriation · SF-26 money-transit. Dazu: service-date-rate-change (Leistungsdatum/§ 27), monthly-income-statement (BWA-Grundlage), fiscal-year-management.
 
 ## Review-Befunde (review-2026-06-07.md): alle eingearbeitet
 

@@ -1,0 +1,66 @@
+{
+  "fixture": "customer-credit-note",
+  "description": "SF-24 (Buchhalter-M): Kundengutschrift — credit auf ar erzeugt KEINEN neuen OP (F-CORE-023), sondern gleicht den bestehenden per settle teilweise aus; USt wird korrigiert.",
+  "covers": ["F-CORE-023", "SF-24"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-600", "voucherDate": "2026-02-01", "kind": "invoice_out" },
+      { "id": "$V2", "voucherNumber": "GS-600-1", "voucherDate": "2026-02-20", "kind": "credit_note_out" }
+    ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "Ausgangsrechnung",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "openItemsCreated": [ { "id": "$OP1" } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-20", "voucherId": "$V2", "text": "Gutschrift Mängelrüge (100 netto)",
+        "lines": [
+          { "account": "8400", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-100.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "debit", "money": { "amount": "19.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-100.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "119.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2", "openItemsCreated": [], "comment": "credit auf ar → KEIN neuer OP (F-CORE-023)" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "119.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "1071.00", "currency": "EUR" }, "status": "partially_settled" } ] } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 1, "asOf": "2026-07-01" },
+      "expect": {
+        "comment": "Bemessungsgrundlage 1000 − 100, Steuer 190 − 19",
+        "keys": { "81": { "base": "900.00", "tax": "171.00" } }
+      }
+    }
+  ]
+}

@@ -22,6 +22,7 @@ use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Projection\AccountSheetProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
 use Rechnungswesen\Core\Projection\CashBasisProjection;
+use Rechnungswesen\Core\Projection\EcSalesListProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Projection\TrialBalanceProjection;
 use Rechnungswesen\Core\Projection\VatReturnProjection;
@@ -168,6 +169,12 @@ final class CoreSubject implements Subject
                     'status' => 'closed',
                 ],
                 'createAccount' => $this->serialize($ledger->createAccount($input)),
+                'createFiscalYear' => [
+                    'year' => $ledger->createFiscalYear($input)->year,
+                    'periodCount' => count($tenant->fiscalYears->byYear(is_int($input['year'] ?? null) ? $input['year'] : 0)?->periods() ?? []),
+                ],
+                'createPartner' => $this->serialize($tenant->partnerService->create($input)),
+                'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
                 'lockAccount' => $this->serialize($ledger->lockAccount($input)),
                 'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
                 default => throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
@@ -198,9 +205,16 @@ final class CoreSubject implements Subject
                     $tenant->baseCurrency,
                     $tenant->journal,
                     $tenant->openItems,
+                    $tenant->vouchers,
                     $tenant->accounts,
                     $tenant->tax->registry(),
                     $tenant->tax->profile(),
+                ))->compute($params),
+                'ecSalesList' => (new EcSalesListProjection(
+                    $tenant->journal,
+                    $tenant->vouchers,
+                    $tenant->partners,
+                    $tenant->tax->registry(),
                 ))->compute($params),
                 'cashBasisReport' => (new CashBasisProjection(
                     $tenant->baseCurrency,
@@ -320,6 +334,8 @@ final class CoreSubject implements Subject
         // Platzhalter-IDs hat der Runner bereits durch UUIDs ersetzt.
         $id = Uuid::fromString(is_string($data['id'] ?? null) ? $data['id'] : Uuid::v7()->value);
 
+        $servicePeriod = is_array($data['servicePeriod'] ?? null) ? $data['servicePeriod'] : [];
+
         return new Voucher(
             $id,
             is_string($data['voucherNumber'] ?? null) ? $data['voucherNumber'] : '',
@@ -328,6 +344,12 @@ final class CoreSubject implements Subject
             (bool) ($data['recurring'] ?? false),
             is_int($data['economicYear'] ?? null) ? $data['economicYear'] : null,
             is_string($data['supplierTaxationMethod'] ?? null) ? $data['supplierTaxationMethod'] : null,
+            is_string($data['serviceDate'] ?? null) ? CalendarDate::of($data['serviceDate']) : null,
+            is_string($servicePeriod['from'] ?? null) ? CalendarDate::of($servicePeriod['from']) : null,
+            is_string($servicePeriod['to'] ?? null) ? CalendarDate::of($servicePeriod['to']) : null,
+            is_string($data['kind'] ?? null) ? $data['kind'] : null,
+            is_string($data['partnerId'] ?? null) ? Uuid::fromString($data['partnerId']) : null,
+            is_string($data['issuer'] ?? null) ? $data['issuer'] : null,
         );
     }
 

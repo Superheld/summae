@@ -1,0 +1,38 @@
+{
+  "fixture": "fiscal-year-management",
+  "description": "Buchhalter-M: createFiscalYear als Operation — Anlage, Überschneidung abgewiesen, Lücke erlaubt (Hinweis), Buchung im neuen Jahr.",
+  "covers": ["F-CORE-025"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-2027-1", "voucherDate": "2027-01-05" } ]
+  },
+  "steps": [
+    {
+      "op": "createFiscalYear",
+      "input": { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      "expect": { "result": { "year": 2027, "periodCount": 12, "comment": "Default: 12 Monatsperioden" } }
+    },
+    {
+      "op": "createFiscalYear",
+      "input": { "year": 2027, "start": "2027-07-01", "end": "2028-06-30" },
+      "expect": { "error": "E_FISCALYEAR_OVERLAP" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-01-05", "voucherId": "$V1", "text": "erste Buchung im neuen Jahr",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "periodRef": { "fiscalYear": 2027, "period": 1 } } }
+    }
+  ],
+  "projections": []
+}

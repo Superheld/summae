@@ -1,0 +1,95 @@
+{
+  "fixture": "partner-and-ec-sales",
+  "description": "SF-21: Geschäftspartner anlegen; ig. Lieferung mit USt-IdNr. GoBD-fest am Vorgang; OP-Liste je Partner; ZM-Grundlage (ecSalesList); DATEV-Stammdaten-Export; unbekannter Partner abgewiesen.",
+  "covers": ["F-CORE-022", "F-TAX-012", "F-IO-006", "SF-21"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8125", "name": "Steuerfreie ig. Lieferungen § 4 Nr. 1b", "type": "revenue" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxCodes": [
+      { "code": "igL", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00", "mechanism": "intra_community_supply", "reportingKey": "41" } ] },
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": { "name": "Alpen Handel GmbH", "kind": "customer", "vatId": "ATU12345678", "paymentTermsDays": 30, "accountNumbers": ["1400"] },
+      "expect": { "result": { "id": "$P1", "vatId": "ATU12345678" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-AT-1", "voucherDate": "2026-03-10", "partnerId": "$P1", "kind": "invoice_out" },
+        "entryDate": "2026-03-10", "text": "ig. Lieferung Österreich",
+        "taxCode": "igL", "direction": "output",
+        "netLines": [ { "account": "8125", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": {
+        "result": {
+          "comment": "steuerfrei: keine Steuerzeile, aber Kz-41-Tag an der Basis; OP trägt partnerId",
+          "entry": { "sequenceNumber": 1 },
+          "grossTotal": { "amount": "1000.00", "currency": "EUR" },
+          "openItemsCreated": [ { "kind": "receivable", "partnerId": "$P1" } ]
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-DE-1", "voucherDate": "2026-03-12", "partnerId": "$P1", "kind": "invoice_out" },
+        "entryDate": "2026-03-12", "text": "Inlandsleistung an denselben Partner",
+        "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "500.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-X", "voucherDate": "2026-03-13", "partnerId": "00000000-0000-7000-8000-000000000000" },
+        "entryDate": "2026-03-13", "text": "unbekannter Partner",
+        "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "10.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "error": "E_PARTNER_UNKNOWN" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-03-31", "kind": "receivable", "partnerId": "$P1" },
+      "expect": {
+        "items": [
+          { "voucherNumber": "AR-AT-1", "remaining": { "amount": "1000.00", "currency": "EUR" } },
+          { "voucherNumber": "AR-DE-1", "remaining": { "amount": "595.00", "currency": "EUR" } }
+        ]
+      }
+    },
+    {
+      "name": "ecSalesList",
+      "params": { "year": 2026, "quarter": 1 },
+      "expect": {
+        "comment": "ZM-Grundlage: nur die ig. Lieferung, je USt-IdNr.",
+        "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ]
+      }
+    },
+    {
+      "name": "datevExport",
+      "params": { "kind": "partners" },
+      "expect": {
+        "rows": [ { "name": "Alpen Handel GmbH", "vatId": "ATU12345678" } ],
+        "rowCount": 1
+      }
+    }
+  ]
+}

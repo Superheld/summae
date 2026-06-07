@@ -1,0 +1,70 @@
+{
+  "fixture": "service-date-rate-change",
+  "description": "Buchhalter-G1 / F-TAX-011: Die Steuerregelversion folgt dem LEISTUNGSdatum, nicht dem Belegdatum (§ 27 Abs. 1 UStG) — Testszenario mit fiktivem Satzwechsel 19 % → 21 % zum 01.01.2027.",
+  "covers": ["F-TAX-011", "F-TAX-001"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "8400", "name": "Erlöse Regelsteuersatz", "type": "revenue" },
+      { "number": "1776", "name": "USt Regelsteuersatz", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "vouchers": [],
+    "taxCodes": [
+      {
+        "code": "UStRegel",
+        "versions": [
+          { "validFrom": "2024-01-01", "validTo": "2026-12-31", "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" },
+          { "validFrom": "2027-01-01", "validTo": null, "rate": "21.00", "taxAccount": "1776", "reportingKey": "81" }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2027-01-20", "serviceDate": "2026-12-15", "taxCode": "UStRegel", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Beleg aus Januar 2027, Leistung Dezember 2026 → ALTER Satz 19 % (§ 27 UStG)",
+          "taxLines": [ { "money": { "amount": "190.00", "currency": "EUR" }, "taxTag": { "appliedVersion": "2024-01-01" } } ],
+          "grossTotal": { "amount": "1190.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2027-01-20", "serviceDate": "2027-01-10", "taxCode": "UStRegel", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Leistung im Januar 2027 → neuer Satz 21 %",
+          "taxLines": [ { "money": { "amount": "210.00", "currency": "EUR" }, "taxTag": { "appliedVersion": "2027-01-01" } } ],
+          "grossTotal": { "amount": "1210.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2026-11-05", "taxCode": "UStRegel", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "100.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Ohne serviceDate: Fallback Belegdatum → 19 %",
+          "taxLines": [ { "money": { "amount": "19.00", "currency": "EUR" } } ]
+        }
+      }
+    }
+  ],
+  "projections": []
+}

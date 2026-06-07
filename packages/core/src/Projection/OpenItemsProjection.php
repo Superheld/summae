@@ -33,11 +33,16 @@ final readonly class OpenItemsProjection
     {
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
         $kind = is_string($params['kind'] ?? null) ? OpenItemKind::tryFrom($params['kind']) : null;
+        $partnerId = is_string($params['partnerId'] ?? null) ? $params['partnerId'] : null;
 
         $open = [];
 
         foreach ($this->openItems->all() as $item) {
             if ($kind !== null && $item->kind !== $kind) {
+                continue;
+            }
+
+            if ($partnerId !== null && $item->partnerId?->value !== $partnerId) {
                 continue;
             }
 

@@ -40,6 +40,17 @@ final readonly class PostVoucherService
             throw new DomainError('E_ENTRY_NO_VOUCHER', 'postVoucher braucht voucher.voucherDate');
         }
 
+        // v0.4: Partner muss existieren, bevor irgendetwas entsteht.
+        $partnerId = null;
+        if (isset($voucherData['partnerId'])) {
+            $partnerId = $this->tenant->partnerService->require($voucherData['partnerId'])->id;
+        }
+
+        $serviceDate = is_string($voucherData['serviceDate'] ?? null)
+            ? CalendarDate::of($voucherData['serviceDate'])
+            : null;
+        $servicePeriod = is_array($voucherData['servicePeriod'] ?? null) ? $voucherData['servicePeriod'] : [];
+
         $voucher = new Voucher(
             $this->tenant->ids->next(),
             $voucherNumber,
@@ -47,11 +58,19 @@ final readonly class PostVoucherService
             is_string($voucherData['due'] ?? null) ? CalendarDate::of($voucherData['due']) : null,
             (bool) ($voucherData['recurring'] ?? false),
             is_int($voucherData['economicYear'] ?? null) ? $voucherData['economicYear'] : null,
+            null,
+            $serviceDate,
+            is_string($servicePeriod['from'] ?? null) ? CalendarDate::of($servicePeriod['from']) : null,
+            is_string($servicePeriod['to'] ?? null) ? CalendarDate::of($servicePeriod['to']) : null,
+            is_string($voucherData['kind'] ?? null) ? $voucherData['kind'] : null,
+            $partnerId,
+            is_string($voucherData['issuer'] ?? null) ? $voucherData['issuer'] : null,
         );
         $this->tenant->vouchers->add($voucher);
 
         $expansion = $this->tenant->tax->expand([
             'date' => $voucherDate->iso,
+            'serviceDate' => $voucher->taxDate()->iso,
             'taxCode' => $input['taxCode'] ?? null,
             'direction' => $input['direction'] ?? 'output',
             'netLines' => $input['netLines'] ?? [],

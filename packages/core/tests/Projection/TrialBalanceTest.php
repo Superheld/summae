@@ -90,10 +90,10 @@ final class TrialBalanceTest extends TestCase
     {
         $rows = $this->projection()->compute(['fiscalYear' => 2026, 'throughPeriod' => 1])['rows'];
 
-        // 1200 kumulativ (1000 − 300), 4930 nur 2026; 8400 fehlt (Erfolgskonto ohne Bewegung 2026)
+        // 1200: Vortrag 1000, Verkehrszahlen nur 2026; 8400 fehlt (Erfolgskonto ohne Bewegung 2026)
         self::assertSame([
-            ['account' => '1200', 'debitTotal' => '1000.00', 'creditTotal' => '300.00', 'balance' => '700.00'],
-            ['account' => '4930', 'debitTotal' => '300.00', 'creditTotal' => '0.00', 'balance' => '300.00'],
+            ['account' => '1200', 'openingBalance' => '1000.00', 'debitTotal' => '0.00', 'creditTotal' => '300.00', 'balance' => '700.00'],
+            ['account' => '4930', 'openingBalance' => '0.00', 'debitTotal' => '300.00', 'creditTotal' => '0.00', 'balance' => '300.00'],
         ], $rows);
     }
 
@@ -102,8 +102,8 @@ final class TrialBalanceTest extends TestCase
         $rows = $this->projection()->compute(['fiscalYear' => 2025, 'throughPeriod' => 1])['rows'];
 
         self::assertSame([
-            ['account' => '1200', 'debitTotal' => '1000.00', 'creditTotal' => '0.00', 'balance' => '1000.00'],
-            ['account' => '8400', 'debitTotal' => '0.00', 'creditTotal' => '1000.00', 'balance' => '-1000.00'],
+            ['account' => '1200', 'openingBalance' => '0.00', 'debitTotal' => '1000.00', 'creditTotal' => '0.00', 'balance' => '1000.00'],
+            ['account' => '8400', 'openingBalance' => '0.00', 'debitTotal' => '0.00', 'creditTotal' => '1000.00', 'balance' => '-1000.00'],
         ], $rows);
     }
 

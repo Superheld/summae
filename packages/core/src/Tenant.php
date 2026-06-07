@@ -9,6 +9,7 @@ use Rechnungswesen\Core\InMemory\InMemoryAuditTrail;
 use Rechnungswesen\Core\InMemory\InMemoryFiscalYearRepository;
 use Rechnungswesen\Core\InMemory\InMemoryJournalRepository;
 use Rechnungswesen\Core\InMemory\InMemoryOpenItemRepository;
+use Rechnungswesen\Core\InMemory\InMemoryPartnerRepository;
 use Rechnungswesen\Core\InMemory\InMemoryVoucherRepository;
 use Rechnungswesen\Core\Ledger\DimensionRegistry;
 use Rechnungswesen\Core\Ledger\Ledger;
@@ -17,7 +18,9 @@ use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\AuditTrail;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
 use Rechnungswesen\Core\Port\JournalRepository;
+use Rechnungswesen\Core\Partner\PartnerService;
 use Rechnungswesen\Core\Port\OpenItemRepository;
+use Rechnungswesen\Core\Port\PartnerRepository;
 use Rechnungswesen\Core\Port\VoucherRepository;
 use Rechnungswesen\Core\Shared\Clock;
 use Rechnungswesen\Core\Shared\Currency;
@@ -45,9 +48,11 @@ final readonly class Tenant
         public VoucherRepository $vouchers,
         public JournalRepository $journal,
         public OpenItemRepository $openItems,
+        public PartnerRepository $partners,
         public AuditTrail $audit,
         public Ledger $ledger,
         public TaxService $tax,
+        public PartnerService $partnerService,
         public MappingRegistry $mappings,
         public Clock $clock,
         public IdGenerator $ids,
@@ -76,6 +81,7 @@ final readonly class Tenant
         $vouchers = new InMemoryVoucherRepository();
         $journal = new InMemoryJournalRepository();
         $openItems = new InMemoryOpenItemRepository();
+        $partners = new InMemoryPartnerRepository();
         $audit = new InMemoryAuditTrail();
 
         $ledger = new Ledger(
@@ -92,6 +98,7 @@ final readonly class Tenant
         );
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids);
 
         return new self(
             $ids->next(),
@@ -102,9 +109,11 @@ final readonly class Tenant
             $vouchers,
             $journal,
             $openItems,
+            $partners,
             $audit,
             $ledger,
             $tax,
+            $partnerService,
             $mappings,
             $clock,
             $ids,

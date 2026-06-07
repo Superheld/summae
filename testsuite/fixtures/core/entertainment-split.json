@@ -1,0 +1,65 @@
+{
+  "fixture": "entertainment-split",
+  "description": "SF-23 (Buchhalter-G3): Bewirtung — 70/30-Split auf zwei Konten (getrennte Aufzeichnung § 4 Abs. 7 EStG!), Vorsteuer zu 100 % abziehbar; EÜR weist abziehbar/nicht abziehbar getrennt aus.",
+  "covers": ["F-CORE-008", "SF-23"],
+  "setup": {
+    "tenant": { "name": "Freiberufler EÜR", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "cash" } },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4650", "name": "Bewirtungskosten abziehbar (70%)", "type": "expense" },
+      { "number": "4654", "name": "Bewirtungskosten nicht abziehbar (30%)", "type": "expense" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "BEWIRTUNG-1", "voucherDate": "2026-03-15", "kind": "invoice_in" } ],
+    "taxCodes": [
+      { "code": "VSt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1576", "reportingKey": "66" } ] }
+    ],
+    "ruleModules": {
+      "mappings": [
+        { "id": "euer-bewirtung", "kind": "cash-basis-categories", "version": "1",
+          "positions": [
+            { "key": "A1", "label": "Bewirtungsaufwendungen abziehbar", "accounts": [ { "numbers": ["4650"] } ] },
+            { "key": "A2", "label": "Bewirtungsaufwendungen nicht abziehbar", "accounts": [ { "numbers": ["4654"] } ] },
+            { "key": "A3", "label": "Gezahlte Vorsteuer", "accounts": [ { "numbers": ["1576"] } ] }
+          ] }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-15", "voucherId": "$V1", "text": "Geschäftsessen (100 netto: 70 abziehbar / 30 nicht; VSt 19 voll)",
+        "lines": [
+          { "account": "4650", "side": "debit", "money": { "amount": "70.00", "currency": "EUR" } },
+          { "account": "4654", "side": "debit", "money": { "amount": "30.00", "currency": "EUR" } },
+          { "account": "1576", "side": "debit", "money": { "amount": "19.00", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "100.00", "currency": "EUR" } } },
+          { "account": "1200", "side": "credit", "money": { "amount": "119.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2026, "mapping": "euer-bewirtung", "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Getrennte Aufzeichnung § 4 Abs. 7 durch eigene Konten/Kategorien — die 70/30-Aufteilung selbst macht App oder Kontierung",
+        "expenses": [
+          { "category": "Bewirtungsaufwendungen abziehbar", "amount": "70.00" },
+          { "category": "Bewirtungsaufwendungen nicht abziehbar", "amount": "30.00" },
+          { "category": "Gezahlte Vorsteuer", "amount": "19.00" }
+        ],
+        "income": []
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 1, "asOf": "2026-07-01" },
+      "expect": { "comment": "Vorsteuer trotz 70/30 zu 100 % abziehbar (§ 15 Abs. 1a UStG)", "keys": { "66": { "tax": "19.00" } } }
+    }
+  ]
+}

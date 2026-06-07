@@ -12,6 +12,7 @@ use Rechnungswesen\Core\Ledger\Side;
 use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\JournalRepository;
 use Rechnungswesen\Core\Port\OpenItemRepository;
+use Rechnungswesen\Core\Port\VoucherRepository;
 use Rechnungswesen\Core\Shared\AccountNumber;
 use Rechnungswesen\Core\Shared\CalendarDate;
 use Rechnungswesen\Core\Shared\Currency;
@@ -37,6 +38,7 @@ final readonly class VatReturnProjection
         private Currency $baseCurrency,
         private JournalRepository $journal,
         private OpenItemRepository $openItems,
+        private VoucherRepository $vouchers,
         private AccountRepository $accounts,
         private TaxCodeRegistry $registry,
         private TaxProfile $profile,
@@ -110,7 +112,11 @@ final readonly class VatReturnProjection
             }
         } else {
             foreach ($this->journal->all() as $entry) {
-                if (!$this->inQuarter($entry->entryDate, $year, $quarter)) {
+                // v0.4: Soll-Zuordnung folgt dem Leistungsdatum (Fallback Belegdatum).
+                $voucher = $this->vouchers->byId($entry->voucherId);
+                $taxDate = $voucher === null ? $entry->entryDate : $voucher->taxDate();
+
+                if (!$this->inQuarter($taxDate, $year, $quarter)) {
                     continue;
                 }
 
@@ -186,6 +192,10 @@ final readonly class VatReturnProjection
 
     private function accountDirection(string $accountNumber): string
     {
+        if ($accountNumber === '') {
+            return 'output'; // steuerfreie Kennzahlen (igL) ohne Steuerkonto
+        }
+
         $account = $this->accounts->byNumber(AccountNumber::of($accountNumber));
 
         return $account?->subtype === 'tax_in' ? 'input' : 'output';

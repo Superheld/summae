@@ -1,0 +1,89 @@
+{
+  "fixture": "profit-appropriation",
+  "description": "SF-25 (Buchhalter-G6): Ergebnisverwendung als echte Buchung — JÜ Jahr 1 wird in Jahr 2 per Beschluss auf Gewinnvortrag und Ausschüttung verteilt; includesNetIncome zeigt nur das noch nicht verwendete Ergebnis.",
+  "covers": ["F-CORE-024", "SF-25"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" },
+      { "number": "0860", "name": "Gewinnvortrag", "type": "equity" },
+      { "number": "0869", "name": "Ergebnisverwendung", "type": "equity", "subtype": "result_allocation" },
+      { "number": "1701", "name": "Verbindlichkeit Ausschüttung", "type": "liability" }
+    ],
+    "fiscalYears": [
+      { "year": 2025, "start": "2025-01-01", "end": "2025-12-31", "periods": [ { "period": 1, "start": "2025-01-01", "end": "2025-12-31" } ] },
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31", "periods": [ { "period": 1, "start": "2026-01-01", "end": "2026-12-31" } ] }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-2025-1", "voucherDate": "2025-05-01" },
+      { "id": "$V2", "voucherNumber": "BESCHLUSS-2026", "voucherDate": "2026-04-30", "kind": "internal" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        { "id": "bilanz-ek", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "children": [ { "key": "A.B", "label": "Bank", "accounts": [ { "from": "1200", "to": "1299" } ] } ] },
+            { "key": "P", "label": "Passiva", "children": [
+              { "key": "P.JU", "label": "Jahresüberschuss / nicht verwendete Ergebnisse", "accounts": [ { "numbers": ["0869"] } ], "includesNetIncome": true },
+              { "key": "P.GV", "label": "Gewinnvortrag", "accounts": [ { "numbers": ["0860"] } ] },
+              { "key": "P.V", "label": "Verbindlichkeiten", "accounts": [ { "from": "1700", "to": "1799" } ] }
+            ] }
+          ] },
+        { "id": "guv-mini", "kind": "income-statement", "version": "1",
+          "positions": [ { "key": "1", "label": "Erlöse", "accounts": [ { "from": "8000", "to": "8999" } ] } ] }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2025-05-01", "voucherId": "$V1", "text": "Erlös Jahr 1",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-30", "voucherId": "$V2", "text": "Gewinnverwendungsbeschluss: 800 Vortrag, 200 Ausschüttung",
+        "lines": [
+          { "account": "0869", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "0860", "side": "credit", "money": { "amount": "800.00", "currency": "EUR" } },
+          { "account": "1701", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "comment": "normale Buchung — kein Abschlusszyklus" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2025-12-31", "mapping": "bilanz-ek", "incomeMapping": "guv-mini" },
+      "expect": {
+        "comment": "Vor Verwendung: alles im JÜ-Posten",
+        "assets": [ { "key": "A.B", "amount": "1000.00" } ],
+        "liabilitiesAndEquity": [ { "key": "P.JU", "amount": "1000.00" } ],
+        "liabilitiesAndEquityTotal": "1000.00"
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "bilanz-ek", "incomeMapping": "guv-mini" },
+      "expect": {
+        "comment": "Nach Beschluss: JÜ-Posten 0 (1000 kumuliert − 1000 verwendet), Gewinnvortrag 800, Ausschüttungsverbindlichkeit 200",
+        "assets": [ { "key": "A.B", "amount": "1000.00" } ],
+        "liabilitiesAndEquity": [
+          { "key": "P.JU", "amount": "0.00" },
+          { "key": "P.GV", "amount": "800.00" },
+          { "key": "P.V", "amount": "200.00" }
+        ],
+        "liabilitiesAndEquityTotal": "1000.00"
+      }
+    }
+  ]
+}

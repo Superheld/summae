@@ -9,8 +9,12 @@ use Rechnungswesen\Core\Shared\Uuid;
 
 /**
  * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung,
- * mehrere Buchungen können ihn referenzieren. Metadaten `due`,
- * `recurring`, `economicYear` braucht die EÜR-Projektion (R2/R5).
+ * mehrere Buchungen können ihn referenzieren.
+ *
+ * Metadaten: `due`/`recurring`/`economicYear` für die EÜR (R2);
+ * `serviceDate`/`servicePeriod` (v0.4, § 27 UStG: Steuerregelversion und
+ * Soll-VA folgen dem Leistungsdatum); `partnerId` (v0.4, vererbt an OPs);
+ * `kind` als Auswertungs-/Exporthilfe ohne Kernlogik.
  */
 final readonly class Voucher implements \JsonSerializable
 {
@@ -22,7 +26,19 @@ final readonly class Voucher implements \JsonSerializable
         public bool $recurring = false,
         public ?int $economicYear = null,
         public ?string $supplierTaxationMethod = null,
+        public ?CalendarDate $serviceDate = null,
+        public ?CalendarDate $servicePeriodFrom = null,
+        public ?CalendarDate $servicePeriodTo = null,
+        public ?string $kind = null,
+        public ?Uuid $partnerId = null,
+        public ?string $issuer = null,
     ) {
+    }
+
+    /** Steuerlich maßgebliches Datum: Leistungsdatum, Fallback Belegdatum. */
+    public function taxDate(): CalendarDate
+    {
+        return $this->serviceDate ?? $this->servicePeriodTo ?? $this->voucherDate;
     }
 
     /** @return array<string, mixed> */
@@ -36,6 +52,14 @@ final readonly class Voucher implements \JsonSerializable
             'recurring' => $this->recurring,
             'economicYear' => $this->economicYear,
             'supplierTaxationMethod' => $this->supplierTaxationMethod,
+            'serviceDate' => $this->serviceDate?->iso,
+            'servicePeriod' => $this->servicePeriodFrom === null ? null : [
+                'from' => $this->servicePeriodFrom->iso,
+                'to' => $this->servicePeriodTo?->iso,
+            ],
+            'kind' => $this->kind,
+            'partnerId' => $this->partnerId?->value,
+            'issuer' => $this->issuer,
         ];
     }
 }
