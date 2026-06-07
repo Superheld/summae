@@ -36,3 +36,7 @@ gwg-and-depreciation
 allocate-largest-remainder
 allocation-run
 edge-errors
+audit-trail
+datev-export
+journal-export-z3
+partner-and-ec-sales

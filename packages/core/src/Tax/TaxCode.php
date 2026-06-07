@@ -20,6 +20,7 @@ final readonly class TaxCode
     public function __construct(
         public string $code,
         public array $versions,
+        public ?string $datevBu = null,
     ) {
     }
 

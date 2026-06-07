@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Rechnungswesen\Runner;
 
-use Rechnungswesen\Core\Shared\Uuid;
+use Rechnungswesen\Core\Shared\DeterministicIdGenerator;
+use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Runner\Subject\Subject;
 use Rechnungswesen\Runner\Subject\SubjectError;
 
@@ -20,7 +21,11 @@ final class FixtureRunner
     public function run(Fixture $fixture, Subject $subject): FixtureResult
     {
         $bag = new PlaceholderBag();
-        $freshId = static fn (string $name): string => Uuid::v7()->value;
+        // Deterministische Platzhalter-IDs: der Doppellauf muss byte-identische
+        // Spuren liefern (Strom-Hashes enthalten IDs). Eigener Zeitanteil,
+        // damit Subject-interne IDs nie kollidieren.
+        $ids = new DeterministicIdGenerator(FixedClock::at('2026-06-07T00:00:00+00:00'));
+        $freshId = static fn (string $name): string => $ids->next()->value;
         $diffs = [];
         $trace = [];
 
