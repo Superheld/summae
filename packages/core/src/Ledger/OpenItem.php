@@ -32,6 +32,28 @@ final class OpenItem implements \JsonSerializable
     ) {
     }
 
+    /**
+     * Rehydrierung aus Persistenz (Adapter).
+     *
+     * @param list<Settlement> $settlements
+     */
+    public static function restore(
+        Uuid $id,
+        OpenItemKind $kind,
+        Uuid $originEntryId,
+        int $originLineIndex,
+        Money $money,
+        Uuid $voucherId,
+        CalendarDate $openedAt,
+        ?Uuid $partnerId,
+        array $settlements,
+    ): self {
+        $item = new self($id, $kind, $originEntryId, $originLineIndex, $money, $voucherId, $openedAt, $partnerId);
+        $item->settlements = $settlements;
+
+        return $item;
+    }
+
     /** @return list<Settlement> */
     public function settlements(): array
     {

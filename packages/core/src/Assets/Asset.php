@@ -42,6 +42,35 @@ final class Asset implements \JsonSerializable
     ) {
     }
 
+    /**
+     * Rehydrierung aus Persistenz (Adapter).
+     *
+     * @param list<Money> $monthlySchedule
+     * @param list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> $depreciations
+     */
+    public static function restore(
+        Uuid $id,
+        string $name,
+        string $assetClass,
+        AccountNumber $assetAccount,
+        Money $acquisitionCost,
+        CalendarDate $acquiredOn,
+        AssetRoute $route,
+        ?int $usefulLifeMonths,
+        array $monthlySchedule,
+        Uuid $voucherId,
+        array $depreciations,
+        bool $disposed,
+        ?CalendarDate $disposedOn,
+    ): self {
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId);
+        $asset->depreciations = $depreciations;
+        $asset->disposed = $disposed;
+        $asset->disposedOn = $disposedOn;
+
+        return $asset;
+    }
+
     public function isDisposed(): bool
     {
         return $this->disposed;
@@ -93,6 +122,21 @@ final class Asset implements \JsonSerializable
             'amount' => $amount,
             'entryId' => $entryId,
         ];
+    }
+
+    /**
+     * Lebenslauf in Persistenzform (Adapter).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function depreciationsForPersistence(): array
+    {
+        return array_map(static fn (array $booking): array => [
+            'planMonth' => $booking['planMonth'],
+            'date' => $booking['date']->iso,
+            'amount' => $booking['amount']->jsonSerialize(),
+            'entryId' => $booking['entryId']->value,
+        ], $this->depreciations);
     }
 
     public function accumulatedDepreciationAt(?CalendarDate $asOf): Money
