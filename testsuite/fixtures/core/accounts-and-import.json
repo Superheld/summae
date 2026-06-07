@@ -1,0 +1,61 @@
+{
+  "fixture": "accounts-and-import",
+  "description": "SF-13: eigenes Konto anlegen, Nummernkollision abgewiesen, Kontenrahmen-Import (DATEV-kompatibel), defekter Import abgewiesen.",
+  "covers": ["F-CORE-005", "F-CORE-007", "F-IO-002", "SF-13"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": []
+  },
+  "steps": [
+    {
+      "op": "importChartOfAccounts",
+      "input": {
+        "format": "datev-csv",
+        "rows": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "1400", "name": "Forderungen aus L+L", "type": "asset", "subtype": "ar" },
+          { "number": "8400", "name": "Erlöse 19% USt", "type": "revenue" }
+        ]
+      },
+      "expect": { "result": { "importedCount": 3 } }
+    },
+    {
+      "op": "createAccount",
+      "input": { "number": "8401", "name": "Erlöse Spezialgeschäft", "type": "revenue" },
+      "expect": { "result": { "number": "8401", "status": "active" } }
+    },
+    {
+      "op": "createAccount",
+      "input": { "number": "8400", "name": "Kollision", "type": "revenue" },
+      "expect": { "error": "E_ACCOUNT_NUMBER_TAKEN" }
+    },
+    {
+      "op": "importChartOfAccounts",
+      "input": { "format": "datev-csv", "rows": [ { "name": "Konto ohne Nummer" } ] },
+      "expect": { "error": "E_COA_FORMAT_INVALID" }
+    },
+    {
+      "op": "createAccount",
+      "input": { "number": "0420", "name": "Technische Anlagen", "type": "asset", "subtype": "fixed_asset" },
+      "expect": { "result": { "number": "0420" }, "comment": "führende Null bleibt erhalten (String!)" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12, "includeZeroBalances": true },
+      "expect": {
+        "comment": "Sortierung: Codepoint-Vergleich, führende Nullen signifikant (determinismus.md §3)",
+        "rows": [
+          { "account": "0420" },
+          { "account": "1200" },
+          { "account": "1400" },
+          { "account": "8400" },
+          { "account": "8401" }
+        ]
+      }
+    }
+  ]
+}

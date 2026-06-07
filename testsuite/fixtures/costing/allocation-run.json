@@ -1,0 +1,83 @@
+{
+  "fixture": "allocation-run",
+  "description": "SF-12: Primärkosten mit Kostenstellen-Dimension; Umlage der Hilfskostenstelle (Stufenleiter); Verrechnungssumme bleibt erhalten, Hilfsstelle endet bei 0; BAB als Projektion eines released Laufs.",
+  "covers": ["F-CORE-006", "F-KLR-001", "F-KLR-003", "F-KLR-004", "SF-12"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "LOHN-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "VW", "name": "Verwaltung (Hilfsstelle)" },
+      { "typeCode": "costCenter", "code": "FE", "name": "Fertigung" },
+      { "typeCode": "costCenter", "code": "VT", "name": "Vertrieb" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Gehälter Januar",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "2000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FE" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "4000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [
+          { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] }
+        ]
+      },
+      "expect": { "result": { "valid": true } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "error": "E_COSTING_RUN_RELEASED" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "costAllocationSheet",
+      "params": { "fiscalYear": 2026, "period": 1, "runId": "$R1" },
+      "expect": {
+        "comment": "Verrechnungssumme 4000 bleibt erhalten; VW nach Umlage 0",
+        "primary": [
+          { "costCenter": "FE", "total": "2000.00" },
+          { "costCenter": "VT", "total": "1000.00" },
+          { "costCenter": "VW", "total": "1000.00" }
+        ],
+        "afterAllocation": [
+          { "costCenter": "FE", "total": "2600.00" },
+          { "costCenter": "VT", "total": "1400.00" },
+          { "costCenter": "VW", "total": "0.00" }
+        ],
+        "grandTotal": "4000.00"
+      }
+    }
+  ]
+}

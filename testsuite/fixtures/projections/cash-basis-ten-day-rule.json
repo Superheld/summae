@@ -1,0 +1,86 @@
+{
+  "fixture": "cash-basis-ten-day-rule",
+  "description": "EÜR-Projektion: 10-Tage-Regel in drei Varianten (aus dem EÜR-Beweis TC2a–c). Greift nur, wenn Zahlung UND Fälligkeit im Fenster 22.12.–10.01. liegen (BFH 13.12.2022: Dauerfristverlängerung → keine Umqualifizierung).",
+  "covers": ["F-CORE-008", "F-CORE-010", "F-CORE-016", "SF-08", "SF-16"],
+  "setup": {
+    "tenant": { "name": "Freiberufler EÜR", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1776", "name": "USt", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [
+      { "year": 2025, "start": "2025-01-01", "end": "2025-12-31" },
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "USTVA-2025-12", "voucherDate": "2026-01-05",
+        "recurring": true, "due": "2026-01-10", "economicYear": 2025 },
+      { "id": "$V2", "voucherNumber": "USTVA-2025-11", "voucherDate": "2026-01-12",
+        "recurring": true, "due": "2025-12-10", "economicYear": 2025 },
+      { "id": "$V3", "voucherNumber": "USTVA-2025-12-DF", "voucherDate": "2026-01-05",
+        "recurring": true, "due": "2026-02-10", "economicYear": 2025 }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-08", "voucherId": "$V1", "text": "USt-VA Dez 25, fällig 10.01., gezahlt 08.01.",
+        "lines": [
+          { "account": "1776", "side": "debit", "money": { "amount": "190.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-15", "voucherId": "$V2", "text": "USt-VA Nov 25, gezahlt außerhalb Fenster",
+        "lines": [
+          { "account": "1776", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-05", "voucherId": "$V3", "text": "USt-VA Dez 25, Dauerfrist: fällig 10.02.",
+        "lines": [
+          { "account": "1776", "side": "debit", "money": { "amount": "80.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "80.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2025, "asOf": "2026-06-07" },
+      "expect": {
+        "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ],
+        "income": []
+      }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2026, "asOf": "2026-06-07" },
+      "expect": {
+        "expenses": [ { "category": "USt-Zahlung an FA", "amount": "180.00" } ],
+        "income": []
+      }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2025, "asOf": "2030-01-01" },
+      "expect": {
+        "comment": "Neuberechnung Jahre später: identisch (F-CORE-016)",
+        "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ],
+        "income": []
+      }
+    }
+  ]
+}

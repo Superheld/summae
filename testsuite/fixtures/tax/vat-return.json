@@ -1,0 +1,74 @@
+{
+  "fixture": "vat-return",
+  "description": "SF-09: USt-VA-Kennzahlen als Projektion über taxTags. Soll-Versteuerung: Rechnung zählt sofort; Ist-Versteuerung würde erst beim Ausgleich zählen (eigener Fall unten via asOf).",
+  "covers": ["F-TAX-005", "SF-09"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "accrual" } },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-100", "voucherDate": "2026-04-10" },
+      { "id": "$V2", "voucherNumber": "ER-200", "voucherDate": "2026-05-03" }
+    ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] },
+      { "code": "VSt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1576", "reportingKey": "66" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-10", "voucherId": "$V1", "text": "Ausgangsrechnung Q2",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-05-03", "voucherId": "$V2", "text": "Bürobedarf bar",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "100.00", "currency": "EUR" } } },
+          { "account": "1576", "side": "debit", "money": { "amount": "19.00", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "100.00", "currency": "EUR" } } },
+          { "account": "1200", "side": "credit", "money": { "amount": "119.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2, "asOf": "2026-07-01" },
+      "expect": {
+        "comment": "Soll-Versteuerung: Rechnung vom 10.04. zählt in Q2, obwohl unbezahlt",
+        "keys": {
+          "81": { "base": "1000.00", "tax": "190.00" },
+          "66": { "tax": "19.00" }
+        },
+        "payload": { "amount": "171.00", "currency": "EUR" }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 1, "asOf": "2026-07-01" },
+      "expect": { "comment": "Q1 leer", "keys": {}, "payload": { "amount": "0.00", "currency": "EUR" } }
+    }
+  ]
+}

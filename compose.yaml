@@ -1,0 +1,22 @@
+services:
+  php:
+    build: docker/php
+    working_dir: /app
+    volumes:
+      - .:/app
+
+  # Erst ab JOB-012 (Eloquent-Adapter) nötig: docker compose --profile db up -d
+  postgres:
+    image: postgres:16
+    profiles: [db]
+    environment:
+      POSTGRES_DB: rechnungswesen
+      POSTGRES_USER: rechnungswesen
+      POSTGRES_PASSWORD: rechnungswesen
+    ports:
+      - "54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rechnungswesen"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

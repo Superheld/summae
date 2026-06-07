@@ -1,0 +1,75 @@
+{
+  "fixture": "allocate-largest-remainder",
+  "description": "Determinismus-Pflichtfall: 100,00 € zu gleichen Teilen auf 3 Empfänger → 33,34 / 33,33 / 33,33 (largest remainder; Gleichstand → erster in stabiler Reihenfolge). Summe bleibt exakt erhalten.",
+  "covers": ["F-KLR-003"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "LOHN-1", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "H", "name": "Hilfsstelle" },
+      { "typeCode": "costCenter", "code": "K1", "name": "Empfänger 1" },
+      { "typeCode": "costCenter", "code": "K2", "name": "Empfänger 2" },
+      { "typeCode": "costCenter", "code": "K3", "name": "Empfänger 3" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Primärkosten Hilfsstelle",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "H" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [
+          { "sender": "H", "receivers": [
+            { "code": "K1", "share": "1" },
+            { "code": "K2", "share": "1" },
+            { "code": "K3", "share": "1" }
+          ] }
+        ]
+      },
+      "expect": { "result": { "valid": true } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft" } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "costAllocationSheet",
+      "params": { "fiscalYear": 2026, "period": 1, "runId": "$R1" },
+      "expect": {
+        "comment": "33.333… → Rest 0.01 an K1 (erster bei Gleichstand). Naive Rundung ergäbe 99.99 oder 100.02.",
+        "afterAllocation": [
+          { "costCenter": "H", "total": "0.00" },
+          { "costCenter": "K1", "total": "33.34" },
+          { "costCenter": "K2", "total": "33.33" },
+          { "costCenter": "K3", "total": "33.33" }
+        ],
+        "grandTotal": "100.00"
+      }
+    }
+  ]
+}

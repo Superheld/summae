@@ -1,0 +1,80 @@
+{
+  "fixture": "finalize-reverse-period",
+  "description": "Festschreibung macht unveränderbar (Korrektur abgewiesen, Storno erlaubt); geschlossene Periode weist Buchungen ab; Storno referenziert Original.",
+  "covers": ["F-CORE-002", "F-CORE-004", "F-CORE-012", "F-CORE-013", "SF-06", "SF-07"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-2026-007", "voucherDate": "2026-01-20" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-20", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "240.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "240.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "status": "entered", "id": "$E1" } }
+    },
+    {
+      "op": "correct",
+      "input": { "entryId": "$E1", "text": "Bürobedarf Januar" },
+      "expect": { "result": { "status": "entered", "text": "Bürobedarf Januar" } }
+    },
+    {
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-01-31" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    },
+    {
+      "op": "correct",
+      "input": { "entryId": "$E1", "text": "darf nicht mehr" },
+      "expect": { "error": "E_ENTRY_FINALIZED" }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-25", "voucherId": "$V1", "text": "zu spät",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "1.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "1.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_PERIOD_CLOSED" }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-02-03", "text": "Storno Bürobedarf" },
+      "expect": { "result": { "sequenceNumber": 2, "reverses": "$E1" } }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-02-04", "text": "Doppelstorno" },
+      "expect": { "error": "E_ENTRY_ALREADY_REVERSED" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "0.00" },
+          { "account": "4930", "balance": "0.00" }
+        ]
+      }
+    }
+  ]
+}

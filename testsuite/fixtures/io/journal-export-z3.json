@@ -1,0 +1,63 @@
+{
+  "fixture": "journal-export-z3",
+  "description": "SF-14: GoBD-Z3-Export — Manifest mit Hashes, Feldkatalog vorhanden, Journal vollständig und in sequenceNumber-Reihenfolge.",
+  "covers": ["F-IO-001", "SF-14"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-001", "voucherDate": "2026-01-10" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-10", "voucherId": "$V1", "text": "Erlös 1",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-12", "voucherId": "$V1", "text": "Erlös 2",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-01-31" },
+      "expect": { "result": { "finalizedCount": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "journalExport",
+      "params": { "fiscalYear": 2026, "format": "gobd-z3" },
+      "expect": {
+        "manifest": {
+          "formatVersion": "0.2",
+          "baseCurrency": "EUR",
+          "streams": [ "journal", "accounts", "vouchers" ],
+          "hashAlgorithm": "sha256"
+        },
+        "fieldCatalogIncluded": true,
+        "journal": {
+          "entryCount": 2,
+          "ordering": "sequenceNumber",
+          "allFinalized": true
+        }
+      }
+    }
+  ]
+}

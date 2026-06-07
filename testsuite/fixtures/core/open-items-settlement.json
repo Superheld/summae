@@ -1,0 +1,91 @@
+{
+  "fixture": "open-items-settlement",
+  "description": "SF-04: Rechnung erzeugt offenen Posten; Teilzahlung, Restzahlung, Überzahlung abgewiesen; OP-Liste als Projektion.",
+  "covers": ["F-CORE-009", "SF-04"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-2026-010", "voucherDate": "2026-02-01" },
+      { "id": "$V2", "voucherNumber": "ZAHLUNG-1", "voucherDate": "2026-02-15" },
+      { "id": "$V3", "voucherNumber": "ZAHLUNG-2", "voucherDate": "2026-03-01" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "Ausgangsrechnung",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "openItemsCreated": [ { "id": "$OP1", "kind": "receivable", "money": { "amount": "1190.00", "currency": "EUR" } } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-15", "voucherId": "$V2", "text": "Teilzahlung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "500.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "690.00", "currency": "EUR" }, "status": "partially_settled" } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V3", "text": "Restzahlung (zu viel)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "700.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "700.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3, "id": "$E3" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E3", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "700.00", "currency": "EUR" } } ] },
+      "expect": { "error": "E_SETTLEMENT_EXCEEDS_ITEM", "comment": "690 offen, 700 zugeordnet" }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E3", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "690.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E3", "allocations": [ { "openItemId": "00000000-0000-7000-8000-000000000000", "money": { "amount": "10.00", "currency": "EUR" } } ] },
+      "expect": { "error": "E_OPENITEM_UNKNOWN" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-02-20", "kind": "receivable" },
+      "expect": {
+        "comment": "Zeitreise: Mitte Februar war der Posten teilausgeglichen",
+        "items": [ { "voucherNumber": "AR-2026-010", "remaining": { "amount": "690.00", "currency": "EUR" } } ]
+      }
+    },
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-12-31", "kind": "receivable" },
+      "expect": { "items": [] }
+    }
+  ]
+}

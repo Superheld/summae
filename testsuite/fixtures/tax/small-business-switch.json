@@ -1,0 +1,77 @@
+{
+  "fixture": "small-business-switch",
+  "description": "SF-11: Kleinunternehmer bucht ohne USt; unterjähriger Wechsel zur Regelbesteuerung zum Stichtag; rückwirkende Profiländerung in festgeschriebenen Zeitraum abgewiesen.",
+  "covers": ["F-TAX-003", "F-TAX-004", "SF-11"],
+  "setup": {
+    "tenant": { "name": "KU Einzelunternehmer", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8195", "name": "Erlöse Kleinunternehmer", "type": "revenue" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-001", "voucherDate": "2026-03-01" } ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ],
+    "taxProfile": { "taxationMethod": "cash", "smallBusiness": [ { "validFrom": "2026-01-01", "value": true } ] }
+  },
+  "steps": [
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2026-03-01", "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8195", "money": { "amount": "500.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "KU-Status zum Belegdatum aktiv → keine Steuerposition (§ 19 UStG)",
+          "taxLines": [],
+          "grossTotal": { "amount": "500.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V1", "text": "KU-Erlös",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "8195", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-03-31" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    },
+    {
+      "op": "setTaxProfile",
+      "input": { "smallBusiness": { "validFrom": "2026-02-01", "value": false } },
+      "expect": { "error": "E_PROFILE_RETROACTIVE_CONFLICT", "comment": "Februar/März sind festgeschrieben" }
+    },
+    {
+      "op": "setTaxProfile",
+      "input": { "smallBusiness": { "validFrom": "2026-07-01", "value": false }, "reason": "100.000-€-Grenze überschritten" },
+      "expect": { "result": { "smallBusiness": [ { "validFrom": "2026-01-01", "value": true }, { "validFrom": "2026-07-01", "value": false } ] } }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2026-08-01", "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "500.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Nach dem Stichtag: Regelbesteuerung, USt entsteht",
+          "taxLines": [ { "account": "1776", "side": "credit", "money": { "amount": "95.00", "currency": "EUR" } } ],
+          "grossTotal": { "amount": "595.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

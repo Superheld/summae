@@ -1,0 +1,87 @@
+{
+  "fixture": "gwg-and-depreciation",
+  "description": "SF-05: GWG-Weiche nach datierten Grenzen (600 → Sofortabzug, 3.000 → Aktivierung); AfA-Lauf monatsgenau pro rata, idempotent; Anlageverzeichnis als Projektion.",
+  "covers": ["F-AST-001", "F-AST-002", "F-AST-003", "F-AST-005", "SF-05"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0420", "name": "Technische Anlagen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-LAPTOP", "voucherDate": "2026-07-01" },
+      { "id": "$V2", "voucherNumber": "ER-MONITOR", "voucherDate": "2026-09-10" }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00" } ],
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ]
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0420",
+        "acquisitionCost": { "amount": "3000.00", "currency": "EUR" },
+        "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto"
+      },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 36, "id": "$A1" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Monitor", "assetClass": "it-hardware", "assetAccount": "0420",
+        "acquisitionCost": { "amount": "600.00", "currency": "EUR" },
+        "acquiredOn": "2026-09-10", "voucherId": "$V2", "gwgChoice": "auto"
+      },
+      "expect": { "result": { "route": "immediate_expense", "expenseAccount": "4855" } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "Laptop: 6/36 von 3000 = 500.00, monatsgenau ab Juli; Monitor: kein AfA-Plan (Sofortabzug)",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "500.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "result": { "alreadyRun": true, "entriesCreated": 0 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "assetRegister",
+      "params": { "asOf": "2026-12-31" },
+      "expect": {
+        "assets": [
+          { "name": "Laptop", "acquisitionCost": { "amount": "3000.00", "currency": "EUR" },
+            "accumulatedDepreciation": { "amount": "500.00", "currency": "EUR" },
+            "bookValue": { "amount": "2500.00", "currency": "EUR" } },
+          { "name": "Monitor", "route": "immediate_expense",
+            "acquisitionCost": { "amount": "600.00", "currency": "EUR" },
+            "bookValue": { "amount": "0.00", "currency": "EUR" } }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "0420", "balance": "2500.00" },
+          { "account": "1200", "balance": "-3600.00" },
+          { "account": "4830", "balance": "500.00" },
+          { "account": "4855", "balance": "600.00" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "fixture": "post-malformed",
+  "description": "Formfehler beim Buchen: zu wenige Positionen, ungültige Beträge, unbekanntes Konto, unbekannte Buchung bei correct.",
+  "covers": ["F-CORE-001", "F-CORE-012"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "X-001", "voucherDate": "2026-04-01" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "nur eine Position",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ENTRY_TOO_FEW_LINES" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "negativer Betrag",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "-5.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "-5.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ENTRY_INVALID_AMOUNT" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "Float-Schmuggel",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "10.001", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "10.001", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ENTRY_INVALID_AMOUNT" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "Fantasiekonto",
+        "lines": [
+          { "account": "4711", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ACCOUNT_UNKNOWN" }
+    },
+    {
+      "op": "correct",
+      "input": { "entryId": "00000000-0000-7000-8000-000000000000", "text": "gibt es nicht" },
+      "expect": { "error": "E_ENTRY_UNKNOWN" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "comment": "Nichts wurde gebucht — alle Verstöße abgewiesen", "rows": [] }
+    }
+  ]
+}

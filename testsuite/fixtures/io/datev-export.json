@@ -1,0 +1,58 @@
+{
+  "fixture": "datev-export",
+  "description": "F-IO-005: DATEV-Buchungsstapel-Export — einfache Soll/Haben-Paare mit BU-Schlüssel aus der Alias-Spalte des Steuerschlüssels; deterministische Zeilenreihenfolge.",
+  "covers": ["F-IO-005"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-77", "voucherDate": "2026-03-03" } ],
+    "taxCodes": [
+      { "code": "USt19", "datevBu": "3",
+        "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-03", "voucherId": "$V1", "text": "Barverkauf",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "100.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "19.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "100.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-03-31" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "datevExport",
+      "params": { "fiscalYear": 2026, "fromPeriod": 1, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Brutto-Umsatz mit BU am Erlöskonto; Steuerzeile entsteht DATEV-seitig aus dem BU-Schlüssel — daher eine Stapelzeile",
+        "rows": [
+          {
+            "amount": "119.00", "debitCredit": "S",
+            "account": "1200", "contraAccount": "8400",
+            "buKey": "3", "documentField1": "AR-77",
+            "date": "0303", "text": "Barverkauf", "finalized": true
+          }
+        ],
+        "rowCount": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "fixture": "edge-errors",
+  "description": "Rand-Fehlercodes: Pflichtdimension fehlt, Jahr abgeschlossen, Anlage unbekannt/abgegangen, Umlage-Zyklus im Stufenleiterverfahren.",
+  "covers": ["F-CORE-006", "F-AST-004"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0420", "name": "Anlagen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "8801", "name": "Anlagenabgang", "type": "revenue" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31",
+        "periods": [ { "period": 1, "start": "2026-01-01", "end": "2026-12-31" } ],
+        "comment": "1-Perioden-Jahr, damit der Jahresabschluss kurz testbar ist" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "X-001", "voucherDate": "2026-02-01" },
+      { "id": "$V2", "voucherNumber": "ANLAGE-1", "voucherDate": "2026-01-10" }
+    ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "A", "name": "Stelle A" },
+      { "typeCode": "costCenter", "code": "B", "name": "Stelle B" }
+    ],
+    "ruleModules": {
+      "dimensionRules": [ { "accountRange": { "from": "4000", "to": "4999" }, "requiredDimension": "costCenter" } ],
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "Gehalt ohne Pflicht-Kostenstelle",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_DIMENSION_INVALID", "comment": "Regelmodul verlangt costCenter auf 4xxx" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "unbekannter Dimensionswert",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "ZZ" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_DIMENSION_INVALID" }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Server", "assetClass": "it-hardware", "assetAccount": "0420",
+        "acquisitionCost": { "amount": "2400.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-10", "voucherId": "$V2", "gwgChoice": "capitalize"
+      },
+      "expect": { "result": { "id": "$A1", "route": "capitalize" } }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "00000000-0000-7000-8000-000000000000", "disposedOn": "2026-06-01", "voucherId": "$V2" },
+      "expect": { "error": "E_ASSET_UNKNOWN" }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "$A1", "disposedOn": "2026-06-01", "voucherId": "$V2",
+                 "proceeds": { "amount": "2000.00", "currency": "EUR" }, "proceedsAccount": "8801", "bankAccount": "1200" },
+      "expect": { "result": { "status": "disposed" } }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "$A1", "disposedOn": "2026-07-01", "voucherId": "$V2" },
+      "expect": { "error": "E_ASSET_DISPOSED" }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [
+          { "sender": "A", "receivers": [ { "code": "B", "share": "100" } ] },
+          { "sender": "B", "receivers": [ { "code": "A", "share": "100" } ] }
+        ]
+      },
+      "expect": { "error": "E_COSTING_CYCLE", "comment": "A→B→A: Stufenleiter verlangt Zyklenfreiheit" }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "reopenPeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "error": "E_FISCALYEAR_CLOSED" }
+    }
+  ],
+  "projections": []
+}
