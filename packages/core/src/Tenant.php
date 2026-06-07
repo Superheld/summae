@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Rechnungswesen\Core;
 
+use Rechnungswesen\Core\Assets\AssetService;
 use Rechnungswesen\Core\InMemory\InMemoryAccountRepository;
+use Rechnungswesen\Core\InMemory\InMemoryAssetRepository;
 use Rechnungswesen\Core\InMemory\InMemoryAuditTrail;
 use Rechnungswesen\Core\InMemory\InMemoryFiscalYearRepository;
 use Rechnungswesen\Core\InMemory\InMemoryJournalRepository;
@@ -19,6 +21,7 @@ use Rechnungswesen\Core\Port\AuditTrail;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
 use Rechnungswesen\Core\Port\JournalRepository;
 use Rechnungswesen\Core\Partner\PartnerService;
+use Rechnungswesen\Core\Port\AssetRepository;
 use Rechnungswesen\Core\Port\OpenItemRepository;
 use Rechnungswesen\Core\Port\PartnerRepository;
 use Rechnungswesen\Core\Port\VoucherRepository;
@@ -49,10 +52,12 @@ final readonly class Tenant
         public JournalRepository $journal,
         public OpenItemRepository $openItems,
         public PartnerRepository $partners,
+        public AssetRepository $assets,
         public AuditTrail $audit,
         public Ledger $ledger,
         public TaxService $tax,
         public PartnerService $partnerService,
+        public AssetService $assetService,
         public MappingRegistry $mappings,
         public Clock $clock,
         public IdGenerator $ids,
@@ -82,6 +87,7 @@ final readonly class Tenant
         $journal = new InMemoryJournalRepository();
         $openItems = new InMemoryOpenItemRepository();
         $partners = new InMemoryPartnerRepository();
+        $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
         $ledger = new Ledger(
@@ -99,6 +105,7 @@ final readonly class Tenant
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
+        $assetService = new AssetService($baseCurrency, $assets2, $accounts, $fiscalYears, $vouchers, $ledger, $ids);
 
         return new self(
             $ids->next(),
@@ -110,10 +117,12 @@ final readonly class Tenant
             $journal,
             $openItems,
             $partners,
+            $assets2,
             $audit,
             $ledger,
             $tax,
             $partnerService,
+            $assetService,
             $mappings,
             $clock,
             $ids,

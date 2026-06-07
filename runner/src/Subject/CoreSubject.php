@@ -21,6 +21,7 @@ use Rechnungswesen\Core\Shared\Currency;
 use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Projection\AccountSheetProjection;
+use Rechnungswesen\Core\Projection\AssetRegisterProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
 use Rechnungswesen\Core\Projection\BalanceSheetProjection;
 use Rechnungswesen\Core\Projection\CashBasisProjection;
@@ -68,6 +69,11 @@ final class CoreSubject implements Subject
 
         /** @var array<string, mixed> $ruleModules */
         $ruleModules = is_array($setup['ruleModules'] ?? null) ? $setup['ruleModules'] : [];
+        // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
+        if (is_array($setup['ruleModule'] ?? null)) {
+            /** @var array<string, mixed> $ruleModules */
+            $ruleModules = [...$ruleModules, ...$setup['ruleModule']];
+        }
         $this->ruleModules = $ruleModules;
 
         if (!is_array($setup['tenant'] ?? null)) {
@@ -135,6 +141,8 @@ final class CoreSubject implements Subject
             $tenant->vouchers->add($this->buildVoucher($voucherData));
         }
 
+        $tenant->assetService->setRuleModule($ruleModules);
+
         $this->tenant = $tenant;
     }
 
@@ -177,6 +185,9 @@ final class CoreSubject implements Subject
                     'periodCount' => count($tenant->fiscalYears->byYear(is_int($input['year'] ?? null) ? $input['year'] : 0)?->periods() ?? []),
                 ],
                 'createPartner' => $this->serialize($tenant->partnerService->create($input)),
+                'acquireAsset' => $tenant->assetService->acquire($input),
+                'disposeAsset' => $tenant->assetService->dispose($input),
+                'runDepreciation' => $tenant->assetService->runDepreciation($input),
                 'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
                 'lockAccount' => $this->serialize($ledger->lockAccount($input)),
                 'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
@@ -205,6 +216,7 @@ final class CoreSubject implements Subject
                 'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                     ->compute($params),
                 'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
+                'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
                 'incomeStatement' => (new IncomeStatementProjection(
                     $tenant->baseCurrency,
                     $tenant->accounts,

@@ -31,3 +31,5 @@ mapping-import
 monthly-income-statement
 profit-appropriation
 two-year-carryover
+depreciation-monthly-allocation
+gwg-and-depreciation
