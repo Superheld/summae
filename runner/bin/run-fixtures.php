@@ -82,6 +82,11 @@ if ($strict) {
     exit($fail > 0 ? 1 : 0);
 }
 
+// Gefilterte Läufe sind Entwickler-Werkzeug — Expected-Green gilt nur für die volle Suite.
+if ($filter !== null) {
+    exit(0);
+}
+
 $expected = [];
 if (is_file($expectedFile)) {
     $lines = file($expectedFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

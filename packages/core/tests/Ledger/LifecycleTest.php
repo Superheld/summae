@@ -15,7 +15,7 @@ final class LifecycleTest extends LedgerTestCase
         $entry = $ledger->post($this->draft([
             ['4930', 'debit', '240.00'],
             ['1200', 'credit', '240.00'],
-        ], entryDate: '2026-01-20'));
+        ], entryDate: '2026-01-20'))->entry;
 
         $corrected = $ledger->correct(['entryId' => $entry->id->value, 'text' => 'Bürobedarf Januar']);
         self::assertSame('Bürobedarf Januar', $corrected->text());
@@ -45,7 +45,7 @@ final class LifecycleTest extends LedgerTestCase
         $entry = $ledger->post($this->draft([
             ['4930', 'debit', '240.00'],
             ['1200', 'credit', '240.00'],
-        ], entryDate: '2026-01-20'));
+        ], entryDate: '2026-01-20'))->entry;
         $ledger->finalize(['entryId' => $entry->id->value]);
 
         $reversal = $ledger->reverse([
@@ -85,7 +85,7 @@ final class LifecycleTest extends LedgerTestCase
         $entry = $ledger->post($this->draft([
             ['4930', 'debit', '50.00'],
             ['1200', 'credit', '50.00'],
-        ]) + ['actor' => 'bruce']);
+        ]) + ['actor' => 'bruce'])->entry;
 
         $ledger->correct(['actor' => 'bruce', 'entryId' => $entry->id->value, 'text' => 'Neu']);
 

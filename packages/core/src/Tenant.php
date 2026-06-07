@@ -8,6 +8,7 @@ use Rechnungswesen\Core\InMemory\InMemoryAccountRepository;
 use Rechnungswesen\Core\InMemory\InMemoryAuditTrail;
 use Rechnungswesen\Core\InMemory\InMemoryFiscalYearRepository;
 use Rechnungswesen\Core\InMemory\InMemoryJournalRepository;
+use Rechnungswesen\Core\InMemory\InMemoryOpenItemRepository;
 use Rechnungswesen\Core\InMemory\InMemoryVoucherRepository;
 use Rechnungswesen\Core\Ledger\DimensionRegistry;
 use Rechnungswesen\Core\Ledger\Ledger;
@@ -15,6 +16,7 @@ use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\AuditTrail;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
 use Rechnungswesen\Core\Port\JournalRepository;
+use Rechnungswesen\Core\Port\OpenItemRepository;
 use Rechnungswesen\Core\Port\VoucherRepository;
 use Rechnungswesen\Core\Shared\Clock;
 use Rechnungswesen\Core\Shared\Currency;
@@ -38,6 +40,7 @@ final readonly class Tenant
         public FiscalYearRepository $fiscalYears,
         public VoucherRepository $vouchers,
         public JournalRepository $journal,
+        public OpenItemRepository $openItems,
         public AuditTrail $audit,
         public Ledger $ledger,
         public Clock $clock,
@@ -60,6 +63,7 @@ final readonly class Tenant
         $fiscalYears = new InMemoryFiscalYearRepository();
         $vouchers = new InMemoryVoucherRepository();
         $journal = new InMemoryJournalRepository();
+        $openItems = new InMemoryOpenItemRepository();
         $audit = new InMemoryAuditTrail();
 
         $ledger = new Ledger(
@@ -68,6 +72,7 @@ final readonly class Tenant
             $fiscalYears,
             $vouchers,
             $journal,
+            $openItems,
             $audit,
             $dimensions,
             $clock,
@@ -82,6 +87,7 @@ final readonly class Tenant
             $fiscalYears,
             $vouchers,
             $journal,
+            $openItems,
             $audit,
             $ledger,
             $clock,
