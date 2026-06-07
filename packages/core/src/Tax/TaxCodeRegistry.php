@@ -54,7 +54,11 @@ final readonly class TaxCodeRegistry
                 );
             }
 
-            $codes[$code] = new TaxCode($code, $versions);
+            $codes[$code] = new TaxCode(
+                $code,
+                $versions,
+                is_string($codeData['datevBu'] ?? null) ? $codeData['datevBu'] : null,
+            );
         }
 
         return new self($codes);
@@ -72,6 +76,12 @@ final readonly class TaxCodeRegistry
         }
 
         return $versions;
+    }
+
+    /** DATEV-BU-Alias eines Schlüssels (eigene Codes bleiben führend). */
+    public function datevBuFor(string $code): ?string
+    {
+        return ($this->codes[$code] ?? null)?->datevBu;
     }
 
     public function get(string $code): TaxCode

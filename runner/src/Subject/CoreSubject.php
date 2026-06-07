@@ -25,14 +25,16 @@ use Rechnungswesen\Core\Projection\AssetRegisterProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
 use Rechnungswesen\Core\Projection\BalanceSheetProjection;
 use Rechnungswesen\Core\Projection\CashBasisProjection;
+use Rechnungswesen\Core\Projection\DatevExportProjection;
 use Rechnungswesen\Core\Projection\EcSalesListProjection;
 use Rechnungswesen\Core\Projection\IncomeStatementProjection;
+use Rechnungswesen\Core\Projection\JournalExportProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Projection\TrialBalanceProjection;
 use Rechnungswesen\Core\Projection\VatReturnProjection;
 use Rechnungswesen\Core\Tax\TaxCodeRegistry;
 use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
+use Rechnungswesen\Core\Shared\DeterministicIdGenerator;
 use Rechnungswesen\Core\Tenant;
 
 /**
@@ -108,7 +110,7 @@ final class CoreSubject implements Subject
             $name,
             $currency,
             $clock,
-            new UuidV7IdGenerator($clock),
+            new DeterministicIdGenerator($clock),
             DimensionRegistry::fromData($dimensionTypes, $dimensionValues, $dimensionRules),
             TaxCodeRegistry::fromData($taxCodeData),
             TaxProfile::fromData($taxProfileData),
@@ -228,6 +230,24 @@ final class CoreSubject implements Subject
                 'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
                 'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
                 'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
+                'journalExport' => (new JournalExportProjection(
+                    $tenant->id,
+                    $tenant->name,
+                    $tenant->baseCurrency,
+                    $tenant->journal,
+                    $tenant->accounts,
+                    $tenant->vouchers,
+                    $tenant->partners,
+                    $tenant->audit,
+                    $tenant->clock,
+                ))->compute($params),
+                'datevExport' => (new DatevExportProjection(
+                    $tenant->journal,
+                    $tenant->accounts,
+                    $tenant->vouchers,
+                    $tenant->partners,
+                    $tenant->tax->registry(),
+                ))->compute($params),
                 'incomeStatement' => (new IncomeStatementProjection(
                     $tenant->baseCurrency,
                     $tenant->accounts,
@@ -305,7 +325,7 @@ final class CoreSubject implements Subject
     private function createTenant(array $input): array
     {
         $clock = FixedClock::at(self::FIXED_NOW);
-        $factory = new TenantFactory($this->ruleModules, $clock, new UuidV7IdGenerator($clock));
+        $factory = new TenantFactory($this->ruleModules, $clock, new DeterministicIdGenerator($clock));
         $created = $factory->create($input);
 
         $this->tenants[$created['tenant']->id->value] = $created['tenant'];

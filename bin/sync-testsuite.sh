@@ -26,5 +26,11 @@ fi
 
 rsync -a --delete "$SRC"/ testsuite/
 
+# Maschinenlesbares Schema (normative Ableitung) mitführen
+SCHEMA_SRC="$(dirname "$SRC")/50-spezifikation/schema"
+if [[ -d "$SCHEMA_SRC" ]]; then
+    rsync -a --delete "$SCHEMA_SRC"/ testsuite/schema/
+fi
+
 echo "Testsuite synchronisiert aus: $SRC"
 echo "Fixtures: $(find testsuite/fixtures -name '*.json' | wc -l | tr -d ' ')"
