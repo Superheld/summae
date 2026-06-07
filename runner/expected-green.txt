@@ -7,3 +7,8 @@ opening-balance-takeover
 period-ordering
 post-and-invariants
 post-malformed
+create-tenant-profile
+mixed-tax-rates
+reverse-charge
+small-business-switch
+tax-expansion
