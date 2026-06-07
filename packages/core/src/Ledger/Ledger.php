@@ -63,7 +63,7 @@ final readonly class Ledger
             throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
         }
 
-        /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>}> $parsed */
+        /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
         $parsed = [];
         foreach (array_values($rawLines) as $index => $rawLine) {
             if (!is_array($rawLine)) {
@@ -304,7 +304,7 @@ final readonly class Ledger
         }
 
         if (is_array($input['lines'] ?? null)) {
-            /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>}> $parsed */
+            /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
             $parsed = [];
             if (count($input['lines']) < 2) {
                 throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
@@ -586,7 +586,7 @@ final readonly class Ledger
     /**
      * @param array<mixed> $rawLine
      *
-     * @return array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>}
+     * @return array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}
      */
     private function parseLine(array $rawLine, int $index): array
     {
@@ -648,7 +648,16 @@ final readonly class Ledger
             $dimensions[] = DimensionValue::of($rawDimension['type'], $rawDimension['code']);
         }
 
-        return ['account' => $account, 'side' => $side, 'money' => $parsedMoney, 'dimensions' => $dimensions];
+        /** @var array<string, mixed>|null $taxTag */
+        $taxTag = is_array($rawLine['taxTag'] ?? null) ? $rawLine['taxTag'] : null;
+
+        return [
+            'account' => $account,
+            'side' => $side,
+            'money' => $parsedMoney,
+            'dimensions' => $dimensions,
+            'taxTag' => $taxTag,
+        ];
     }
 
     private function requireVoucher(mixed $voucherId): Voucher
@@ -676,7 +685,7 @@ final readonly class Ledger
     }
 
     /**
-     * @param list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>}> $parsed
+     * @param list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed
      *
      * @return list<EntryLine>
      */
@@ -702,7 +711,7 @@ final readonly class Ledger
                 ), ['number' => $number->value]);
             }
 
-            $lines[] = new EntryLine($account->id, $account->number, $line['side'], $line['money'], $line['dimensions']);
+            $lines[] = new EntryLine($account->id, $account->number, $line['side'], $line['money'], $line['dimensions'], $line['taxTag']);
         }
 
         foreach ($lines as $entryLine) {

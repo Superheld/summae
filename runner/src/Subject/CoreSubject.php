@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rechnungswesen\Runner\Subject;
 
+use Rechnungswesen\Core\Composition\PostVoucherService;
+use Rechnungswesen\Core\Composition\TenantFactory;
 use Rechnungswesen\Core\DomainError;
 use Rechnungswesen\Core\Ledger\Account;
 use Rechnungswesen\Core\Ledger\AccountStatus;
@@ -20,6 +22,8 @@ use Rechnungswesen\Core\Projection\AccountSheetProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Projection\TrialBalanceProjection;
+use Rechnungswesen\Core\Tax\TaxCodeRegistry;
+use Rechnungswesen\Core\Tax\TaxProfile;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
 use Rechnungswesen\Core\Tenant;
 
@@ -39,6 +43,12 @@ final class CoreSubject implements Subject
 
     private ?Tenant $tenant = null;
 
+    /** @var array<string, Tenant> per createTenant angelegte Mandanten */
+    private array $tenants = [];
+
+    /** @var array<string, mixed> Regelmodul-Daten für createTenant */
+    private array $ruleModules = [];
+
     public function setup(array $setup): void
     {
         $tenantData = is_array($setup['tenant'] ?? null) ? $setup['tenant'] : [];
@@ -49,7 +59,30 @@ final class CoreSubject implements Subject
 
         $clock = FixedClock::at(self::FIXED_NOW);
 
+        /** @var array<string, mixed> $ruleModules */
         $ruleModules = is_array($setup['ruleModules'] ?? null) ? $setup['ruleModules'] : [];
+        $this->ruleModules = $ruleModules;
+
+        if (!is_array($setup['tenant'] ?? null)) {
+            // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule
+            // halten; Mandanten entstehen über die Operation.
+            $this->tenant = null;
+
+            return;
+        }
+
+        // taxCodes: top-level oder als Regelmodul; taxProfile: top-level oder am Tenant
+        /** @var list<array<mixed>> $taxCodeData */
+        $taxCodeData = array_values(array_filter(
+            is_array($setup['taxCodes'] ?? null)
+                ? $setup['taxCodes']
+                : (is_array($ruleModules['taxCodes'] ?? null) ? $ruleModules['taxCodes'] : []),
+            is_array(...),
+        ));
+
+        $taxProfileData = is_array($setup['taxProfile'] ?? null)
+            ? $setup['taxProfile']
+            : (is_array($tenantData['taxProfile'] ?? null) ? $tenantData['taxProfile'] : []);
 
         /** @var list<array{code: string}> $dimensionTypes */
         $dimensionTypes = is_array($setup['dimensionTypes'] ?? null) ? array_values($setup['dimensionTypes']) : [];
@@ -64,6 +97,8 @@ final class CoreSubject implements Subject
             $clock,
             new UuidV7IdGenerator($clock),
             DimensionRegistry::fromData($dimensionTypes, $dimensionValues, $dimensionRules),
+            TaxCodeRegistry::fromData($taxCodeData),
+            TaxProfile::fromData($taxProfileData),
         );
 
         foreach (is_array($setup['accounts'] ?? null) ? $setup['accounts'] : [] as $accountData) {
@@ -95,11 +130,24 @@ final class CoreSubject implements Subject
 
     public function execute(string $op, array $input): array
     {
-        $tenant = $this->tenant ?? throw new \LogicException('setup() wurde nicht aufgerufen');
+        // createTenant braucht keinen bestehenden Mandanten.
+        if ($op === 'createTenant') {
+            try {
+                return $this->createTenant($input);
+            } catch (DomainError $e) {
+                throw new SubjectError($e->errorCode, $e->getMessage());
+            }
+        }
+
+        $tenant = $this->resolveTenant($input);
+        unset($input['tenant']);
         $ledger = $tenant->ledger;
 
         try {
             return match ($op) {
+                'expandTax' => $tenant->tax->expand($input),
+                'setTaxProfile' => $this->serialize($tenant->tax->setProfile($input)),
+                'postVoucher' => (new PostVoucherService($tenant))->post($input),
                 'post' => $this->postResult($ledger->post($input)),
                 'correct' => $this->serialize($ledger->correct($input)),
                 'finalize' => ['finalizedCount' => $ledger->finalize($input)],
@@ -128,7 +176,8 @@ final class CoreSubject implements Subject
 
     public function project(string $name, array $params): array
     {
-        $tenant = $this->tenant ?? throw new \LogicException('setup() wurde nicht aufgerufen');
+        $tenant = $this->resolveTenant($params);
+        unset($params['tenant']);
 
         try {
             return match ($name) {
@@ -147,6 +196,45 @@ final class CoreSubject implements Subject
         } catch (DomainError $e) {
             throw new SubjectError($e->errorCode, $e->getMessage());
         }
+    }
+
+    /**
+     * Mandanten-Routing: explizite tenant-Referenz (createTenant-Fixtures)
+     * oder der Setup-Mandant; existiert keiner, der zuletzt angelegte.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function resolveTenant(array $input): Tenant
+    {
+        $ref = $input['tenant'] ?? null;
+
+        if (is_string($ref) && isset($this->tenants[$ref])) {
+            return $this->tenants[$ref];
+        }
+
+        if ($this->tenant !== null) {
+            return $this->tenant;
+        }
+
+        $last = end($this->tenants);
+
+        return $last !== false ? $last : throw new \LogicException('Kein Mandant vorhanden');
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    private function createTenant(array $input): array
+    {
+        $clock = FixedClock::at(self::FIXED_NOW);
+        $factory = new TenantFactory($this->ruleModules, $clock, new UuidV7IdGenerator($clock));
+        $created = $factory->create($input);
+
+        $this->tenants[$created['tenant']->id->value] = $created['tenant'];
+
+        return $created['result'];
     }
 
     /**

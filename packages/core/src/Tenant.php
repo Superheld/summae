@@ -24,6 +24,9 @@ use Rechnungswesen\Core\Shared\IdGenerator;
 use Rechnungswesen\Core\Shared\SystemClock;
 use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
+use Rechnungswesen\Core\Tax\TaxCodeRegistry;
+use Rechnungswesen\Core\Tax\TaxProfile;
+use Rechnungswesen\Core\Tax\TaxService;
 
 /**
  * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`).
@@ -43,6 +46,7 @@ final readonly class Tenant
         public OpenItemRepository $openItems,
         public AuditTrail $audit,
         public Ledger $ledger,
+        public TaxService $tax,
         public Clock $clock,
         public IdGenerator $ids,
     ) {
@@ -54,10 +58,14 @@ final readonly class Tenant
         ?Clock $clock = null,
         ?IdGenerator $ids = null,
         ?DimensionRegistry $dimensions = null,
+        ?TaxCodeRegistry $taxCodes = null,
+        ?TaxProfile $taxProfile = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
         $dimensions ??= DimensionRegistry::empty();
+        $taxCodes ??= TaxCodeRegistry::empty();
+        $taxProfile ??= TaxProfile::default();
 
         $accounts = new InMemoryAccountRepository();
         $fiscalYears = new InMemoryFiscalYearRepository();
@@ -79,6 +87,8 @@ final readonly class Tenant
             $ids,
         );
 
+        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
+
         return new self(
             $ids->next(),
             $name,
@@ -90,6 +100,7 @@ final readonly class Tenant
             $openItems,
             $audit,
             $ledger,
+            $tax,
             $clock,
             $ids,
         );
