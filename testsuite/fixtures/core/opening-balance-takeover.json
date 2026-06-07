@@ -1,0 +1,72 @@
+{
+  "fixture": "opening-balance-takeover",
+  "description": "SF-17: Saldenübernahme bei Migration — Eröffnungsbuchung gegen Saldovortragskonto MIT Beleg (Schlussbilanz Altsystem, GoBD-Pflicht); übernommene Forderung wird offener Posten und ist normal ausgleichbar.",
+  "covers": ["F-CORE-018", "F-CORE-021", "SF-17"],
+  "setup": {
+    "tenant": { "name": "Migrant GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "9000", "name": "Saldenvorträge", "type": "equity", "subtype": "opening_balance" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "SALDEN-2025-12-31", "voucherDate": "2025-12-31",
+        "issuer": "Altsystem XYZ", "documents": [ { "uri": "app://schlussbilanz-2025.pdf", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" } ] },
+      { "id": "$V2", "voucherNumber": "ZAHLUNG-ALT-1", "voucherDate": "2026-02-10" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-01", "voucherId": "$V1", "text": "Saldenübernahme aus Altsystem per 31.12.2025",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "9000", "side": "credit", "money": { "amount": "6190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1,
+          "openItemsCreated": [ { "id": "$OP1", "kind": "receivable", "money": { "amount": "1190.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-10", "voucherId": "$V2", "text": "Zahlung auf Alt-Forderung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-01-31", "kind": "receivable" },
+      "expect": { "items": [ { "voucherNumber": "SALDEN-2025-12-31", "remaining": { "amount": "1190.00", "currency": "EUR" } } ] }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "6190.00" },
+          { "account": "1400", "balance": "0.00" },
+          { "account": "9000", "balance": "-6190.00" }
+        ]
+      }
+    }
+  ]
+}

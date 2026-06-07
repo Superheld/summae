@@ -16,6 +16,9 @@
         <testsuite name="cli">
             <directory>packages/cli/tests</directory>
         </testsuite>
+        <testsuite name="runner">
+            <directory>runner/tests</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

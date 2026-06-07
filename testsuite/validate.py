@@ -17,6 +17,9 @@ for f in sorted((BASE / "fixtures").rglob("*.json")):
         for s in d.get("steps", []):
             if "error" in s.get("expect", {}):
                 all_errors.add(s["expect"]["error"])
+        for p in d.get("projections", []):
+            if "error" in p.get("expect", {}):
+                all_errors.add(p["expect"]["error"])
             # Soll=Haben nur prüfen, wenn die Buchung angenommen werden soll
             if s["op"] == "post" and "lines" in s.get("input", {}) and "result" in s.get("expect", {}):
                 deb = sum(Decimal(l["money"]["amount"]) for l in s["input"]["lines"] if l["side"] == "debit")

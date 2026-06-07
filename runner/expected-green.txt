@@ -1,0 +1,2 @@
+# Fixtures, die grün sein MÜSSEN (Regressions-Schutz für CI).
+# Wird je Job erweitert; M3 = alle Fixtures + --strict.

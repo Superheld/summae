@@ -1,0 +1,44 @@
+{
+  "fixture": "mixed-tax-rates",
+  "description": "K5: Mischbeleg 19 % + 7 % — Steuercode je Position, Rundung pro Beleg JE STEUERSATZ (0.99 × 19 % = 0.19; 17.50 × 7 % = 1.23 half-up).",
+  "covers": ["F-TAX-002"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "8300", "name": "Erlöse 7%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+      { "number": "1771", "name": "USt 7%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] },
+      { "code": "USt7", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "taxAccount": "1771", "reportingKey": "86" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2026-06-01", "direction": "output",
+        "netLines": [
+          { "account": "8400", "taxCode": "USt19", "money": { "amount": "0.33", "currency": "EUR" } },
+          { "account": "8400", "taxCode": "USt19", "money": { "amount": "0.33", "currency": "EUR" } },
+          { "account": "8400", "taxCode": "USt19", "money": { "amount": "0.33", "currency": "EUR" } },
+          { "account": "8300", "taxCode": "USt7", "money": { "amount": "17.50", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "taxLines": [
+            { "account": "1771", "side": "credit", "money": { "amount": "1.23", "currency": "EUR" }, "taxTag": { "code": "USt7", "reportingKey": "86" } },
+            { "account": "1776", "side": "credit", "money": { "amount": "0.19", "currency": "EUR" }, "taxTag": { "code": "USt19", "reportingKey": "81" } }
+          ],
+          "grossTotal": { "amount": "19.91", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

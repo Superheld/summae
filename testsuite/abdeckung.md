@@ -1,10 +1,20 @@
-# Abdeckungsstand (2026-06-07, final)
+# Abdeckungsstand (2026-06-07, nach Review-Einarbeitung v0.3)
 
-Automatisch prüfbar via `python3 validate.py`. Fixtures: 20.
+Automatisch prüfbar via `python3 validate.py`. Fixtures: 31.
 
-## Fehlercodes: 27 / 27 ✅
+## Fehlercodes: 29 / 29 ✅
 
-## Standardfälle: 15 / 16
+## Review-Befunde (review-2026-06-07.md): alle eingearbeitet
+
+G1 → two-year-carryover, opening-balance-takeover · G2 → settlement-discount, settlement-bad-debt · G3 → audit-trail · M1 → vat-return-cash-basis · M2 → reverse-charge · M3 → advance-payment · M4 → finalize-reverse-period (erweitert) · M5 → deviating-fiscal-year · M6 → siehe Hinweis unten · M7 → non-cash-benefit · K5 → mixed-tax-rates · übrige K → Spec-/Doku-Fixes.
+
+*Hinweis M6 (cash-Subtype):* formal in R1/api.md verankert („Geldkonto := subtype ∈ {bank, cash}"); eigene Kassen-Fixture folgt, falls ein Kassenmodul je Scope wird (§ 146a/TSE bleibt out of scope).
+
+## Standardfälle: 19 / 20
+
+Neu (v0.3): SF-17 opening-balance-takeover ✅ · SF-18 settlement-discount ✅ · SF-19 advance-payment ✅ · SF-20 non-cash-benefit ✅ — einzig offen bleibt SF-15 (braucht zweite Implementierung).
+
+### Ursprüngliche Liste
 
 | SF | Fixture |
 |---|---|

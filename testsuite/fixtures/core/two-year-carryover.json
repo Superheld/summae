@@ -1,0 +1,101 @@
+{
+  "fixture": "two-year-carryover",
+  "description": "Jahresübergang (Review G1): Bestandskonten tragen implizit vor (kumulativ), Erfolgskonten starten je Geschäftsjahr bei null, EK enthält kumulierte Jahresergebnisse — ohne Saldenabschluss-/Eröffnungsbuchungen. 1-Perioden-Jahre für kurze Abschluss-Schritte.",
+  "covers": ["F-CORE-021", "F-CORE-015"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2025, "start": "2025-01-01", "end": "2025-12-31", "periods": [ { "period": 1, "start": "2025-01-01", "end": "2025-12-31" } ] },
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31", "periods": [ { "period": 1, "start": "2026-01-01", "end": "2026-12-31" } ] }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-2025-1", "voucherDate": "2025-06-01" },
+      { "id": "$V2", "voucherNumber": "ER-2026-1", "voucherDate": "2026-02-01" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        { "id": "bilanz-mini", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "children": [ { "key": "A.B", "label": "Bank", "accounts": [ { "from": "1200", "to": "1299" } ] } ] },
+            { "key": "P", "label": "Passiva", "children": [ { "key": "P.EK", "label": "Eigenkapital", "accounts": [], "includesNetIncome": true } ] }
+          ] },
+        { "id": "guv-mini", "kind": "income-statement", "version": "1",
+          "positions": [
+            { "key": "1", "label": "Erlöse", "accounts": [ { "from": "8000", "to": "8999" } ] },
+            { "key": "2", "label": "Aufwand", "accounts": [ { "from": "4000", "to": "4999" } ] }
+          ] }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2025-06-01", "voucherId": "$V1", "text": "Erlös 2025",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "periodRef": { "fiscalYear": 2025, "period": 1 } } }
+    },
+    { "op": "finalize", "input": { "finalizeUntil": "2025-12-31" }, "expect": { "result": { "finalizedCount": 1 } } },
+    { "op": "closePeriod", "input": { "fiscalYear": 2025, "period": 1 }, "expect": { "result": { "status": "closed" } } },
+    { "op": "closeFiscalYear", "input": { "fiscalYear": 2025 }, "expect": { "result": { "status": "closed", "comment": "reiner Statuswechsel — keine Abschlussbuchungen" } } },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V2", "text": "Aufwand 2026",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "300.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "periodRef": { "fiscalYear": 2026, "period": 1 }, "comment": "Journalnummer je Geschäftsjahr → wieder 1" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2025, "throughPeriod": 1 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "1000.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 1 },
+      "expect": {
+        "comment": "1200 kumulativ inkl. Vorjahr (700); 8400 taucht nicht auf (Erfolgskonto, keine Bewegung 2026)",
+        "rows": [
+          { "account": "1200", "balance": "700.00" },
+          { "account": "4930", "balance": "300.00" }
+        ]
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "guv-mini" },
+      "expect": { "positions": [ { "key": "2", "amount": "-300.00" } ], "netIncome": "-300.00" }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "bilanz-mini", "incomeMapping": "guv-mini" },
+      "expect": {
+        "comment": "EK = kumulierte Ergebnisse 1000 − 300 = 700; Bilanzidentität by construction",
+        "assets": [ { "key": "A.B", "amount": "700.00" } ],
+        "assetsTotal": "700.00",
+        "liabilitiesAndEquity": [ { "key": "P.EK", "amount": "700.00" } ],
+        "liabilitiesAndEquityTotal": "700.00"
+      }
+    }
+  ]
+}

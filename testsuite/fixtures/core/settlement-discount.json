@@ -1,0 +1,88 @@
+{
+  "fixture": "settlement-discount",
+  "description": "SF-18: Zahlung mit 2 % Skonto — Differenz als sichtbare Buchungszeilen (Erlösschmälerung + USt-Korrektur § 17), OP voll ausgeglichen, VA korrigiert; ungültige Differenz abgewiesen.",
+  "covers": ["F-CORE-019", "F-TAX-008", "SF-18"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "8731", "name": "Gewährte Skonti 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-300", "voucherDate": "2026-04-01" },
+      { "id": "$V2", "voucherNumber": "ZAHLUNG-300", "voucherDate": "2026-04-09" }
+    ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "Ausgangsrechnung, 2% Skonto bei Zahlung in 10 Tagen",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-09", "voucherId": "$V2", "text": "Zahlung abzgl. 2% Skonto (Brutto-Skonto 23.80 = 20.00 netto + 3.80 USt)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1166.20", "currency": "EUR" } },
+          { "account": "8731", "side": "debit", "money": { "amount": "20.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "debit", "money": { "amount": "3.80", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" }, "difference": { "money": { "amount": "23.80", "currency": "EUR" }, "kind": "phantasie" } } ] },
+      "expect": { "error": "E_SETTLEMENT_DIFFERENCE_INVALID" }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" }, "difference": { "money": { "amount": "23.80", "currency": "EUR" }, "kind": "discount" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2, "asOf": "2026-07-01" },
+      "expect": {
+        "comment": "§ 17: Bemessungsgrundlage 1000 − 20 = 980, Steuer 190 − 3.80 = 186.20",
+        "keys": { "81": { "base": "980.00", "tax": "186.20" } },
+        "payload": { "amount": "186.20", "currency": "EUR" }
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "1166.20" },
+          { "account": "1400", "balance": "0.00" },
+          { "account": "1776", "balance": "-186.20" },
+          { "account": "8400", "balance": "-1000.00" },
+          { "account": "8731", "balance": "20.00" }
+        ]
+      }
+    }
+  ]
+}

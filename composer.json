@@ -26,7 +26,9 @@
         "psr-4": {
             "Rechnungswesen\\Core\\Tests\\": "packages/core/tests/",
             "Rechnungswesen\\Laravel\\Tests\\": "packages/laravel/tests/",
-            "Rechnungswesen\\Cli\\Tests\\": "packages/cli/tests/"
+            "Rechnungswesen\\Cli\\Tests\\": "packages/cli/tests/",
+            "Rechnungswesen\\Runner\\": "runner/src/",
+            "Rechnungswesen\\Runner\\Tests\\": "runner/tests/"
         }
     },
     "config": {

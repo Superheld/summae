@@ -25,3 +25,6 @@ jobs:
 
       - name: PHPUnit
         run: vendor/bin/phpunit
+
+      - name: Konformitäts-Fixtures (Expected-Green-Regressionsschutz)
+        run: php runner/bin/run-fixtures.php
