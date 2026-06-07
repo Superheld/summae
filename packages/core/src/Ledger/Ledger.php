@@ -117,6 +117,7 @@ final readonly class Ledger
         }
 
         $created = [];
+        $voucher = $this->vouchers->byId($entry->voucherId);
 
         foreach ($entry->lines() as $index => $line) {
             $account = $this->accounts->byId($line->accountId);
@@ -138,6 +139,7 @@ final readonly class Ledger
                 $line->money,
                 $entry->voucherId,
                 $entry->entryDate,
+                $voucher?->partnerId,
             );
 
             $this->openItems->add($item);
@@ -481,6 +483,39 @@ final readonly class Ledger
 
         $fiscalYear->close();
         $this->fiscalYears->save($fiscalYear);
+
+        return $fiscalYear;
+    }
+
+    /**
+     * Geschäftsjahr anlegen (v0.4): Überschneidung mit bestehenden Jahren
+     * wird abgewiesen (E_FISCALYEAR_OVERLAP); Lücken sind erlaubt.
+     * Ohne explizite Perioden: 12 Monatsperioden.
+     *
+     * @param array<string, mixed> $input
+     */
+    public function createFiscalYear(array $input): FiscalYear
+    {
+        $year = is_int($input['year'] ?? null) ? $input['year'] : 0;
+        $start = $this->parseEntryDate($input['start'] ?? null);
+        $end = $this->parseEntryDate($input['end'] ?? null);
+
+        foreach ($this->fiscalYears->all() as $existing) {
+            $overlaps = !$existing->end->isBefore($start) && !$existing->start->isAfter($end);
+
+            if ($overlaps || $existing->year === $year) {
+                throw new DomainError('E_FISCALYEAR_OVERLAP', sprintf(
+                    'Geschäftsjahr %d (%s bis %s) überschneidet sich mit %d',
+                    $year,
+                    $start->iso,
+                    $end->iso,
+                    $existing->year,
+                ), ['year' => $year, 'existing' => $existing->year]);
+            }
+        }
+
+        $fiscalYear = FiscalYear::create($this->ids->next(), $year, $start, $end);
+        $this->fiscalYears->add($fiscalYear);
 
         return $fiscalYear;
     }

@@ -11,14 +11,11 @@ use Rechnungswesen\Core\Shared\Currency;
 use Rechnungswesen\Core\Shared\Money;
 
 /**
- * Summen- und Saldenliste (SuSa).
- *
- * Zeitraum-Semantik (api.md v0.3, Review G1):
- * - Bestandskonten (asset/liability/equity): kumulativ ab Datenbestand-
- *   Beginn — Saldovortrag implizit, kein SBK/EBK.
- * - Erfolgskonten (expense/revenue): nur Verkehrszahlen des angefragten
- *   Geschäftsjahres; im neuen Jahr starten sie bei null — per Definition
- *   der Projektion, nicht per Buchung.
+ * Summen- und Saldenliste (SuSa) — Spalten verbindlich (api.md v0.4):
+ * - openingBalance: kumulierter Saldo VOR dem Geschäftsjahr
+ *   (Saldovortrag implizit; 0 bei Erfolgskonten — Review G1)
+ * - debitTotal/creditTotal: Verkehrszahlen DES Zeitraums (GJ bis Periode)
+ * - balance = openingBalance + debitTotal − creditTotal
  *
  * Saldo-Konvention: Soll minus Haben (Soll-Salden positiv).
  * Sortierung: Kontonummer nach Codepoints (determinismus.md §3).
@@ -45,7 +42,7 @@ final readonly class TrialBalanceProjection
 
         $zero = Money::zero($this->baseCurrency);
 
-        /** @var array<string, array{debit: Money, credit: Money, currentYearActivity: bool}> $totals */
+        /** @var array<string, array{opening: Money, debit: Money, credit: Money, touched: bool}> $totals */
         $totals = [];
 
         foreach ($this->journal->all() as $entry) {
@@ -65,13 +62,20 @@ final readonly class TrialBalanceProjection
                     continue;
                 }
 
-                // Erfolgskonten zählen nur im angefragten Geschäftsjahr.
+                // Erfolgskonten starten je Geschäftsjahr bei null (G1).
                 if ($isPriorYear && !$account->type->isBalanceCarrying()) {
                     continue;
                 }
 
                 $key = $account->number->value;
-                $totals[$key] ??= ['debit' => $zero, 'credit' => $zero, 'currentYearActivity' => false];
+                $totals[$key] ??= ['opening' => $zero, 'debit' => $zero, 'credit' => $zero, 'touched' => false];
+
+                if ($isPriorYear) {
+                    $totals[$key]['opening'] = $line->side === Side::Debit
+                        ? $totals[$key]['opening']->add($line->money)
+                        : $totals[$key]['opening']->subtract($line->money);
+                    continue;
+                }
 
                 if ($line->side === Side::Debit) {
                     $totals[$key]['debit'] = $totals[$key]['debit']->add($line->money);
@@ -79,18 +83,17 @@ final readonly class TrialBalanceProjection
                     $totals[$key]['credit'] = $totals[$key]['credit']->add($line->money);
                 }
 
-                if ($isCurrentScope) {
-                    $totals[$key]['currentYearActivity'] = true;
-                }
+                $totals[$key]['touched'] = true;
             }
         }
 
         if ($includeZeroBalances) {
             foreach ($this->accounts->all() as $account) {
                 $totals[$account->number->value] ??= [
+                    'opening' => $zero,
                     'debit' => $zero,
                     'credit' => $zero,
-                    'currentYearActivity' => false,
+                    'touched' => false,
                 ];
             }
         }
@@ -102,14 +105,15 @@ final readonly class TrialBalanceProjection
         $rows = [];
         foreach ($numbers as $number) {
             $total = $totals[$number];
-            $balance = $total['debit']->subtract($total['credit']);
+            $balance = $total['opening']->add($total['debit'])->subtract($total['credit']);
 
-            if (!$includeZeroBalances && $balance->isZero() && !$total['currentYearActivity']) {
+            if (!$includeZeroBalances && $balance->isZero() && !$total['touched']) {
                 continue;
             }
 
             $rows[] = [
                 'account' => $number,
+                'openingBalance' => $total['opening']->amountAsString(),
                 'debitTotal' => $total['debit']->amountAsString(),
                 'creditTotal' => $total['credit']->amountAsString(),
                 'balance' => $balance->amountAsString(),

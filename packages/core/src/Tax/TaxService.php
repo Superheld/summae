@@ -49,7 +49,10 @@ final readonly class TaxService
      */
     public function expand(array $input): array
     {
-        $date = $this->parseDate($input['date'] ?? null);
+        // v0.4 (§ 27 UStG): Regelversion folgt dem Leistungsdatum, Fallback Belegdatum.
+        $date = is_string($input['serviceDate'] ?? null)
+            ? $this->parseDate($input['serviceDate'])
+            : $this->parseDate($input['date'] ?? null);
         $direction = ($input['direction'] ?? null) === 'input' ? 'input' : 'output';
         $defaultCode = is_string($input['taxCode'] ?? null) ? $input['taxCode'] : null;
 
@@ -135,6 +138,13 @@ final readonly class TaxService
             );
 
             $mainSide = $direction === 'output' ? 'credit' : 'debit';
+
+            if ($version->mechanism === 'intra_community_supply') {
+                // igL (§ 4 Nr. 1b): steuerfrei — keine Steuerzeile, aber
+                // Kennzahl-Tag an der Basis (ZM-Grundlage, v0.4).
+                $baseTags[$code] = $this->tag($code, $version, $version->reportingKey, $base);
+                continue;
+            }
 
             if ($version->mechanism === 'reverse_charge') {
                 // § 13b: USt und VSt gleichzeitig, je eigene Kennzahl; Zahlbetrag = Netto.

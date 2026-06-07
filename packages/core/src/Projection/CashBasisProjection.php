@@ -119,7 +119,7 @@ final readonly class CashBasisProjection
                 $line = $sourced['line'];
                 $ratio = $sourced['ratio'];
                 $account = $this->accounts->byId($line->accountId);
-                if ($account === null || in_array($account->subtype, ['bank', 'ar', 'ap'], true)) {
+                if ($account === null || in_array($account->subtype, ['bank', 'cash', 'transit', 'ar', 'ap'], true)) {
                     continue;
                 }
 
@@ -128,12 +128,12 @@ final readonly class CashBasisProjection
                 if ($account->subtype === 'tax_out') {
                     // R3: USt erfolgswirksam.
                     if ($inflow) {
-                        $income = self::addTo($income, 'vereinnahmte USt', $amount);
+                        $income = self::addTo($income, 'Vereinnahmte USt', $amount);
                     } else {
                         $expenses = self::addTo($expenses, 'USt-Zahlung an FA', $amount);
                     }
                 } elseif ($account->subtype === 'tax_in') {
-                    $expenses = self::addTo($expenses, 'gezahlte Vorsteuer', $amount);
+                    $expenses = self::addTo($expenses, 'Gezahlte Vorsteuer', $amount);
                 } elseif ($account->type === AccountType::Revenue) {
                     $income = self::addTo($income, $this->label($mapping, $account), $amount);
                 } elseif ($account->type === AccountType::Expense) {
@@ -195,7 +195,8 @@ final readonly class CashBasisProjection
 
         foreach ($entry->lines() as $line) {
             $account = $this->accounts->byId($line->accountId);
-            if ($account?->subtype !== 'bank') {
+            // Geldkonto := {bank, cash} (datenformat.md v0.4)
+            if (!in_array($account?->subtype, ['bank', 'cash'], true)) {
                 continue;
             }
 

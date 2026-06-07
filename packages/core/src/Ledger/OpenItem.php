@@ -28,6 +28,7 @@ final class OpenItem implements \JsonSerializable
         public readonly Money $money,
         public readonly Uuid $voucherId,
         public readonly CalendarDate $openedAt,
+        public readonly ?Uuid $partnerId = null,
     ) {
     }
 
@@ -101,6 +102,7 @@ final class OpenItem implements \JsonSerializable
             'originEntryId' => $this->originEntryId->value,
             'originLineIndex' => $this->originLineIndex,
             'money' => $this->money->jsonSerialize(),
+            'partnerId' => $this->partnerId?->value,
             'remaining' => $this->remaining()->jsonSerialize(),
             'status' => $this->status()->value,
             'settlements' => array_map(

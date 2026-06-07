@@ -1,0 +1,64 @@
+{
+  "fixture": "payroll-entry",
+  "description": "SF-22 (Buchhalter-G4): Lohnbuchungsbeleg — Brutto + AG-Anteile gegen Verbindlichkeiten Netto/LSt/SV. Die Abrechnung selbst ist out of scope, die Verbuchung in Scope.",
+  "covers": ["SF-22"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4100", "name": "Löhne und Gehälter", "type": "expense" },
+      { "number": "4130", "name": "Gesetzliche soziale Aufwendungen (AG)", "type": "expense" },
+      { "number": "1740", "name": "Verbindlichkeiten Lohn/Gehalt", "type": "liability" },
+      { "number": "1741", "name": "Verbindlichkeiten Lohn-/Kirchensteuer", "type": "liability" },
+      { "number": "1742", "name": "Verbindlichkeiten soziale Sicherheit", "type": "liability" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "LOHN-2026-01", "voucherDate": "2026-01-31", "kind": "payroll", "issuer": "Lohnabrechnung extern" },
+      { "id": "$V2", "voucherNumber": "LOHN-ZAHLUNG-01", "voucherDate": "2026-02-01", "kind": "payment" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Lohnbuchungsbeleg Januar (Brutto 3.000, AG-Anteile 630)",
+        "lines": [
+          { "account": "4100", "side": "debit", "money": { "amount": "3000.00", "currency": "EUR" } },
+          { "account": "4130", "side": "debit", "money": { "amount": "630.00", "currency": "EUR" } },
+          { "account": "1740", "side": "credit", "money": { "amount": "2000.00", "currency": "EUR" } },
+          { "account": "1741", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1742", "side": "credit", "money": { "amount": "1230.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V2", "text": "Nettolohn-Auszahlung",
+        "lines": [
+          { "account": "1740", "side": "debit", "money": { "amount": "2000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "2000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "-2000.00" },
+          { "account": "1740", "balance": "0.00" },
+          { "account": "1741", "balance": "-400.00" },
+          { "account": "1742", "balance": "-1230.00" },
+          { "account": "4100", "balance": "3000.00" },
+          { "account": "4130", "balance": "630.00" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "fixture": "money-transit",
+  "description": "SF-26 (Buchhalter-M6/M): Geldtransit Bank→Kasse über Transit-Konto — EÜR-neutral (kein Zufluss/Abfluss, nur Umschichtung); Kasse ist Geldkonto (subtype cash).",
+  "covers": ["F-CORE-008", "SF-26"],
+  "setup": {
+    "tenant": { "name": "Freiberufler EÜR", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "cash" } },
+    "accounts": [
+      { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1360", "name": "Geldtransit", "type": "asset", "subtype": "transit" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "TRANSIT-1", "voucherDate": "2026-05-02", "kind": "internal" },
+      { "id": "$V2", "voucherNumber": "BAR-1", "voucherDate": "2026-05-03" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-05-02", "voucherId": "$V1", "text": "Abhebung: Bank an Geldtransit",
+        "lines": [
+          { "account": "1360", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-05-02", "voucherId": "$V1", "text": "Einlage in Kasse: Geldtransit an Kasse",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1360", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-05-03", "voucherId": "$V2", "text": "Barverkauf (Kasse ist Geldkonto → EÜR-wirksam)",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2026, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Nur der Barverkauf zählt — der Transit ist Umschichtung zwischen Geldkonten, keine Einnahme/Ausgabe",
+        "income": [ { "category": "Erlöse", "amount": "100.00" } ],
+        "expenses": []
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1000", "balance": "600.00" },
+          { "account": "1200", "balance": "-500.00" },
+          { "account": "1360", "balance": "0.00" },
+          { "account": "8400", "balance": "-100.00" }
+        ]
+      }
+    }
+  ]
+}

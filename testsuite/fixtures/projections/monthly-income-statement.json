@@ -1,0 +1,71 @@
+{
+  "fixture": "monthly-income-statement",
+  "description": "Buchhalter-G5: incomeStatement mit Periodenbereich (Monats-GuV als BWA-Grundlage) — fromPeriod/throughPeriod grenzen ab, Jahressicht bleibt Default.",
+  "covers": ["F-CORE-015"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "JAN-1", "voucherDate": "2026-01-15" },
+      { "id": "$V2", "voucherNumber": "FEB-1", "voucherDate": "2026-02-10" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        { "id": "guv-mini", "kind": "income-statement", "version": "1",
+          "positions": [
+            { "key": "1", "label": "Erlöse", "accounts": [ { "from": "8000", "to": "8999" } ] },
+            { "key": "2", "label": "Aufwand", "accounts": [ { "from": "4000", "to": "4999" } ] }
+          ] }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-15", "voucherId": "$V1", "text": "Erlös Januar",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-10", "voucherId": "$V2", "text": "Aufwand Februar",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "fromPeriod": 2, "throughPeriod": 2, "mapping": "guv-mini" },
+      "expect": {
+        "comment": "Nur Februar",
+        "positions": [ { "key": "2", "amount": "-400.00" } ],
+        "netIncome": "-400.00"
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "guv-mini" },
+      "expect": {
+        "comment": "Jahressicht unverändert",
+        "positions": [ { "key": "1", "amount": "1000.00" }, { "key": "2", "amount": "-400.00" } ],
+        "netIncome": "600.00"
+      }
+    }
+  ]
+}
