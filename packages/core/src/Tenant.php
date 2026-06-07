@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rechnungswesen\Core;
 
 use Rechnungswesen\Core\Assets\AssetService;
+use Rechnungswesen\Core\Costing\CostingService;
 use Rechnungswesen\Core\InMemory\InMemoryAccountRepository;
 use Rechnungswesen\Core\InMemory\InMemoryAssetRepository;
 use Rechnungswesen\Core\InMemory\InMemoryAuditTrail;
@@ -58,6 +59,7 @@ final readonly class Tenant
         public TaxService $tax,
         public PartnerService $partnerService,
         public AssetService $assetService,
+        public CostingService $costing,
         public MappingRegistry $mappings,
         public Clock $clock,
         public IdGenerator $ids,
@@ -106,6 +108,7 @@ final readonly class Tenant
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets2, $accounts, $fiscalYears, $vouchers, $ledger, $ids);
+        $costing = new CostingService($baseCurrency, $accounts, $journal, $ids);
 
         return new self(
             $ids->next(),
@@ -123,6 +126,7 @@ final readonly class Tenant
             $tax,
             $partnerService,
             $assetService,
+            $costing,
             $mappings,
             $clock,
             $ids,

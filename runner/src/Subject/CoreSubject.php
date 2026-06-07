@@ -188,6 +188,16 @@ final class CoreSubject implements Subject
                 'acquireAsset' => $tenant->assetService->acquire($input),
                 'disposeAsset' => $tenant->assetService->dispose($input),
                 'runDepreciation' => $tenant->assetService->runDepreciation($input),
+                'setAllocationScheme' => $tenant->costing->setAllocationScheme($input),
+                'runCosting' => [
+                    'runId' => ($run = $tenant->costing->run($input))->id->value,
+                    'status' => $run->status(),
+                    'version' => $run->version,
+                ],
+                'releaseCosting' => [
+                    'runId' => ($released = $tenant->costing->release($input))->id->value,
+                    'status' => $released->status(),
+                ],
                 'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
                 'lockAccount' => $this->serialize($ledger->lockAccount($input)),
                 'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
@@ -217,6 +227,7 @@ final class CoreSubject implements Subject
                     ->compute($params),
                 'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
                 'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
+                'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
                 'incomeStatement' => (new IncomeStatementProjection(
                     $tenant->baseCurrency,
                     $tenant->accounts,
