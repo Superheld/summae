@@ -1011,17 +1011,21 @@
         },
         {
             "name": "rechnungswesen/cli",
-            "version": "dev-job/011-export",
+            "version": "dev-job/013-cli",
             "dist": {
                 "type": "path",
                 "url": "packages/cli",
-                "reference": "d5ab70560f7fc67244e5aea464d6fbcdc5537ae4"
+                "reference": "5c97b51d3022518c450e256c0616a86d6b41bace"
             },
             "require": {
                 "php": ">=8.3",
                 "rechnungswesen/core": "*",
+                "rechnungswesen/laravel": "*",
                 "symfony/console": "^7.0"
             },
+            "bin": [
+                "bin/rw"
+            ],
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -1039,7 +1043,7 @@
         },
         {
             "name": "rechnungswesen/core",
-            "version": "dev-job/011-export",
+            "version": "dev-job/013-cli",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
@@ -1066,7 +1070,7 @@
         },
         {
             "name": "rechnungswesen/laravel",
-            "version": "dev-job/011-export",
+            "version": "dev-job/013-cli",
             "dist": {
                 "type": "path",
                 "url": "packages/laravel",
