@@ -13,6 +13,7 @@ use Rechnungswesen\Core\Ledger\AccountType;
 use Rechnungswesen\Core\Ledger\DimensionRegistry;
 use Rechnungswesen\Core\Ledger\FiscalYear;
 use Rechnungswesen\Core\Ledger\Voucher;
+use Rechnungswesen\Core\Mapping\MappingImporter;
 use Rechnungswesen\Core\Mapping\MappingRegistry;
 use Rechnungswesen\Core\Shared\AccountNumber;
 use Rechnungswesen\Core\Shared\CalendarDate;
@@ -21,8 +22,10 @@ use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Projection\AccountSheetProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
+use Rechnungswesen\Core\Projection\BalanceSheetProjection;
 use Rechnungswesen\Core\Projection\CashBasisProjection;
 use Rechnungswesen\Core\Projection\EcSalesListProjection;
+use Rechnungswesen\Core\Projection\IncomeStatementProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Projection\TrialBalanceProjection;
 use Rechnungswesen\Core\Projection\VatReturnProjection;
@@ -177,6 +180,7 @@ final class CoreSubject implements Subject
                 'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
                 'lockAccount' => $this->serialize($ledger->lockAccount($input)),
                 'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
+                'importMapping' => (new MappingImporter($tenant->accounts, $tenant->mappings))->import($input),
                 default => throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
                     'Operation "%s" ist noch nicht implementiert',
                     $op,
@@ -201,6 +205,18 @@ final class CoreSubject implements Subject
                 'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                     ->compute($params),
                 'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
+                'incomeStatement' => (new IncomeStatementProjection(
+                    $tenant->baseCurrency,
+                    $tenant->accounts,
+                    $tenant->journal,
+                    $tenant->mappings,
+                ))->compute($params),
+                'balanceSheet' => (new BalanceSheetProjection(
+                    $tenant->baseCurrency,
+                    $tenant->accounts,
+                    $tenant->journal,
+                    $tenant->mappings,
+                ))->compute($params),
                 'vatReturn' => (new VatReturnProjection(
                     $tenant->baseCurrency,
                     $tenant->journal,

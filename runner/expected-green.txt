@@ -26,3 +26,8 @@ fiscal-year-management
 money-transit
 payroll-entry
 service-date-rate-change
+balance-sheet-mapping
+mapping-import
+monthly-income-statement
+profit-appropriation
+two-year-carryover
