@@ -31,6 +31,14 @@ final class InMemoryOpenItemRepository implements OpenItemRepository
         return $this->byId[$id->value] ?? null;
     }
 
+    public function byOriginEntry(Uuid $entryId): array
+    {
+        return array_values(array_filter(
+            $this->items,
+            static fn (OpenItem $item): bool => $item->originEntryId->equals($entryId),
+        ));
+    }
+
     public function all(): array
     {
         return $this->items;

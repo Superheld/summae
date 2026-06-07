@@ -15,6 +15,9 @@ interface OpenItemRepository
 
     public function byId(Uuid $id): ?OpenItem;
 
+    /** @return list<OpenItem> Posten, die aus dieser Buchung entstanden */
+    public function byOriginEntry(Uuid $entryId): array;
+
     /** @return list<OpenItem> in Entstehungsreihenfolge */
     public function all(): array;
 }

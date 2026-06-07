@@ -37,6 +37,11 @@ final readonly class TaxService
         return $this->profile;
     }
 
+    public function registry(): TaxCodeRegistry
+    {
+        return $this->registry;
+    }
+
     /**
      * @param array<string, mixed> $input date, taxCode?, direction, netLines[]
      *

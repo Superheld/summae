@@ -12,6 +12,7 @@ use Rechnungswesen\Core\InMemory\InMemoryOpenItemRepository;
 use Rechnungswesen\Core\InMemory\InMemoryVoucherRepository;
 use Rechnungswesen\Core\Ledger\DimensionRegistry;
 use Rechnungswesen\Core\Ledger\Ledger;
+use Rechnungswesen\Core\Mapping\MappingRegistry;
 use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\AuditTrail;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
@@ -47,6 +48,7 @@ final readonly class Tenant
         public AuditTrail $audit,
         public Ledger $ledger,
         public TaxService $tax,
+        public MappingRegistry $mappings,
         public Clock $clock,
         public IdGenerator $ids,
     ) {
@@ -60,12 +62,14 @@ final readonly class Tenant
         ?DimensionRegistry $dimensions = null,
         ?TaxCodeRegistry $taxCodes = null,
         ?TaxProfile $taxProfile = null,
+        ?MappingRegistry $mappings = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
         $dimensions ??= DimensionRegistry::empty();
         $taxCodes ??= TaxCodeRegistry::empty();
         $taxProfile ??= TaxProfile::default();
+        $mappings ??= MappingRegistry::empty();
 
         $accounts = new InMemoryAccountRepository();
         $fiscalYears = new InMemoryFiscalYearRepository();
@@ -101,6 +105,7 @@ final readonly class Tenant
             $audit,
             $ledger,
             $tax,
+            $mappings,
             $clock,
             $ids,
         );

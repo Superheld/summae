@@ -60,6 +60,20 @@ final readonly class TaxCodeRegistry
         return new self($codes);
     }
 
+    /** @return list<TaxCodeVersion> alle Versionen aller Schlüssel */
+    public function allVersions(): array
+    {
+        $versions = [];
+
+        foreach ($this->codes as $code) {
+            foreach ($code->versions as $version) {
+                $versions[] = $version;
+            }
+        }
+
+        return $versions;
+    }
+
     public function get(string $code): TaxCode
     {
         return $this->codes[$code] ?? throw new DomainError('E_TAXCODE_UNKNOWN', sprintf(
