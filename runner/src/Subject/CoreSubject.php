@@ -13,6 +13,7 @@ use Rechnungswesen\Core\Ledger\AccountType;
 use Rechnungswesen\Core\Ledger\DimensionRegistry;
 use Rechnungswesen\Core\Ledger\FiscalYear;
 use Rechnungswesen\Core\Ledger\Voucher;
+use Rechnungswesen\Core\Mapping\MappingRegistry;
 use Rechnungswesen\Core\Shared\AccountNumber;
 use Rechnungswesen\Core\Shared\CalendarDate;
 use Rechnungswesen\Core\Shared\Currency;
@@ -20,8 +21,10 @@ use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Projection\AccountSheetProjection;
 use Rechnungswesen\Core\Projection\AuditLogProjection;
+use Rechnungswesen\Core\Projection\CashBasisProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
 use Rechnungswesen\Core\Projection\TrialBalanceProjection;
+use Rechnungswesen\Core\Projection\VatReturnProjection;
 use Rechnungswesen\Core\Tax\TaxCodeRegistry;
 use Rechnungswesen\Core\Tax\TaxProfile;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
@@ -99,6 +102,9 @@ final class CoreSubject implements Subject
             DimensionRegistry::fromData($dimensionTypes, $dimensionValues, $dimensionRules),
             TaxCodeRegistry::fromData($taxCodeData),
             TaxProfile::fromData($taxProfileData),
+            MappingRegistry::fromRuleModules(
+                is_array($ruleModules['mappings'] ?? null) ? array_values($ruleModules['mappings']) : [],
+            ),
         );
 
         foreach (is_array($setup['accounts'] ?? null) ? $setup['accounts'] : [] as $accountData) {
@@ -188,6 +194,23 @@ final class CoreSubject implements Subject
                 'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                     ->compute($params),
                 'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
+                'vatReturn' => (new VatReturnProjection(
+                    $tenant->baseCurrency,
+                    $tenant->journal,
+                    $tenant->openItems,
+                    $tenant->accounts,
+                    $tenant->tax->registry(),
+                    $tenant->tax->profile(),
+                ))->compute($params),
+                'cashBasisReport' => (new CashBasisProjection(
+                    $tenant->baseCurrency,
+                    $tenant->accounts,
+                    $tenant->journal,
+                    $tenant->openItems,
+                    $tenant->vouchers,
+                    $tenant->fiscalYears,
+                    $tenant->mappings,
+                ))->compute($params),
                 default => throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
                     'Projektion "%s" ist noch nicht implementiert',
                     $name,
