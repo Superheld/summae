@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Rechnungswesen\Core\Port;
+
+use Rechnungswesen\Core\Ledger\Account;
+use Rechnungswesen\Core\Shared\AccountNumber;
+use Rechnungswesen\Core\Shared\Uuid;
+
+/**
+ * Repository-Kontrakt: Kontonummern sind je Mandant eindeutig —
+ * der Adapter MUSS das zusichern (ledger-modell.md Aggregat 2).
+ */
+interface AccountRepository
+{
+    public function add(Account $account): void;
+
+    /** Mutationen am Aggregat persistieren (In-Memory: No-op). */
+    public function save(Account $account): void;
+
+    public function byNumber(AccountNumber $number): ?Account;
+
+    public function byId(Uuid $id): ?Account;
+
+    /** @return list<Account> sortiert nach Kontonummer (Codepoints) */
+    public function all(): array;
+}
