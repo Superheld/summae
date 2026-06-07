@@ -1,0 +1,39 @@
+{
+  "fixture": "deviating-fiscal-year",
+  "description": "Review M5: Abweichendes GJ 07/2026–06/2027 → fiscalYear.year = 2027 (Endjahr, § 4a EStG); Doppik-Projektionen funktionieren, EÜR-Projektion lehnt definiert ab.",
+  "covers": ["F-CORE-016"],
+  "setup": {
+    "tenant": { "name": "Abweichler GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2027, "start": "2026-07-01", "end": "2027-06-30" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-08-15" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-08-15", "voucherId": "$V1", "text": "Erlös im abweichenden GJ",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "periodRef": { "fiscalYear": 2027, "period": 2 }, "comment": "August = 2. Periode des GJ 2027" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2027, "throughPeriod": 12 },
+      "expect": { "rows": [ { "account": "1200", "balance": "100.00" }, { "account": "8400", "balance": "-100.00" } ] }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2027 },
+      "expect": { "error": "E_CASHBASIS_DEVIATING_FISCAL_YEAR", "comment": "EÜR ist kalenderjahrgebunden" }
+    }
+  ]
+}

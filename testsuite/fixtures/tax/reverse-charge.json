@@ -1,0 +1,49 @@
+{
+  "fixture": "reverse-charge",
+  "description": "Review M2 / F-TAX-006: Reverse Charge (§ 13b) — expandTax erzeugt USt und Vorsteuer gleichzeitig, mit unterschiedlichen Kennzahlen je Position; Netto = Brutto.",
+  "covers": ["F-TAX-006"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "4900", "name": "Fremdleistungen §13b", "type": "expense" },
+      { "number": "1787", "name": "USt nach §13b", "type": "liability", "subtype": "tax_out" },
+      { "number": "1577", "name": "VSt nach §13b", "type": "asset", "subtype": "tax_in" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxCodes": [
+      {
+        "code": "RC13b",
+        "versions": [ {
+          "validFrom": "2024-01-01", "validTo": null, "rate": "19.00",
+          "mechanism": "reverse_charge",
+          "taxAccount": "1787", "reportingKey": "47",
+          "inputTaxAccount": "1577", "inputReportingKey": "67",
+          "baseReportingKey": "46"
+        } ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "expandTax",
+      "input": {
+        "date": "2026-05-02", "taxCode": "RC13b", "direction": "input",
+        "netLines": [ { "account": "4900", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Zwei Steuerpositionen desselben Sachverhalts, je eigene Kennzahl; Zahlbetrag = Netto",
+          "taxLines": [
+            { "account": "1787", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+              "taxTag": { "code": "RC13b", "reportingKey": "47" } },
+            { "account": "1577", "side": "debit", "money": { "amount": "190.00", "currency": "EUR" },
+              "taxTag": { "code": "RC13b", "reportingKey": "67" } }
+          ],
+          "grossTotal": { "amount": "1000.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

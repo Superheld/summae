@@ -1,0 +1,61 @@
+{
+  "fixture": "audit-trail",
+  "description": "Review G3: Korrektur und Stammdatenänderung erzeugen Audit-Einträge mit Vorher/Nachher; auditLog ist als Projektion abrufbar und Teil des Datenformats (Export).",
+  "covers": ["F-CORE-012", "F-CORE-014", "F-CORE-020"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-01-10" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "actor": "bruce",
+        "entryDate": "2026-01-10", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "correct",
+      "input": { "actor": "bruce", "entryId": "$E1", "text": "Bürobedarf Januar" },
+      "expect": { "result": { "status": "entered", "text": "Bürobedarf Januar" } }
+    },
+    {
+      "op": "lockAccount",
+      "input": { "actor": "admin", "number": "4930" },
+      "expect": { "result": { "number": "4930", "status": "locked" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": { "from": "2026-01-01", "to": "2026-12-31" },
+      "expect": {
+        "records": [
+          { "objectType": "journalEntry", "action": "created", "actor": "bruce" },
+          { "objectType": "journalEntry", "objectId": "$E1", "action": "corrected", "actor": "bruce",
+            "changes": { "text": { "from": "Bürobedarf", "to": "Bürobedarf Januar" } } },
+          { "objectType": "account", "action": "locked", "actor": "admin",
+            "changes": { "status": { "from": "active", "to": "locked" } } }
+        ]
+      }
+    },
+    {
+      "name": "journalExport",
+      "params": { "fiscalYear": 2026, "format": "gobd-z3" },
+      "expect": {
+        "comment": "Audit-Strom ist Teil des Exports — Historie überlebt Systemwechsel (SF-15)",
+        "manifest": { "streams": [ "journal", "accounts", "vouchers", "auditLog" ] }
+      }
+    }
+  ]
+}

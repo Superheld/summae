@@ -57,12 +57,26 @@
     {
       "op": "reverse",
       "input": { "entryId": "$E1", "entryDate": "2026-02-03", "text": "Storno Bürobedarf" },
-      "expect": { "result": { "sequenceNumber": 2, "reverses": "$E1" } }
+      "expect": {
+        "result": {
+          "id": "$R1", "sequenceNumber": 2, "reverses": "$E1",
+          "comment": "v0.3/M4: Generalumkehr = gleiche Konten, gleiche Seiten, NEGATIVE Beträge",
+          "lines": [
+            { "account": "4930", "side": "debit", "money": { "amount": "-240.00", "currency": "EUR" } },
+            { "account": "1200", "side": "credit", "money": { "amount": "-240.00", "currency": "EUR" } }
+          ]
+        }
+      }
     },
     {
       "op": "reverse",
       "input": { "entryId": "$E1", "entryDate": "2026-02-04", "text": "Doppelstorno" },
       "expect": { "error": "E_ENTRY_ALREADY_REVERSED" }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$R1", "entryDate": "2026-02-05", "text": "Storno des Stornos (K3: zulässig)" },
+      "expect": { "result": { "sequenceNumber": 3, "reverses": "$R1" } }
     }
   ],
   "projections": [
@@ -70,9 +84,10 @@
       "name": "trialBalance",
       "params": { "fiscalYear": 2026, "throughPeriod": 12 },
       "expect": {
+        "comment": "Nach Storno des Stornos gilt wieder die Originalbuchung; Verkehrszahlen unaufgebläht (Generalumkehr)",
         "rows": [
-          { "account": "1200", "balance": "0.00" },
-          { "account": "4930", "balance": "0.00" }
+          { "account": "1200", "debitTotal": "0.00", "creditTotal": "240.00", "balance": "-240.00" },
+          { "account": "4930", "debitTotal": "240.00", "creditTotal": "0.00", "balance": "240.00" }
         ]
       }
     }

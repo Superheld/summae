@@ -1,0 +1,65 @@
+{
+  "fixture": "non-cash-benefit",
+  "description": "SF-20 (Review M7): Unentgeltliche Wertabgabe (Kfz-Privatnutzung) — Buchungsmuster mit USt, VA-wirksam; in der EÜR Einnahme OHNE Zahlungsfluss (Regel R7 via includeNonCash).",
+  "covers": ["F-TAX-010", "F-CORE-008", "SF-20"],
+  "setup": {
+    "tenant": { "name": "Freiberufler EÜR", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "cash" } },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1880", "name": "Unentgeltliche Wertabgaben (Privat)", "type": "equity", "subtype": "private" },
+      { "number": "8924", "name": "Verwendung von Gegenständen 19% (Kfz-Privatnutzung)", "type": "revenue" },
+      { "number": "1779", "name": "USt auf unentgeltliche Wertabgaben", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "EIGENBELEG-KFZ-2026", "voucherDate": "2026-12-31" } ],
+    "taxCodes": [
+      { "code": "USt19WA", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1779", "reportingKey": "81" } ] }
+    ],
+    "ruleModules": {
+      "mappings": [
+        {
+          "id": "euer-mini", "kind": "cash-basis-categories", "version": "1",
+          "positions": [
+            { "key": "E1", "label": "Private Kfz-Nutzung", "accounts": [ { "from": "8900", "to": "8929" } ], "includeNonCash": true },
+            { "key": "E2", "label": "USt auf unentgeltliche Wertabgaben", "accounts": [ { "numbers": ["1779"] } ], "includeNonCash": true }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-12-31", "voucherId": "$V1", "text": "Kfz-Privatnutzung 2026 (1-%-Wert per Eigenbeleg, Berechnung App-Sache)",
+        "lines": [
+          { "account": "1880", "side": "debit", "money": { "amount": "238.00", "currency": "EUR" } },
+          { "account": "8924", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19WA", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "200.00", "currency": "EUR" } } },
+          { "account": "1779", "side": "credit", "money": { "amount": "38.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19WA", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "200.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 4, "asOf": "2027-01-15" },
+      "expect": { "keys": { "81": { "base": "200.00", "tax": "38.00" } } }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "year": 2026, "mapping": "euer-mini", "asOf": "2027-01-15" },
+      "expect": {
+        "comment": "R7: kein Geldkonto berührt, zählt trotzdem (includeNonCash)",
+        "income": [
+          { "category": "Private Kfz-Nutzung", "amount": "200.00" },
+          { "category": "USt auf unentgeltliche Wertabgaben", "amount": "38.00" }
+        ],
+        "expenses": []
+      }
+    }
+  ]
+}

@@ -1,7 +1,10 @@
 COMPOSE = docker compose
 PHP     = $(COMPOSE) run --rm php
 
-.PHONY: build install test stan check sync shell
+.PHONY: build install test stan check sync shell fixtures
+
+fixtures:     ## Konformitäts-Fixtures gegen den Kern laufen lassen
+	$(PHP) php runner/bin/run-fixtures.php
 
 build:        ## PHP-Image bauen
 	$(COMPOSE) build php

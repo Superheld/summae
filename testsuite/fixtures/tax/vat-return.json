@@ -1,6 +1,6 @@
 {
   "fixture": "vat-return",
-  "description": "SF-09: USt-VA-Kennzahlen als Projektion über taxTags. Soll-Versteuerung: Rechnung zählt sofort; Ist-Versteuerung würde erst beim Ausgleich zählen (eigener Fall unten via asOf).",
+  "description": "SF-09: USt-VA-Kennzahlen als Projektion über taxTags — Soll-Versteuerung (Rechnung zählt sofort). Ist-Versteuerung: eigene Fixture vat-return-cash-basis (v0.3, Review M1).",
   "covers": ["F-TAX-005", "SF-09"],
   "setup": {
     "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "accrual" } },

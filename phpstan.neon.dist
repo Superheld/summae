@@ -7,3 +7,5 @@ parameters:
         - packages/laravel/tests
         - packages/cli/src
         - packages/cli/tests
+        - runner/src
+        - runner/tests
