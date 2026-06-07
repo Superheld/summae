@@ -15,6 +15,7 @@ use Rechnungswesen\Core\Shared\Clock;
 use Rechnungswesen\Core\Shared\Currency;
 use Rechnungswesen\Core\Shared\IdGenerator;
 use Rechnungswesen\Core\Shared\SystemClock;
+use Rechnungswesen\Core\Shared\Uuid;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
 use Rechnungswesen\Core\Tax\TaxCodeRegistry;
 use Rechnungswesen\Core\Tax\TaxProfile;
@@ -54,6 +55,7 @@ final readonly class EloquentTenantFactory
         ?TaxCodeRegistry $taxCodes = null,
         ?TaxProfile $taxProfile = null,
         ?MappingRegistry $mappings = null,
+        ?Uuid $tenantId = null,
     ): Tenant {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -62,7 +64,7 @@ final readonly class EloquentTenantFactory
         $taxProfile ??= TaxProfile::default();
         $mappings ??= MappingRegistry::empty();
 
-        $tenantId = $ids->next();
+        $tenantId ??= $ids->next();
 
         $accounts = new EloquentAccountRepository($this->connection, $tenantId);
         $fiscalYears = new EloquentFiscalYearRepository($this->connection, $tenantId);

@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+foreach ([
+    __DIR__ . '/../../../vendor/autoload.php', // Monorepo
+    __DIR__ . '/../vendor/autoload.php',       // Standalone
+    __DIR__ . '/../../../autoload.php',        // installiert in vendor/bin
+] as $autoload) {
+    if (is_file($autoload)) {
+        require $autoload;
+        break;
+    }
+}
+
+exit(Rechnungswesen\Cli\Cli::application()->run());
