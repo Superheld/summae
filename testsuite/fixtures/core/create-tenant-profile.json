@@ -1,0 +1,74 @@
+{
+  "fixture": "create-tenant-profile",
+  "description": "SF-01: Mandant per Profil anlegen — sofort buchbar inkl. Steuerexpansion; unbekanntes Profil abgewiesen.",
+  "covers": ["F-CORE-017", "SF-01"],
+  "setup": {
+    "ruleModules": {
+      "profiles": [
+        {
+          "id": "de-freiberufler-euer", "name": "Freiberufler EÜR (Deutschland)", "version": "2026.1",
+          "chartOfAccounts": "coa-mini-test",
+          "taxCodes": ["USt19"],
+          "mappings": [],
+          "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" }
+        }
+      ],
+      "chartsOfAccounts": [
+        {
+          "id": "coa-mini-test",
+          "accounts": [
+            { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+            { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+          ]
+        }
+      ],
+      "taxCodes": [
+        { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Mustermann Consulting", "baseCurrency": "EUR", "profile": "de-freiberufler-euer", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "profile": { "id": "de-freiberufler-euer", "version": "2026.1" }, "accountCount": 3, "taxationMethod": "cash" } }
+    },
+    {
+      "op": "createTenant",
+      "input": { "name": "Fehlschlag GmbH", "baseCurrency": "EUR", "profile": "gibt-es-nicht", "firstFiscalYear": 2026 },
+      "expect": { "error": "E_PROFILE_UNKNOWN" }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10", "text": "Beratung Februar",
+        "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1200"
+      },
+      "expect": {
+        "result": {
+          "comment": "Der Ein-Aufruf-Standardfall: Beleg + Expansion + Buchung in einem",
+          "entry": { "sequenceNumber": 1 },
+          "grossTotal": { "amount": "1190.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "1190.00" },
+          { "account": "1776", "balance": "-190.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    }
+  ]
+}

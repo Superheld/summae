@@ -1,0 +1,94 @@
+{
+  "fixture": "balance-sheet-mapping",
+  "description": "SF-10: Bilanz und GuV als Projektion über ein Mapping (Konto → Position); Jahresüberschuss schließt die Bilanz; Aktiva = Passiva.",
+  "covers": ["F-CORE-015", "SF-10"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-001", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "ER-001", "voucherDate": "2026-03-15" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        {
+          "id": "test-bilanz", "kind": "balance-sheet", "version": "2026.1",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "children": [
+              { "key": "A.B", "label": "Guthaben bei Kreditinstituten", "accounts": [ { "from": "1200", "to": "1299" } ] }
+            ] },
+            { "key": "P", "label": "Passiva", "children": [
+              { "key": "P.EK", "label": "Eigenkapital (inkl. Jahresergebnis)", "accounts": [], "includesNetIncome": true },
+              { "key": "P.V", "label": "Sonstige Verbindlichkeiten", "accounts": [ { "from": "1700", "to": "1799" } ] }
+            ] }
+          ]
+        },
+        {
+          "id": "test-guv", "kind": "income-statement", "version": "2026.1",
+          "positions": [
+            { "key": "1", "label": "Umsatzerlöse", "accounts": [ { "from": "8000", "to": "8999" } ] },
+            { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "accounts": [ { "from": "4000", "to": "4999" } ] }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V1", "text": "Barverkauf",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-15", "voucherId": "$V2", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "300.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12, "mapping": "test-guv" },
+      "expect": {
+        "positions": [
+          { "key": "1", "label": "Umsatzerlöse", "amount": "1000.00" },
+          { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "amount": "-300.00" }
+        ],
+        "netIncome": "700.00"
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "test-bilanz", "incomeMapping": "test-guv" },
+      "expect": {
+        "comment": "Aktiva 890 = Passiva 890 (EK/Jahresüberschuss 700 + USt-Verb. 190)",
+        "assets": [ { "key": "A.B", "amount": "890.00" } ],
+        "assetsTotal": "890.00",
+        "liabilitiesAndEquity": [
+          { "key": "P.EK", "amount": "700.00" },
+          { "key": "P.V", "amount": "190.00" }
+        ],
+        "liabilitiesAndEquityTotal": "890.00"
+      }
+    }
+  ]
+}

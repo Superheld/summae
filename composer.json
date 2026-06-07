@@ -1,0 +1,37 @@
+{
+    "name": "rechnungswesen/monorepo",
+    "description": "PHP-Referenzimplementierung Rechnungswesen — Monorepo (core, laravel, cli)",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.3",
+        "rechnungswesen/cli": "@dev",
+        "rechnungswesen/core": "@dev",
+        "rechnungswesen/laravel": "@dev"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^12.0"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "autoload-dev": {
+        "psr-4": {
+            "Rechnungswesen\\Core\\Tests\\": "packages/core/tests/",
+            "Rechnungswesen\\Laravel\\Tests\\": "packages/laravel/tests/",
+            "Rechnungswesen\\Cli\\Tests\\": "packages/cli/tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

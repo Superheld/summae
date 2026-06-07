@@ -1,0 +1,49 @@
+{
+  "fixture": "mapping-import",
+  "description": "Mapping-Import: gültiges Mapping angenommen; Überlappung (Konto in zwei Positionen) abgewiesen; Lücke ist kein Fehler, sondern gapWarning mit Auffangposition.",
+  "covers": ["F-CORE-015"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "9999", "name": "Exot ohne Position", "type": "asset" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": []
+  },
+  "steps": [
+    {
+      "op": "importMapping",
+      "input": {
+        "mapping": {
+          "id": "test-ok", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A.1", "label": "Liquide Mittel", "accounts": [ { "from": "1200", "to": "1299" } ] },
+            { "key": "A.2", "label": "Forderungen", "accounts": [ { "from": "1400", "to": "1499" } ] }
+          ]
+        }
+      },
+      "expect": {
+        "result": {
+          "imported": true,
+          "gapWarnings": [ { "account": "9999", "assignedTo": "_unassigned" } ]
+        }
+      }
+    },
+    {
+      "op": "importMapping",
+      "input": {
+        "mapping": {
+          "id": "test-overlap", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A.1", "label": "Liquide Mittel", "accounts": [ { "from": "1200", "to": "1499" } ] },
+            { "key": "A.2", "label": "Forderungen", "accounts": [ { "from": "1400", "to": "1499" } ] }
+          ]
+        }
+      },
+      "expect": { "error": "E_MAPPING_OVERLAP", "comment": "1400–1499 fällt in A.1 und A.2" }
+    }
+  ],
+  "projections": []
+}

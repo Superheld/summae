@@ -1,0 +1,9 @@
+parameters:
+    level: max
+    paths:
+        - packages/core/src
+        - packages/core/tests
+        - packages/laravel/src
+        - packages/laravel/tests
+        - packages/cli/src
+        - packages/cli/tests

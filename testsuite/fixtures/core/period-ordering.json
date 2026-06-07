@@ -1,0 +1,58 @@
+{
+  "fixture": "period-ordering",
+  "description": "Perioden schließen nur in Reihenfolge; Buchung außerhalb angelegter Geschäftsjahre; Wiedereröffnung nur vor Jahresabschluss.",
+  "covers": ["F-CORE-004"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "X-001", "voucherDate": "2026-01-05" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2025-12-30", "voucherId": "$V1", "text": "Geschäftsjahr 2025 existiert nicht",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_PERIOD_UNKNOWN" }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 3 },
+      "expect": { "error": "E_PERIOD_OUT_OF_ORDER" }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "reopenPeriod",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": { "result": { "status": "open" } }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "error": "E_PERIOD_OUT_OF_ORDER", "comment": "Perioden 3–12 noch offen" }
+    }
+  ],
+  "projections": []
+}

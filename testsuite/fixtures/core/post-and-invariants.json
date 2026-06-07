@@ -1,0 +1,88 @@
+{
+  "fixture": "post-and-invariants",
+  "description": "Gültige Buchung wird angenommen; unbalancierte, beleglose und Buchungen auf gesperrte Konten werden abgewiesen.",
+  "covers": ["F-CORE-001", "F-CORE-003", "F-CORE-011", "SF-02"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+      { "number": "0999", "name": "Gesperrt", "type": "expense", "status": "locked" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-2026-001", "voucherDate": "2026-03-05" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-05", "voucherId": "$V1", "text": "Barverkauf",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "1776", "side": "credit", "money": { "amount": "19.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "status": "entered" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-06", "voucherId": "$V1", "text": "kaputt",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "99.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ENTRY_UNBALANCED" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-06", "voucherId": null, "text": "ohne Beleg",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ENTRY_NO_VOUCHER" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-06", "voucherId": "$V1", "text": "gesperrtes Konto",
+        "lines": [
+          { "account": "0999", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_ACCOUNT_LOCKED" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-07", "voucherId": "$V1", "text": "zweite gültige Buchung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "59.50", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1776", "side": "credit", "money": { "amount": "9.50", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "debitTotal": "178.50", "creditTotal": "0.00", "balance": "178.50" },
+          { "account": "1776", "debitTotal": "0.00", "creditTotal": "28.50", "balance": "-28.50" },
+          { "account": "8400", "debitTotal": "0.00", "creditTotal": "150.00", "balance": "-150.00" }
+        ]
+      }
+    }
+  ]
+}

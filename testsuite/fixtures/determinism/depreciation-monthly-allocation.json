@@ -1,0 +1,65 @@
+{
+  "fixture": "depreciation-monthly-allocation",
+  "description": "Determinismus-Pflichtfall AfA: 1.000,00 € über 36 Monate per allocate — Monate 1–28 je 27,78 €, Monate 29–36 je 27,77 €; Summe exakt 1.000,00 (kein Restfehler im letzten Monat).",
+  "covers": ["F-AST-001", "F-AST-003"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0420", "name": "Technische Anlagen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-GERAET", "voucherDate": "2026-01-01" } ],
+    "ruleModules": { "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ] }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Messgerät", "assetClass": "it-hardware", "assetAccount": "0420",
+        "acquisitionCost": { "amount": "1000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize"
+      },
+      "expect": { "result": { "id": "$A1", "route": "capitalize", "usefulLifeMonths": 36 } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": {
+        "result": {
+          "comment": "1000/36 = 27.7778 → allocate: Monat 1 gehört zu den 28 aufgerundeten",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "27.78", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": { "result": { "totalDepreciation": { "amount": "27.78", "currency": "EUR" } } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "alreadyRun": true, "entriesCreated": 0 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "assetRegister",
+      "params": { "asOf": "2026-02-28" },
+      "expect": {
+        "assets": [
+          { "name": "Messgerät",
+            "accumulatedDepreciation": { "amount": "55.56", "currency": "EUR" },
+            "bookValue": { "amount": "944.44", "currency": "EUR" },
+            "depreciationSchedule": {
+              "comment": "Vertragsbestandteil: volle Verteilung prüfbar",
+              "months1to28": "27.78", "months29to36": "27.77", "total": "1000.00"
+            } }
+        ]
+      }
+    }
+  ]
+}
