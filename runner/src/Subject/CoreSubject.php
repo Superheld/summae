@@ -16,7 +16,10 @@ use Rechnungswesen\Core\Shared\CalendarDate;
 use Rechnungswesen\Core\Shared\Currency;
 use Rechnungswesen\Core\Shared\FixedClock;
 use Rechnungswesen\Core\Shared\Uuid;
+use Rechnungswesen\Core\Projection\AccountSheetProjection;
+use Rechnungswesen\Core\Projection\AuditLogProjection;
 use Rechnungswesen\Core\Projection\OpenItemsProjection;
+use Rechnungswesen\Core\Projection\TrialBalanceProjection;
 use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
 use Rechnungswesen\Core\Tenant;
 
@@ -131,6 +134,11 @@ final class CoreSubject implements Subject
             return match ($name) {
                 'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal))
                     ->compute($params),
+                'trialBalance' => (new TrialBalanceProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
+                    ->compute($params),
+                'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
+                    ->compute($params),
+                'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
                 default => throw new SubjectError('E_NOT_IMPLEMENTED', sprintf(
                     'Projektion "%s" ist noch nicht implementiert',
                     $name,
