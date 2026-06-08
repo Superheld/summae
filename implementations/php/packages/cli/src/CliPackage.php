@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli;
+namespace Summae\Cli;
 
 /**
  * Paket-Marker. Commands entstehen in JOB-013.

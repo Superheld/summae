@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Subject;
+namespace Summae\Runner\Subject;
 
 /**
  * Das Prüfobjekt des Runners: eine Implementierung der Spezifikation.

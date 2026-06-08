@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core;
+namespace Summae\Core;
 
 /**
  * Paket-Marker. Fachliche Klassen entstehen ab JOB-001 (Shared Kernel).

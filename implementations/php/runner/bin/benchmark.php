@@ -8,13 +8,13 @@ declare(strict_types=1);
  * In-Memory-Port (ohne Adapter-I/O, wie NF-7.1 es definiert).
  */
 
-use Rechnungswesen\Core\Composition\TenantOperations;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\FixedClock;
-use Rechnungswesen\Core\Shared\DeterministicIdGenerator;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\Composition\TenantOperations;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\FixedClock;
+use Summae\Core\Shared\DeterministicIdGenerator;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Tenant;
 
 require __DIR__ . '/../../vendor/autoload.php';
 

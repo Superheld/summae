@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
 /**
  * Verweis einer Buchung auf ihren Beleg (datenformat.md `voucherId`).

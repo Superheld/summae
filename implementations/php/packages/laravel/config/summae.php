@@ -7,5 +7,5 @@ return [
      * Datenbank-Connection für die Rechnungswesen-Tabellen.
      * null = Default-Connection der App.
      */
-    'connection' => env('RECHNUNGSWESEN_DB_CONNECTION'),
+    'connection' => env('SUMMAE_DB_CONNECTION'),
 ];

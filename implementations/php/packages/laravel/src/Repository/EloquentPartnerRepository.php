@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Partner\Partner;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Partner\Partner;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentPartnerRepository implements PartnerRepository
 {

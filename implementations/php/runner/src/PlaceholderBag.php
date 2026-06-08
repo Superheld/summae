@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner;
+namespace Summae\Runner;
 
 /**
  * Platzhalter-Mechanik der Fixtures (testsuite/README.md):

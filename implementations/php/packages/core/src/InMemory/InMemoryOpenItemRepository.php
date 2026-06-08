@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryOpenItemRepository implements OpenItemRepository
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli;
+namespace Summae\Cli;
 
 /**
  * Exit-Codes = Fehlercodes (api.md F-IO-003): stabile numerische

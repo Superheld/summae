@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Ledger;
+namespace Summae\Core\Tests\Ledger;
 
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\OpenItemKind;
-use Rechnungswesen\Core\Ledger\OpenItemStatus;
-use Rechnungswesen\Core\Projection\OpenItemsProjection;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\OpenItemKind;
+use Summae\Core\Ledger\OpenItemStatus;
+use Summae\Core\Projection\OpenItemsProjection;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
 
 final class OpenItemsTest extends LedgerTestCase
 {

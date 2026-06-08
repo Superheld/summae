@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Ledger;
+namespace Summae\Core\Tests\Ledger;
 
-use Rechnungswesen\Core\Ledger\PeriodStatus;
+use Summae\Core\Ledger\PeriodStatus;
 
 final class PeriodsAndAccountsTest extends LedgerTestCase
 {

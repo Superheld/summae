@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Port;
+namespace Summae\Core\Port;
 
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Shared\Uuid;
 
 interface OpenItemRepository
 {

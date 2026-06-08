@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Mapping;
+namespace Summae\Core\Mapping;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Port\AccountRepository;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Port\AccountRepository;
 
 /**
  * Mapping-Import (api.md): Überlappung (ein Konto in mehreren

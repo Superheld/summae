@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Port;
+namespace Summae\Core\Port;
 
-use Rechnungswesen\Core\Ledger\AuditRecord;
+use Summae\Core\Ledger\AuditRecord;
 
 /**
  * Audit-Trail ist Formatbestandteil (datenformat.md v0.3, Review G3):

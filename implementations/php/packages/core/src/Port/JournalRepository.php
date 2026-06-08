@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Port;
+namespace Summae\Core\Port;
 
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Journal: append-only, lückenlose sequenceNumber je Geschäftsjahr

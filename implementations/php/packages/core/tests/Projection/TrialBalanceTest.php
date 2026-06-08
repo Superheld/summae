@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Projection;
+namespace Summae\Core\Tests\Projection;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Projection\AccountSheetProjection;
-use Rechnungswesen\Core\Projection\TrialBalanceProjection;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\FixedClock;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Projection\AccountSheetProjection;
+use Summae\Core\Projection\TrialBalanceProjection;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\FixedClock;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Tenant;
 
 final class TrialBalanceTest extends TestCase
 {

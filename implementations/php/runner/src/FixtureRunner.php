@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner;
+namespace Summae\Runner;
 
-use Rechnungswesen\Core\Shared\DeterministicIdGenerator;
-use Rechnungswesen\Core\Shared\FixedClock;
-use Rechnungswesen\Runner\Subject\Subject;
-use Rechnungswesen\Runner\Subject\SubjectError;
+use Summae\Core\Shared\DeterministicIdGenerator;
+use Summae\Core\Shared\FixedClock;
+use Summae\Runner\Subject\Subject;
+use Summae\Runner\Subject\SubjectError;
 
 /**
  * Führt eine Fixture gegen ein frisches Subject aus (Runner-Kontrakt,

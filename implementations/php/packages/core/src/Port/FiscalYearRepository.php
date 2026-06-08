@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Port;
+namespace Summae\Core\Port;
 
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Shared\CalendarDate;
 
 interface FiscalYearRepository
 {

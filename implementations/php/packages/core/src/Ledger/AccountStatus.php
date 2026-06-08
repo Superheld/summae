@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
 enum AccountStatus: string
 {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\DimensionValue;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\DimensionValue;
 
 /**
  * Dimensions-Validierung: Mechanik im Kern, Inhalte als Regelmodul-Daten

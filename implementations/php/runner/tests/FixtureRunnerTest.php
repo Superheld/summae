@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Tests;
+namespace Summae\Runner\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Runner\Fixture;
-use Rechnungswesen\Runner\FixtureRunner;
-use Rechnungswesen\Runner\FixtureStatus;
-use Rechnungswesen\Runner\Subject\Subject;
-use Rechnungswesen\Runner\Subject\SubjectError;
+use Summae\Runner\Fixture;
+use Summae\Runner\FixtureRunner;
+use Summae\Runner\FixtureStatus;
+use Summae\Runner\Subject\Subject;
+use Summae\Runner\Subject\SubjectError;
 
 final class FixtureRunnerTest extends TestCase
 {

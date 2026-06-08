@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Ledger;
+namespace Summae\Core\Tests\Ledger;
 
-use Rechnungswesen\Core\Ledger\EntryStatus;
-use Rechnungswesen\Core\Ledger\Side;
+use Summae\Core\Ledger\EntryStatus;
+use Summae\Core\Ledger\Side;
 
 final class LifecycleTest extends LedgerTestCase
 {

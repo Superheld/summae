@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Mapping;
+namespace Summae\Core\Mapping;
 
 /**
  * Gliederungs-Mapping (datenformat.md v0.2): ordnet Konten Positionen zu —

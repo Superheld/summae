@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Assets\Asset;
-use Rechnungswesen\Core\Assets\AssetRoute;
-use Rechnungswesen\Core\Port\AssetRepository;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Assets\Asset;
+use Summae\Core\Assets\AssetRoute;
+use Summae\Core\Port\AssetRepository;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentAssetRepository implements AssetRepository
 {

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Shared;
+namespace Summae\Core\Tests\Shared;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\FixedClock;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\FixedClock;
+use Summae\Core\Shared\Uuid;
 
 final class UuidTest extends TestCase
 {

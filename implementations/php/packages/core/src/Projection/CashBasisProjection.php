@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\EntryLine;
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Mapping\Mapping;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Money;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\EntryLine;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Mapping\Mapping;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Money;
 
 /**
  * EÜR als Projektion über das doppische Journal — Regeln R1–R7

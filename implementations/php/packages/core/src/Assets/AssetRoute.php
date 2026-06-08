@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Assets;
+namespace Summae\Core\Assets;
 
 /**
  * GWG-Weiche (SF-05): drei Pfade als Kern-Mechanik,

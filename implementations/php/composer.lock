@@ -1011,11 +1011,11 @@
         },
         {
             "name": "superheld/summae-cli",
-            "version": "dev-chore/rename-summae",
+            "version": "dev-chore/namespace-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/cli",
-                "reference": "055a6daa86e7171887d3a2a3915f268b6ed4281b"
+                "reference": "20612c5cc1a76353492a15e5c8f38c22f78dbe1d"
             },
             "require": {
                 "php": ">=8.3",
@@ -1029,7 +1029,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Rechnungswesen\\Cli\\": "src/"
+                    "Summae\\Cli\\": "src/"
                 }
             },
             "license": [
@@ -1043,11 +1043,11 @@
         },
         {
             "name": "superheld/summae-core",
-            "version": "dev-chore/rename-summae",
+            "version": "dev-chore/namespace-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "09e9ef4966b1d06f24de110bc4a639953583a1a2"
+                "reference": "8df5a51eef18729ce5db64123d9ea05d6475f3dc"
             },
             "require": {
                 "brick/math": "^0.13",
@@ -1056,7 +1056,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Rechnungswesen\\Core\\": "src/"
+                    "Summae\\Core\\": "src/"
                 }
             },
             "license": [
@@ -1070,11 +1070,11 @@
         },
         {
             "name": "superheld/summae-laravel",
-            "version": "dev-chore/rename-summae",
+            "version": "dev-chore/namespace-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/laravel",
-                "reference": "7e861c09a535440a2ea23d8fddb4c6d8d22a9bd0"
+                "reference": "fa372826124fbac3e0e0f839ddf64631717369bb"
             },
             "require": {
                 "illuminate/database": "^11.0|^12.0",
@@ -1086,13 +1086,13 @@
             "extra": {
                 "laravel": {
                     "providers": [
-                        "Rechnungswesen\\Laravel\\RechnungswesenServiceProvider"
+                        "Summae\\Laravel\\SummaeServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "Rechnungswesen\\Laravel\\": "src/"
+                    "Summae\\Laravel\\": "src/"
                 }
             },
             "license": [

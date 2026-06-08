@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Composition;
+namespace Summae\Core\Composition;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Ledger\AccountStatus;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Ledger\AccountStatus;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Tenant;
 
 /**
  * `createTenant` (SF-01): Mandant per Profil anlegen — sofort buchbar.

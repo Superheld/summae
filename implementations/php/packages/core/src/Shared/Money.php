@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Brick\Math\BigNumber;
 use Brick\Math\Exception\MathException;
 use Brick\Math\RoundingMode;
-use Rechnungswesen\Core\Shared\Exception\CurrencyMismatch;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Exception\CurrencyMismatch;
+use Summae\Core\Shared\Exception\InvalidValue;
 
 /**
  * Betrag = Dezimalwert + Währung, nie Float (Glossar `money`).

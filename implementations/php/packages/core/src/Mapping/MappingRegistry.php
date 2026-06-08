@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Mapping;
+namespace Summae\Core\Mapping;
 
 /**
  * Geladene Mappings eines Mandanten. Import-Validierung

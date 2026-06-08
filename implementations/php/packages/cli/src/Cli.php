@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli;
+namespace Summae\Cli;
 
-use Rechnungswesen\Cli\Command\InitCommand;
-use Rechnungswesen\Cli\Command\OpCommand;
-use Rechnungswesen\Cli\Command\ReportCommand;
+use Summae\Cli\Command\InitCommand;
+use Summae\Cli\Command\OpCommand;
+use Summae\Cli\Command\ReportCommand;
 use Symfony\Component\Console\Application;
 
 /**

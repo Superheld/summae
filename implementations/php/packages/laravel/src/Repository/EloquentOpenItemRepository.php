@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Ledger\OpenItemKind;
-use Rechnungswesen\Core\Ledger\Settlement;
-use Rechnungswesen\Core\Ledger\SettlementDifferenceKind;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Ledger\OpenItemKind;
+use Summae\Core\Ledger\Settlement;
+use Summae\Core\Ledger\SettlementDifferenceKind;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentOpenItemRepository implements OpenItemRepository
 {

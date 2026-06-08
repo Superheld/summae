@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Tests;
+namespace Summae\Runner\Tests;
 
 use Opis\JsonSchema\Validator;
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Runner\Subject\CoreSubject;
+use Summae\Runner\Subject\CoreSubject;
 
 /**
  * JOB-011-Akzeptanz: Exporte validieren gegen das maschinenlesbare

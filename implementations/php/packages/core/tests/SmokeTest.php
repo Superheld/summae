@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests;
+namespace Summae\Core\Tests;
 
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Cli\CliPackage;
-use Rechnungswesen\Core\CorePackage;
-use Rechnungswesen\Laravel\RechnungswesenServiceProvider;
+use Summae\Cli\CliPackage;
+use Summae\Core\CorePackage;
+use Summae\Laravel\SummaeServiceProvider;
 
 /**
  * JOB-000: beweist nur, dass das Gerüst trägt — Autoloading über alle
@@ -21,7 +21,7 @@ final class SmokeTest extends TestCase
     {
         self::assertSame('0.1.0-dev', CorePackage::VERSION);
         self::assertSame('0.1.0-dev', CliPackage::VERSION);
-        self::assertTrue(class_exists(RechnungswesenServiceProvider::class));
+        self::assertTrue(class_exists(SummaeServiceProvider::class));
     }
 
     public function testDecimalDependencyRoundsHalfUp(): void

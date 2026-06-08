@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Assets\Asset;
-use Rechnungswesen\Core\Assets\AssetRoute;
-use Rechnungswesen\Core\Port\AssetRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Assets\Asset;
+use Summae\Core\Assets\AssetRoute;
+use Summae\Core\Port\AssetRepository;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Anlageverzeichnis (Pflicht auch bei EÜR, § 4 Abs. 3 S. 5 EStG).

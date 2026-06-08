@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Shared\CalendarDate;
 
 final class InMemoryFiscalYearRepository implements FiscalYearRepository
 {

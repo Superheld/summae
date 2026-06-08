@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tax;
+namespace Summae\Core\Tax;
 
 use Brick\Math\BigDecimal;
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\Money;
+use Summae\Core\DomainError;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Money;
 
 /**
  * Steuerexpansion (tax-modell.md): side-effect-free — reine Funktion.

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
 /**
  * Ausgleich mit Differenz (api.md v0.3, Review G2): Skonto,

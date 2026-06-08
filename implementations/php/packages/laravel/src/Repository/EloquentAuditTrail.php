@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Ledger\AuditRecord;
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentAuditTrail implements AuditTrail
 {

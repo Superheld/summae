@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner;
+namespace Summae\Runner;
 
-use Rechnungswesen\Core\Shared\CanonicalJson;
-use Rechnungswesen\Runner\Subject\SubjectFactory;
+use Summae\Core\Shared\CanonicalJson;
+use Summae\Runner\Subject\SubjectFactory;
 
 /**
  * Kompletter Suite-Lauf inkl. Doppellauf-Determinismus-Check

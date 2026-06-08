@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Composition;
+namespace Summae\Core\Composition;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Ledger\PostResult;
-use Rechnungswesen\Core\Mapping\MappingImporter;
-use Rechnungswesen\Core\Projection\AccountSheetProjection;
-use Rechnungswesen\Core\Projection\AssetRegisterProjection;
-use Rechnungswesen\Core\Projection\AuditLogProjection;
-use Rechnungswesen\Core\Projection\BalanceSheetProjection;
-use Rechnungswesen\Core\Projection\CashBasisProjection;
-use Rechnungswesen\Core\Projection\DatevExportProjection;
-use Rechnungswesen\Core\Projection\EcSalesListProjection;
-use Rechnungswesen\Core\Projection\IncomeStatementProjection;
-use Rechnungswesen\Core\Projection\JournalExportProjection;
-use Rechnungswesen\Core\Projection\OpenItemsProjection;
-use Rechnungswesen\Core\Projection\TrialBalanceProjection;
-use Rechnungswesen\Core\Projection\VatReturnProjection;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Ledger\PostResult;
+use Summae\Core\Mapping\MappingImporter;
+use Summae\Core\Projection\AccountSheetProjection;
+use Summae\Core\Projection\AssetRegisterProjection;
+use Summae\Core\Projection\AuditLogProjection;
+use Summae\Core\Projection\BalanceSheetProjection;
+use Summae\Core\Projection\CashBasisProjection;
+use Summae\Core\Projection\DatevExportProjection;
+use Summae\Core\Projection\EcSalesListProjection;
+use Summae\Core\Projection\IncomeStatementProjection;
+use Summae\Core\Projection\JournalExportProjection;
+use Summae\Core\Projection\OpenItemsProjection;
+use Summae\Core\Projection\TrialBalanceProjection;
+use Summae\Core\Projection\VatReturnProjection;
+use Summae\Core\Tenant;
 
 /**
  * Generischer Einstieg in alle Operationen und Projektionen eines

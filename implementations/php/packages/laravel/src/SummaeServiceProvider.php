@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel;
+namespace Summae\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Laravel-Einstiegspunkt: `composer require superheld/rechnungswesen-laravel`
+ * Laravel-Einstiegspunkt: `composer require superheld/summae-laravel`
  * — der framework-freie Kern kommt als Abhängigkeit mit, der Nutzer
  * richtet genau ein Package ein.
  *
@@ -17,11 +17,11 @@ use Illuminate\Support\ServiceProvider;
  * DB-Persistenz) auf der konfigurierten Connection; Migrationen und
  * Config sind publizierbar.
  */
-final class RechnungswesenServiceProvider extends ServiceProvider
+final class SummaeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/rechnungswesen.php', 'rechnungswesen');
+        $this->mergeConfigFrom(__DIR__ . '/../config/summae.php', 'summae');
 
         $this->app->singleton(EloquentTenantFactory::class, static function (Application $app): EloquentTenantFactory {
             /** @var \Illuminate\Database\DatabaseManager $db */
@@ -29,7 +29,7 @@ final class RechnungswesenServiceProvider extends ServiceProvider
             /** @var \Illuminate\Contracts\Config\Repository $config */
             $config = $app->make('config');
             /** @var string|null $connectionName */
-            $connectionName = $config->get('rechnungswesen.connection');
+            $connectionName = $config->get('summae.connection');
 
             /** @var ConnectionInterface $connection */
             $connection = $db->connection($connectionName);
@@ -43,7 +43,7 @@ final class RechnungswesenServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
         $this->publishes([
-            __DIR__ . '/../config/rechnungswesen.php' => $this->app->configPath('rechnungswesen.php'),
-        ], 'rechnungswesen-config');
+            __DIR__ . '/../config/summae.php' => $this->app->configPath('summae.php'),
+        ], 'summae-config');
     }
 }

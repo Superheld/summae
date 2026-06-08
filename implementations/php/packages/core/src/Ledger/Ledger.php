@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\DimensionValue;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\PeriodRef;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\DimensionValue;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Domain Service `post` und Verwandte (ledger-modell.md):

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Partner;
+namespace Summae\Core\Partner;
 
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Geschäftspartner (datenformat.md v0.4) — bewusst schlank, kein CRM:

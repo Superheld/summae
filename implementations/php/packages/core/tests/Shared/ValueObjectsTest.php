@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Shared;
+namespace Summae\Core\Tests\Shared;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Core\Shared\DimensionValue;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\PeriodRef;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Shared\VoucherRef;
+use Summae\Core\Shared\DimensionValue;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Shared\VoucherRef;
 
 final class ValueObjectsTest extends TestCase
 {

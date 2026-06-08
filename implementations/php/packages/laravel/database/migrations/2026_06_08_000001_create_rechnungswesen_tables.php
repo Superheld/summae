@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Schema;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 return new class extends Migration {
     public function up(): void

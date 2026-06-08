@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Audit-Eintrag (datenformat.md v0.3 `auditLog.jsonl`):

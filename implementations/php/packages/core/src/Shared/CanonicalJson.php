@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Exception\InvalidValue;
 
 /**
  * Kanonisches JSON nach RFC 8785 (JCS) — Grundlage aller Hashes und
