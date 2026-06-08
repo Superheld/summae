@@ -1,13 +1,13 @@
 {
-    "name": "rechnungswesen/monorepo",
+    "name": "superheld/rechnungswesen-monorepo",
     "description": "PHP-Referenzimplementierung Rechnungswesen — Monorepo (core, laravel, cli)",
     "type": "project",
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": ">=8.3",
-        "rechnungswesen/cli": "@dev",
-        "rechnungswesen/core": "@dev",
-        "rechnungswesen/laravel": "@dev"
+        "superheld/rechnungswesen-cli": "@dev",
+        "superheld/rechnungswesen-core": "@dev",
+        "superheld/rechnungswesen-laravel": "@dev"
     },
     "require-dev": {
         "opis/json-schema": "^2.6",
