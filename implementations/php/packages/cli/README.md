@@ -1,6 +1,6 @@
 # superheld/summae-cli
 
-Eigenständiges Kommandozeilen-Werkzeug (`rw`) für die Rechnungswesen-Bibliothek.
+Eigenständiges Kommandozeilen-Werkzeug (`summae`) für die Rechnungswesen-Bibliothek.
 Alle Ein- und Ausgaben sind **JSON** — Zielnutzer ist ein Mensch *oder ein
 LLM-Operator*, der Buchhaltung über `op`/`report` bedient. Exit-Codes
 entsprechen den Fehlercodes der API.
@@ -13,7 +13,7 @@ entsprechen den Fehlercodes der API.
 ## Voraussetzungen
 
 - PHP ≥ 8.3
-- Schreibrechte im Arbeitsverzeichnis (für `rw.json` + SQLite-Datei)
+- Schreibrechte im Arbeitsverzeichnis (für `summae.json` + SQLite-Datei)
 
 ## Konfiguration
 
@@ -22,8 +22,8 @@ Arbeitsbereich an:
 
 | Datei | Inhalt |
 |---|---|
-| `rw.json` | Mandanten-Meta (Name, Währung, `tenantId`) + Regelmodul-Daten (Konten, Steuerschlüssel, Mappings, …) |
-| `rechnungswesen.sqlite` | die Buchungsdaten (Eloquent/SQLite) |
+| `summae.json` | Mandanten-Meta (Name, Währung, `tenantId`) + Regelmodul-Daten (Konten, Steuerschlüssel, Mappings, …) |
+| `summae.sqlite` | die Buchungsdaten (Eloquent/SQLite) |
 
 Beide entstehen im Arbeitsverzeichnis (`--dir`, Default: aktuelles Verzeichnis).
 
@@ -31,10 +31,10 @@ Beide entstehen im Arbeitsverzeichnis (`--dir`, Default: aktuelles Verzeichnis).
 
 ```bash
 # Arbeitsbereich anlegen — Regeldatei trägt Konten, Geschäftsjahre, Steuerschlüssel
-rw init --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
+summae init --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
 
 # Schreiboperation (SF-02: Beleg + Steuerexpansion + Buchung in einem Aufruf)
-rw op postVoucher --dir ./buchhaltung --input '{
+summae op postVoucher --dir ./buchhaltung --input '{
   "voucher": {"voucherNumber": "AR-001", "voucherDate": "2026-02-10"},
   "entryDate": "2026-02-10", "text": "Beratung",
   "taxCode": "USt19", "direction": "output",
@@ -43,7 +43,7 @@ rw op postVoucher --dir ./buchhaltung --input '{
 }'
 
 # Projektion
-rw report trialBalance --dir ./buchhaltung --params '{"fiscalYear": 2026, "throughPeriod": 12}'
+summae report trialBalance --dir ./buchhaltung --params '{"fiscalYear": 2026, "throughPeriod": 12}'
 ```
 
 `--input`/`--params` akzeptieren JSON direkt oder `@datei.json`. Bei Fehlern

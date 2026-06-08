@@ -15,8 +15,8 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `rw op post --input '{"entryDate": …}'` — alle Schreiboperationen
- * der api.md in einem Aufruf (SF-02: `rw op postVoucher --input …`).
+ * `summae op post --input '{"entryDate": …}'` — alle Schreiboperationen
+ * der api.md in einem Aufruf (SF-02: `summae op postVoucher --input …`).
  * Eingabe als JSON-String oder `@datei.json`.
  */
 final class OpCommand extends Command

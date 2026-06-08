@@ -6,7 +6,7 @@
 |---|---|---|
 | `packages/core` | `superheld/summae-core` | Framework-freier Fachkern. Die gesamte Buchführungslogik. Einzige Abhängigkeit: `brick/math`. |
 | `packages/laravel` | `superheld/summae-laravel` | Adapter: Eloquent-Persistenz, ServiceProvider, Migrationen. **Keine Fachlogik.** |
-| `packages/cli` | `superheld/summae-cli` | Terminal-Werkzeug (`rw`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
+| `packages/cli` | `superheld/summae-cli` | Terminal-Werkzeug (`summae`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
 
 Daneben `superheld/summae-php` (`implementations/php/composer.json`) — die
 PHP-Entwickler-Werkbank, **kein** ausgeliefertes Paket. `runner/` ist der
@@ -43,7 +43,7 @@ Zwei Adapter-Sätze implementieren sie:
 - **In-Memory** (`packages/core/src/InMemory/`) — für Tests, Konformitätsläufe,
   die CLI-Logik. Schnell, ohne I/O.
 - **Eloquent** (`packages/laravel/src/Repository/`) — für die echte DB.
-  Persistiert die Aggregat-Innereien als JSON-Dokumente in `rw_*`-Tabellen,
+  Persistiert die Aggregat-Innereien als JSON-Dokumente in `summae_*`-Tabellen,
   exakt in Published-Language-Form.
 
 Zusammengebaut wird ein Mandant durch:

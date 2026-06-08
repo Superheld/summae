@@ -17,7 +17,7 @@ Postgres wird nur für den Eloquent-Konformitätslauf gebraucht:
 
 ```bash
 docker compose --profile db up -d postgres
-docker compose --profile db run --rm -e RW_DB_DRIVER=pgsql -e RW_DB_HOST=postgres \
+docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST=postgres \
   php php runner/bin/run-fixtures.php --strict --subject=eloquent
 ```
 

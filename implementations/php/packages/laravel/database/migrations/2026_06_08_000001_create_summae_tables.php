@@ -19,7 +19,7 @@ return new class extends Migration {
 
     private function connectionName(): ?string
     {
-        $connection = config('rechnungswesen.connection');
+        $connection = config('summae.connection');
 
         return is_string($connection) ? $connection : null;
     }

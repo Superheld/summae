@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-laravel",
-    "description": "Laravel-Adapter für rechnungswesen/core: ServiceProvider, Eloquent-Persistenz, Migrationen",
+    "description": "Laravel-Adapter für summae-core: ServiceProvider, Eloquent-Persistenz, Migrationen",
     "type": "library",
     "license": "MIT",
     "require": {
