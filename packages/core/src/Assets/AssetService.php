@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Rechnungswesen\Core\Assets;
 
 use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Account;
 use Rechnungswesen\Core\Ledger\Ledger;
 use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Port\AccountRepository;
 use Rechnungswesen\Core\Port\AssetRepository;
 use Rechnungswesen\Core\Port\FiscalYearRepository;
 use Rechnungswesen\Core\Port\VoucherRepository;
@@ -43,7 +41,6 @@ final class AssetService
     public function __construct(
         private readonly Currency $baseCurrency,
         private readonly AssetRepository $assets,
-        private readonly AccountRepository $accounts,
         private readonly FiscalYearRepository $fiscalYears,
         private readonly VoucherRepository $vouchers,
         private readonly Ledger $ledger,
@@ -482,56 +479,36 @@ final class AssetService
 
     private function counterAccount(): string
     {
-        $configured = $this->ruleModule['acquisitionCounterAccount'] ?? null;
-        if (is_string($configured)) {
-            return $configured;
-        }
-
-        foreach ($this->accounts->all() as $account) {
-            if ($account->subtype === 'bank') {
-                return $account->number->value;
-            }
-        }
-
-        throw new DomainError('E_ACCOUNT_UNKNOWN', 'Kein Geldkonto für Anlagen-Gegenbuchung gefunden');
+        return $this->assetAccount('acquisitionCounterAccount');
     }
 
     private function depreciationExpenseAccount(): string
     {
-        return $this->expenseAccountByConvention('depreciationExpenseAccount', 'AfA');
+        return $this->assetAccount('depreciationExpenseAccount');
     }
 
     private function gwgExpenseAccount(): string
     {
-        return $this->expenseAccountByConvention('gwgExpenseAccount', 'GWG');
+        return $this->assetAccount('gwgExpenseAccount');
     }
 
-    private function expenseAccountByConvention(string $ruleKey, string $namePart): string
+    /**
+     * v0.5/F-004: Anlagenkonten kommen aus dem Regelmodul-Block
+     * `assetAccounts` — keine Namens-Heuristik mehr.
+     */
+    private function assetAccount(string $key): string
     {
-        $configured = $this->ruleModule[$ruleKey] ?? null;
-        if (is_string($configured)) {
-            return $configured;
+        $block = is_array($this->ruleModule['assetAccounts'] ?? null) ? $this->ruleModule['assetAccounts'] : [];
+        $value = $block[$key] ?? null;
+
+        if (is_string($value) && $value !== '') {
+            return $value;
         }
 
-        $fallback = null;
-
-        foreach ($this->accounts->all() as $account) {
-            if ($account->type !== \Rechnungswesen\Core\Ledger\AccountType::Expense) {
-                continue;
-            }
-
-            $fallback ??= $account;
-
-            if (str_contains($account->name, $namePart)) {
-                return $account->number->value;
-            }
-        }
-
-        if ($fallback instanceof Account) {
-            return $fallback->number->value;
-        }
-
-        throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Kein Aufwandskonto für %s gefunden', $ruleKey));
+        throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf(
+            'assetAccounts.%s ist im Regelmodul nicht gesetzt',
+            $key,
+        ), ['key' => $key]);
     }
 
     private function parseMoney(mixed $raw): Money

@@ -20,10 +20,10 @@
         {
           "id": "test-bilanz", "kind": "balance-sheet", "version": "2026.1",
           "positions": [
-            { "key": "A", "label": "Aktiva", "children": [
+            { "key": "A", "label": "Aktiva", "side": "assets", "children": [
               { "key": "A.B", "label": "Guthaben bei Kreditinstituten", "accounts": [ { "from": "1200", "to": "1299" } ] }
             ] },
-            { "key": "P", "label": "Passiva", "children": [
+            { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [
               { "key": "P.EK", "label": "Eigenkapital (inkl. Jahresergebnis)", "accounts": [], "includesNetIncome": true },
               { "key": "P.V", "label": "Sonstige Verbindlichkeiten", "accounts": [ { "from": "1700", "to": "1799" } ] }
             ] }

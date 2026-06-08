@@ -28,6 +28,8 @@ use Rechnungswesen\Core\Shared\Uuid;
  */
 final readonly class JournalExportProjection
 {
+    private const string FORMAT_VERSION = '0.4';
+
     public function __construct(
         private Uuid $tenantId,
         private string $tenantName,
@@ -71,17 +73,12 @@ final readonly class JournalExportProjection
             );
         }
 
-        $hasChangeHistory = array_filter(
+        // v0.5/F-005: auditLog ist IMMER Teil des Exports (Buchen/Festschreiben
+        // erzeugt bereits Einträge — der Trail überlebt Systemwechsel, SF-15).
+        $streams['auditLog'] = array_map(
+            static fn (AuditRecord $record): array => $record->jsonSerialize(),
             $this->audit->all(),
-            static fn (AuditRecord $record): bool => !in_array($record->action, ['created', 'finalized'], true),
-        ) !== [];
-
-        if ($hasChangeHistory) {
-            $streams['auditLog'] = array_map(
-                static fn (AuditRecord $record): array => $record->jsonSerialize(),
-                $this->audit->all(),
-            );
-        }
+        );
 
         $contentHashes = [];
         foreach ($streams as $name => $rows) {
@@ -99,8 +96,8 @@ final readonly class JournalExportProjection
 
         return [
             'manifest' => [
-                // Fixture-Kontrakt erwartet 0.2 — Versionsangleichung als Finding notiert.
-                'formatVersion' => '0.2',
+                // Schema-$id bleibt 0.4 (additive Felder); inhaltlich v0.5.
+                'formatVersion' => self::FORMAT_VERSION,
                 'tenantId' => $this->tenantId->value,
                 'tenantName' => $this->tenantName,
                 'baseCurrency' => $this->baseCurrency->code,

@@ -11,7 +11,10 @@
     ],
     "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
     "vouchers": [ { "id": "$V1", "voucherNumber": "ER-GERAET", "voucherDate": "2026-01-01" } ],
-    "ruleModules": { "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ] }
+    "ruleModules": {
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
+    }
   },
   "steps": [
     {

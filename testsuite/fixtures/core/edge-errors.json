@@ -26,7 +26,8 @@
     ],
     "ruleModules": {
       "dimensionRules": [ { "accountRange": { "from": "4000", "to": "4999" }, "requiredDimension": "costCenter" } ],
-      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ]
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855", "disposalProceedsAccount": "8801", "disposalLossAccount": "8801" }
     }
   },
   "steps": [

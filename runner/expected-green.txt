@@ -40,3 +40,6 @@ audit-trail
 datev-export
 journal-export-z3
 partner-and-ec-sales
+costing-run-unknown
+fiscalyear-close-guard
+voucher-unknown

@@ -41,8 +41,8 @@ final class PeriodsAndAccountsTest extends LedgerTestCase
             $ledger->closePeriod(['fiscalYear' => 2026, 'period' => $period]);
         }
 
-        // Buchung nicht festgeschrieben -> Abschluss verweigert.
-        $this->expectDomainError('E_PERIOD_OUT_OF_ORDER', static fn () => $ledger->closeFiscalYear([
+        // Buchung nicht festgeschrieben -> Abschluss verweigert (v0.5/F-003).
+        $this->expectDomainError('E_FISCALYEAR_UNFINALIZED_ENTRIES', static fn () => $ledger->closeFiscalYear([
             'fiscalYear' => 2026,
         ]));
 

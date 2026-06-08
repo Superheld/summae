@@ -14,7 +14,7 @@ final readonly class Mapping
     /**
      * Blattpositionen, flach (Hierarchie über parentKeys rekonstruierbar).
      *
-     * @param list<array{key: string, label: string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}> $leaves
+     * @param list<array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}> $leaves
      */
     public function __construct(
         public string $id,
@@ -47,9 +47,9 @@ final readonly class Mapping
     /**
      * @param list<mixed> $positions
      * @param list<string> $parents
-     * @param list<array{key: string, label: string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}> $leaves
+     * @param list<array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}> $leaves
      */
-    private static function collectLeaves(array $positions, array $parents, array &$leaves): void
+    private static function collectLeaves(array $positions, array $parents, array &$leaves, ?string $side = null): void
     {
         foreach ($positions as $position) {
             if (!is_array($position)) {
@@ -57,10 +57,12 @@ final readonly class Mapping
             }
 
             $key = is_string($position['key'] ?? null) ? $position['key'] : '';
+            // side wird am Wurzelknoten gesetzt und an die Blätter vererbt (v0.5/F-007).
+            $nodeSide = is_string($position['side'] ?? null) ? $position['side'] : $side;
             $children = is_array($position['children'] ?? null) ? array_values($position['children']) : [];
 
             if ($children !== []) {
-                self::collectLeaves($children, [...$parents, $key], $leaves);
+                self::collectLeaves($children, [...$parents, $key], $leaves, $nodeSide);
                 continue;
             }
 
@@ -85,6 +87,7 @@ final readonly class Mapping
             $leaves[] = [
                 'key' => $key,
                 'label' => is_string($position['label'] ?? null) ? $position['label'] : $key,
+                'side' => $nodeSide,
                 'ranges' => $ranges,
                 'numbers' => $numbers,
                 'includeNonCash' => ($position['includeNonCash'] ?? false) === true,
@@ -95,7 +98,7 @@ final readonly class Mapping
     }
 
     /**
-     * @return array{key: string, label: string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}|null
+     * @return array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}|null
      */
     public function leafFor(string $accountNumber): ?array
     {

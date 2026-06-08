@@ -1,8 +1,10 @@
-# Abdeckungsstand (2026-06-08, nach Buchhalter-/StB-Review v0.4)
+# Abdeckungsstand (2026-06-08, nach SPEC-FINDINGS v0.5)
 
-Automatisch prüfbar via `python3 validate.py`. Fixtures: 40.
+Automatisch prüfbar via `python3 validate.py`. Fixtures: 43.
 
-## Fehlercodes: 31 / 31 ✅
+## Fehlercodes: 34 / 34 ✅
+
+v0.5 (aus PHP-Implementierungs-Findings): E_VOUCHER_UNKNOWN (voucher-unknown), E_FISCALYEAR_UNFINALIZED_ENTRIES (fiscalyear-close-guard), E_COSTING_RUN_UNKNOWN (costing-run-unknown).
 
 ## Standardfälle: 25 / 26 — offen nur SF-15 (braucht zweite Implementierung)
 

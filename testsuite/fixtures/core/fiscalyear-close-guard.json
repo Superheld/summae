@@ -1,0 +1,48 @@
+{
+  "fixture": "fiscalyear-close-guard",
+  "description": "v0.5/F-003: closeFiscalYear scheitert mit eigenem Code, solange Buchungen nicht festgeschrieben sind (abgegrenzt von E_PERIOD_OUT_OF_ORDER = offene Perioden).",
+  "covers": ["F-CORE-013", "F-CORE-021"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31", "periods": [ { "period": 1, "start": "2026-01-01", "end": "2026-12-31" } ] } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-06-01" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01", "voucherId": "$V1", "text": "nicht festgeschriebene Buchung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "status": "entered" } }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "error": "E_FISCALYEAR_UNFINALIZED_ENTRIES", "comment": "Periode zu, aber Buchung nur 'entered'" }
+    },
+    {
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-12-31" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    },
+    {
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "result": { "status": "closed" } }
+    }
+  ],
+  "projections": []
+}

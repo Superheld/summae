@@ -84,7 +84,7 @@ final readonly class MappingImporter
     }
 
     /**
-     * @param array{key: string, label: string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>} $leaf
+     * @param array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>} $leaf
      */
     private function leafMatches(array $leaf, string $accountNumber): bool
     {

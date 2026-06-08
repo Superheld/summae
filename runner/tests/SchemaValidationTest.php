@@ -94,13 +94,9 @@ final class SchemaValidationTest extends TestCase
             }
         }
 
-        // Schema-Manifest kennt streams/hashAlgorithm (noch) nicht, die
-        // journal-export-z3 verlangt — siehe SPEC-FINDINGS. Bekannte Felder prüfen.
-        $manifestKnown = array_intersect_key($manifest, [
-            'formatVersion' => true, 'tenantId' => true, 'tenantName' => true,
-            'baseCurrency' => true, 'exportedAt' => true, 'contentHashes' => true,
-        ]);
-        $manifestDecoded = json_decode(json_encode($manifestKnown, JSON_THROW_ON_ERROR), false);
+        // v0.5/F-005: Schema-Manifest kennt jetzt streams + hashAlgorithm —
+        // das volle Manifest validiert.
+        $manifestDecoded = json_decode(json_encode($manifest, JSON_THROW_ON_ERROR), false);
         $manifestResult = $validator->validate($manifestDecoded, $schema->{'$id'} . '#/$defs/manifest');
         self::assertTrue(
             $manifestResult->isValid(),

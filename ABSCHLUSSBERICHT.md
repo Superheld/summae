@@ -32,17 +32,22 @@ Massendurchsatz `post`: ~0,013 ms/Buchung (77k Buchungen/s); Peak-Memory
 bei 100k Buchungen in-memory: 310 MB (Adapter-Betrieb hält das Journal
 nicht im Speicher). Reproduktion: `php runner/bin/benchmark.php 100000`.
 
-## SPEC-FINDINGS (konsolidiert, Details in SPEC-FINDINGS.md)
+## SPEC-FINDINGS — alle aufgelöst (Spec v0.5, JOB-V05)
 
-| # | Befund | Vorschlag |
+Die Findings F-001…F-007 wurden von der Wissensbasis aufgegriffen (v0.5,
+`SPEC-UPDATE-v0.5.md`) und in JOB-V05 implementiert — die Schleife
+Implementierung → Findings → Spec → Retrofit ist einmal vollständig
+durchlaufen. Suite jetzt **43 Fixtures, 34 Fehlercodes**.
+
+| # | Befund | Auflösung in v0.5 |
 |---|---|---|
-| F-001 | Kein Code für *unbekannte* voucherId | festschreiben oder `E_VOUCHER_UNKNOWN` |
-| F-002 | `E_ENTRY_NOT_FINALIZED` in api.md, nicht im Katalog; Fixture storniert `entered` | Fußnote auflösen |
-| F-003 | Kein Code für Jahresabschluss mit nicht festgeschriebenen Buchungen | Code definieren |
-| F-004 | Konten-Auflösung für Asset-Buchungen unspezifiziert (Gegenkonto/AfA/GWG) | Regelmodul-Schlüssel |
-| F-005 | journal-export-z3 ↔ audit-trail ↔ Schema: Manifest-Streams & formatVersion widersprüchlich | Fixture + Schema auf v0.4 ziehen |
-| F-006 | `E_COSTING_RUN_UNKNOWN` fehlt im Katalog | aufnehmen + Fixture |
-| F-007 | balanceSheet-Seitenzuordnung (Aktiva/Passiva) per Konvention Wurzelreihenfolge | `side`-Attribut am Mapping |
+| F-001 | Kein Code für *unbekannte* voucherId | eigener Code `E_VOUCHER_UNKNOWN` (Referenzschritt) |
+| F-002 | `E_ENTRY_NOT_FINALIZED` widersprüchlich | gestrichen; `reverse` statusunabhängig; `closePeriod` ohne Festschreibungspflicht |
+| F-003 | Kein Code für Jahresabschluss-Guard | eigener Code `E_FISCALYEAR_UNFINALIZED_ENTRIES` |
+| F-004 | Asset-Konten unspezifiziert | Regelmodul-Block `assetAccounts` (Heuristik entfernt) |
+| F-005 | Manifest-Streams/Version widersprüchlich | `streams`+`hashAlgorithm` im Schema, `auditLog` immer, `formatVersion` aktuell |
+| F-006 | `E_COSTING_RUN_UNKNOWN` fehlte | im Katalog (entsprach bereits der Implementierung) |
+| F-007 | Bilanz-Seitenzuordnung fragil | `side: assets\|liabilitiesAndEquity` am Wurzelknoten |
 
 Dazu zwei Beobachtungen ohne eigene Nummer: (a) Fixture-Zählung in
 JOBS.md/Wissensbasis-README („17") ist mehrfach überholt; (b) Generalumkehr

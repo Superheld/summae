@@ -17,7 +17,8 @@
     ],
     "ruleModule": {
       "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00" } ],
-      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ]
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
     }
   },
   "steps": [

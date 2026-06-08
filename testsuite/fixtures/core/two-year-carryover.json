@@ -21,8 +21,8 @@
       "mappings": [
         { "id": "bilanz-mini", "kind": "balance-sheet", "version": "1",
           "positions": [
-            { "key": "A", "label": "Aktiva", "children": [ { "key": "A.B", "label": "Bank", "accounts": [ { "from": "1200", "to": "1299" } ] } ] },
-            { "key": "P", "label": "Passiva", "children": [ { "key": "P.EK", "label": "Eigenkapital", "accounts": [], "includesNetIncome": true } ] }
+            { "key": "A", "label": "Aktiva", "side": "assets", "children": [ { "key": "A.B", "label": "Bank", "accounts": [ { "from": "1200", "to": "1299" } ] } ] },
+            { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [ { "key": "P.EK", "label": "Eigenkapital", "accounts": [], "includesNetIncome": true } ] }
           ] },
         { "id": "guv-mini", "kind": "income-statement", "version": "1",
           "positions": [

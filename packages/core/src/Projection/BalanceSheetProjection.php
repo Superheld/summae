@@ -21,9 +21,9 @@ use Rechnungswesen\Core\Shared\Money;
  * (result_allocation, v0.4 G6) — das noch nicht verwendete Ergebnis.
  * Bilanzidentität by construction (api.md, Review G1).
  *
- * Konvention: erste Wurzelposition = Aktiva (Soll − Haben), zweite =
- * Passiva (Haben − Soll). Die Spec definiert die Seitenzuordnung nicht
- * explizit — siehe SPEC-FINDINGS.
+ * Seitenzuordnung (v0.5/F-007): `side: assets|liabilitiesAndEquity` am
+ * Mapping-Wurzelknoten; assets = Soll−Haben, liabilitiesAndEquity =
+ * Haben−Soll. Default ohne side: assets.
  */
 final readonly class BalanceSheetProjection
 {
@@ -88,56 +88,45 @@ final readonly class BalanceSheetProjection
             }
         }
 
-        $roots = [];
-        foreach ($mapping->leaves as $leaf) {
-            $root = $leaf['parents'][0] ?? $leaf['key'];
-            $roots[$root] ??= [];
-            $roots[$root][] = $leaf;
-        }
-
-        $rootKeys = array_map(strval(...), array_keys($roots));
-        $assetsRoot = $rootKeys[0] ?? '';
-
         $sections = ['assets' => [], 'liabilitiesAndEquity' => []];
         $totals = ['assets' => $zero, 'liabilitiesAndEquity' => $zero];
 
-        foreach ($roots as $rootKey => $leaves) {
-            $section = (string) $rootKey === $assetsRoot ? 'assets' : 'liabilitiesAndEquity';
+        foreach ($mapping->leaves as $leaf) {
+            // v0.5/F-007: Seite kommt aus `side` am Wurzelknoten, nicht aus der Reihenfolge.
+            $section = $leaf['side'] === 'liabilitiesAndEquity' ? 'liabilitiesAndEquity' : 'assets';
 
-            foreach ($leaves as $leaf) {
-                $amount = $zero;
-                $touched = false;
+            $amount = $zero;
+            $touched = false;
 
-                foreach (array_keys($debits + $credits) as $number) {
-                    $number = (string) $number;
-                    if (!$this->leafMatches($leaf, $number)) {
-                        continue;
-                    }
-
-                    $debit = $debits[$number] ?? $zero;
-                    $credit = $credits[$number] ?? $zero;
-                    $amount = $section === 'assets'
-                        ? $amount->add($debit)->subtract($credit)
-                        : $amount->add($credit)->subtract($debit);
-                    $touched = $touched || isset($touchedAccounts[$number]);
-                }
-
-                if ($leaf['includesNetIncome']) {
-                    $amount = $amount->add($netIncome);
-                    $touched = $touched || !$netIncome->isZero();
-                }
-
-                if ($amount->isZero() && !$touched) {
+            foreach (array_keys($debits + $credits) as $number) {
+                $number = (string) $number;
+                if (!$this->leafMatches($leaf, $number)) {
                     continue;
                 }
 
-                $sections[$section][] = [
-                    'key' => $leaf['key'],
-                    'label' => $leaf['label'],
-                    'amount' => $amount->amountAsString(),
-                ];
-                $totals[$section] = $totals[$section]->add($amount);
+                $debit = $debits[$number] ?? $zero;
+                $credit = $credits[$number] ?? $zero;
+                $amount = $section === 'assets'
+                    ? $amount->add($debit)->subtract($credit)
+                    : $amount->add($credit)->subtract($debit);
+                $touched = $touched || isset($touchedAccounts[$number]);
             }
+
+            if ($leaf['includesNetIncome']) {
+                $amount = $amount->add($netIncome);
+                $touched = $touched || !$netIncome->isZero();
+            }
+
+            if ($amount->isZero() && !$touched) {
+                continue;
+            }
+
+            $sections[$section][] = [
+                'key' => $leaf['key'],
+                'label' => $leaf['label'],
+                'amount' => $amount->amountAsString(),
+            ];
+            $totals[$section] = $totals[$section]->add($amount);
         }
 
         return [
@@ -149,7 +138,7 @@ final readonly class BalanceSheetProjection
     }
 
     /**
-     * @param array{key: string, label: string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>} $leaf
+     * @param array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>} $leaf
      */
     private function leafMatches(array $leaf, string $accountNumber): bool
     {
