@@ -9,8 +9,8 @@ use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Laravel-Einstiegspunkt: `composer require rechnungswesen/laravel` —
- * der framework-freie Kern kommt als Abhängigkeit mit, der Nutzer
+ * Laravel-Einstiegspunkt: `composer require superheld/rechnungswesen-laravel`
+ * — der framework-freie Kern kommt als Abhängigkeit mit, der Nutzer
  * richtet genau ein Package ein.
  *
  * Bereitgestellt wird die EloquentTenantFactory (Mandanten mit
