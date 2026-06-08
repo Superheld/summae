@@ -1,9 +1,21 @@
 # SPEC-FINDINGS
 
-Befunde aus der Implementierung: Stellen, an denen Spec (v0.2), Fixtures und Modell
+Befunde aus der Implementierung: Stellen, an denen Spec, Fixtures und Modell
 sich widersprechen oder etwas fehlt. Regel aus dem Briefing: **nicht raten, nicht
 die Fixture ändern** — hier dokumentieren, mit dem nächstplausiblen Verhalten
 weiterbauen. Fließt zurück ins Entscheidungslog der Wissensbasis.
+
+> **✅ Alle Befunde F-001 bis F-007 in Spec v0.5 aufgelöst** (2026-06-08,
+> Entscheidungslog + `SPEC-UPDATE-v0.5.md`) und in JOB-V05 implementiert:
+> - F-001 → eigener Code `E_VOUCHER_UNKNOWN`
+> - F-002 → `E_ENTRY_NOT_FINALIZED` gestrichen, `reverse` statusunabhängig (mein Workaround war korrekt)
+> - F-003 → eigener Code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
+> - F-004 → Regelmodul-Block `assetAccounts` (Namens-Heuristik entfernt)
+> - F-005 → Manifest-Pflichtfelder `streams`/`hashAlgorithm`, `auditLog` immer, `formatVersion` aktuell
+> - F-006 → eigener Code `E_COSTING_RUN_UNKNOWN` (entsprach bereits meiner Wahl)
+> - F-007 → `side: assets|liabilitiesAndEquity` am Bilanz-Wurzelknoten
+>
+> Die Detail-Einträge unten bleiben als Historie stehen.
 
 Format je Befund:
 

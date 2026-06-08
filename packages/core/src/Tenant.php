@@ -107,7 +107,7 @@ final readonly class Tenant
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
-        $assetService = new AssetService($baseCurrency, $assets2, $accounts, $fiscalYears, $vouchers, $ledger, $ids);
+        $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids);
         $costing = new CostingService($baseCurrency, $accounts, $journal, $ids);
 
         return new self(

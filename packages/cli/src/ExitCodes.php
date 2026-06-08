@@ -15,6 +15,7 @@ final class ExitCodes
     private const array CODES = [
         'E_ENTRY_UNBALANCED',
         'E_ENTRY_NO_VOUCHER',
+        'E_VOUCHER_UNKNOWN',
         'E_ENTRY_TOO_FEW_LINES',
         'E_ENTRY_INVALID_AMOUNT',
         'E_ENTRY_FINALIZED',
@@ -24,6 +25,7 @@ final class ExitCodes
         'E_PERIOD_OUT_OF_ORDER',
         'E_PERIOD_UNKNOWN',
         'E_FISCALYEAR_CLOSED',
+        'E_FISCALYEAR_UNFINALIZED_ENTRIES',
         'E_FISCALYEAR_OVERLAP',
         'E_ACCOUNT_UNKNOWN',
         'E_ACCOUNT_LOCKED',

@@ -1,0 +1,39 @@
+{
+  "fixture": "voucher-unknown",
+  "description": "v0.5/F-001: gesetzte aber unbekannte voucherId → E_VOUCHER_UNKNOWN (abgegrenzt von E_ENTRY_NO_VOUCHER = voucherId fehlt ganz).",
+  "covers": ["F-CORE-003"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-03-01" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "00000000-0000-7000-8000-000000000000", "text": "Beleg gibt es nicht",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_VOUCHER_UNKNOWN" }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V1", "text": "gültiger Beleg",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    }
+  ],
+  "projections": []
+}

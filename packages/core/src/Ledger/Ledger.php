@@ -475,7 +475,7 @@ final readonly class Ledger
 
         foreach ($this->journal->forFiscalYear($fiscalYear->year) as $entry) {
             if (!$entry->isFinalized()) {
-                throw new DomainError('E_PERIOD_OUT_OF_ORDER', sprintf(
+                throw new DomainError('E_FISCALYEAR_UNFINALIZED_ENTRIES', sprintf(
                     'Jahresabschluss %d: Buchung %d ist nicht festgeschrieben',
                     $fiscalYear->year,
                     $entry->sequenceNumber,
@@ -710,9 +710,9 @@ final readonly class Ledger
         }
 
         if ($voucher === null) {
-            // Spec nennt keinen eigenen Code für unbekannte Belege —
-            // nächstplausibel ist E_ENTRY_NO_VOUCHER (siehe SPEC-FINDINGS).
-            throw new DomainError('E_ENTRY_NO_VOUCHER', sprintf(
+            // v0.5/F-001: gesetzte, aber unbekannte voucherId hat einen
+            // eigenen Code (Referenzschritt, nach „voucherId fehlt").
+            throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
                 'Beleg %s existiert nicht',
                 $voucherId,
             ), ['voucherId' => $voucherId]);

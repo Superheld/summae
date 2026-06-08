@@ -45,10 +45,11 @@
       "name": "journalExport",
       "params": { "fiscalYear": 2026, "format": "gobd-z3" },
       "expect": {
+        "comment": "v0.5/F-005: formatVersion aktuell; auditLog IMMER im Manifest (Buchen/Festschreiben erzeugt Audit-Einträge)",
         "manifest": {
-          "formatVersion": "0.2",
+          "formatVersion": "0.4",
           "baseCurrency": "EUR",
-          "streams": [ "journal", "accounts", "vouchers" ],
+          "streams": [ "journal", "accounts", "vouchers", "auditLog" ],
           "hashAlgorithm": "sha256"
         },
         "fieldCatalogIncluded": true,

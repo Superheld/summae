@@ -195,6 +195,8 @@
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
+        "side": { "enum": ["assets", "liabilitiesAndEquity"], "description": "nur am Wurzelknoten einer balance-sheet-Mapping; bestimmt Aktiv-/Passivseite (v0.5/F-007)" },
+        "includesNetIncome": { "type": "boolean" },
         "accounts": {
           "type": "array",
           "items": {
@@ -233,13 +235,15 @@
     },
     "manifest": {
       "type": "object",
-      "required": ["formatVersion", "tenantId", "tenantName", "baseCurrency", "exportedAt", "contentHashes"],
+      "required": ["formatVersion", "tenantId", "tenantName", "baseCurrency", "exportedAt", "streams", "hashAlgorithm", "contentHashes"],
       "properties": {
         "formatVersion": { "type": "string" },
         "tenantId": { "$ref": "#/$defs/uuid" },
         "tenantName": { "type": "string" },
         "baseCurrency": { "type": "string", "pattern": "^[A-Z]{3}$" },
         "exportedAt": { "$ref": "#/$defs/timestamp" },
+        "streams": { "type": "array", "items": { "type": "string" }, "description": "enthaltene Objektströme; auditLog ist immer dabei (v0.5/F-005)" },
+        "hashAlgorithm": { "type": "string", "const": "sha256" },
         "contentHashes": { "type": "object", "additionalProperties": { "type": "string" } }
       },
       "additionalProperties": false
