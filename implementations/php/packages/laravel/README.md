@@ -22,7 +22,7 @@ aus einem lokalen Klon. In der `composer.json` deines Laravel-Projekts:
 "repositories": [
     {
         "type": "path",
-        "url": "/pfad/zu/rechnungswesen-php/packages/*",
+        "url": "/pfad/zu/rechnungswesen/implementations/php/packages/*",
         "options": { "symlink": false }
     }
 ],

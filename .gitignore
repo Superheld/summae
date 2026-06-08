@@ -1,5 +1,5 @@
-/vendor/
-/.phpunit.cache/
-/phpunit.xml
-/phpstan.neon
+vendor/
+.phpunit.cache/
+phpunit.xml
+phpstan.neon
 .DS_Store
