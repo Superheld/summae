@@ -1,5 +1,5 @@
 {
-    "name": "superheld/rechnungswesen-core",
+    "name": "superheld/summae-core",
     "description": "Framework-freier Rechnungswesen-Kern: GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR",
     "type": "library",
     "license": "MIT",

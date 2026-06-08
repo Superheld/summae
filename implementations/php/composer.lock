@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f0f2d73c89fb85dff088cd7b3988fff",
+    "content-hash": "f03f94db44ae759ad9c82773ad0a77cf",
     "packages": [
         {
             "name": "brick/math",
@@ -1010,17 +1010,17 @@
             "time": "2021-10-29T13:26:27+00:00"
         },
         {
-            "name": "superheld/rechnungswesen-cli",
-            "version": "dev-chore/rename-superheld-mit",
+            "name": "superheld/summae-cli",
+            "version": "dev-chore/rename-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/cli",
-                "reference": "7c6ed0b82f8cf9fbc71bd0e977b4ead7eb4b266a"
+                "reference": "055a6daa86e7171887d3a2a3915f268b6ed4281b"
             },
             "require": {
                 "php": ">=8.3",
-                "superheld/rechnungswesen-core": "*",
-                "superheld/rechnungswesen-laravel": "*",
+                "superheld/summae-core": "*",
+                "superheld/summae-laravel": "*",
                 "symfony/console": "^7.0"
             },
             "bin": [
@@ -1042,12 +1042,12 @@
             }
         },
         {
-            "name": "superheld/rechnungswesen-core",
-            "version": "dev-chore/rename-superheld-mit",
+            "name": "superheld/summae-core",
+            "version": "dev-chore/rename-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "6278c9dba975381b3184605c47f8eb599a17702a"
+                "reference": "09e9ef4966b1d06f24de110bc4a639953583a1a2"
             },
             "require": {
                 "brick/math": "^0.13",
@@ -1069,18 +1069,18 @@
             }
         },
         {
-            "name": "superheld/rechnungswesen-laravel",
-            "version": "dev-chore/rename-superheld-mit",
+            "name": "superheld/summae-laravel",
+            "version": "dev-chore/rename-summae",
             "dist": {
                 "type": "path",
                 "url": "packages/laravel",
-                "reference": "b39703ca92bfa4805d8c0b3f238ccfed98fffa7c"
+                "reference": "7e861c09a535440a2ea23d8fddb4c6d8d22a9bd0"
             },
             "require": {
                 "illuminate/database": "^11.0|^12.0",
                 "illuminate/support": "^11.0|^12.0",
                 "php": ">=8.3",
-                "superheld/rechnungswesen-core": "*"
+                "superheld/summae-core": "*"
             },
             "type": "library",
             "extra": {
@@ -4302,9 +4302,9 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "superheld/rechnungswesen-cli": 20,
-        "superheld/rechnungswesen-core": 20,
-        "superheld/rechnungswesen-laravel": 20
+        "superheld/summae-cli": 20,
+        "superheld/summae-core": 20,
+        "superheld/summae-laravel": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

@@ -1,8 +1,8 @@
-# superheld/rechnungswesen-laravel
+# superheld/summae-laravel
 
 Laravel-Integration der Rechnungswesen-Bibliothek: GoBD-konforme Doppik, EÜR,
 Umsatzsteuer, Anlagen und KLR — als einbettbares Package. Der framework-freie
-Kern (`superheld/rechnungswesen-core`) kommt automatisch als Abhängigkeit mit;
+Kern (`superheld/summae-core`) kommt automatisch als Abhängigkeit mit;
 du installierst **ein** Package.
 
 ## Voraussetzungen
@@ -22,7 +22,7 @@ aus einem lokalen Klon. In der `composer.json` deines Laravel-Projekts:
 "repositories": [
     {
         "type": "path",
-        "url": "/pfad/zu/rechnungswesen/implementations/php/packages/*",
+        "url": "/pfad/zu/summae/implementations/php/packages/*",
         "options": { "symlink": false }
     }
 ],
@@ -38,7 +38,7 @@ das Package nach `vendor/` (bei Paketänderungen `composer update` nötig);
 Dann:
 
 ```bash
-composer require "superheld/rechnungswesen-laravel:@dev"
+composer require "superheld/summae-laravel:@dev"
 ```
 
 Der ServiceProvider wird über Laravels Package-Discovery automatisch

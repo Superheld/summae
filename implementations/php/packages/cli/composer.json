@@ -1,13 +1,13 @@
 {
-    "name": "superheld/rechnungswesen-cli",
+    "name": "superheld/summae-cli",
     "description": "CLI für rechnungswesen/core — JSON-Ausgaben, LLM-Operator als Zielnutzer (JOB-013)",
     "type": "library",
     "license": "MIT",
     "require": {
         "php": ">=8.3",
-        "superheld/rechnungswesen-core": "*",
+        "superheld/summae-core": "*",
         "symfony/console": "^7.0",
-        "superheld/rechnungswesen-laravel": "*"
+        "superheld/summae-laravel": "*"
     },
     "autoload": {
         "psr-4": {
