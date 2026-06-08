@@ -10,14 +10,15 @@ use Rechnungswesen\Runner\SuiteRunner;
 
 require __DIR__ . '/../../vendor/autoload.php';
 
-$root = dirname(__DIR__, 2);
+$implRoot = dirname(__DIR__, 2);   // implementations/php
+$root = dirname(__DIR__, 4);       // Repo-Root (geteilte testsuite/)
 
 /** @var list<string> $argvList */
 $argvList = $_SERVER['argv'] ?? [];
 $filter = null;
 $strict = false;
 $subject = 'core';
-$expectedFile = $root . '/runner/expected-green.txt';
+$expectedFile = $implRoot . '/runner/expected-green.txt';
 
 foreach (array_slice($argvList, 1) as $arg) {
     if (str_starts_with($arg, '--filter=')) {

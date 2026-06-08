@@ -17,7 +17,7 @@ final class SchemaValidationTest extends TestCase
 {
     public function testJournalExportStreamsValidateAgainstSchema(): void
     {
-        $schemaPath = dirname(__DIR__, 2) . '/testsuite/schema/format.schema.json';
+        $schemaPath = dirname(__DIR__, 4) . '/testsuite/schema/format.schema.json';
         self::assertFileExists($schemaPath);
 
         $schemaJson = file_get_contents($schemaPath);

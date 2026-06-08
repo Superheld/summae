@@ -5,8 +5,11 @@ on:
   pull_request:
 
 jobs:
-  check:
+  php:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/php
     steps:
       - uses: actions/checkout@v4
 

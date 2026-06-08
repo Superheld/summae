@@ -1,50 +1,57 @@
-# rechnungswesen-php
+# rechnungswesen
 
-PHP-Referenzimplementierung der Rechnungswesen-Spezifikation: GoBD-konforme
-Doppik, EÜR, Umsatzsteuer, Anlagen und KLR — als einbettbare Bibliothek.
-Aus Nutzersicht **ein** Laravel-Package: `composer require superheld/rechnungswesen-laravel`.
+Wiederverwendbare Rechnungswesen-Bibliothek: GoBD-konforme Doppik, EÜR,
+Umsatzsteuer, Anlagen und KLR — als einbettbare Implementierung, **nicht** als
+Anwendung. Mehrere Sprach-Implementierungen mit **identischer API und
+identischem Datenformat**, geprüft gegen eine gemeinsame Konformitäts-Suite.
 
-Normative Quelle ist die Wissensbasis (Schwester-Repo): Spezifikation (v0.5),
-Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
-`80-implementierung/AGENT-BRIEFING.md` und `JOBS.md`.
-
-## Dokumentation
-
-- **Nutzer** (Package einbinden, Konfiguration): die jeweilige Package-README —
-  [packages/laravel/README.md](packages/laravel/README.md),
-  [packages/cli/README.md](packages/cli/README.md).
-- **Mitentwickler** (Architektur, Workflow, Konformität): [docs/](docs/README.md).
-
-## Struktur
-
-| Pfad | Inhalt |
-|---|---|
-| `packages/core/` | `superheld/rechnungswesen-core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
-| `packages/laravel/` | `superheld/rechnungswesen-laravel` — ServiceProvider, Eloquent-Adapter, Migrationen (JOB-012) |
-| `packages/cli/` | `superheld/rechnungswesen-cli` — CLI, JSON-Ausgaben (JOB-013) |
-| `runner/` | Fixture-Runner für die Konformitätssuite (JOB-002) |
-| `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only**, via `make sync` |
-| `SPEC-FINDINGS.md` | Befunde gegen Spec/Fixtures (Eskalationsweg aus dem Briefing) |
-
-## Entwicklung
-
-Alles läuft in Docker, lokal ist kein PHP nötig:
-
-```bash
-make build      # PHP-8.3-Image bauen (einmalig)
-make install    # composer install
-make check      # PHPStan (level max) + PHPUnit — das prüft auch die CI
-make sync       # Testsuite aus der Wissensbasis aktualisieren (Einbahnstraße)
-make shell      # Shell im Container
+```
+rechnungswesen/
+├── testsuite/              Der Kompatibilitätsvertrag: fixtures/ + schema/
+│                           (geteilt von allen Implementierungen)
+├── implementations/
+│   └── php/                PHP-Implementierung (Composer-Packages core/laravel/cli)
+│       └── …               eigene README + docs/ dort
+├── bin/sync-testsuite.sh   Testsuite aus der Wissensbasis spiegeln (Einbahnstraße)
+├── compose.yaml, docker/   gemeinsame Docker-Toolchain
+└── Makefile                Orchestrierung
 ```
 
-Postgres wird erst ab JOB-012 gebraucht: `docker compose --profile db up -d`
-(Port 54329, User/DB/Passwort: `rechnungswesen`).
+Geplant ist eine zweite Implementierung (`implementations/node/`) gegen
+dieselbe `testsuite/`.
 
-## Eiserne Regeln
+## Normative Quelle
 
-1. **Fixtures werden nie editiert.** Widerspruch gefunden → `SPEC-FINDINGS.md`.
-2. **Kern bleibt framework-frei.** Kein `Illuminate\*` in `packages/core`.
-3. **Journal append-only, Salden sind Projektionen.** Nie einen Saldo speichern.
-4. **Geld nie als Float.** `Money` auf brick/math, half-up, allocate largest-remainder.
-5. Namen kommen aus dem Glossar (EN-Spalte), Fehlercodes aus dem Fehlerkatalog.
+Spezifikation, Domänenmodell und die *Autoren-Heimat* der Fixtures liegen in
+der **Wissensbasis** (separates Schwester-Repo „Rechnungswesen"). Die
+Konformitäts-Suite wird von dort hierher gespiegelt:
+
+```bash
+make sync   # Wissensbasis/70-testsuite  →  testsuite/   (read-only Kopie)
+```
+
+Fixtures werden hier **nie editiert** — Widersprüche gehen über
+`implementations/php/SPEC-FINDINGS.md` zurück in die Wissensbasis.
+
+## Implementierungen
+
+| | Pfad | Doku |
+|---|---|---|
+| PHP | `implementations/php/` | [README](implementations/php/README.md) · [Entwickler-Doku](implementations/php/docs/README.md) |
+| Node | `implementations/node/` | *geplant* |
+
+**Nutzer** (Package in ein Laravel-Projekt einbinden, Konfiguration) lesen die
+PHP-README. **Mitentwickler** starten bei der Entwickler-Doku.
+
+## Schnelltest (PHP, Docker)
+
+```bash
+make build && make install     # einmalig
+make sync                      # Testsuite holen
+make check                     # PHPStan max + PHPUnit
+make fixtures                  # Konformitätssuite gegen den Kern
+```
+
+## Lizenz
+
+MIT — siehe [LICENSE](LICENSE).
