@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryJournalRepository implements JournalRepository
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner;
+namespace Summae\Runner;
 
 /**
  * Teilmengen-Vergleich nach Runner-Kontrakt (testsuite/README.md):

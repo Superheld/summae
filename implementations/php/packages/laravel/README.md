@@ -87,7 +87,7 @@ Mandanten-, Backup- oder Compliance-Gründen): eine zweite Connection in
 … und dem Package sagen, dass es diese nehmen soll:
 
 ```dotenv
-RECHNUNGSWESEN_DB_CONNECTION=buchhaltung
+SUMMAE_DB_CONNECTION=buchhaltung
 ```
 
 Das ist die **einzige** Package-eigene Einstellung. Leer/ungesetzt = App-Default.
@@ -95,10 +95,10 @@ Das ist die **einzige** Package-eigene Einstellung. Leer/ungesetzt = App-Default
 ### Config publizieren (optional)
 
 ```bash
-php artisan vendor:publish --tag=rechnungswesen-config
+php artisan vendor:publish --tag=summae-config
 ```
 
-Legt `config/rechnungswesen.php` an — dort steht genau dieser eine Wert
+Legt `config/summae.php` an — dort steht genau dieser eine Wert
 (`connection`). Für die Standardnutzung brauchst du das nicht.
 
 ### Migration

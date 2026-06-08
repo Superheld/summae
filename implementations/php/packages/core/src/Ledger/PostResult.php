@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
 /**
  * Ergebnis von `post`: die Buchung plus die dabei entstandenen

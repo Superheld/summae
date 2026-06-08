@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Offener Posten (ledger-modell.md Aggregat 5): entsteht aus einer

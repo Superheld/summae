@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tax;
+namespace Summae\Core\Tax;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Steuerschlüssel (tax-modell.md Aggregat 1): gebündelter

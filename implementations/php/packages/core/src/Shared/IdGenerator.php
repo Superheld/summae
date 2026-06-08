@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
 /**
  * ID-Quelle des Kerns — Port, damit Tests und Determinismus-Läufe

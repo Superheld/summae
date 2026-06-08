@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Geschäftsjahr mit Perioden (ledger-modell.md Aggregat 3).

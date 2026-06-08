@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryAccountRepository implements AccountRepository
 {

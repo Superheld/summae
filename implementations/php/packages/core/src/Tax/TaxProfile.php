@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tax;
+namespace Summae\Core\Tax;
 
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Steuerliches Mandantenprofil (tax-modell.md Aggregat 2):

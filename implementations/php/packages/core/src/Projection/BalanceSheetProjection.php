@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Money;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Money;
 
 /**
  * Bilanz als Projektion (SF-10): kumulativ zum Stichtag.

@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Costing;
+namespace Summae\Core\Costing;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\PeriodRef;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Uuid;
 
 /**
  * KLR-Abrechnung (costing-modell.md): eigener Rechnungskreis — das

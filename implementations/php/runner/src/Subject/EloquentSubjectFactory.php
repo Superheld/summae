@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Subject;
+namespace Summae\Runner\Subject;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Rechnungswesen\Core\Tenant;
-use Rechnungswesen\Laravel\EloquentTenantFactory;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Tenant;
+use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
  * Zweiter Runner-Lauf (JOB-012): dieselbe Konformitätssuite gegen den
@@ -22,18 +22,18 @@ final class EloquentSubjectFactory implements SubjectFactory
         return new CoreSubject(function (string $name, mixed ...$args): Tenant {
             $connection = $this->freshConnection();
 
-            /** @var \Rechnungswesen\Core\Shared\Currency $currency */
+            /** @var \Summae\Core\Shared\Currency $currency */
             [$currency, $clock, $ids, $dimensions, $taxCodes, $taxProfile, $mappings] = $args + [
                 1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null,
             ];
 
             /**
-             * @var \Rechnungswesen\Core\Shared\Clock|null $clock
-             * @var \Rechnungswesen\Core\Shared\IdGenerator|null $ids
-             * @var \Rechnungswesen\Core\Ledger\DimensionRegistry|null $dimensions
-             * @var \Rechnungswesen\Core\Tax\TaxCodeRegistry|null $taxCodes
-             * @var \Rechnungswesen\Core\Tax\TaxProfile|null $taxProfile
-             * @var \Rechnungswesen\Core\Mapping\MappingRegistry|null $mappings
+             * @var \Summae\Core\Shared\Clock|null $clock
+             * @var \Summae\Core\Shared\IdGenerator|null $ids
+             * @var \Summae\Core\Ledger\DimensionRegistry|null $dimensions
+             * @var \Summae\Core\Tax\TaxCodeRegistry|null $taxCodes
+             * @var \Summae\Core\Tax\TaxProfile|null $taxProfile
+             * @var \Summae\Core\Mapping\MappingRegistry|null $mappings
              */
             return (new EloquentTenantFactory($connection))->build(
                 $name,
@@ -59,9 +59,9 @@ final class EloquentSubjectFactory implements SubjectFactory
                 'driver' => 'pgsql',
                 'host' => getenv('RW_DB_HOST') ?: 'postgres',
                 'port' => getenv('RW_DB_PORT') ?: '5432',
-                'database' => getenv('RW_DB_DATABASE') ?: 'rechnungswesen',
-                'username' => getenv('RW_DB_USERNAME') ?: 'rechnungswesen',
-                'password' => getenv('RW_DB_PASSWORD') ?: 'rechnungswesen',
+                'database' => getenv('RW_DB_DATABASE') ?: 'summae',
+                'username' => getenv('RW_DB_USERNAME') ?: 'summae',
+                'password' => getenv('RW_DB_PASSWORD') ?: 'summae',
             ]);
         } else {
             $capsule->addConnection([

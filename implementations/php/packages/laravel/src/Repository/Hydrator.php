@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
-use Rechnungswesen\Core\Ledger\EntryLine;
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\DimensionValue;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\EntryLine;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\DimensionValue;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Gemeinsame (De-)Serialisierung der JSON-Dokumente des Adapters —

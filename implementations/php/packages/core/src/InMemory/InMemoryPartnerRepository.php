@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Partner\Partner;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Partner\Partner;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryPartnerRepository implements PartnerRepository
 {

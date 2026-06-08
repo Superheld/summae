@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Port;
+namespace Summae\Core\Port;
 
-use Rechnungswesen\Core\Partner\Partner;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Partner\Partner;
+use Summae\Core\Shared\Uuid;
 
 interface PartnerRepository
 {

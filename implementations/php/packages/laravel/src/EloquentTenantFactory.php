@@ -2,33 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel;
+namespace Summae\Laravel;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Assets\AssetService;
-use Rechnungswesen\Core\Costing\CostingService;
-use Rechnungswesen\Core\Ledger\DimensionRegistry;
-use Rechnungswesen\Core\Ledger\Ledger;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Partner\PartnerService;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\SystemClock;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Tax\TaxService;
-use Rechnungswesen\Core\Tenant;
-use Rechnungswesen\Laravel\Repository\EloquentAccountRepository;
-use Rechnungswesen\Laravel\Repository\EloquentAssetRepository;
-use Rechnungswesen\Laravel\Repository\EloquentAuditTrail;
-use Rechnungswesen\Laravel\Repository\EloquentFiscalYearRepository;
-use Rechnungswesen\Laravel\Repository\EloquentJournalRepository;
-use Rechnungswesen\Laravel\Repository\EloquentOpenItemRepository;
-use Rechnungswesen\Laravel\Repository\EloquentPartnerRepository;
-use Rechnungswesen\Laravel\Repository\EloquentVoucherRepository;
+use Summae\Core\Assets\AssetService;
+use Summae\Core\Costing\CostingService;
+use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Ledger\Ledger;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Partner\PartnerService;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\SystemClock;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Tax\TaxService;
+use Summae\Core\Tenant;
+use Summae\Laravel\Repository\EloquentAccountRepository;
+use Summae\Laravel\Repository\EloquentAssetRepository;
+use Summae\Laravel\Repository\EloquentAuditTrail;
+use Summae\Laravel\Repository\EloquentFiscalYearRepository;
+use Summae\Laravel\Repository\EloquentJournalRepository;
+use Summae\Laravel\Repository\EloquentOpenItemRepository;
+use Summae\Laravel\Repository\EloquentPartnerRepository;
+use Summae\Laravel\Repository\EloquentVoucherRepository;
 
 /**
  * Baut einen Mandanten mit Eloquent-Persistenz — gleiche Services wie

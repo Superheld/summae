@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Money;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Money;
 
 /**
  * Summen- und Saldenliste (SuSa) — Spalten verbindlich (api.md v0.4):

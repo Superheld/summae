@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Subject;
+namespace Summae\Runner\Subject;
 
 /**
  * Fachlicher Fehler mit Katalog-Code (fehlerkatalog.md).

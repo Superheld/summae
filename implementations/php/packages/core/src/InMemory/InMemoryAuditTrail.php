@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\AuditRecord;
-use Rechnungswesen\Core\Port\AuditTrail;
+use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Port\AuditTrail;
 
 final class InMemoryAuditTrail implements AuditTrail
 {

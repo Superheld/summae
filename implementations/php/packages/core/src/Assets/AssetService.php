@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Assets;
+namespace Summae\Core\Assets;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Ledger;
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Port\AssetRepository;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Ledger;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Port\AssetRepository;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Anlagen-Nebenbuch (assets-modell.md): GWG-Weiche beim Zugang,

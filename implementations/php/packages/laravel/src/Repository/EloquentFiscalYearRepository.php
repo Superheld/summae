@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Ledger\FiscalYearStatus;
-use Rechnungswesen\Core\Ledger\Period;
-use Rechnungswesen\Core\Ledger\PeriodStatus;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Ledger\FiscalYearStatus;
+use Summae\Core\Ledger\Period;
+use Summae\Core\Ledger\PeriodStatus;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentFiscalYearRepository implements FiscalYearRepository
 {

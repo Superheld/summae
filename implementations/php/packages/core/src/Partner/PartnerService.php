@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Partner;
+namespace Summae\Core\Partner;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\AuditRecord;
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Partner-Operationen (api.md v0.4): createPartner / updatePartner,

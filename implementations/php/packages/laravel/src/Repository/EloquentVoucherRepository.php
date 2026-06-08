@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class EloquentVoucherRepository implements VoucherRepository
 {

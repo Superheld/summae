@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tests\Shared;
+namespace Summae\Core\Tests\Shared;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Core\Shared\CanonicalJson;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\Shared\Money;
+use Summae\Core\Shared\CanonicalJson;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Money;
 
 final class CanonicalJsonTest extends TestCase
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
 /**
  * UUIDv7-förmige IDs aus fester Uhr + Zähler statt Zufall — für Tests

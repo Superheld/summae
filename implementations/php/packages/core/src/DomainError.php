@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core;
+namespace Summae\Core;
 
 /**
  * Fachlicher Fehler mit Katalog-Code (fehlerkatalog.md). Vertragsteil:

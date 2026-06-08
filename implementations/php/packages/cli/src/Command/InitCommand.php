@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli\Command;
+namespace Summae\Cli\Command;
 
-use Rechnungswesen\Cli\Workspace;
+use Summae\Cli\Workspace;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

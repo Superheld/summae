@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Ledger\OpenItemKind;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Ledger\OpenItemKind;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * OP-Liste: deterministisch, asOf-fähig (Zeitreise über settledAt).

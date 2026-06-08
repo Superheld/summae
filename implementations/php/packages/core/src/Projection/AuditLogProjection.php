@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Änderungshistorie als Projektion (F-CORE-014, Review G3).

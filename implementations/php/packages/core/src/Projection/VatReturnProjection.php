@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Money;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
 
 /**
  * USt-VA-Kennzahlen über taxTags (SF-09).

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Costing;
+namespace Summae\Core\Costing;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\PeriodRef;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Abrechnungslauf (costing-modell.md Aggregat 1): je Periode + Version

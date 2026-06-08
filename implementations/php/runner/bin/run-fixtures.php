@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Rechnungswesen\Runner\FixtureResult;
-use Rechnungswesen\Runner\FixtureStatus;
-use Rechnungswesen\Runner\Subject\CoreSubjectFactory;
-use Rechnungswesen\Runner\Subject\EloquentSubjectFactory;
-use Rechnungswesen\Runner\SuiteRunner;
+use Summae\Runner\FixtureResult;
+use Summae\Runner\FixtureStatus;
+use Summae\Runner\Subject\CoreSubjectFactory;
+use Summae\Runner\Subject\EloquentSubjectFactory;
+use Summae\Runner\SuiteRunner;
 
 require __DIR__ . '/../../vendor/autoload.php';
 

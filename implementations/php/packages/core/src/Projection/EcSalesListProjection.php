@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Ledger\Side;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Ledger\Side;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\Money;
+use Summae\Core\Tax\TaxCodeRegistry;
 
 /**
  * ZM-Grundlage (v0.4, SF-21): innergemeinschaftliche Umsätze je

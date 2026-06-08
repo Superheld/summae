@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung,

@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli;
+namespace Summae\Cli;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Rechnungswesen\Core\Ledger\DimensionRegistry;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\SystemClock;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Tenant;
-use Rechnungswesen\Laravel\EloquentTenantFactory;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\SystemClock;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Tenant;
+use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
  * CLI-Arbeitsbereich: `rw.json` (Mandanten-Meta + Regelmodul-Daten,

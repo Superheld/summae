@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Tax;
+namespace Summae\Core\Tax;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Geladene, validierte Form der Steuerschlüssel-Regelmodul-Daten.

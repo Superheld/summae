@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryVoucherRepository implements VoucherRepository
 {

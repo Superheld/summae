@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Laravel\Repository;
+namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Rechnungswesen\Core\Ledger\EntryLine;
-use Rechnungswesen\Core\Ledger\EntryStatus;
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Shared\PeriodRef;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Laravel\Schema\SchemaInstaller;
+use Summae\Core\Ledger\EntryLine;
+use Summae\Core\Ledger\EntryStatus;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Uuid;
+use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
  * Journal: append-only — `save` aktualisiert ausschließlich die

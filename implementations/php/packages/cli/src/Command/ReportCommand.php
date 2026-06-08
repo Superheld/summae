@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli\Command;
+namespace Summae\Cli\Command;
 
-use Rechnungswesen\Cli\ExitCodes;
-use Rechnungswesen\Cli\Workspace;
-use Rechnungswesen\Core\Composition\TenantOperations;
-use Rechnungswesen\Core\DomainError;
+use Summae\Cli\ExitCodes;
+use Summae\Cli\Workspace;
+use Summae\Core\Composition\TenantOperations;
+use Summae\Core\DomainError;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;

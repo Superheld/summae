@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Tests;
+namespace Summae\Runner\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Runner\Comparator;
-use Rechnungswesen\Runner\PlaceholderBag;
+use Summae\Runner\Comparator;
+use Summae\Runner\PlaceholderBag;
 
 final class ComparatorTest extends TestCase
 {

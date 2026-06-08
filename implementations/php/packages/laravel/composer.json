@@ -11,13 +11,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Rechnungswesen\\Laravel\\": "src/"
+            "Summae\\Laravel\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Rechnungswesen\\Laravel\\RechnungswesenServiceProvider"
+                "Summae\\Laravel\\SummaeServiceProvider"
             ]
         }
     },

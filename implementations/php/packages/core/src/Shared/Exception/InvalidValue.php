@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared\Exception;
+namespace Summae\Core\Shared\Exception;
 
 /**
  * Ungültiger Wert für ein Value Object des Shared Kernel.

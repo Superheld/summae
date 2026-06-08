@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Ledger\AuditRecord;
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\CanonicalJson;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\CanonicalJson;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Uuid;
 
 /**
  * GoBD-Z3-Export (SF-14): Manifest mit SHA-256-Strom-Hashes über

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Composition;
+namespace Summae\Core\Composition;
 
-use Rechnungswesen\Core\Ledger\OpenItem;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Tenant;
 
 /**
  * Anwendungsschicht-Komposition `postVoucher` (api.md, Teil der Spec!):

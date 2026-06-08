@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Projection;
+namespace Summae\Core\Projection;
 
-use Rechnungswesen\Core\Ledger\EntryLine;
-use Rechnungswesen\Core\Ledger\JournalEntry;
-use Rechnungswesen\Core\Partner\Partner;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Ledger\EntryLine;
+use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Partner\Partner;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Tax\TaxCodeRegistry;
 
 /**
  * DATEV-Export (F-IO-005, v0.4 beidseitig): Buchungsstapel,

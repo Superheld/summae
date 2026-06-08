@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Cli\Tests;
+namespace Summae\Cli\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Rechnungswesen\Cli\Cli;
-use Rechnungswesen\Cli\ExitCodes;
+use Summae\Cli\Cli;
+use Summae\Cli\ExitCodes;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 

@@ -25,11 +25,11 @@
     ],
     "autoload-dev": {
         "psr-4": {
-            "Rechnungswesen\\Core\\Tests\\": "packages/core/tests/",
-            "Rechnungswesen\\Laravel\\Tests\\": "packages/laravel/tests/",
-            "Rechnungswesen\\Cli\\Tests\\": "packages/cli/tests/",
-            "Rechnungswesen\\Runner\\": "runner/src/",
-            "Rechnungswesen\\Runner\\Tests\\": "runner/tests/"
+            "Summae\\Core\\Tests\\": "packages/core/tests/",
+            "Summae\\Laravel\\Tests\\": "packages/laravel/tests/",
+            "Summae\\Cli\\Tests\\": "packages/cli/tests/",
+            "Summae\\Runner\\": "runner/src/",
+            "Summae\\Runner\\Tests\\": "runner/tests/"
         }
     },
     "config": {

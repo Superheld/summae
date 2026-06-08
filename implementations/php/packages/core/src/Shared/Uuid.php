@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Shared;
+namespace Summae\Core\Shared;
 
-use Rechnungswesen\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Shared\Exception\InvalidValue;
 
 /**
  * UUIDv7 (RFC 9562): 48 Bit Unix-Millisekunden + Zufall — zeitlich

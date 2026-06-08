@@ -2,39 +2,39 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core;
+namespace Summae\Core;
 
-use Rechnungswesen\Core\Assets\AssetService;
-use Rechnungswesen\Core\Costing\CostingService;
-use Rechnungswesen\Core\InMemory\InMemoryAccountRepository;
-use Rechnungswesen\Core\InMemory\InMemoryAssetRepository;
-use Rechnungswesen\Core\InMemory\InMemoryAuditTrail;
-use Rechnungswesen\Core\InMemory\InMemoryFiscalYearRepository;
-use Rechnungswesen\Core\InMemory\InMemoryJournalRepository;
-use Rechnungswesen\Core\InMemory\InMemoryOpenItemRepository;
-use Rechnungswesen\Core\InMemory\InMemoryPartnerRepository;
-use Rechnungswesen\Core\InMemory\InMemoryVoucherRepository;
-use Rechnungswesen\Core\Ledger\DimensionRegistry;
-use Rechnungswesen\Core\Ledger\Ledger;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Port\AccountRepository;
-use Rechnungswesen\Core\Port\AuditTrail;
-use Rechnungswesen\Core\Port\FiscalYearRepository;
-use Rechnungswesen\Core\Port\JournalRepository;
-use Rechnungswesen\Core\Partner\PartnerService;
-use Rechnungswesen\Core\Port\AssetRepository;
-use Rechnungswesen\Core\Port\OpenItemRepository;
-use Rechnungswesen\Core\Port\PartnerRepository;
-use Rechnungswesen\Core\Port\VoucherRepository;
-use Rechnungswesen\Core\Shared\Clock;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\IdGenerator;
-use Rechnungswesen\Core\Shared\SystemClock;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Shared\UuidV7IdGenerator;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Tax\TaxService;
+use Summae\Core\Assets\AssetService;
+use Summae\Core\Costing\CostingService;
+use Summae\Core\InMemory\InMemoryAccountRepository;
+use Summae\Core\InMemory\InMemoryAssetRepository;
+use Summae\Core\InMemory\InMemoryAuditTrail;
+use Summae\Core\InMemory\InMemoryFiscalYearRepository;
+use Summae\Core\InMemory\InMemoryJournalRepository;
+use Summae\Core\InMemory\InMemoryOpenItemRepository;
+use Summae\Core\InMemory\InMemoryPartnerRepository;
+use Summae\Core\InMemory\InMemoryVoucherRepository;
+use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Ledger\Ledger;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\FiscalYearRepository;
+use Summae\Core\Port\JournalRepository;
+use Summae\Core\Partner\PartnerService;
+use Summae\Core\Port\AssetRepository;
+use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Shared\Clock;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\IdGenerator;
+use Summae\Core\Shared\SystemClock;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Tax\TaxService;
 
 /**
  * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`).

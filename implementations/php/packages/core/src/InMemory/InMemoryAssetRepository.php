@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\InMemory;
+namespace Summae\Core\InMemory;
 
-use Rechnungswesen\Core\Assets\Asset;
-use Rechnungswesen\Core\Port\AssetRepository;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Assets\Asset;
+use Summae\Core\Port\AssetRepository;
+use Summae\Core\Shared\Uuid;
 
 final class InMemoryAssetRepository implements AssetRepository
 {

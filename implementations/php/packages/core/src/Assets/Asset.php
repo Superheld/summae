@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Assets;
+namespace Summae\Core\Assets;
 
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Money;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\DomainError;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Money;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Anlagegut (assets-modell.md): Stammdaten + AfA-Plan + Lebenslauf.

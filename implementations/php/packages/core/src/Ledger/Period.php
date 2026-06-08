@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\Shared\CalendarDate;
+use Summae\Core\Shared\CalendarDate;
 
 /**
  * Periode — Entity innerhalb des FiscalYear-Aggregats

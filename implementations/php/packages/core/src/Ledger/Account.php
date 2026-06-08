@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Core\Ledger;
+namespace Summae\Core\Ledger;
 
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\Uuid;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\Uuid;
 
 /**
  * Konto (ledger-modell.md Aggregat 2). Kein Saldo im Aggregat —

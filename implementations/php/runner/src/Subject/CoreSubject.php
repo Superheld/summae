@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace Rechnungswesen\Runner\Subject;
+namespace Summae\Runner\Subject;
 
-use Rechnungswesen\Core\Composition\TenantFactory;
-use Rechnungswesen\Core\Composition\TenantOperations;
-use Rechnungswesen\Core\DomainError;
-use Rechnungswesen\Core\Ledger\Account;
-use Rechnungswesen\Core\Ledger\AccountStatus;
-use Rechnungswesen\Core\Ledger\AccountType;
-use Rechnungswesen\Core\Ledger\DimensionRegistry;
-use Rechnungswesen\Core\Ledger\FiscalYear;
-use Rechnungswesen\Core\Ledger\Voucher;
-use Rechnungswesen\Core\Mapping\MappingRegistry;
-use Rechnungswesen\Core\Shared\AccountNumber;
-use Rechnungswesen\Core\Shared\CalendarDate;
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Shared\FixedClock;
-use Rechnungswesen\Core\Shared\Uuid;
-use Rechnungswesen\Core\Tax\TaxCodeRegistry;
-use Rechnungswesen\Core\Tax\TaxProfile;
-use Rechnungswesen\Core\Shared\DeterministicIdGenerator;
-use Rechnungswesen\Core\Tenant;
+use Summae\Core\Composition\TenantFactory;
+use Summae\Core\Composition\TenantOperations;
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\Account;
+use Summae\Core\Ledger\AccountStatus;
+use Summae\Core\Ledger\AccountType;
+use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Ledger\Voucher;
+use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Shared\AccountNumber;
+use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\FixedClock;
+use Summae\Core\Shared\Uuid;
+use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Shared\DeterministicIdGenerator;
+use Summae\Core\Tenant;
 
 /**
  * Subject über rechnungswesen/core mit In-Memory-Ports.
