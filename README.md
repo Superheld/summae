@@ -4,9 +4,16 @@ PHP-Referenzimplementierung der Rechnungswesen-Spezifikation: GoBD-konforme
 Doppik, EÜR, Umsatzsteuer, Anlagen und KLR — als einbettbare Bibliothek.
 Aus Nutzersicht **ein** Laravel-Package: `composer require superheld/rechnungswesen-laravel`.
 
-Normative Quelle ist die Wissensbasis (Schwester-Repo): Spezifikation v0.2,
+Normative Quelle ist die Wissensbasis (Schwester-Repo): Spezifikation (v0.5),
 Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
 `80-implementierung/AGENT-BRIEFING.md` und `JOBS.md`.
+
+## Dokumentation
+
+- **Nutzer** (Package einbinden, Konfiguration): die jeweilige Package-README —
+  [packages/laravel/README.md](packages/laravel/README.md),
+  [packages/cli/README.md](packages/cli/README.md).
+- **Mitentwickler** (Architektur, Workflow, Konformität): [docs/](docs/README.md).
 
 ## Struktur
 
