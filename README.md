@@ -1,4 +1,4 @@
-# rechnungswesen
+# summae
 
 Wiederverwendbare Rechnungswesen-Bibliothek: GoBD-konforme Doppik, EÜR,
 Umsatzsteuer, Anlagen und KLR — als einbettbare Implementierung, **nicht** als
@@ -6,7 +6,7 @@ Anwendung. Mehrere Sprach-Implementierungen mit **identischer API und
 identischem Datenformat**, geprüft gegen eine gemeinsame Konformitäts-Suite.
 
 ```
-rechnungswesen/
+summae/
 ├── testsuite/              Der Kompatibilitätsvertrag: fixtures/ + schema/
 │                           (geteilt von allen Implementierungen)
 ├── implementations/
@@ -19,6 +19,20 @@ rechnungswesen/
 
 Geplant ist eine zweite Implementierung (`implementations/node/`) gegen
 dieselbe `testsuite/`.
+
+### Paketnamen über die Ökosysteme
+
+Ein Produktname (`summae`), pro Ökosystem dessen Konvention — der Stamm bleibt
+gleich, nur das Registry-Präfix unterscheidet sich:
+
+| Rolle | PHP (Composer) | Node (npm) | Python (PyPI) |
+|---|---|---|---|
+| Kern | `superheld/summae-core` | `@superheld/summae-core` | `summae-core` |
+| CLI | `superheld/summae-cli` | `@superheld/summae-cli` | `summae-cli` |
+| Framework-Adapter | `superheld/summae-laravel` | `@superheld/summae-nestjs` | `summae-django` |
+
+Die Sprache steckt im Ordner (`implementations/<sprache>/`), nicht im Namen.
+Nur der Framework-Adapter heißt je Framework anders; Kern und CLI bleiben uniform.
 
 ## Normative Quelle
 

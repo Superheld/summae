@@ -1,4 +1,4 @@
-# superheld/rechnungswesen-cli
+# superheld/summae-cli
 
 Eigenständiges Kommandozeilen-Werkzeug (`rw`) für die Rechnungswesen-Bibliothek.
 Alle Ein- und Ausgaben sind **JSON** — Zielnutzer ist ein Mensch *oder ein

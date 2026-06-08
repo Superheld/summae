@@ -4,12 +4,12 @@
 
 | Package | Composer-Name | Rolle |
 |---|---|---|
-| `packages/core` | `superheld/rechnungswesen-core` | Framework-freier Fachkern. Die gesamte Buchführungslogik. Einzige Abhängigkeit: `brick/math`. |
-| `packages/laravel` | `superheld/rechnungswesen-laravel` | Adapter: Eloquent-Persistenz, ServiceProvider, Migrationen. **Keine Fachlogik.** |
-| `packages/cli` | `superheld/rechnungswesen-cli` | Terminal-Werkzeug (`rw`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
+| `packages/core` | `superheld/summae-core` | Framework-freier Fachkern. Die gesamte Buchführungslogik. Einzige Abhängigkeit: `brick/math`. |
+| `packages/laravel` | `superheld/summae-laravel` | Adapter: Eloquent-Persistenz, ServiceProvider, Migrationen. **Keine Fachlogik.** |
+| `packages/cli` | `superheld/summae-cli` | Terminal-Werkzeug (`rw`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
 
-Daneben `superheld/rechnungswesen-monorepo` (Root-`composer.json`) — die
-Entwickler-Werkbank, **kein** ausgeliefertes Paket. `runner/` ist der
+Daneben `superheld/summae-php` (`implementations/php/composer.json`) — die
+PHP-Entwickler-Werkbank, **kein** ausgeliefertes Paket. `runner/` ist der
 Fixture-Runner (nicht veröffentlicht, nur Konformitätsprüfung).
 
 ## Warum der Kern framework-frei ist

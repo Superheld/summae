@@ -1,13 +1,13 @@
 {
-    "name": "superheld/rechnungswesen-monorepo",
+    "name": "superheld/summae-php",
     "description": "PHP-Referenzimplementierung Rechnungswesen — Monorepo (core, laravel, cli)",
     "type": "project",
     "license": "MIT",
     "require": {
         "php": ">=8.3",
-        "superheld/rechnungswesen-cli": "@dev",
-        "superheld/rechnungswesen-core": "@dev",
-        "superheld/rechnungswesen-laravel": "@dev"
+        "superheld/summae-cli": "@dev",
+        "superheld/summae-core": "@dev",
+        "superheld/summae-laravel": "@dev"
     },
     "require-dev": {
         "opis/json-schema": "^2.6",
