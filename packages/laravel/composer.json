@@ -1,13 +1,13 @@
 {
-    "name": "rechnungswesen/laravel",
+    "name": "superheld/rechnungswesen-laravel",
     "description": "Laravel-Adapter für rechnungswesen/core: ServiceProvider, Eloquent-Persistenz, Migrationen",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": ">=8.3",
         "illuminate/database": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
-        "rechnungswesen/core": "*"
+        "superheld/rechnungswesen-core": "*"
     },
     "autoload": {
         "psr-4": {

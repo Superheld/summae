@@ -1,8 +1,8 @@
 {
-    "name": "rechnungswesen/core",
+    "name": "superheld/rechnungswesen-core",
     "description": "Framework-freier Rechnungswesen-Kern: GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": ">=8.3",
         "brick/math": "^0.13"

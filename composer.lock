@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a2d0aa4630c1ed920d9a1c7682705c36",
+    "content-hash": "9f0f2d73c89fb85dff088cd7b3988fff",
     "packages": [
         {
             "name": "brick/math",
@@ -1010,17 +1010,17 @@
             "time": "2021-10-29T13:26:27+00:00"
         },
         {
-            "name": "rechnungswesen/cli",
-            "version": "dev-job/013-cli",
+            "name": "superheld/rechnungswesen-cli",
+            "version": "dev-chore/rename-superheld-mit",
             "dist": {
                 "type": "path",
                 "url": "packages/cli",
-                "reference": "5c97b51d3022518c450e256c0616a86d6b41bace"
+                "reference": "7c6ed0b82f8cf9fbc71bd0e977b4ead7eb4b266a"
             },
             "require": {
                 "php": ">=8.3",
-                "rechnungswesen/core": "*",
-                "rechnungswesen/laravel": "*",
+                "superheld/rechnungswesen-core": "*",
+                "superheld/rechnungswesen-laravel": "*",
                 "symfony/console": "^7.0"
             },
             "bin": [
@@ -1033,7 +1033,7 @@
                 }
             },
             "license": [
-                "proprietary"
+                "MIT"
             ],
             "description": "CLI für rechnungswesen/core — JSON-Ausgaben, LLM-Operator als Zielnutzer (JOB-013)",
             "transport-options": {
@@ -1042,12 +1042,12 @@
             }
         },
         {
-            "name": "rechnungswesen/core",
-            "version": "dev-job/013-cli",
+            "name": "superheld/rechnungswesen-core",
+            "version": "dev-chore/rename-superheld-mit",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "7296bc3d67a0ccfa8838e5671bd51642669cd6fe"
+                "reference": "6278c9dba975381b3184605c47f8eb599a17702a"
             },
             "require": {
                 "brick/math": "^0.13",
@@ -1060,7 +1060,7 @@
                 }
             },
             "license": [
-                "proprietary"
+                "MIT"
             ],
             "description": "Framework-freier Rechnungswesen-Kern: GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR",
             "transport-options": {
@@ -1069,18 +1069,18 @@
             }
         },
         {
-            "name": "rechnungswesen/laravel",
-            "version": "dev-job/013-cli",
+            "name": "superheld/rechnungswesen-laravel",
+            "version": "dev-chore/rename-superheld-mit",
             "dist": {
                 "type": "path",
                 "url": "packages/laravel",
-                "reference": "a6456692a483ab61e9cc05745e0691817f536a4e"
+                "reference": "b39703ca92bfa4805d8c0b3f238ccfed98fffa7c"
             },
             "require": {
                 "illuminate/database": "^11.0|^12.0",
                 "illuminate/support": "^11.0|^12.0",
                 "php": ">=8.3",
-                "rechnungswesen/core": "*"
+                "superheld/rechnungswesen-core": "*"
             },
             "type": "library",
             "extra": {
@@ -1096,7 +1096,7 @@
                 }
             },
             "license": [
-                "proprietary"
+                "MIT"
             ],
             "description": "Laravel-Adapter für rechnungswesen/core: ServiceProvider, Eloquent-Persistenz, Migrationen",
             "transport-options": {
@@ -4302,9 +4302,9 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "rechnungswesen/cli": 20,
-        "rechnungswesen/core": 20,
-        "rechnungswesen/laravel": 20
+        "superheld/rechnungswesen-cli": 20,
+        "superheld/rechnungswesen-core": 20,
+        "superheld/rechnungswesen-laravel": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

@@ -2,7 +2,7 @@
 
 PHP-Referenzimplementierung der Rechnungswesen-Spezifikation: GoBD-konforme
 Doppik, EÜR, Umsatzsteuer, Anlagen und KLR — als einbettbare Bibliothek.
-Aus Nutzersicht **ein** Laravel-Package: `composer require rechnungswesen/laravel`.
+Aus Nutzersicht **ein** Laravel-Package: `composer require superheld/rechnungswesen-laravel`.
 
 Normative Quelle ist die Wissensbasis (Schwester-Repo): Spezifikation v0.2,
 Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
@@ -12,9 +12,9 @@ Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
 
 | Pfad | Inhalt |
 |---|---|
-| `packages/core/` | `rechnungswesen/core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
-| `packages/laravel/` | `rechnungswesen/laravel` — ServiceProvider, Eloquent-Adapter, Migrationen (JOB-012) |
-| `packages/cli/` | `rechnungswesen/cli` — CLI, JSON-Ausgaben (JOB-013) |
+| `packages/core/` | `superheld/rechnungswesen-core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
+| `packages/laravel/` | `superheld/rechnungswesen-laravel` — ServiceProvider, Eloquent-Adapter, Migrationen (JOB-012) |
+| `packages/cli/` | `superheld/rechnungswesen-cli` — CLI, JSON-Ausgaben (JOB-013) |
 | `runner/` | Fixture-Runner für die Konformitätssuite (JOB-002) |
 | `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only**, via `make sync` |
 | `SPEC-FINDINGS.md` | Befunde gegen Spec/Fixtures (Eskalationsweg aus dem Briefing) |
