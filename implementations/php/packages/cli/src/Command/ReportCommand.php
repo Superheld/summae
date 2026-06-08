@@ -15,7 +15,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `rw report trialBalance --params '{"fiscalYear": 2026, "throughPeriod": 12}'`
+ * `summae report trialBalance --params '{"fiscalYear": 2026, "throughPeriod": 12}'`
  * — alle Projektionen, deterministisch, asOf-fähig.
  */
 final class ReportCommand extends Command

@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-cli",
-    "description": "CLI für rechnungswesen/core — JSON-Ausgaben, LLM-Operator als Zielnutzer (JOB-013)",
+    "description": "CLI für summae-core — JSON-Ausgaben, LLM-Operator als Zielnutzer (JOB-013)",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -18,6 +18,6 @@
         "sort-packages": true
     },
     "bin": [
-        "bin/rw"
+        "bin/summae"
     ]
 }

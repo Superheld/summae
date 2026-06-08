@@ -25,7 +25,7 @@ use Summae\Core\Shared\DeterministicIdGenerator;
 use Summae\Core\Tenant;
 
 /**
- * Subject über rechnungswesen/core mit In-Memory-Ports.
+ * Subject über summae-core mit In-Memory-Ports.
  *
  * Feste Uhr: recordedAt-Zeitstempel sind damit über beide Suite-Läufe
  * identisch — der Doppellauf-Determinismus-Check vergleicht Spuren

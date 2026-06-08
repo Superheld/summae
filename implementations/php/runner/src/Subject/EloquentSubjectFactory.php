@@ -12,8 +12,8 @@ use Summae\Laravel\Schema\SchemaInstaller;
 /**
  * Zweiter Runner-Lauf (JOB-012): dieselbe Konformitätssuite gegen den
  * Eloquent-Adapter. Je Fixture eine frische Datenbank — SQLite
- * in-memory per Default, Postgres über RW_DB_DRIVER=pgsql
- * (RW_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD).
+ * in-memory per Default, Postgres über SUMMAE_DB_DRIVER=pgsql
+ * (SUMMAE_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD).
  */
 final class EloquentSubjectFactory implements SubjectFactory
 {
@@ -50,18 +50,18 @@ final class EloquentSubjectFactory implements SubjectFactory
 
     private function freshConnection(): \Illuminate\Database\Connection
     {
-        $driver = getenv('RW_DB_DRIVER') ?: 'sqlite';
+        $driver = getenv('SUMMAE_DB_DRIVER') ?: 'sqlite';
 
         $capsule = new Capsule();
 
         if ($driver === 'pgsql') {
             $capsule->addConnection([
                 'driver' => 'pgsql',
-                'host' => getenv('RW_DB_HOST') ?: 'postgres',
-                'port' => getenv('RW_DB_PORT') ?: '5432',
-                'database' => getenv('RW_DB_DATABASE') ?: 'summae',
-                'username' => getenv('RW_DB_USERNAME') ?: 'summae',
-                'password' => getenv('RW_DB_PASSWORD') ?: 'summae',
+                'host' => getenv('SUMMAE_DB_HOST') ?: 'postgres',
+                'port' => getenv('SUMMAE_DB_PORT') ?: '5432',
+                'database' => getenv('SUMMAE_DB_DATABASE') ?: 'summae',
+                'username' => getenv('SUMMAE_DB_USERNAME') ?: 'summae',
+                'password' => getenv('SUMMAE_DB_PASSWORD') ?: 'summae',
             ]);
         } else {
             $capsule->addConnection([

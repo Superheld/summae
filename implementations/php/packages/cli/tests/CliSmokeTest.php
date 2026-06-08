@@ -20,7 +20,7 @@ final class CliSmokeTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->dir = sys_get_temp_dir() . '/rw-cli-' . bin2hex(random_bytes(4));
+        $this->dir = sys_get_temp_dir() . '/summae-cli-' . bin2hex(random_bytes(4));
         mkdir($this->dir);
     }
 

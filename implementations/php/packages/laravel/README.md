@@ -48,7 +48,7 @@ registriert — kein Eintrag in `config/app.php` nötig.
 
 ### Datenbank & Zugangsdaten
 
-Das Package legt seine Tabellen (`rw_*`) über eine **Laravel-DB-Connection**
+Das Package legt seine Tabellen (`summae_*`) über eine **Laravel-DB-Connection**
 an. Die Zugangsdaten kommen aus deiner App — an die **gewohnte Stelle**:
 
 ```dotenv
@@ -62,7 +62,7 @@ DB_PASSWORD=geheim
 ```
 
 Standardmäßig nutzt das Package die **Default-Connection** deiner App. Du musst
-also nichts weiter konfigurieren — die `rw_*`-Tabellen landen in derselben
+also nichts weiter konfigurieren — die `summae_*`-Tabellen landen in derselben
 Datenbank wie der Rest deiner Anwendung.
 
 ### Optional: eigene Connection für die Buchhaltung
@@ -75,11 +75,11 @@ Mandanten-, Backup- oder Compliance-Gründen): eine zweite Connection in
 // config/database.php → 'connections'
 'buchhaltung' => [
     'driver'   => 'pgsql',
-    'host'     => env('RW_DB_HOST', '127.0.0.1'),
-    'port'     => env('RW_DB_PORT', '5432'),
-    'database' => env('RW_DB_DATABASE', 'buchhaltung'),
-    'username' => env('RW_DB_USERNAME'),
-    'password' => env('RW_DB_PASSWORD'),
+    'host'     => env('SUMMAE_DB_HOST', '127.0.0.1'),
+    'port'     => env('SUMMAE_DB_PORT', '5432'),
+    'database' => env('SUMMAE_DB_DATABASE', 'buchhaltung'),
+    'username' => env('SUMMAE_DB_USERNAME'),
+    'password' => env('SUMMAE_DB_PASSWORD'),
     'charset'  => 'utf8',
 ],
 ```
@@ -107,7 +107,7 @@ Legt `config/summae.php` an — dort steht genau dieser eine Wert
 php artisan migrate
 ```
 
-Legt die `rw_*`-Tabellen auf der gewählten Connection an. Die Migration ist im
+Legt die `summae_*`-Tabellen auf der gewählten Connection an. Die Migration ist im
 Package enthalten und wird automatisch gefunden (kein `vendor:publish` nötig).
 
 ## Benutzung

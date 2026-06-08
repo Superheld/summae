@@ -18,15 +18,15 @@ use Summae\Laravel\EloquentTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * CLI-Arbeitsbereich: `rw.json` (Mandanten-Meta + Regelmodul-Daten,
- * App-Schicht) + `rechnungswesen.sqlite` (Adapter-Persistenz).
+ * CLI-Arbeitsbereich: `summae.json` (Mandanten-Meta + Regelmodul-Daten,
+ * App-Schicht) + `summae.sqlite` (Adapter-Persistenz).
  * Jeder Aufruf lädt den Mandanten, führt aus, die Datenbank persistiert.
  */
 final class Workspace
 {
-    private const string CONFIG_FILE = 'rw.json';
+    private const string CONFIG_FILE = 'summae.json';
 
-    private const string DB_FILE = 'rechnungswesen.sqlite';
+    private const string DB_FILE = 'summae.sqlite';
 
     /** @var array<string, mixed> */
     private array $config = [];
@@ -75,7 +75,7 @@ final class Workspace
     {
         if (!$this->exists()) {
             throw new \RuntimeException(sprintf(
-                'Kein Arbeitsbereich in %s — zuerst `rw init` ausführen',
+                'Kein Arbeitsbereich in %s — zuerst `summae init` ausführen',
                 $this->directory,
             ));
         }

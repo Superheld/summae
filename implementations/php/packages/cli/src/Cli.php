@@ -10,7 +10,7 @@ use Summae\Cli\Command\ReportCommand;
 use Symfony\Component\Console\Application;
 
 /**
- * `rw` — Rechnungswesen-CLI (api.md F-IO-003).
+ * `summae` — Rechnungswesen-CLI (api.md F-IO-003).
  * Zielnutzer ist ein LLM-Operator: alle Ausgaben JSON (eine Antwort
  * pro Aufruf, maschinenlesbar), Exit-Codes = Fehlercodes.
  */
@@ -22,7 +22,7 @@ final class Cli
 
     public static function application(): Application
     {
-        $application = new Application('rw', CliPackage::VERSION);
+        $application = new Application('summae', CliPackage::VERSION);
         $application->add(new InitCommand());
         $application->add(new OpCommand());
         $application->add(new ReportCommand());

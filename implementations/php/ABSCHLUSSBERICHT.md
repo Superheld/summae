@@ -63,11 +63,11 @@ das sollte die Spec explizit machen.
 2. **Regelmodul-Daten sind App-Schicht-Daten:** Steuerschlüssel, Profile,
    Mappings, Dimensionsregeln, GWG-Grenzen werden dem Mandanten beim
    Aufbau übergeben und nicht in der Adapter-Datenbank verwaltet
-   (Versionierung/Pinning ist App-Sache; die CLI hält sie in `rw.json`).
+   (Versionierung/Pinning ist App-Sache; die CLI hält sie in `summae.json`).
 3. **Persistenzgranularität:** Aggregat-Innereien (Buchungszeilen,
    Perioden, Settlements, AfA-Lebenslauf) als JSON-Dokumente am Aggregat —
    die Published Language ist die Persistenzform. Node kann dieselben
-   Tabellen lesen (`rw_*`, JSON-Spalten in datenformat.md-Form).
+   Tabellen lesen (`summae_*`, JSON-Spalten in datenformat.md-Form).
 4. **Eindeutigkeit per DB-Constraint:** Kontonummer je Mandant und
    sequenceNumber je (Mandant, GJ) sind Unique-Indizes — der
    Repository-Kontrakt aus dem Modell, vom Adapter zugesichert.

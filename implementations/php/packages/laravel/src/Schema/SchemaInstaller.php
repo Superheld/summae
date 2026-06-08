@@ -16,7 +16,7 @@ use Illuminate\Database\Schema\Builder;
  */
 final class SchemaInstaller
 {
-    public const string PREFIX = 'rw_';
+    public const string PREFIX = 'summae_';
 
     public static function create(Builder $schema): void
     {

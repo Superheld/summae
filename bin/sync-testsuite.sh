@@ -4,11 +4,11 @@
 # Einbahnstraße: Wissensbasis -> testsuite/. Fixtures werden hier NIE editiert
 # (Befunde gehören nach SPEC-FINDINGS.md, siehe AGENT-BRIEFING).
 #
-# Quelle: $RW_TESTSUITE_SRC, sonst Auto-Suche nach ../Rechnungswesen*/70-testsuite
+# Quelle: $SUMMAE_TESTSUITE_SRC, sonst Auto-Suche nach ../Rechnungswesen*/70-testsuite
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SRC="${RW_TESTSUITE_SRC:-}"
+SRC="${SUMMAE_TESTSUITE_SRC:-}"
 if [[ -z "$SRC" ]]; then
     for candidate in ../Rechnungswesen*/70-testsuite; do
         if [[ -d "$candidate" ]]; then
@@ -19,8 +19,8 @@ if [[ -z "$SRC" ]]; then
 fi
 
 if [[ -z "$SRC" || ! -d "$SRC" ]]; then
-    echo "FEHLER: Wissensbasis nicht gefunden. RW_TESTSUITE_SRC setzen, z. B.:" >&2
-    echo "  RW_TESTSUITE_SRC='/pfad/zur/wissensbasis/70-testsuite' $0" >&2
+    echo "FEHLER: Wissensbasis nicht gefunden. SUMMAE_TESTSUITE_SRC setzen, z. B.:" >&2
+    echo "  SUMMAE_TESTSUITE_SRC='/pfad/zur/wissensbasis/70-testsuite' $0" >&2
     exit 1
 fi
 

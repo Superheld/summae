@@ -11,7 +11,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `rw init --name="Muster GmbH" [--currency=EUR] [--rules=regeln.json]`
+ * `summae init --name="Muster GmbH" [--currency=EUR] [--rules=regeln.json]`
  *
  * Die Regeldatei trägt App-Schicht-Daten: accounts, taxCodes, taxProfile,
  * dimensionTypes/-Values, ruleModules (mappings, gwgThresholds, …).
@@ -26,7 +26,7 @@ final class InitCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Arbeitsbereich anlegen (rw.json + SQLite-Datenbank)')
+            ->setDescription('Arbeitsbereich anlegen (summae.json + SQLite-Datenbank)')
             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Mandantenname')
             ->addOption('currency', null, InputOption::VALUE_REQUIRED, 'Basiswährung (ISO 4217)', 'EUR')
             ->addOption('rules', null, InputOption::VALUE_REQUIRED, 'JSON-Datei mit Regelmodul-Daten')
