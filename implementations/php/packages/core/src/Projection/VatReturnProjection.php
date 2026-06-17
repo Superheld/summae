@@ -113,8 +113,17 @@ final readonly class VatReturnProjection
         } else {
             foreach ($this->journal->all() as $entry) {
                 // v0.4: Soll-Zuordnung folgt dem Leistungsdatum (Fallback Belegdatum).
-                $voucher = $this->vouchers->byId($entry->voucherId);
-                $taxDate = $voucher === null ? $entry->entryDate : $voucher->taxDate();
+                // F-011: Ausnahme Generalumkehr/§17-Korrektur. Eine reversierende
+                // Buchung erbt den Beleg des Originals (reverse() kopiert voucherId)
+                // und damit dessen Leistungsdatum — gehört aber in den VA-Zeitraum,
+                // in dem die Korrektur gebucht wird (§ 17 Abs. 1 S. 7 UStG), nicht
+                // rückwirkend in die Original-Periode. Daher: nach eigenem Buchungsdatum.
+                if ($entry->reverses !== null) {
+                    $taxDate = $entry->entryDate;
+                } else {
+                    $voucher = $this->vouchers->byId($entry->voucherId);
+                    $taxDate = $voucher === null ? $entry->entryDate : $voucher->taxDate();
+                }
 
                 if (!$this->inQuarter($taxDate, $year, $quarter)) {
                     continue;

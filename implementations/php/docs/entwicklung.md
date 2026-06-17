@@ -38,7 +38,7 @@ Die `expected-green.txt` im `runner/` ist der Regressionsschutz: ohne
 - **PHPStan level max** ist nicht verhandelbar — kein `@phpstan-ignore` ohne
   Begründung im Kommentar.
 - **Kein `use Illuminate\…` in `packages/core`.** (Siehe architektur.md.)
-- **Namespace `Rechnungswesen\…`** (Domäne), unabhängig vom Composer-Vendor.
+- **Namespace `Summae\…`** (Domäne), unabhängig vom Composer-Vendor.
 - **Geld nie als Float**, Daten nie als `DateTime` mit Zeit fürs Buchungsdatum
   (zonenlose `CalendarDate`). Siehe konformitaet.md.
 - Deutschsprachige Kommentare/Doku, englische API-/Klassennamen (aus dem
