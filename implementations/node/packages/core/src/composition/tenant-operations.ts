@@ -74,6 +74,16 @@ export class TenantOperations {
         return this.tenant.assetService.dispose(input);
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
+      case 'setAllocationScheme':
+        return this.tenant.costing.setAllocationScheme(input);
+      case 'runCosting': {
+        const run = this.tenant.costing.run(input);
+        return { runId: run.id.value, status: run.status(), version: run.version };
+      }
+      case 'releaseCosting': {
+        const released = this.tenant.costing.release(input);
+        return { runId: released.id.value, status: released.status() };
+      }
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" ist nicht definiert`);
     }
@@ -93,6 +103,8 @@ export class TenantOperations {
         return new AuditLogProjection(tenant.audit).compute(params);
       case 'assetRegister':
         return new AssetRegisterProjection(tenant.assets).compute(params);
+      case 'costAllocationSheet':
+        return tenant.costing.costAllocationSheet(params);
       case 'incomeStatement':
         return new IncomeStatementProjection(
           tenant.baseCurrency,

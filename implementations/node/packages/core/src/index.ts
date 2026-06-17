@@ -77,6 +77,10 @@ export { Asset } from './assets/asset.js';
 export { type AssetRoute, parseAssetRoute } from './assets/asset-route.js';
 export { AssetService } from './assets/asset-service.js';
 
+// Costing
+export { CostingRun } from './costing/costing-run.js';
+export { CostingService } from './costing/costing-service.js';
+
 // Projektionen
 export { TrialBalanceProjection } from './projection/trial-balance.js';
 export { OpenItemsProjection } from './projection/open-items.js';

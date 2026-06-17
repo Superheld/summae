@@ -1,4 +1,5 @@
 import { AssetService } from '../assets/asset-service.js';
+import { CostingService } from '../costing/costing-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -48,6 +49,7 @@ export class Tenant {
     readonly ledger: Ledger,
     readonly tax: TaxService,
     readonly assetService: AssetService,
+    readonly costing: CostingService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
     readonly ids: IdGenerator,
@@ -87,6 +89,7 @@ export class Tenant {
     );
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal);
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, idGen);
+    const costing = new CostingService(baseCurrency, accounts, journal, idGen);
 
     return new Tenant(
       idGen.next(),
@@ -102,6 +105,7 @@ export class Tenant {
       ledger,
       tax,
       assetService,
+      costing,
       mappings,
       clock,
       idGen,
