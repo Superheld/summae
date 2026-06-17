@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { CalendarDate } from '../shared/calendar-date.js';
 import { InvalidValue } from '../shared/errors.js';
+import type { Uuid } from '../shared/uuid.js';
 import { Voucher } from '../ledger/voucher.js';
 import type { Tenant } from './tenant.js';
 
@@ -32,9 +33,10 @@ export class PostVoucherService {
       throw error;
     }
 
+    // v0.4: Partner muss existieren, bevor irgendetwas entsteht.
+    let partnerId: Uuid | null = null;
     if (voucherData.partnerId !== undefined && voucherData.partnerId !== null) {
-      // Partner-Stammdaten folgen im eigenen Slice.
-      throw new DomainError('E_NOT_IMPLEMENTED', 'postVoucher mit partnerId folgt im Partner-Slice');
+      partnerId = this.tenant.partnerService.require(voucherData.partnerId).id;
     }
 
     const date = (value: unknown): CalendarDate | null =>
@@ -52,7 +54,7 @@ export class PostVoucherService {
       servicePeriodFrom: date(servicePeriod.from),
       servicePeriodTo: date(servicePeriod.to),
       kind: asString(voucherData.kind),
-      partnerId: null,
+      partnerId,
       issuer: asString(voucherData.issuer),
     });
     this.tenant.vouchers.add(voucher);

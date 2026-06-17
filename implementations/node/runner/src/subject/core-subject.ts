@@ -13,6 +13,7 @@ import {
   TaxCodeRegistry,
   TaxProfile,
   Tenant,
+  TenantFactory,
   TenantOperations,
   Uuid,
   Voucher,
@@ -40,11 +41,20 @@ function asRecordList(value: unknown): Record<string, unknown>[] {
  */
 export class CoreSubject implements Subject {
   private tenant: Tenant | null = null;
+  private ruleModules: Record<string, unknown> = {};
+  private readonly tenants = new Map<string, Tenant>();
 
   setup(setup: Record<string, unknown>): void {
+    // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
+    const ruleModules: Record<string, unknown> = {
+      ...(isRecord(setup.ruleModules) ? setup.ruleModules : {}),
+      ...(isRecord(setup.ruleModule) ? setup.ruleModule : {}),
+    };
+    this.ruleModules = ruleModules;
+
     const tenantData = isRecord(setup.tenant) ? setup.tenant : null;
     if (tenantData === null) {
-      // createTenant-Fixtures (ohne Setup-Mandant) — eigener Slice.
+      // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule halten.
       this.tenant = null;
       return;
     }
@@ -53,12 +63,6 @@ export class CoreSubject implements Subject {
     const currency = Currency.of(asString(tenantData.baseCurrency) ?? 'EUR');
     const clock = FixedClock.at(FIXED_NOW);
     const ids = new DeterministicIdGenerator(clock);
-
-    // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
-    const ruleModules: Record<string, unknown> = {
-      ...(isRecord(setup.ruleModules) ? setup.ruleModules : {}),
-      ...(isRecord(setup.ruleModule) ? setup.ruleModule : {}),
-    };
     const dimensionTypes = asRecordList(setup.dimensionTypes).map((t) => ({ code: String(t.code) }));
     const dimensionValues = asRecordList(setup.dimensionValues).map((v) => ({
       typeCode: String(v.typeCode),
@@ -109,7 +113,14 @@ export class CoreSubject implements Subject {
   }
 
   execute(op: string, input: Record<string, unknown>): Record<string, unknown> {
-    const tenant = this.requireTenant();
+    if (op === 'createTenant') {
+      try {
+        return this.createTenant(input);
+      } catch (error) {
+        throw this.translate(error);
+      }
+    }
+    const tenant = this.resolveTenant(input);
     const { tenant: _ignored, ...rest } = input;
     try {
       return new TenantOperations(tenant).execute(op, rest);
@@ -119,7 +130,7 @@ export class CoreSubject implements Subject {
   }
 
   project(name: string, params: Record<string, unknown>): Record<string, unknown> {
-    const tenant = this.requireTenant();
+    const tenant = this.resolveTenant(params);
     const { tenant: _ignored, ...rest } = params;
     try {
       return new TenantOperations(tenant).project(name, rest);
@@ -128,11 +139,22 @@ export class CoreSubject implements Subject {
     }
   }
 
-  private requireTenant(): Tenant {
-    if (this.tenant === null) {
-      throw new SubjectError('E_NOT_IMPLEMENTED', 'Kein Mandant vorhanden (createTenant folgt im eigenen Slice)');
-    }
-    return this.tenant;
+  private createTenant(input: Record<string, unknown>): Record<string, unknown> {
+    const clock = FixedClock.at(FIXED_NOW);
+    const factory = new TenantFactory(this.ruleModules, clock, new DeterministicIdGenerator(clock));
+    const created = factory.create(input);
+    this.tenants.set(created.tenant.id.value, created.tenant);
+    return created.result;
+  }
+
+  /** Routing: explizite tenant-Referenz, sonst Setup-Mandant, sonst zuletzt angelegter. */
+  private resolveTenant(input: Record<string, unknown>): Tenant {
+    const ref = input.tenant;
+    if (typeof ref === 'string' && this.tenants.has(ref)) return this.tenants.get(ref)!;
+    if (this.tenant !== null) return this.tenant;
+    const last = [...this.tenants.values()].at(-1);
+    if (last === undefined) throw new SubjectError('E_NOT_IMPLEMENTED', 'Kein Mandant vorhanden');
+    return last;
   }
 
   private translate(error: unknown): SubjectError {

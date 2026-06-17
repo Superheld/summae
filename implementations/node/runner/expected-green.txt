@@ -1,4 +1,4 @@
-# Erwartete grüne Fixtures (Regressionsschutz). Stand: M2 + Costing — 40/45.
+# Erwartete grüne Fixtures (Regressionsschutz). Stand: M2 + Partner/createTenant — 41/45.
 accounts-and-import
 advance-payment
 allocate-largest-remainder
@@ -6,6 +6,7 @@ allocation-run
 balance-sheet-mapping
 cash-basis-ten-day-rule
 costing-run-unknown
+create-tenant-profile
 customer-credit-note
 depreciation-monthly-allocation
 deviating-fiscal-year

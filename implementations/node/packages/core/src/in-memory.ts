@@ -5,9 +5,11 @@ import type {
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
+  PartnerRepository,
   VoucherRepository,
 } from './port.js';
 import type { Asset } from './assets/asset.js';
+import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './shared/account-number.js';
 import type { CalendarDate } from './shared/calendar-date.js';
 import type { Uuid } from './shared/uuid.js';
@@ -159,6 +161,27 @@ export class InMemoryAuditTrail implements AuditTrail {
 
   all(): AuditRecord[] {
     return [...this.records];
+  }
+}
+
+export class InMemoryPartnerRepository implements PartnerRepository {
+  private readonly byIdMap = new Map<string, Partner>();
+
+  add(partner: Partner): void {
+    this.byIdMap.set(partner.id.value, partner);
+  }
+
+  save(_partner: Partner): void {}
+
+  byId(id: Uuid): Partner | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): Partner[] {
+    return [...this.byIdMap.values()].sort((a, b) => {
+      const byName = a.name() < b.name() ? -1 : a.name() > b.name() ? 1 : 0;
+      return byName !== 0 ? byName : a.id.value < b.id.value ? -1 : a.id.value > b.id.value ? 1 : 0;
+    });
   }
 }
 

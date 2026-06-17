@@ -6,6 +6,7 @@ import { AuditLogProjection } from '../projection/audit-log.js';
 import { BalanceSheetProjection } from '../projection/balance-sheet.js';
 import { CashBasisProjection } from '../projection/cash-basis.js';
 import { IncomeStatementProjection } from '../projection/income-statement.js';
+import { EcSalesListProjection } from '../projection/ec-sales-list.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
 import { VatReturnProjection } from '../projection/vat-return.js';
@@ -68,6 +69,10 @@ export class TenantOperations {
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':
         return new MappingImporter(this.tenant.accounts, this.tenant.mappings).import(input);
+      case 'createPartner':
+        return serialize(this.tenant.partnerService.create(input));
+      case 'updatePartner':
+        return serialize(this.tenant.partnerService.update(input));
       case 'acquireAsset':
         return this.tenant.assetService.acquire(input);
       case 'disposeAsset':
@@ -105,6 +110,14 @@ export class TenantOperations {
         return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'costAllocationSheet':
         return tenant.costing.costAllocationSheet(params);
+      case 'ecSalesList':
+        return new EcSalesListProjection(
+          tenant.baseCurrency,
+          tenant.journal,
+          tenant.vouchers,
+          tenant.partners,
+          tenant.tax.registryHandle(),
+        ).compute(params);
       case 'incomeStatement':
         return new IncomeStatementProjection(
           tenant.baseCurrency,
