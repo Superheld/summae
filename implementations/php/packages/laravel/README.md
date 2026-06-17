@@ -117,9 +117,9 @@ einen **Mandanten** mit Datenbank-Persistenz; alle Operationen und
 Projektionen laufen über `TenantOperations` (Namen exakt nach API-Spec):
 
 ```php
-use Rechnungswesen\Core\Shared\Currency;
-use Rechnungswesen\Core\Composition\TenantOperations;
-use Rechnungswesen\Laravel\EloquentTenantFactory;
+use Summae\Core\Shared\Currency;
+use Summae\Core\Composition\TenantOperations;
+use Summae\Laravel\EloquentTenantFactory;
 
 $tenant = app(EloquentTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
 $ops = new TenantOperations($tenant);
