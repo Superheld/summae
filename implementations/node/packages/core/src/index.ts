@@ -76,6 +76,13 @@ export { OpenItemsProjection } from './projection/open-items.js';
 export { AccountSheetProjection } from './projection/account-sheet.js';
 export { AuditLogProjection } from './projection/audit-log.js';
 export { VatReturnProjection } from './projection/vat-return.js';
+export { IncomeStatementProjection } from './projection/income-statement.js';
+export { BalanceSheetProjection } from './projection/balance-sheet.js';
+
+// Mappings
+export { Mapping, type MappingLeaf, leafMatches } from './mapping/mapping.js';
+export { MappingRegistry } from './mapping/mapping-registry.js';
+export { MappingImporter } from './mapping/mapping-importer.js';
 
 // Tax
 export { TaxCode } from './tax/tax-code.js';

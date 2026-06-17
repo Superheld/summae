@@ -8,6 +8,7 @@ import {
   DomainError,
   FixedClock,
   FiscalYear,
+  MappingRegistry,
   type PeriodDefinition,
   TaxCodeRegistry,
   TaxProfile,
@@ -83,7 +84,11 @@ export class CoreSubject implements Subject {
         : {};
     const taxProfile = TaxProfile.fromData(taxProfileData);
 
-    const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions, taxCodes, taxProfile);
+    const mappings = MappingRegistry.fromRuleModules(
+      Array.isArray(ruleModules.mappings) ? ruleModules.mappings : [],
+    );
+
+    const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions, taxCodes, taxProfile, mappings);
 
     for (const accountData of asRecordList(setup.accounts)) {
       tenant.accounts.add(this.buildAccount(tenant, accountData));
