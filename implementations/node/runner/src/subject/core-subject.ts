@@ -54,7 +54,11 @@ export class CoreSubject implements Subject {
     const clock = FixedClock.at(FIXED_NOW);
     const ids = new DeterministicIdGenerator(clock);
 
-    const ruleModules = isRecord(setup.ruleModules) ? setup.ruleModules : {};
+    // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
+    const ruleModules: Record<string, unknown> = {
+      ...(isRecord(setup.ruleModules) ? setup.ruleModules : {}),
+      ...(isRecord(setup.ruleModule) ? setup.ruleModule : {}),
+    };
     const dimensionTypes = asRecordList(setup.dimensionTypes).map((t) => ({ code: String(t.code) }));
     const dimensionValues = asRecordList(setup.dimensionValues).map((v) => ({
       typeCode: String(v.typeCode),
@@ -89,6 +93,7 @@ export class CoreSubject implements Subject {
     );
 
     const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions, taxCodes, taxProfile, mappings);
+    tenant.assetService.setRuleModule(ruleModules);
 
     for (const accountData of asRecordList(setup.accounts)) {
       tenant.accounts.add(this.buildAccount(tenant, accountData));

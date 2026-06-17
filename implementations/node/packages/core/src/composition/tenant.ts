@@ -1,5 +1,7 @@
+import { AssetService } from '../assets/asset-service.js';
 import {
   InMemoryAccountRepository,
+  InMemoryAssetRepository,
   InMemoryAuditTrail,
   InMemoryFiscalYearRepository,
   InMemoryJournalRepository,
@@ -14,6 +16,7 @@ import { TaxProfile } from '../tax/tax-profile.js';
 import { TaxService } from '../tax/tax-service.js';
 import type {
   AccountRepository,
+  AssetRepository,
   AuditTrail,
   FiscalYearRepository,
   JournalRepository,
@@ -40,9 +43,11 @@ export class Tenant {
     readonly vouchers: VoucherRepository,
     readonly journal: JournalRepository,
     readonly openItems: OpenItemRepository,
+    readonly assets: AssetRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
+    readonly assetService: AssetService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
     readonly ids: IdGenerator,
@@ -65,6 +70,7 @@ export class Tenant {
     const vouchers = new InMemoryVoucherRepository();
     const journal = new InMemoryJournalRepository();
     const openItems = new InMemoryOpenItemRepository();
+    const assets = new InMemoryAssetRepository();
     const audit = new InMemoryAuditTrail();
 
     const ledger = new Ledger(
@@ -80,6 +86,7 @@ export class Tenant {
       idGen,
     );
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal);
+    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, idGen);
 
     return new Tenant(
       idGen.next(),
@@ -90,9 +97,11 @@ export class Tenant {
       vouchers,
       journal,
       openItems,
+      assets,
       audit,
       ledger,
       tax,
+      assetService,
       mappings,
       clock,
       idGen,
