@@ -1,7 +1,9 @@
 # Fixtures, die die Node-Implementierung beim aktuellen Stand grün bestehen muss.
 # Wächst mit jedem Slice; Regressionsschutz (runner/test/conformance.test.ts).
-# Stand: M2 Ledger + Open-Items + Tax (ohne weitere Projektionen/Assets/Costing).
+# Stand: M2 Ledger + Open-Items + Tax + Projektionen (Trial/Account/Audit/Vat/OpenItems).
 accounts-and-import
+advance-payment
+customer-credit-note
 finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
@@ -14,6 +16,12 @@ post-and-invariants
 post-malformed
 reverse-charge
 service-date-rate-change
+settlement-bad-debt
+settlement-discount
 small-business-switch
 tax-expansion
+vat-return
+vat-return-cash-basis
+vat-return-cash-basis-rounding
+vat-return-reversal
 voucher-unknown

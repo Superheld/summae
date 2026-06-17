@@ -73,6 +73,9 @@ export {
 // Projektionen
 export { TrialBalanceProjection } from './projection/trial-balance.js';
 export { OpenItemsProjection } from './projection/open-items.js';
+export { AccountSheetProjection } from './projection/account-sheet.js';
+export { AuditLogProjection } from './projection/audit-log.js';
+export { VatReturnProjection } from './projection/vat-return.js';
 
 // Tax
 export { TaxCode } from './tax/tax-code.js';

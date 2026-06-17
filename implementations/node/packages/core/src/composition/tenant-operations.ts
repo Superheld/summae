@@ -1,6 +1,9 @@
 import { DomainError } from '../domain-error.js';
+import { AccountSheetProjection } from '../projection/account-sheet.js';
+import { AuditLogProjection } from '../projection/audit-log.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
+import { VatReturnProjection } from '../projection/vat-return.js';
 import { PostVoucherService } from './post-voucher-service.js';
 import type { Tenant } from './tenant.js';
 
@@ -71,6 +74,20 @@ export class TenantOperations {
         return new TrialBalanceProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'openItems':
         return new OpenItemsProjection(tenant.openItems, tenant.vouchers, tenant.journal).compute(params);
+      case 'accountSheet':
+        return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
+      case 'auditLog':
+        return new AuditLogProjection(tenant.audit).compute(params);
+      case 'vatReturn':
+        return new VatReturnProjection(
+          tenant.baseCurrency,
+          tenant.journal,
+          tenant.openItems,
+          tenant.vouchers,
+          tenant.accounts,
+          tenant.tax.registryHandle(),
+          tenant.tax.profile(),
+        ).compute(params);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
     }
