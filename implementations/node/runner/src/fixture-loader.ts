@@ -14,8 +14,34 @@ export interface Fixture {
   readonly name: string;
   /** Absoluter Pfad der Quelldatei. */
   readonly file: string;
-  /** Geparster JSON-Inhalt der Fixture. */
-  readonly data: Record<string, unknown>;
+  /** setup-Block (Mandant, Konten, Wirtschaftsjahre, Belege …). */
+  readonly setup: Record<string, unknown>;
+  /** steps[] — Schreiboperationen mit expect. */
+  readonly steps: Array<Record<string, unknown>>;
+  /** projections[] — lesende Projektionen mit expect. */
+  readonly projections: Array<Record<string, unknown>>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asRecordList(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.map(asRecord) : [];
+}
+
+function fixtureFromFile(file: string): Fixture {
+  const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  const name = typeof data.fixture === 'string' ? data.fixture : file;
+  return {
+    name,
+    file,
+    setup: asRecord(data.setup),
+    steps: asRecordList(data.steps),
+    projections: asRecordList(data.projections),
+  };
 }
 
 /**
@@ -32,11 +58,7 @@ export function loadFixtures(dir: string = fixturesDir): Fixture[] {
 
     for (const entry of readdirSync(categoryDir, { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-
-      const file = join(categoryDir, entry.name);
-      const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-      const name = typeof data.fixture === 'string' ? data.fixture : entry.name;
-      fixtures.push({ name, file, data });
+      fixtures.push(fixtureFromFile(join(categoryDir, entry.name)));
     }
   }
 
