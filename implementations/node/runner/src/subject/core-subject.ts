@@ -9,6 +9,8 @@ import {
   FixedClock,
   FiscalYear,
   type PeriodDefinition,
+  TaxCodeRegistry,
+  TaxProfile,
   Tenant,
   TenantOperations,
   Uuid,
@@ -69,7 +71,19 @@ export class CoreSubject implements Subject {
         ? DimensionRegistry.fromData(dimensionTypes, dimensionValues, dimensionRules)
         : DimensionRegistry.empty();
 
-    const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions);
+    // taxCodes: top-level oder als Regelmodul; taxProfile: top-level oder am Tenant.
+    const taxCodeData = asRecordList(
+      Array.isArray(setup.taxCodes) ? setup.taxCodes : ruleModules.taxCodes,
+    );
+    const taxCodes = TaxCodeRegistry.fromData(taxCodeData);
+    const taxProfileData = isRecord(setup.taxProfile)
+      ? setup.taxProfile
+      : isRecord(tenantData.taxProfile)
+        ? tenantData.taxProfile
+        : {};
+    const taxProfile = TaxProfile.fromData(taxProfileData);
+
+    const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions, taxCodes, taxProfile);
 
     for (const accountData of asRecordList(setup.accounts)) {
       tenant.accounts.add(this.buildAccount(tenant, accountData));
