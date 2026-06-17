@@ -74,6 +74,14 @@ export {
 export { TrialBalanceProjection } from './projection/trial-balance.js';
 export { OpenItemsProjection } from './projection/open-items.js';
 
+// Tax
+export { TaxCode } from './tax/tax-code.js';
+export { TaxCodeVersion } from './tax/tax-code-version.js';
+export { TaxCodeRegistry } from './tax/tax-code-registry.js';
+export { TaxProfile } from './tax/tax-profile.js';
+export { TaxService } from './tax/tax-service.js';
+
 // Komposition
 export { Tenant } from './composition/tenant.js';
 export { TenantOperations } from './composition/tenant-operations.js';
+export { PostVoucherService } from './composition/post-voucher-service.js';

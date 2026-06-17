@@ -8,6 +8,9 @@ import {
 } from '../in-memory.js';
 import { DimensionRegistry } from '../ledger/dimension-registry.js';
 import { Ledger } from '../ledger/ledger.js';
+import { TaxCodeRegistry } from '../tax/tax-code-registry.js';
+import { TaxProfile } from '../tax/tax-profile.js';
+import { TaxService } from '../tax/tax-service.js';
 import type {
   AccountRepository,
   AuditTrail,
@@ -38,6 +41,7 @@ export class Tenant {
     readonly openItems: OpenItemRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
+    readonly tax: TaxService,
     readonly clock: Clock,
     readonly ids: IdGenerator,
   ) {}
@@ -48,6 +52,8 @@ export class Tenant {
     clock: Clock = new SystemClock(),
     ids?: IdGenerator,
     dimensions: DimensionRegistry = DimensionRegistry.empty(),
+    taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
+    taxProfile: TaxProfile = TaxProfile.default(),
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
 
@@ -70,6 +76,7 @@ export class Tenant {
       clock,
       idGen,
     );
+    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal);
 
     return new Tenant(
       idGen.next(),
@@ -82,6 +89,7 @@ export class Tenant {
       openItems,
       audit,
       ledger,
+      tax,
       clock,
       idGen,
     );

@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
+import { PostVoucherService } from './post-voucher-service.js';
 import type { Tenant } from './tenant.js';
 
 /** Plain-JSON-Serialisierung über toJSON() (wie PHPs json_encode/decode). */
@@ -20,6 +21,12 @@ export class TenantOperations {
     const ledger = this.tenant.ledger;
 
     switch (op) {
+      case 'expandTax':
+        return this.tenant.tax.expand(input);
+      case 'setTaxProfile':
+        return serialize(this.tenant.tax.setProfile(input));
+      case 'postVoucher':
+        return new PostVoucherService(this.tenant).post(input);
       case 'post': {
         const result = ledger.post(input);
         return {
