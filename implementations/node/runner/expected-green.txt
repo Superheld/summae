@@ -1,10 +1,12 @@
 # Fixtures, die die Node-Implementierung beim aktuellen Stand grün bestehen muss.
 # Wächst mit jedem Slice; Regressionsschutz (runner/test/conformance.test.ts).
-# Stand: M2 Ledger-Kern (ohne Tax/Open-Items/weitere Projektionen).
+# Stand: M2 Ledger-Kern + Open-Items (ohne Tax/weitere Projektionen).
 accounts-and-import
 finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
+open-items-settlement
+opening-balance-takeover
 payroll-entry
 period-ordering
 post-and-invariants
