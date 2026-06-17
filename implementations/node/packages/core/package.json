@@ -1,0 +1,16 @@
+{
+  "name": "@summae/core",
+  "version": "0.0.0",
+  "description": "Framework-freier Rechnungswesen-Kern (Node) — Parität zur PHP-Referenz",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "big.js": "^7.0.1"
+  },
+  "devDependencies": {
+    "@types/big.js": "^7.0.0"
+  }
+}
