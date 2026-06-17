@@ -81,6 +81,13 @@ export { AssetService } from './assets/asset-service.js';
 export { CostingRun } from './costing/costing-run.js';
 export { CostingService } from './costing/costing-service.js';
 
+// Partner
+export { Partner } from './partner/partner.js';
+export { PartnerService } from './partner/partner-service.js';
+export type { PartnerRepository } from './port.js';
+export { InMemoryPartnerRepository } from './in-memory.js';
+export { EcSalesListProjection } from './projection/ec-sales-list.js';
+
 // Projektionen
 export { TrialBalanceProjection } from './projection/trial-balance.js';
 export { OpenItemsProjection } from './projection/open-items.js';
@@ -108,3 +115,4 @@ export { TaxService } from './tax/tax-service.js';
 export { Tenant } from './composition/tenant.js';
 export { TenantOperations } from './composition/tenant-operations.js';
 export { PostVoucherService } from './composition/post-voucher-service.js';
+export { TenantFactory } from './composition/tenant-factory.js';
