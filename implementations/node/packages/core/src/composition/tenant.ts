@@ -8,6 +8,7 @@ import {
 } from '../in-memory.js';
 import { DimensionRegistry } from '../ledger/dimension-registry.js';
 import { Ledger } from '../ledger/ledger.js';
+import { MappingRegistry } from '../mapping/mapping-registry.js';
 import { TaxCodeRegistry } from '../tax/tax-code-registry.js';
 import { TaxProfile } from '../tax/tax-profile.js';
 import { TaxService } from '../tax/tax-service.js';
@@ -42,6 +43,7 @@ export class Tenant {
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
+    readonly mappings: MappingRegistry,
     readonly clock: Clock,
     readonly ids: IdGenerator,
   ) {}
@@ -54,6 +56,7 @@ export class Tenant {
     dimensions: DimensionRegistry = DimensionRegistry.empty(),
     taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
     taxProfile: TaxProfile = TaxProfile.default(),
+    mappings: MappingRegistry = MappingRegistry.empty(),
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
 
@@ -90,6 +93,7 @@ export class Tenant {
       audit,
       ledger,
       tax,
+      mappings,
       clock,
       idGen,
     );

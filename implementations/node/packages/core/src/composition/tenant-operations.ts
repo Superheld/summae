@@ -1,6 +1,9 @@
 import { DomainError } from '../domain-error.js';
+import { MappingImporter } from '../mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../projection/account-sheet.js';
 import { AuditLogProjection } from '../projection/audit-log.js';
+import { BalanceSheetProjection } from '../projection/balance-sheet.js';
+import { IncomeStatementProjection } from '../projection/income-statement.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
 import { VatReturnProjection } from '../projection/vat-return.js';
@@ -61,6 +64,8 @@ export class TenantOperations {
         return serialize(ledger.lockAccount(input));
       case 'importChartOfAccounts':
         return { importedCount: ledger.importChartOfAccounts(input) };
+      case 'importMapping':
+        return new MappingImporter(this.tenant.accounts, this.tenant.mappings).import(input);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" ist nicht definiert`);
     }
@@ -78,6 +83,20 @@ export class TenantOperations {
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
+      case 'incomeStatement':
+        return new IncomeStatementProjection(
+          tenant.baseCurrency,
+          tenant.accounts,
+          tenant.journal,
+          tenant.mappings,
+        ).compute(params);
+      case 'balanceSheet':
+        return new BalanceSheetProjection(
+          tenant.baseCurrency,
+          tenant.accounts,
+          tenant.journal,
+          tenant.mappings,
+        ).compute(params);
       case 'vatReturn':
         return new VatReturnProjection(
           tenant.baseCurrency,
