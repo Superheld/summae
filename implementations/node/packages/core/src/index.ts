@@ -27,8 +27,12 @@ export {
   type PeriodStatus,
   type FiscalYearStatus,
   type OpenItemKind,
+  type OpenItemStatus,
+  type SettlementDifferenceKind,
   isAccountType,
   isBalanceCarrying,
+  parseOpenItemKind,
+  parseSettlementDifferenceKind,
 } from './ledger/types.js';
 export { Account } from './ledger/account.js';
 export { EntryLine } from './ledger/entry-line.js';
@@ -37,6 +41,8 @@ export { Voucher, type VoucherProps } from './ledger/voucher.js';
 export { Period } from './ledger/period.js';
 export { FiscalYear, type PeriodDefinition } from './ledger/fiscal-year.js';
 export { AuditRecord, type AuditChanges } from './ledger/audit-record.js';
+export { OpenItem } from './ledger/open-item.js';
+export { Settlement } from './ledger/settlement.js';
 export { PostResult } from './ledger/post-result.js';
 export {
   DimensionRegistry,
@@ -52,6 +58,7 @@ export type {
   FiscalYearRepository,
   JournalRepository,
   VoucherRepository,
+  OpenItemRepository,
   AuditTrail,
 } from './port.js';
 export {
@@ -59,11 +66,13 @@ export {
   InMemoryFiscalYearRepository,
   InMemoryJournalRepository,
   InMemoryVoucherRepository,
+  InMemoryOpenItemRepository,
   InMemoryAuditTrail,
 } from './in-memory.js';
 
 // Projektionen
 export { TrialBalanceProjection } from './projection/trial-balance.js';
+export { OpenItemsProjection } from './projection/open-items.js';
 
 // Komposition
 export { Tenant } from './composition/tenant.js';

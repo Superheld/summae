@@ -38,3 +38,19 @@ export type PeriodStatus = 'open' | 'closed';
 export type FiscalYearStatus = 'open' | 'closed';
 
 export type OpenItemKind = 'receivable' | 'payable';
+
+export type OpenItemStatus = 'open' | 'partially_settled' | 'settled';
+
+/**
+ * Ausgleich mit Differenz (api.md G2): Skonto, Forderungsausfall, Kleindifferenz.
+ * Die Differenz muss als Buchungszeile(n) sichtbar sein (§ 17 UStG).
+ */
+export type SettlementDifferenceKind = 'discount' | 'bad_debt' | 'minor';
+
+export function parseSettlementDifferenceKind(value: unknown): SettlementDifferenceKind | null {
+  return value === 'discount' || value === 'bad_debt' || value === 'minor' ? value : null;
+}
+
+export function parseOpenItemKind(value: unknown): OpenItemKind | null {
+  return value === 'receivable' || value === 'payable' ? value : null;
+}

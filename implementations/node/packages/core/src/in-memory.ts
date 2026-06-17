@@ -3,6 +3,7 @@ import type {
   AuditTrail,
   FiscalYearRepository,
   JournalRepository,
+  OpenItemRepository,
   VoucherRepository,
 } from './port.js';
 import type { AccountNumber } from './shared/account-number.js';
@@ -12,6 +13,7 @@ import type { Account } from './ledger/account.js';
 import type { AuditRecord } from './ledger/audit-record.js';
 import type { FiscalYear } from './ledger/fiscal-year.js';
 import type { JournalEntry } from './ledger/journal-entry.js';
+import type { OpenItem } from './ledger/open-item.js';
 import type { Voucher } from './ledger/voucher.js';
 
 export class InMemoryAccountRepository implements AccountRepository {
@@ -119,6 +121,30 @@ export class InMemoryVoucherRepository implements VoucherRepository {
     return [...this.byIdMap.values()].sort((a, b) =>
       a.id.value < b.id.value ? -1 : a.id.value > b.id.value ? 1 : 0,
     );
+  }
+}
+
+export class InMemoryOpenItemRepository implements OpenItemRepository {
+  private readonly items: OpenItem[] = [];
+  private readonly byIdMap = new Map<string, OpenItem>();
+
+  add(item: OpenItem): void {
+    this.items.push(item);
+    this.byIdMap.set(item.id.value, item);
+  }
+
+  save(_item: OpenItem): void {}
+
+  byId(id: Uuid): OpenItem | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  byOriginEntry(entryId: Uuid): OpenItem[] {
+    return this.items.filter((item) => item.originEntryId.equals(entryId));
+  }
+
+  all(): OpenItem[] {
+    return [...this.items];
   }
 }
 

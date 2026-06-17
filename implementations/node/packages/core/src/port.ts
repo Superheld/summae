@@ -5,6 +5,7 @@ import type { Account } from './ledger/account.js';
 import type { AuditRecord } from './ledger/audit-record.js';
 import type { FiscalYear } from './ledger/fiscal-year.js';
 import type { JournalEntry } from './ledger/journal-entry.js';
+import type { OpenItem } from './ledger/open-item.js';
 import type { Voucher } from './ledger/voucher.js';
 
 /** Kontonummern je Mandant eindeutig — der Adapter MUSS das zusichern. */
@@ -46,6 +47,16 @@ export interface VoucherRepository {
   byId(id: Uuid): Voucher | null;
   /** sortiert nach ID */
   all(): Voucher[];
+}
+
+export interface OpenItemRepository {
+  add(item: OpenItem): void;
+  save(item: OpenItem): void;
+  byId(id: Uuid): OpenItem | null;
+  /** Posten, die aus dieser Buchung entstanden */
+  byOriginEntry(entryId: Uuid): OpenItem[];
+  /** in Entstehungsreihenfolge */
+  all(): OpenItem[];
 }
 
 /** Audit-Trail ist Formatbestandteil (datenformat.md v0.3): append-only. */

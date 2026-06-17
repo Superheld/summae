@@ -3,6 +3,7 @@ import {
   InMemoryAuditTrail,
   InMemoryFiscalYearRepository,
   InMemoryJournalRepository,
+  InMemoryOpenItemRepository,
   InMemoryVoucherRepository,
 } from '../in-memory.js';
 import { DimensionRegistry } from '../ledger/dimension-registry.js';
@@ -12,6 +13,7 @@ import type {
   AuditTrail,
   FiscalYearRepository,
   JournalRepository,
+  OpenItemRepository,
   VoucherRepository,
 } from '../port.js';
 import { type Clock, SystemClock } from '../shared/clock.js';
@@ -33,6 +35,7 @@ export class Tenant {
     readonly fiscalYears: FiscalYearRepository,
     readonly vouchers: VoucherRepository,
     readonly journal: JournalRepository,
+    readonly openItems: OpenItemRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly clock: Clock,
@@ -52,6 +55,7 @@ export class Tenant {
     const fiscalYears = new InMemoryFiscalYearRepository();
     const vouchers = new InMemoryVoucherRepository();
     const journal = new InMemoryJournalRepository();
+    const openItems = new InMemoryOpenItemRepository();
     const audit = new InMemoryAuditTrail();
 
     const ledger = new Ledger(
@@ -60,6 +64,7 @@ export class Tenant {
       fiscalYears,
       vouchers,
       journal,
+      openItems,
       audit,
       dimensions,
       clock,
@@ -74,6 +79,7 @@ export class Tenant {
       fiscalYears,
       vouchers,
       journal,
+      openItems,
       audit,
       ledger,
       clock,

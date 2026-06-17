@@ -1,4 +1,5 @@
 import { DomainError } from '../domain-error.js';
+import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
 import type { Tenant } from './tenant.js';
 
@@ -21,10 +22,15 @@ export class TenantOperations {
     switch (op) {
       case 'post': {
         const result = ledger.post(input);
-        return { ...serialize(result.entry), openItemsCreated: [] };
+        return {
+          ...serialize(result.entry),
+          openItemsCreated: result.openItemsCreated.map((item) => serialize(item)),
+        };
       }
       case 'correct':
         return serialize(ledger.correct(input));
+      case 'settle':
+        return { openItems: ledger.settle(input).map((item) => serialize(item)) };
       case 'finalize':
         return { finalizedCount: ledger.finalize(input) };
       case 'reverse':
@@ -56,6 +62,8 @@ export class TenantOperations {
     switch (name) {
       case 'trialBalance':
         return new TrialBalanceProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
+      case 'openItems':
+        return new OpenItemsProjection(tenant.openItems, tenant.vouchers, tenant.journal).compute(params);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
     }

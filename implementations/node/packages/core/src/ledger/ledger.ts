@@ -4,6 +4,7 @@ import type {
   AuditTrail,
   FiscalYearRepository,
   JournalRepository,
+  OpenItemRepository,
   VoucherRepository,
 } from '../port.js';
 import { AccountNumber } from '../shared/account-number.js';
@@ -22,8 +23,16 @@ import { DimensionRegistry } from './dimension-registry.js';
 import { EntryLine } from './entry-line.js';
 import { FiscalYear } from './fiscal-year.js';
 import { JournalEntry } from './journal-entry.js';
+import { OpenItem } from './open-item.js';
 import { PostResult } from './post-result.js';
-import { isAccountType, type Side } from './types.js';
+import { Settlement } from './settlement.js';
+import {
+  isAccountType,
+  type OpenItemKind,
+  parseSettlementDifferenceKind,
+  type SettlementDifferenceKind,
+  type Side,
+} from './types.js';
 import type { Voucher } from './voucher.js';
 
 interface ParsedLine {
@@ -59,6 +68,7 @@ export class Ledger {
     private readonly fiscalYears: FiscalYearRepository,
     private readonly vouchers: VoucherRepository,
     private readonly journal: JournalRepository,
+    private readonly openItems: OpenItemRepository,
     private readonly audit: AuditTrail,
     private readonly dimensions: DimensionRegistry,
     private readonly clock: Clock,
@@ -112,11 +122,156 @@ export class Ledger {
   }
 
   /**
-   * AR/AP-Automatik (Soll auf Forderungskonto → receivable usw.) folgt mit dem
-   * Open-Items-Slice. Stornobuchungen erzeugen ohnehin keine neuen Posten.
+   * AR/AP-Automatik: Soll auf Forderungskonto → receivable, Haben auf
+   * Verbindlichkeitskonto → payable. Stornobuchungen erzeugen keine Posten.
    */
-  private createOpenItems(_entry: JournalEntry): never[] {
-    return [];
+  private createOpenItems(entry: JournalEntry): OpenItem[] {
+    if (entry.reverses !== null) return [];
+
+    const created: OpenItem[] = [];
+    const voucher = this.vouchers.byId(entry.voucherId);
+
+    entry.lines().forEach((line, index) => {
+      const account = this.accounts.byId(line.accountId);
+      let kind: OpenItemKind | null = null;
+      if (account?.subtype === 'ar' && line.side === 'debit') kind = 'receivable';
+      else if (account?.subtype === 'ap' && line.side === 'credit') kind = 'payable';
+      if (kind === null) return;
+
+      const item = new OpenItem(
+        this.ids.next(),
+        kind,
+        entry.id,
+        index,
+        line.money,
+        entry.voucherId,
+        entry.entryDate,
+        voucher?.partnerId ?? null,
+      );
+      this.openItems.add(item);
+      created.push(item);
+    });
+
+    return created;
+  }
+
+  /**
+   * Ausgleich: Zuordnung Zahlung → offene(r) Posten, auch teilweise; immer
+   * explizit, kein FIFO (determinismus.md §3). Differenzen (Skonto/Ausfall/
+   * Kleindifferenz) nach api.md G2. Erst vollständig validieren, dann anwenden.
+   */
+  settle(input: Record<string, unknown>): OpenItem[] {
+    const actor = this.actor(input);
+    const entry = this.requireEntry(input.entryId);
+
+    const allocations = Array.isArray(input.allocations) ? input.allocations : [];
+    if (allocations.length === 0) {
+      throw new DomainError('E_OPENITEM_UNKNOWN', 'settle ohne Zuordnungen');
+    }
+
+    const plan: Array<{ item: OpenItem; settlement: Settlement }> = [];
+    const planned = new Map<string, Money>();
+
+    for (const allocation of allocations) {
+      if (!isRecord(allocation)) {
+        throw new DomainError('E_OPENITEM_UNKNOWN', 'Zuordnung ist keine Struktur');
+      }
+      const openItemId = allocation.openItemId;
+      let item: OpenItem | null = null;
+      if (typeof openItemId === 'string') {
+        try {
+          item = this.openItems.byId(Uuid.fromString(openItemId));
+        } catch (error) {
+          if (!(error instanceof InvalidValue)) throw error;
+        }
+      }
+      if (item === null) {
+        throw new DomainError(
+          'E_OPENITEM_UNKNOWN',
+          `Offener Posten ${typeof openItemId === 'string' ? openItemId : '?'} existiert nicht`,
+        );
+      }
+
+      const money = this.parseSettlementMoney(allocation.money, 'Zuordnungsbetrag');
+      const [differenceMoney, differenceKind] = this.parseDifference(allocation.difference ?? null, item);
+
+      const alreadyPlanned = planned.get(item.id.value) ?? Money.zero(this.baseCurrency);
+      if (money.add(alreadyPlanned).compareTo(item.remaining()) > 0) {
+        throw new DomainError(
+          'E_SETTLEMENT_EXCEEDS_ITEM',
+          `Zuordnung ${money.amountAsString()} übersteigt Restbetrag ${item
+            .remaining()
+            .subtract(alreadyPlanned)
+            .amountAsString()} des Postens ${item.id.value}`,
+          { openItemId: item.id.value },
+        );
+      }
+
+      planned.set(item.id.value, money.add(alreadyPlanned));
+      plan.push({
+        item,
+        settlement: new Settlement(entry.id, money, entry.entryDate, differenceMoney, differenceKind),
+      });
+    }
+
+    const affected: OpenItem[] = [];
+    for (const step of plan) {
+      const before = step.item.remaining().amountAsString();
+      step.item.settle(step.settlement);
+      this.openItems.save(step.item);
+      this.recordAudit(actor, 'openItem', step.item.id, 'settled', {
+        remaining: { from: before, to: step.item.remaining().amountAsString() },
+      });
+      affected.push(step.item);
+    }
+
+    return affected;
+  }
+
+  private parseSettlementMoney(raw: unknown, label: string): Money {
+    const amount = isRecord(raw) ? asString(raw.amount) : null;
+    const currency = isRecord(raw) ? asString(raw.currency) : null;
+    if (amount === null || currency !== this.baseCurrency.code) {
+      throw new InvalidValue(`${label} fehlt oder falsche Währung`);
+    }
+    const money = Money.of(amount, this.baseCurrency);
+    if (!money.isPositive()) {
+      throw new InvalidValue(`${label} muss > 0 sein`);
+    }
+    return money;
+  }
+
+  private parseDifference(
+    raw: unknown,
+    item: OpenItem,
+  ): [Money | null, SettlementDifferenceKind | null] {
+    if (raw === null) return [null, null];
+    if (!isRecord(raw)) {
+      throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference ist keine Struktur');
+    }
+    const kind = parseSettlementDifferenceKind(raw.kind);
+    if (kind === null) {
+      throw new DomainError(
+        'E_SETTLEMENT_DIFFERENCE_INVALID',
+        `Unbekannte Differenzart "${typeof raw.kind === 'string' ? raw.kind : '?'}"`,
+      );
+    }
+    let money: Money;
+    try {
+      money = this.parseSettlementMoney(raw.money, 'Differenzbetrag');
+    } catch (error) {
+      if (error instanceof InvalidValue) {
+        throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Differenzbetrag ungültig (≤ 0 oder Format)');
+      }
+      throw error;
+    }
+    if (money.compareTo(item.remaining()) > 0) {
+      throw new DomainError(
+        'E_SETTLEMENT_DIFFERENCE_INVALID',
+        `Differenz ${money.amountAsString()} übersteigt Restbetrag ${item.remaining().amountAsString()}`,
+      );
+    }
+    return [money, kind];
   }
 
   correct(input: Record<string, unknown>): JournalEntry {
