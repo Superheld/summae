@@ -1,0 +1,119 @@
+{
+  "fixture": "vat-return-cash-basis-rounding",
+  "description": "Gesamt-Review 2026-06-09 (Basis-Erwartung 2026-06-14 korrigiert, F-010): Ist-Versteuerung mit krummen Teilzahlungen — Rundungsrest-Regel (determinismus.md v0.3): anteilige Steuer half-up je Zahlung, Schlusszahlung erhält den Rest, Σ der STEUER über alle Zeiträume exakt (190.00). Schärft vat-return-cash-basis (dort glatte 50/50-Teilung ohne Rundungsfall). Rechnung 1190.00; Zahlungen 400.00 (Q2), 400.00 (Q3), 390.00 (Q4): anteilige Steuer 400/1190 → 63.865546… → 63.87 (je 400.00 exakt); Schlussrate Steuer 190.00−2×63.87 = 62.26. Die VA-DARSTELLUNG floort die Bemessungsgrundlage je Kennzahl auf volle Euro (determinismus.md Z. 40, amtliche Konvention): anteilige Basis 336.134… → angezeigt 336; Schlussrate 327.74 → 327. Folge: Σ der angezeigten Basen = 999 ≠ 1000 (die Euro-Abrundung je Zeitraum ist nicht summenerhaltend — nur die centgenaue Steuer summiert exakt).",
+  "covers": ["F-TAX-003", "F-TAX-005", "SF-09"],
+  "setup": {
+    "tenant": { "name": "Ist-Versteuerer GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "cash" } },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-700", "voucherDate": "2026-02-01" },
+      { "id": "$V2", "voucherNumber": "Z-700-1", "voucherDate": "2026-04-20" },
+      { "id": "$V3", "voucherNumber": "Z-700-2", "voucherDate": "2026-07-15" },
+      { "id": "$V4", "voucherNumber": "Z-700-3", "voucherDate": "2026-10-05" }
+    ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "Rechnung (Ist-Versteuerung)",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "openItemsCreated": [ { "id": "$OP1" } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-20", "voucherId": "$V2", "text": "Teilzahlung 1 (krumm: 400/1190)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "400.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "status": "partially_settled", "remaining": { "amount": "790.00", "currency": "EUR" } } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-07-15", "voucherId": "$V3", "text": "Teilzahlung 2",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3, "id": "$E3" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E3", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "400.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "status": "partially_settled", "remaining": { "amount": "390.00", "currency": "EUR" } } ] } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-10-05", "voucherId": "$V4", "text": "Schlusszahlung (erhält Rundungsrest)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "390.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "390.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 4, "id": "$E4" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E4", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "390.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "status": "settled", "remaining": { "amount": "0.00", "currency": "EUR" } } ] } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 1, "asOf": "2026-12-31" },
+      "expect": { "comment": "Rechnung allein löst bei Ist-Versteuerung nichts aus", "keys": {} }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "400/1190 anteilig: Steuer 63.865546… → 63.87 (half-up); Basis 336.134… auf volle Euro gefloort → 336 (determinismus.md Z. 40)",
+        "keys": { "81": { "base": "336.00", "tax": "63.87" } }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 3, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "identische zweite Teilzahlung, identische Rundung; Basis gefloort → 336",
+        "keys": { "81": { "base": "336.00", "tax": "63.87" } }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 4, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Schlusszahlung erhält den Steuer-Rest: 62.26 — Σ Steuer exakt 190.00. Basis 327.74 gefloort → 327; Σ angezeigter Basen 336+336+327 = 999 (Euro-Floor nicht summenerhaltend)",
+        "keys": { "81": { "base": "327.00", "tax": "62.26" } }
+      }
+    }
+  ]
+}

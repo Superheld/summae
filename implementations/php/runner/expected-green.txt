@@ -20,6 +20,8 @@ settlement-bad-debt
 settlement-discount
 vat-return
 vat-return-cash-basis
+vat-return-cash-basis-rounding
+vat-return-reversal
 customer-credit-note
 entertainment-split
 fiscal-year-management

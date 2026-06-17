@@ -1,0 +1,85 @@
+{
+  "fixture": "vat-return-reversal",
+  "description": "Gesamt-Review 2026-06-09 / v0.5/F-008: Generalumkehr einer Steuerbuchung — taxTag.baseMoney wird unverändert kopiert (nicht negiert), die VA-Projektion negiert die Bemessungsgrundlage anhand des Vorzeichens der Steuerposition. Original in Q2, Storno in Q3: Q2 zeigt +1000/+190, Q3 zeigt -1000/-190 (Erstattung).",
+  "covers": ["F-TAX-005", "F-CORE-013", "SF-09"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "accrual" } },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-600", "voucherDate": "2026-04-10" }
+    ],
+    "taxCodes": [
+      { "code": "USt19", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-10", "voucherId": "$V1", "text": "Ausgangsrechnung Q2",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-07-05", "text": "Storno Ausgangsrechnung (Q3)" },
+      "expect": {
+        "result": {
+          "sequenceNumber": 2, "reverses": "$E1",
+          "comment": "Generalumkehr: negierte Beträge, gleiche Seiten — baseMoney UNVERÄNDERT kopiert (datenformat.md v0.5/F-008)",
+          "lines": [
+            { "account": "1400", "side": "debit", "money": { "amount": "-1190.00", "currency": "EUR" } },
+            { "account": "8400", "side": "credit", "money": { "amount": "-1000.00", "currency": "EUR" },
+              "taxTag": { "code": "USt19", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+            { "account": "1776", "side": "credit", "money": { "amount": "-190.00", "currency": "EUR" },
+              "taxTag": { "code": "USt19", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+          ]
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Q2 unberührt vom späteren Storno (Soll-Versteuerung, Periodenzuordnung nach Buchungsdatum)",
+        "keys": { "81": { "base": "1000.00", "tax": "190.00" } },
+        "payload": { "amount": "190.00", "currency": "EUR" }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 3, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Storno in Q3: Projektion negiert die kopierte Bemessungsgrundlage anhand des Vorzeichens der Steuerposition (F-008)",
+        "keys": { "81": { "base": "-1000.00", "tax": "-190.00" } },
+        "payload": { "amount": "-190.00", "currency": "EUR" }
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Nach Storno alles neutral, Verkehrszahlen unaufgebläht",
+        "rows": [
+          { "account": "1400", "balance": "0.00" },
+          { "account": "1776", "balance": "0.00" },
+          { "account": "8400", "balance": "0.00" }
+        ]
+      }
+    }
+  ]
+}

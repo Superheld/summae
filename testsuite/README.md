@@ -1,6 +1,6 @@
 # Konformitäts-Testsuite
 
-**Der Kompatibilitätsvertrag.** Eine Implementierung (Laravel, Node, Python) gilt als konform, wenn alle Fixtures grün sind. Sprachneutral: reine JSON-Daten, kein Code.
+**Der Kompatibilitätsvertrag.** Eine Implementierung (laufzeitübergreifend; erste: PHP/Laravel ✅, dann Node, Python) gilt als konform, wenn alle Fixtures grün sind. Sprachneutral: reine JSON-Daten, kein Code.
 
 ## Fixture-Format
 
@@ -33,10 +33,10 @@ Eine Fixture = eine JSON-Datei:
 ## Konventionen
 
 - Jeder Fehlercode aus `50-spezifikation/api.md` bekommt ≥ 1 Fixture.
-- Jeder Standardfall SF-01–16 bekommt ≥ 1 Fixture.
+- Jeder Standardfall SF-01–26 bekommt ≥ 1 Fixture (SF-15 erst mit zweiter Runtime).
 - Rundungs- und Sortierfälle sind eigene Fixtures (häufigste Cross-Impl-Abweichung).
 - Fixtures sind append-only: Verhaltensänderung = neue Fixture + Entscheidungslog, nie stilles Editieren.
 
-## Stand
+## Stand (2026-06-08)
 
-Erste Fixtures (Format-Demonstration, aus EÜR-Beweis und Standardfällen): `fixtures/core/` und `fixtures/projections/`. Vollausbau ist Phase-3-Arbeit entlang des Fehlerkatalogs.
+**43 Fixtures, 34/34 Fehlercodes, 25/26 Standardfälle** (SF-15 wartet auf die zweite Runtime). Aktueller Stand und Abdeckungsmatrix: `abdeckung.md`, Validierung: `validate.py`. Die PHP-Referenz besteht die Suite vollständig (`../80-implementierung/ABSCHLUSSBERICHT.md`).
