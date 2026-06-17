@@ -5,6 +5,8 @@ import { AccountSheetProjection } from '../projection/account-sheet.js';
 import { AuditLogProjection } from '../projection/audit-log.js';
 import { BalanceSheetProjection } from '../projection/balance-sheet.js';
 import { CashBasisProjection } from '../projection/cash-basis.js';
+import { DatevExportProjection } from '../projection/datev-export.js';
+import { JournalExportProjection } from '../projection/journal-export.js';
 import { IncomeStatementProjection } from '../projection/income-statement.js';
 import { EcSalesListProjection } from '../projection/ec-sales-list.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
@@ -151,6 +153,26 @@ export class TenantOperations {
           tenant.vouchers,
           tenant.fiscalYears,
           tenant.mappings,
+        ).compute(params);
+      case 'journalExport':
+        return new JournalExportProjection(
+          tenant.id,
+          tenant.name,
+          tenant.baseCurrency,
+          tenant.journal,
+          tenant.accounts,
+          tenant.vouchers,
+          tenant.partners,
+          tenant.audit,
+          tenant.clock,
+        ).compute(params);
+      case 'datevExport':
+        return new DatevExportProjection(
+          tenant.journal,
+          tenant.accounts,
+          tenant.vouchers,
+          tenant.partners,
+          tenant.tax.registryHandle(),
         ).compute(params);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
