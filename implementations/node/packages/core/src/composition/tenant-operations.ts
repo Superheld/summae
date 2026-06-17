@@ -1,4 +1,5 @@
 import { DomainError } from '../domain-error.js';
+import { AssetRegisterProjection } from '../projection/asset-register.js';
 import { MappingImporter } from '../mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../projection/account-sheet.js';
 import { AuditLogProjection } from '../projection/audit-log.js';
@@ -67,6 +68,12 @@ export class TenantOperations {
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':
         return new MappingImporter(this.tenant.accounts, this.tenant.mappings).import(input);
+      case 'acquireAsset':
+        return this.tenant.assetService.acquire(input);
+      case 'disposeAsset':
+        return this.tenant.assetService.dispose(input);
+      case 'runDepreciation':
+        return this.tenant.assetService.runDepreciation(input);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" ist nicht definiert`);
     }
@@ -84,6 +91,8 @@ export class TenantOperations {
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
+      case 'assetRegister':
+        return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'incomeStatement':
         return new IncomeStatementProjection(
           tenant.baseCurrency,

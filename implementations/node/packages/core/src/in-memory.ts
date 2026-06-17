@@ -1,11 +1,13 @@
 import type {
   AccountRepository,
+  AssetRepository,
   AuditTrail,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
   VoucherRepository,
 } from './port.js';
+import type { Asset } from './assets/asset.js';
 import type { AccountNumber } from './shared/account-number.js';
 import type { CalendarDate } from './shared/calendar-date.js';
 import type { Uuid } from './shared/uuid.js';
@@ -157,5 +159,25 @@ export class InMemoryAuditTrail implements AuditTrail {
 
   all(): AuditRecord[] {
     return [...this.records];
+  }
+}
+
+export class InMemoryAssetRepository implements AssetRepository {
+  private readonly items: Asset[] = [];
+  private readonly byIdMap = new Map<string, Asset>();
+
+  add(asset: Asset): void {
+    this.items.push(asset);
+    this.byIdMap.set(asset.id.value, asset);
+  }
+
+  save(_asset: Asset): void {}
+
+  byId(id: Uuid): Asset | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): Asset[] {
+    return [...this.items];
   }
 }

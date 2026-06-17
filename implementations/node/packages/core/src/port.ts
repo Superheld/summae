@@ -1,6 +1,7 @@
 import type { AccountNumber } from './shared/account-number.js';
 import type { CalendarDate } from './shared/calendar-date.js';
 import type { Uuid } from './shared/uuid.js';
+import type { Asset } from './assets/asset.js';
 import type { Account } from './ledger/account.js';
 import type { AuditRecord } from './ledger/audit-record.js';
 import type { FiscalYear } from './ledger/fiscal-year.js';
@@ -64,4 +65,12 @@ export interface AuditTrail {
   append(record: AuditRecord): void;
   /** in Erfassungsreihenfolge */
   all(): AuditRecord[];
+}
+
+export interface AssetRepository {
+  add(asset: Asset): void;
+  save(asset: Asset): void;
+  byId(id: Uuid): Asset | null;
+  /** in Zugangsreihenfolge */
+  all(): Asset[];
 }

@@ -59,6 +59,7 @@ export type {
   JournalRepository,
   VoucherRepository,
   OpenItemRepository,
+  AssetRepository,
   AuditTrail,
 } from './port.js';
 export {
@@ -67,8 +68,14 @@ export {
   InMemoryJournalRepository,
   InMemoryVoucherRepository,
   InMemoryOpenItemRepository,
+  InMemoryAssetRepository,
   InMemoryAuditTrail,
 } from './in-memory.js';
+
+// Assets
+export { Asset } from './assets/asset.js';
+export { type AssetRoute, parseAssetRoute } from './assets/asset-route.js';
+export { AssetService } from './assets/asset-service.js';
 
 // Projektionen
 export { TrialBalanceProjection } from './projection/trial-balance.js';
@@ -79,6 +86,7 @@ export { VatReturnProjection } from './projection/vat-return.js';
 export { IncomeStatementProjection } from './projection/income-statement.js';
 export { BalanceSheetProjection } from './projection/balance-sheet.js';
 export { CashBasisProjection } from './projection/cash-basis.js';
+export { AssetRegisterProjection } from './projection/asset-register.js';
 
 // Mappings
 export { Mapping, type MappingLeaf, leafMatches } from './mapping/mapping.js';
