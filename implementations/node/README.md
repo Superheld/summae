@@ -5,9 +5,11 @@ Konformitäts-Suite, identisches Datenformat, byte-identischer Determinismus.
 Ziel ist Parität (siehe `../../00-projekt/developer-roadmap-stage2.md` in der
 Wissensbasis) und am Ende Cross-Kompatibilität mit den PHP-Daten (SF-15).
 
-> Stand: **M0 — Gerüst**. Noch kein Fachcode; nur Fundament, Decimal-Beweis und
-> Fixture-Loader gegen die geteilte Suite. Der Meilenstein-Pfad (M1 Shared
-> Kernel → … → M-Cross) steht im Runtime-Handoff der Wissensbasis.
+> Stand: **M3 erreicht** — alle **45/45** Konformitäts-Fixtures grün gegen den
+> In-Memory-Port, Doppellauf byte-deterministisch. Shared Kernel, Ledger,
+> Open-Items, Tax, EÜR/USt-VA, Mappings (Bilanz/GuV), Assets, Costing, Partner,
+> createTenant und Export (GoBD-Z3/DATEV) sind portiert. Offen: Persistenz-
+> Adapter + CLI (M4) und der Cross-Test gegen PHP-Daten (SF-15/M-Cross).
 
 ## Stack
 
