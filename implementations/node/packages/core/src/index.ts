@@ -98,6 +98,8 @@ export { IncomeStatementProjection } from './projection/income-statement.js';
 export { BalanceSheetProjection } from './projection/balance-sheet.js';
 export { CashBasisProjection } from './projection/cash-basis.js';
 export { AssetRegisterProjection } from './projection/asset-register.js';
+export { JournalExportProjection } from './projection/journal-export.js';
+export { DatevExportProjection } from './projection/datev-export.js';
 
 // Mappings
 export { Mapping, type MappingLeaf, leafMatches } from './mapping/mapping.js';
