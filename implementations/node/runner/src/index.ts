@@ -10,3 +10,5 @@ export {
 } from './result.js';
 export { FixtureRunner } from './fixture-runner.js';
 export { SuiteRunner } from './suite-runner.js';
+export { CoreSubject } from './subject/core-subject.js';
+export { CoreSubjectFactory } from './subject/core-subject-factory.js';

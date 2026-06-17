@@ -1,0 +1,63 @@
+import { DomainError } from '../domain-error.js';
+import { TrialBalanceProjection } from '../projection/trial-balance.js';
+import type { Tenant } from './tenant.js';
+
+/** Plain-JSON-Serialisierung über toJSON() (wie PHPs json_encode/decode). */
+function serialize(value: unknown): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+/**
+ * Generischer Einstieg in alle Operationen und Projektionen eines Mandanten —
+ * die Schnittstelle für CLI und Konformitäts-Runner. Namen exakt nach api.md.
+ * Wächst mit den Slices; Unimplementiertes meldet E_NOT_IMPLEMENTED.
+ */
+export class TenantOperations {
+  constructor(private readonly tenant: Tenant) {}
+
+  execute(op: string, input: Record<string, unknown>): Record<string, unknown> {
+    const ledger = this.tenant.ledger;
+
+    switch (op) {
+      case 'post': {
+        const result = ledger.post(input);
+        return { ...serialize(result.entry), openItemsCreated: [] };
+      }
+      case 'correct':
+        return serialize(ledger.correct(input));
+      case 'finalize':
+        return { finalizedCount: ledger.finalize(input) };
+      case 'reverse':
+        return serialize(ledger.reverse(input));
+      case 'closePeriod':
+        return ledger.closePeriod(input);
+      case 'reopenPeriod':
+        return ledger.reopenPeriod(input);
+      case 'closeFiscalYear':
+        return { fiscalYear: ledger.closeFiscalYear(input).year, status: 'closed' };
+      case 'createAccount':
+        return serialize(ledger.createAccount(input));
+      case 'createFiscalYear': {
+        const fiscalYear = ledger.createFiscalYear(input);
+        return { year: fiscalYear.year, periodCount: fiscalYear.periods().length };
+      }
+      case 'lockAccount':
+        return serialize(ledger.lockAccount(input));
+      case 'importChartOfAccounts':
+        return { importedCount: ledger.importChartOfAccounts(input) };
+      default:
+        throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" ist nicht definiert`);
+    }
+  }
+
+  project(name: string, params: Record<string, unknown>): Record<string, unknown> {
+    const tenant = this.tenant;
+
+    switch (name) {
+      case 'trialBalance':
+        return new TrialBalanceProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
+      default:
+        throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
+    }
+  }
+}
