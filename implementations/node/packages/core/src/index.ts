@@ -78,6 +78,7 @@ export { AuditLogProjection } from './projection/audit-log.js';
 export { VatReturnProjection } from './projection/vat-return.js';
 export { IncomeStatementProjection } from './projection/income-statement.js';
 export { BalanceSheetProjection } from './projection/balance-sheet.js';
+export { CashBasisProjection } from './projection/cash-basis.js';
 
 // Mappings
 export { Mapping, type MappingLeaf, leafMatches } from './mapping/mapping.js';

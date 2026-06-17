@@ -1,16 +1,20 @@
-# Fixtures, die die Node-Implementierung beim aktuellen Stand grün bestehen muss.
-# Wächst mit jedem Slice; Regressionsschutz (runner/test/conformance.test.ts).
-# Stand: M2 + Mappings/BalanceSheet/IncomeStatement (29/45).
+# Erwartete grüne Fixtures (Regressionsschutz: runner/test/conformance.test.ts).
+# Stand: M2 + EÜR (cashBasisReport) — 34/45.
 accounts-and-import
 advance-payment
 balance-sheet-mapping
+cash-basis-ten-day-rule
 customer-credit-note
+deviating-fiscal-year
+entertainment-split
 finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
 mapping-import
 mixed-tax-rates
+money-transit
 monthly-income-statement
+non-cash-benefit
 open-items-settlement
 opening-balance-takeover
 payroll-entry

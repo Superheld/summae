@@ -3,6 +3,7 @@ import { MappingImporter } from '../mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../projection/account-sheet.js';
 import { AuditLogProjection } from '../projection/audit-log.js';
 import { BalanceSheetProjection } from '../projection/balance-sheet.js';
+import { CashBasisProjection } from '../projection/cash-basis.js';
 import { IncomeStatementProjection } from '../projection/income-statement.js';
 import { OpenItemsProjection } from '../projection/open-items.js';
 import { TrialBalanceProjection } from '../projection/trial-balance.js';
@@ -106,6 +107,16 @@ export class TenantOperations {
           tenant.accounts,
           tenant.tax.registryHandle(),
           tenant.tax.profile(),
+        ).compute(params);
+      case 'cashBasisReport':
+        return new CashBasisProjection(
+          tenant.baseCurrency,
+          tenant.accounts,
+          tenant.journal,
+          tenant.openItems,
+          tenant.vouchers,
+          tenant.fiscalYears,
+          tenant.mappings,
         ).compute(params);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
