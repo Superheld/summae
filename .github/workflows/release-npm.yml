@@ -1,0 +1,52 @@
+name: Release npm
+
+# Veröffentlicht @superheld/summae-core auf npmjs.com.
+# Auslöser: Git-Tag v* (z. B. v0.1.0) oder manuell.
+# Voraussetzung: Repository-Secret NPM_TOKEN (npm Automation-Token mit
+# Publish-Recht für den @superheld-Scope). Einmalig setzen, danach turnkey:
+# Tag pushen → CI baut und publiziert.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Nur testen (npm publish --dry-run)'
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/node
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Publish @superheld/summae-core
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            pnpm --filter @superheld/summae-core publish --dry-run --no-git-checks
+          else
+            pnpm --filter @superheld/summae-core publish --no-git-checks
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
