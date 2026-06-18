@@ -1,16 +1,17 @@
-# rechnungswesen-php
+# summae — PHP-Referenzimplementierung
 
-PHP-Referenzimplementierung der Rechnungswesen-Spezifikation: GoBD-konforme
-Doppik, EÜR, Umsatzsteuer, Anlagen und KLR — als einbettbare Bibliothek.
-Aus Nutzersicht **ein** Laravel-Package: `composer require superheld/summae-laravel`.
+PHP-Referenzimplementierung von summae: GoBD-konforme Doppik, EÜR, Umsatzsteuer,
+Anlagen und KLR — als einbettbare Bibliothek. Aus Nutzersicht ein Composer-Paket
+(`composer require superheld/summae-core`), optional mit Laravel-Adapter
+(`composer require superheld/summae-laravel`).
 
-Normative Quelle ist die Wissensbasis (Schwester-Repo): Spezifikation (v0.5),
-Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
-`80-implementierung/AGENT-BRIEFING.md` und `JOBS.md`.
+Normative Quelle ist die Konformitäts-Suite (`testsuite/` im Repo-Root): jede
+Implementierung muss alle Fixtures byte-identisch und deterministisch erfüllen.
 
 ## Dokumentation
 
-- **Nutzer** (Package einbinden, Konfiguration): die jeweilige Package-README —
+- **Nutzer** (Package einbinden, konfigurieren, verwenden): das
+  [Handbuch](../../docs/handbuch/README.md), ergänzt durch die Package-READMEs —
   [packages/laravel/README.md](packages/laravel/README.md),
   [packages/cli/README.md](packages/cli/README.md).
 - **Mitentwickler** (Architektur, Workflow, Konformität): [docs/](docs/README.md).
@@ -20,11 +21,11 @@ Konformitäts-Testsuite, Domänenmodell. Einstieg dort:
 | Pfad | Inhalt |
 |---|---|
 | `packages/core/` | `superheld/summae-core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
-| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, Eloquent-Adapter, Migrationen (JOB-012) |
-| `packages/cli/` | `superheld/summae-cli` — CLI, JSON-Ausgaben (JOB-013) |
-| `runner/` | Fixture-Runner für die Konformitätssuite (JOB-002) |
-| `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only**, via `make sync` |
-| `SPEC-FINDINGS.md` | Befunde gegen Spec/Fixtures (Eskalationsweg aus dem Briefing) |
+| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, Eloquent-Adapter, Migrationen |
+| `packages/cli/` | `superheld/summae-cli` — CLI, JSON-Ausgaben |
+| `runner/` | Fixture-Runner für die Konformitätssuite |
+| `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only** (Maintainer: `make sync`) |
+| `SPEC-FINDINGS.md` | Befunde gegen Spec/Fixtures (Eskalationsweg) |
 
 ## Entwicklung
 
@@ -34,7 +35,7 @@ Alles läuft in Docker, lokal ist kein PHP nötig:
 make build      # PHP-8.3-Image bauen (einmalig)
 make install    # composer install
 make check      # PHPStan (level max) + PHPUnit — das prüft auch die CI
-make sync       # Testsuite aus der Wissensbasis aktualisieren (Einbahnstraße)
+make sync       # (Maintainer) Testsuite aus der internen Wissensbasis aktualisieren
 make shell      # Shell im Container
 ```
 

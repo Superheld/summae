@@ -1,16 +1,60 @@
 {
-  "name": "@summae/core",
-  "version": "0.0.0",
-  "description": "Framework-freier Rechnungswesen-Kern (Node) — Parität zur PHP-Referenz",
-  "private": true,
+  "name": "@superheld/summae-core",
+  "version": "0.1.0",
+  "description": "Framework-freier Rechnungswesen-Kern (Node) — GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR; Parität zur PHP-Referenz",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "accounting",
+    "bookkeeping",
+    "doppik",
+    "gobd",
+    "euer",
+    "umsatzsteuer",
+    "rechnungswesen",
+    "ledger",
+    "double-entry"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/superheld/summae.git",
+    "directory": "implementations/node/packages/core"
+  },
+  "homepage": "https://github.com/superheld/summae/tree/main/implementations/node/packages/core#readme",
+  "bugs": "https://github.com/superheld/summae/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup"
   },
   "dependencies": {
     "big.js": "^7.0.1"
   },
   "devDependencies": {
-    "@types/big.js": "^7.0.0"
+    "@types/big.js": "^7.0.0",
+    "@types/node": "^25.9.3",
+    "tsup": "^8.5.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    }
   }
 }

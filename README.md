@@ -8,17 +8,32 @@ identischem Datenformat**, geprüft gegen eine gemeinsame Konformitäts-Suite.
 ```
 summae/
 ├── testsuite/              Der Kompatibilitätsvertrag: fixtures/ + schema/
-│                           (geteilt von allen Implementierungen)
+│                           (maßgeblich für alle Implementierungen)
 ├── implementations/
-│   └── php/                PHP-Implementierung (Composer-Packages core/laravel/cli)
-│       └── …               eigene README + docs/ dort
-├── bin/sync-testsuite.sh   Testsuite aus der Wissensbasis spiegeln (Einbahnstraße)
-├── compose.yaml, docker/   gemeinsame Docker-Toolchain
+│   ├── php/                PHP-Implementierung  (core · laravel · cli)
+│   └── node/               Node/TypeScript-Implementierung (core · runner)
+├── compose.yaml, docker/   Docker-Toolchain (PHP)
 └── Makefile                Orchestrierung
 ```
 
-Geplant ist eine zweite Implementierung (`implementations/node/`) gegen
-dieselbe `testsuite/`.
+Beide Implementierungen laufen gegen **dieselbe `testsuite/`** und erzeugen
+byte-identische Ergebnisse — das ist der Kern des Versprechens.
+
+## Installation
+
+Kern in ein Projekt einbinden:
+
+```bash
+# PHP (Composer)
+composer require superheld/summae-core
+composer require superheld/summae-laravel   # optionaler Laravel-Adapter
+
+# Node (npm/pnpm)
+pnpm add @superheld/summae-core
+```
+
+Vollständige Anleitung zu Konfiguration, Initialisierung und Nutzung:
+**→ [Handbuch](docs/handbuch/README.md)**.
 
 ### Paketnamen über die Ökosysteme
 
@@ -34,36 +49,42 @@ gleich, nur das Registry-Präfix unterscheidet sich:
 Die Sprache steckt im Ordner (`implementations/<sprache>/`), nicht im Namen.
 Nur der Framework-Adapter heißt je Framework anders; Kern und CLI bleiben uniform.
 
-## Normative Quelle
-
-Spezifikation, Domänenmodell und die *Autoren-Heimat* der Fixtures liegen in
-der **Wissensbasis** (separates Schwester-Repo „Rechnungswesen"). Die
-Konformitäts-Suite wird von dort hierher gespiegelt:
-
-```bash
-make sync   # Wissensbasis/70-testsuite  →  testsuite/   (read-only Kopie)
-```
-
-Fixtures werden hier **nie editiert** — Widersprüche gehen über
-`implementations/php/SPEC-FINDINGS.md` zurück in die Wissensbasis.
-
 ## Implementierungen
 
-| | Pfad | Doku |
-|---|---|---|
-| PHP | `implementations/php/` | [README](implementations/php/README.md) · [Entwickler-Doku](implementations/php/docs/README.md) |
-| Node | `implementations/node/` | *geplant* |
+| | Pfad | Stand | Doku |
+|---|---|---|---|
+| PHP | `implementations/php/` | Referenz, vollständig | [README](implementations/php/README.md) · [Entwickler-Doku](implementations/php/docs/README.md) |
+| Node | `implementations/node/` | M3 — 45/45 Fixtures grün | [README](implementations/node/README.md) |
 
-**Nutzer** (Package in ein Laravel-Projekt einbinden, Konfiguration) lesen die
-PHP-README. **Mitentwickler** starten bei der Entwickler-Doku.
+**Nutzer** (Package einbinden, konfigurieren, verwenden) lesen das
+[Handbuch](docs/handbuch/README.md). **Mitentwickler** starten bei der
+jeweiligen Entwickler-Doku.
 
-## Schnelltest (PHP, Docker)
+## Der Kompatibilitätsvertrag (`testsuite/`)
+
+`testsuite/fixtures/**.json` + `testsuite/schema/` sind die normative Quelle:
+jede Implementierung muss alle Fixtures byte-identisch und deterministisch
+erfüllen. Fixtures sind **append-only** — eine Verhaltensänderung wird zu einer
+neuen Fixture, bestehende werden nie still editiert.
+
+> **Maintainer-Hinweis:** Die Autoren-Heimat der Fixtures liegt in einer
+> separaten, internen Wissensbasis. `bin/sync-testsuite.sh` (bzw. `make sync`)
+> spiegelt sie hierher — eine Einbahnstraße, ausschließlich für Maintainer.
+> Konsumenten und CI brauchen das nie: die committete `testsuite/` ist
+> eigenständig und maßgeblich.
+
+## Schnelltest
 
 ```bash
-make build && make install     # einmalig
-make sync                      # Testsuite holen
+# PHP (Docker, kein lokales PHP nötig)
+make build && make install
 make check                     # PHPStan max + PHPUnit
 make fixtures                  # Konformitätssuite gegen den Kern
+
+# Node
+cd implementations/node && pnpm install
+pnpm test                      # vitest (Unit + Konformität)
+pnpm fixtures --strict         # Konformitätssuite, deterministischer Doppellauf
 ```
 
 ## Lizenz

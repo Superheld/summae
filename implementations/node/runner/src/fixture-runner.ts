@@ -1,4 +1,4 @@
-import { DeterministicIdGenerator, FixedClock } from '@summae/core';
+import { DeterministicIdGenerator, FixedClock } from '@superheld/summae-core';
 import { diff } from './comparator.js';
 import type { Fixture } from './fixture-loader.js';
 import { PlaceholderBag } from './placeholder-bag.js';

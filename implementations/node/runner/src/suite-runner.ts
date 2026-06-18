@@ -1,4 +1,4 @@
-import { canonicalJson } from '@summae/core';
+import { canonicalJson } from '@superheld/summae-core';
 import type { Fixture } from './fixture-loader.js';
 import { FixtureRunner } from './fixture-runner.js';
 import type { FixtureResult, SuiteResult, TraceEntry } from './result.js';
