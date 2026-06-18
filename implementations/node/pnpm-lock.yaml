@@ -42,7 +42,7 @@ importers:
 
   runner:
     dependencies:
-      '@summae/core':
+      '@superheld/summae-core':
         specifier: workspace:*
         version: link:../packages/core
 
