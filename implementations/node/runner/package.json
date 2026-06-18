@@ -1,0 +1,13 @@
+{
+  "name": "@summae/runner",
+  "version": "0.0.0",
+  "description": "Konformitäts-Fixture-Runner (Node) — liest die geteilte Root-Testsuite",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@summae/core": "workspace:*"
+  }
+}
