@@ -3,6 +3,12 @@
     "description": "Framework-freier Rechnungswesen-Kern: GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR",
     "type": "library",
     "license": "MIT",
+    "homepage": "https://github.com/superheld/summae",
+    "keywords": ["accounting", "bookkeeping", "doppik", "gobd", "euer", "umsatzsteuer", "rechnungswesen", "double-entry"],
+    "support": {
+        "issues": "https://github.com/superheld/summae/issues",
+        "source": "https://github.com/superheld/summae"
+    },
     "require": {
         "php": ">=8.3",
         "brick/math": "^0.13"
@@ -10,6 +16,11 @@
     "autoload": {
         "psr-4": {
             "Summae\\Core\\": "src/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
         }
     },
     "config": {
