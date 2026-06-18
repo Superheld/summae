@@ -5,17 +5,24 @@ logik (GoBD-Doppik, EÜR, USt-VA, Anlagen, KLR), portiert in Parität zur
 PHP-Referenz. **M3 erreicht:** alle 45 Konformitäts-Fixtures grün gegen den
 In-Memory-Port, Doppellauf byte-deterministisch.
 
-## Status: noch nicht extern konsumierbar
+## Installation
 
-Dieses Paket ist derzeit **`private` und workspace-intern** — `exports` zeigt auf
-`./src/index.ts` (rohes TypeScript, kein Build). Innerhalb des pnpm-Workspace
-läuft es, weil vitest/tsx TypeScript on-the-fly transpilieren. Ein fremdes
-`node`-Projekt kann es **so noch nicht** importieren.
+```bash
+pnpm add @superheld/summae-core      # oder npm i / yarn add
+```
 
-Für externe Nutzung fehlt (kommt mit **M4**): Build nach `dist/` (`tsc`),
-`main`/`module`/`types`/`exports` auf die kompilierten Dateien, `private` entfernen,
-publish bzw. `npm link`. Bis dahin: im Workspace verwenden (siehe unten) oder als
-Referenz lesen.
+Das Paket wird dual ausgeliefert — **ESM** (`import`) und **CJS** (`require`),
+mit Typdeklarationen. Einzige Laufzeit-Abhängigkeit: `big.js`. Zielplattform ist
+**Node ≥ 22** (der Kern nutzt `node:crypto` für UUIDv7 und GoBD-Hash).
+
+```ts
+import { Money, TenantOperations } from '@superheld/summae-core';
+```
+
+> **Build aus dem Repo:** `pnpm build` (tsup → `dist/` mit ESM+CJS+`.d.ts`). Im
+> Workspace selbst zeigen die `exports` auf die TS-Source — vitest/tsx
+> transpilieren on-the-fly, ein separater Build ist für die Entwicklung nicht
+> nötig. Beim Publish überschreibt `publishConfig` die Felder auf `dist/`.
 
 ## Öffentliche API
 
