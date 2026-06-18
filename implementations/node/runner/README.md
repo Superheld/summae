@@ -1,10 +1,10 @@
-# @summae/runner (Node)
+# @superheld/summae-runner (Node)
 
 Konformitäts-Fixture-Runner: führt die geteilte Testsuite (`testsuite/` im
-Repo-Root, Einbahnstraße aus der Wissensbasis) gegen ein **Subject** aus und
-prüft nach dem Runner-Kontrakt (`testsuite/README.md`).
+Repo-Root) gegen ein **Subject** aus und prüft nach dem Runner-Kontrakt
+(`testsuite/README.md`).
 
-**Stand:** alle 45 Fixtures grün gegen das `CoreSubject` (@summae/core,
+**Stand:** alle 45 Fixtures grün gegen das `CoreSubject` (@superheld/summae-core,
 In-Memory-Ports), Doppellauf byte-deterministisch.
 
 ## Befehle
@@ -23,7 +23,7 @@ pnpm test                     # vitest — inkl. conformance.test.ts (s. u.)
 - **`Subject`** (`src/subject.ts`) — das Prüfobjekt: `setup` / `execute(op, input)` /
   `project(name, params)`. Fachfehler werden als `SubjectError` mit exaktem
   `E_*`-Code geworfen; alles andere gilt als Crash.
-- **`CoreSubject`** (`src/subject/core-subject.ts`) — Subject über `@summae/core`:
+- **`CoreSubject`** (`src/subject/core-subject.ts`) — Subject über `@superheld/summae-core`:
   baut den Mandanten aus dem `setup`-Block, routet über `TenantOperations`,
   übersetzt `DomainError → SubjectError`. Eine neue Runtime/Anbindung implementiert
   nur dieses Interface.

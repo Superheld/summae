@@ -1,5 +1,5 @@
 {
-  "name": "@summae/core",
+  "name": "@superheld/summae-core",
   "version": "0.0.0",
   "description": "Framework-freier Rechnungswesen-Kern (Node) — Parität zur PHP-Referenz",
   "private": true,

@@ -1,5 +1,5 @@
 {
-  "name": "@summae/runner",
+  "name": "@superheld/summae-runner",
   "version": "0.0.0",
   "description": "Konformitäts-Fixture-Runner (Node) — liest die geteilte Root-Testsuite",
   "private": true,
@@ -8,6 +8,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@summae/core": "workspace:*"
+    "@superheld/summae-core": "workspace:*"
   }
 }

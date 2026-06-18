@@ -18,7 +18,7 @@ import {
   Uuid,
   Voucher,
   isAccountType,
-} from '@summae/core';
+} from '@superheld/summae-core';
 import { type Subject, SubjectError } from '../subject.js';
 
 // Feste Uhr: recordedAt/at-Zeitstempel sind über beide Suite-Läufe identisch.
@@ -35,7 +35,7 @@ function asRecordList(value: unknown): Record<string, unknown>[] {
 }
 
 /**
- * Subject über @summae/core mit In-Memory-Ports. Baut den Mandanten aus dem
+ * Subject über @superheld/summae-core mit In-Memory-Ports. Baut den Mandanten aus dem
  * setup-Block und routet execute/project über TenantOperations; DomainError
  * wird in SubjectError (Katalog-Code) übersetzt.
  */

@@ -1,4 +1,4 @@
-# @summae/core (Node)
+# @superheld/summae-core (Node)
 
 Framework-freier Rechnungswesen-Kern in TypeScript — die gesamte Buchführungs-
 logik (GoBD-Doppik, EÜR, USt-VA, Anlagen, KLR), portiert in Parität zur
@@ -47,7 +47,7 @@ Daneben exportiert das Paket die Value Objects (`Money`, `Currency`,
 import {
   CalendarDate, Currency, DeterministicIdGenerator, FixedClock,
   Tenant, TenantOperations, Voucher,
-} from '@summae/core';
+} from '@superheld/summae-core';
 
 // Determinismus-Hooks injizierbar (Produktion: SystemClock + UuidV7IdGenerator).
 const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
@@ -75,7 +75,7 @@ console.log(posted.sequenceNumber, posted.status);                  // 1 entered
 console.log(ops.project('trialBalance', { fiscalYear: 2026, throughPeriod: 12 }));
 ```
 
-Ausführen aus einem Paket, das `@summae/core` als Dependency hat (z. B. `runner/`):
+Ausführen aus einem Paket, das `@superheld/summae-core` als Dependency hat (z. B. `runner/`):
 `pnpm exec tsx pfad/zur/datei.ts`.
 
 ## Prinzipien
@@ -86,5 +86,5 @@ Ausführen aus einem Paket, das `@summae/core` als Dependency hat (z. B. `runner
 - **Determinismus** (`Clock`/`IdGenerator` injizierbar; gleiche Eingabe →
   byte-identisches Ergebnis).
 
-Normative Quelle ist die Wissensbasis (`50-spezifikation/`, `70-testsuite/`);
+Normative Quelle ist die Konformitäts-Suite (`testsuite/` im Repo-Root);
 die PHP-Referenz ist der Goldstandard.
