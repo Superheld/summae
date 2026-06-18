@@ -37,7 +37,17 @@ lesen die geteilte `testsuite/` im Repo-Root (gepflegt via
 
 ```bash
 pnpm install      # einmalig (Workspace verlinken)
-pnpm test         # vitest (Decimal-Beweis + Fixture-Loader-Smoke)
+pnpm test         # vitest — Unit + Konformitäts-Fixtures (conformance.test.ts)
+pnpm fixtures     # Konformitätssuite gegen den Core (--strict / --filter=name)
 pnpm typecheck    # tsc --noEmit, strict
 pnpm lint         # eslint (u. a. Riegel: kein Framework-Import im Core)
 ```
+
+## Nutzung & Doku
+
+- `packages/core/README.md` — öffentliche API (`TenantOperations`), lauffähiges
+  Beispiel und Status der externen Konsumierbarkeit (Build/Publish kommt mit M4).
+- `runner/README.md` — Runner-Befehle, Subject-Kontrakt, Regressionsschutz.
+
+> **Heute:** workspace-intern nutzbar (vitest/tsx). Als publiziertes npm-Paket
+> noch nicht eingerichtet — `@summae/core` ist `private` ohne Build.
