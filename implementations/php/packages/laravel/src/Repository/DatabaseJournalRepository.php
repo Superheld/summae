@@ -10,6 +10,7 @@ use Summae\Core\Ledger\EntryStatus;
 use Summae\Core\Ledger\JournalEntry;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Timestamp;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
@@ -37,7 +38,7 @@ final readonly class DatabaseJournalRepository implements JournalRepository
             'status' => $entry->status()->value,
             'entry_date' => $entry->entryDate->iso,
             'voucher_date' => $entry->voucherDate?->iso,
-            'recorded_at' => $entry->recordedAt->format(\DateTimeInterface::ATOM),
+            'recorded_at' => Timestamp::canonical($entry->recordedAt),
             'voucher_id' => $entry->voucherId->value,
             'text' => $entry->text(),
             'lines' => Hydrator::encode(array_map(

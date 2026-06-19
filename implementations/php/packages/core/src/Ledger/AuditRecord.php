@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
+use Summae\Core\Shared\Timestamp;
 use Summae\Core\Shared\Uuid;
 
 /**
@@ -31,7 +32,7 @@ final readonly class AuditRecord implements \JsonSerializable
     {
         return [
             'id' => $this->id->value,
-            'at' => $this->at->format(\DateTimeInterface::ATOM),
+            'at' => Timestamp::canonical($this->at),
             'actor' => $this->actor,
             'objectType' => $this->objectType,
             'objectId' => $this->objectId->value,
