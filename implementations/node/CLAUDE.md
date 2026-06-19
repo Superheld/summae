@@ -5,10 +5,12 @@ Sprachspezifische Regeln und Befehle für `implementations/node/`. Projektweite 
 Root-`CLAUDE.md`.
 
 **Stand:** Fachkern (`packages/core`) vollständig — 45/45 Fixtures grün gegen den
-In-Memory-Port. **M4a erledigt:** Persistenz-Adapter `@superheld/summae-knex`
-(Knex + better-sqlite3), 45/45 Fixtures auch gegen `--subject=database`, und der
-**SF-15-Cross-Test** (`make cross`) bestätigt: PHP-geschriebene SQLite-Daten ergeben
-in Node byte-identisch denselben `journalExport`. Offen: M4b (gleichsprachige CLI).
+In-Memory-Port. **M4 erledigt:** Persistenz-Adapter `@superheld/summae-knex`
+(Knex + better-sqlite3), 45/45 Fixtures auch gegen `--subject=database`; der
+**SF-15-Cross-Test** (`make cross`) bestätigt byte-identischen `journalExport` über
+die Sprachgrenze; und die gleichsprachige CLI `@superheld/summae-cli` (`summae
+init|op|report`, persistente SQLite, Exit-Codes = Fehlerkatalog). Pakete: `core`,
+`knex`, `cli` + `runner`.
 
 ## Befehle
 
