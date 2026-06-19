@@ -95,28 +95,13 @@ Voraussetzung: **Node ≥ 22**. Das Paket wird dual ausgeliefert — **ESM**
 (`import`) und **CJS** (`require`), inklusive Typdeklarationen. Einzige
 Laufzeit-Abhängigkeit: `big.js`.
 
-> **Veröffentlichungs-Status & Direkt-aus-GitHub-Installation.**
-> `@superheld/summae-core` ist auf **npm veröffentlicht** — der `pnpm add`-Befehl
-> oben funktioniert direkt.
+> **Veröffentlichungs-Status.** Alle Pakete sind in den öffentlichen Registries
+> gelistet (v0.1.0) — die Befehle oben (`composer require …` / `pnpm add …`)
+> funktionieren direkt, ohne weitere Konfiguration.
 >
-> Die PHP-Pakete liegen als getaggte Repos auf GitHub. Bis zur Packagist-Listung
-> installierst du sie mit einem einmaligen `repositories`-Block — **kein lokaler
-> Klon nötig** (verifiziert: zieht `v0.1.0` direkt von GitHub):
->
-> ```json
-> "repositories": [
->   { "type": "vcs", "url": "https://github.com/Superheld/summae-core" },
->   { "type": "vcs", "url": "https://github.com/Superheld/summae-laravel" },
->   { "type": "vcs", "url": "https://github.com/Superheld/summae-cli" }
-> ]
-> ```
-> ```bash
-> composer require superheld/summae-core      # bzw. -laravel / -cli
-> ```
-> (Nur die tatsächlich benötigten Repos eintragen; interne Abhängigkeiten lösen
-> sich daraus auf.) Sobald die Pakete auf **Packagist** gelistet sind, entfällt
-> der `repositories`-Block — dann genügt direkt `composer require
-> superheld/summae-core`.
+> Falls du stattdessen aus dem Quellrepo arbeiten willst: Node im Klon mit
+> `pnpm install && pnpm build`; PHP via Path-/VCS-Repository auf die
+> Paket-Verzeichnisse bzw. die Split-Repos `Superheld/summae-{core,laravel,cli}`.
 
 ---
 
