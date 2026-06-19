@@ -73,4 +73,4 @@ raten, nicht die Fixture ändern.** Stattdessen:
    als präzisierte Spec + neue/geänderte Fixtures zurück.
 
 Das ist kein Notnagel, sondern der vorgesehene Rückkanal — er hat F-001…F-007
-sauber aufgelöst (siehe `ABSCHLUSSBERICHT.md`).
+sauber aufgelöst (Historie in [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md)).
