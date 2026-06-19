@@ -24,6 +24,6 @@ $ops    = new TenantOperations($tenant);
 
 **📖 Vollständige Dokumentation** — Konfiguration (eigene DB-Connection,
 `SUMMAE_DB_CONNECTION`, Migration), Initialisierung, komplette API-Referenz,
-Fehlerkatalog: **[summae-Handbuch](../../../../docs/handbuch/README.md)**.
+Fehlerkatalog: **[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
-Lizenz: MIT — siehe [LICENSE](../../LICENSE).
+Lizenz: MIT — siehe [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).

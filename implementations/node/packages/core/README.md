@@ -20,7 +20,7 @@ const susa = ops.project('trialBalance', { fiscalYear: 2026, throughPeriod: 12 }
 
 **📖 Vollständige Dokumentation** — Installation, Initialisierung, komplette
 API-Referenz (alle Operationen & Projektionen), Value Objects, Fehlerkatalog:
-**[summae-Handbuch](../../../../docs/handbuch/README.md)**.
+**[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
 > Build aus dem Repo: `pnpm build` (tsup → `dist/`). Im Workspace zeigen die
 > `exports` auf die TS-Source (vitest/tsx ohne Build); beim Publish überschreibt

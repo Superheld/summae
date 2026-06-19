@@ -46,11 +46,30 @@ direkt einlesen. Es gibt drei Wege; die Wahl ist eine Footprint-Entscheidung:
 | **B — nur VCS** | ⚠ Consumer braucht `repositories`-Eintrag je Split-Repo | 3 Split-Repos, kein Packagist | ✅ |
 | **C — ein Sammelpaket `superheld/summae`** | nur `require superheld/summae` (alles zusammen) | 0 extra Repos | ❌ zieht illuminate/* auch für Core-Nutzer |
 
-Weg A ist der Standard für „bequem installierbar" mit sauberer Paket-Trennung.
-Er braucht: pro Paket ein read-only Split-Repo (`Superheld/summae-core` usw.),
-einen Split-Workflow (extrahiert Unterordner-Historie bei jedem Tag) und die
-einmalige Packagist-Anmeldung der Split-Repos (Web-Formular, GitHub-Login).
+**Gewählt: Weg A.** Eingerichtet:
 
-> Offen — die Wahl zwischen A/B/C ist noch nicht getroffen (siehe Footprint-
-> Präferenz „nur der Ordner summae"). Bis dahin: From-Source-/Path-Repo-Install
-> wie im Handbuch beschrieben.
+- Read-only Split-Repos: `Superheld/summae-core`, `Superheld/summae-laravel`,
+  `Superheld/summae-cli` (Inhalt + Tag `v0.1.0` initial manuell gespiegelt).
+- Split-Workflow [`.github/workflows/split-packages.yml`](.github/workflows/split-packages.yml):
+  spiegelt bei jedem `v*`-Tag automatisch.
+
+Pro Release (nach der Einrichtung): Tag `vX.Y.Z` pushen → Split-Workflow
+aktualisiert die drei Repos inkl. Tag → Packagist zieht via Webhook nach.
+
+**Einmalige Maintainer-Schritte (deine Accounts):**
+
+1. **PAT für den Split-Workflow:** Personal Access Token mit `repo`-Schreibrecht
+   auf die Split-Repos erzeugen, als Secret hinterlegen:
+   ```bash
+   gh secret set SPLIT_TOKEN --repo Superheld/summae
+   ```
+   (Der initiale 0.1.0-Split lief ohne Workflow direkt über die lokale
+   SSH-Anmeldung; das Secret ist erst für künftige Tags nötig.)
+2. **Packagist-Anmeldung:** auf packagist.org mit GitHub einloggen und die drei
+   Split-Repos einreichen (Submit → Repo-URL). Beim Submit installiert Packagist
+   den GitHub-Webhook für Auto-Updates. Reihenfolge: erst `summae-core`, dann
+   `summae-laravel` / `summae-cli` (deren `*`-Abhängigkeit auf core wird dann
+   von Packagist aufgelöst).
+
+Danach funktioniert `composer require superheld/summae-core` (bzw. -laravel/-cli)
+direkt.
