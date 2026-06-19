@@ -1,6 +1,7 @@
 name: Release npm
 
-# Veröffentlicht @superheld/summae-core auf npmjs.com.
+# Veröffentlicht die öffentlichen Node-Pakete (@superheld/summae-core, -knex, -cli)
+# auf npmjs.com — `pnpm -r publish` in Abhängigkeitsreihenfolge (runner ist private).
 # Auslöser: Git-Tag v* (z. B. v0.1.0) oder manuell.
 # Voraussetzung: Repository-Secret NPM_TOKEN (npm Automation-Token mit
 # Publish-Recht für den @superheld-Scope). Einmalig setzen, danach turnkey:
@@ -41,12 +42,12 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Publish @superheld/summae-core
+      - name: Publish (core, knex, cli)
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
-            pnpm --filter @superheld/summae-core publish --dry-run --no-git-checks
+            pnpm -r publish --dry-run --no-git-checks
           else
-            pnpm --filter @superheld/summae-core publish --no-git-checks
+            pnpm -r publish --no-git-checks
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
