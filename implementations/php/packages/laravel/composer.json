@@ -1,10 +1,10 @@
 {
     "name": "superheld/summae-laravel",
-    "description": "Laravel-Adapter für summae-core: ServiceProvider, Eloquent-Persistenz, Migrationen",
+    "description": "Laravel-Adapter für summae-core: ServiceProvider, Datenbank-Persistenz, Migrationen",
     "type": "library",
     "license": "MIT",
     "homepage": "https://github.com/superheld/summae",
-    "keywords": ["accounting", "laravel", "eloquent", "rechnungswesen", "doppik", "gobd"],
+    "keywords": ["accounting", "laravel", "database", "rechnungswesen", "doppik", "gobd"],
     "support": {
         "issues": "https://github.com/superheld/summae/issues",
         "source": "https://github.com/superheld/summae"

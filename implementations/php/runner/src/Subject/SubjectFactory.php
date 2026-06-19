@@ -6,7 +6,7 @@ namespace Summae\Runner\Subject;
 
 /**
  * Liefert je Fixture-Lauf ein frisches, isoliertes Subject.
- * Zweite Implementierung (Eloquent-Adapter) kommt mit JOB-012.
+ * Zweite Implementierung (Database-Adapter) kommt mit JOB-012.
  */
 interface SubjectFactory
 {

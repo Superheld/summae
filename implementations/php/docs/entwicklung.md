@@ -13,12 +13,12 @@ make shell      # Shell im Container
 make sync       # Testsuite + Schema aus der Wissensbasis aktualisieren
 ```
 
-Postgres wird nur für den Eloquent-Konformitätslauf gebraucht:
+Postgres wird nur für den Datenbank-Konformitätslauf gebraucht:
 
 ```bash
 docker compose --profile db up -d postgres
 docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST=postgres \
-  php php runner/bin/run-fixtures.php --strict --subject=eloquent
+  php php runner/bin/run-fixtures.php --strict --subject=database
 ```
 
 ## Was grün sein muss (= CI)
@@ -26,7 +26,7 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 - **PHPStan level max**, keine Fehler (`vendor/bin/phpstan analyse`).
 - **PHPUnit** (`vendor/bin/phpunit`).
 - **Konformitätssuite strict** gegen beide Subjects:
-  `php runner/bin/run-fixtures.php --strict` und `--strict --subject=eloquent`
+  `php runner/bin/run-fixtures.php --strict` und `--strict --subject=database`
   — alle Fixtures grün **und** Doppellauf byte-identisch.
 
 Die `expected-green.txt` im `runner/` ist der Regressionsschutz: ohne
@@ -58,8 +58,8 @@ Die `expected-green.txt` im `runner/` ist der Regressionsschutz: ohne
 2. Fachlogik in `packages/core` bauen (Aggregat/Service/Projektion), gegen
    In-Memory-Port und mit Unit-Tests.
 3. Im Dispatcher `TenantOperations` verdrahten (eine Stelle für CLI + Runner).
-4. Falls neuer Eloquent-Persistenzbedarf: Port + In-Memory- **und**
-   Eloquent-Adapter ergänzen, `SchemaInstaller` erweitern.
+4. Falls neuer Datenbank-Persistenzbedarf: Port + In-Memory- **und**
+   Database-Adapter ergänzen, `SchemaInstaller` erweitern.
 5. `make check` + `make fixtures` (beide Subjects) grün.
 
 ## Spec-Änderung kommt rein (Retrofit)

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Summae\Runner\FixtureResult;
 use Summae\Runner\FixtureStatus;
 use Summae\Runner\Subject\CoreSubjectFactory;
-use Summae\Runner\Subject\EloquentSubjectFactory;
+use Summae\Runner\Subject\DatabaseSubjectFactory;
 use Summae\Runner\SuiteRunner;
 
 require __DIR__ . '/../../vendor/autoload.php';
@@ -31,12 +31,12 @@ foreach (array_slice($argvList, 1) as $arg) {
         $expectedFile = substr($arg, 11);
     } else {
         fwrite(STDERR, "Unbekanntes Argument: {$arg}\n");
-        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--subject=core|eloquent] [--expected=datei]\n");
+        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--subject=core|database] [--expected=datei]\n");
         exit(2);
     }
 }
 
-$factory = $subject === 'eloquent' ? new EloquentSubjectFactory() : new CoreSubjectFactory();
+$factory = $subject === 'database' ? new DatabaseSubjectFactory() : new CoreSubjectFactory();
 printf("Subject: %s\n", $subject);
 
 $suite = (new SuiteRunner($factory))->run($root . '/testsuite/fixtures', $filter);

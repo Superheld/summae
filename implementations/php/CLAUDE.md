@@ -30,17 +30,17 @@ docker compose run --rm php vendor/bin/phpunit --filter MoneyTest
 
 # Konformitäts-Runner
 docker compose run --rm php php runner/bin/run-fixtures.php \
-  --strict --subject=core|eloquent --filter=<name> --expected=<datei>
+  --strict --subject=core|database --filter=<name> --expected=<datei>
 ```
 
 `--strict` = alle Fixtures grün **und** Suite-Doppellauf byte-identisch.
 `runner/expected-green.txt` = Regressionsschutz (ohne `--strict` darf nichts dort
-Gelistetes rot werden). Das Eloquent-Subject braucht Postgres:
+Gelistetes rot werden). Das Database-Subject braucht Postgres:
 
 ```bash
 docker compose --profile db up -d postgres
 docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST=postgres \
-  php php runner/bin/run-fixtures.php --strict --subject=eloquent
+  php php runner/bin/run-fixtures.php --strict --subject=database
 ```
 
 ## Konventionen
@@ -54,7 +54,7 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 ## Definition of Green (hier)
 
 PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` gegen
-**beide** Subjects (`core` und `eloquent`) inkl. byte-identischem Doppellauf.
+**beide** Subjects (`core` und `database`) inkl. byte-identischem Doppellauf.
 
 ## Tiefer: `docs/`
 

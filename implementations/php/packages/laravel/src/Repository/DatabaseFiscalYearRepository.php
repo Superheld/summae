@@ -14,7 +14,7 @@ use Summae\Core\Shared\CalendarDate;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentFiscalYearRepository implements FiscalYearRepository
+final readonly class DatabaseFiscalYearRepository implements FiscalYearRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

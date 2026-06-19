@@ -10,7 +10,7 @@ use Summae\Core\Port\AuditTrail;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentAuditTrail implements AuditTrail
+final readonly class DatabaseAuditTrail implements AuditTrail
 {
     public function __construct(
         private ConnectionInterface $connection,

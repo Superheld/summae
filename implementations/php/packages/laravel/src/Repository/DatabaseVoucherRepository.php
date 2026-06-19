@@ -10,7 +10,7 @@ use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentVoucherRepository implements VoucherRepository
+final readonly class DatabaseVoucherRepository implements VoucherRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

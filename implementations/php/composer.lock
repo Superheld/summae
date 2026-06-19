@@ -1098,7 +1098,7 @@
             "license": [
                 "MIT"
             ],
-            "description": "Laravel-Adapter für summae-core: ServiceProvider, Eloquent-Persistenz, Migrationen",
+            "description": "Laravel-Adapter für summae-core: ServiceProvider, Datenbank-Persistenz, Migrationen",
             "transport-options": {
                 "symlink": true,
                 "relative": true

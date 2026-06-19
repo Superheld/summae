@@ -10,7 +10,7 @@ use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentPartnerRepository implements PartnerRepository
+final readonly class DatabasePartnerRepository implements PartnerRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

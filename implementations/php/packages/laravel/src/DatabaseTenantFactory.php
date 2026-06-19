@@ -21,17 +21,17 @@ use Summae\Core\Tax\TaxCodeRegistry;
 use Summae\Core\Tax\TaxProfile;
 use Summae\Core\Tax\TaxService;
 use Summae\Core\Tenant;
-use Summae\Laravel\Repository\EloquentAccountRepository;
-use Summae\Laravel\Repository\EloquentAssetRepository;
-use Summae\Laravel\Repository\EloquentAuditTrail;
-use Summae\Laravel\Repository\EloquentFiscalYearRepository;
-use Summae\Laravel\Repository\EloquentJournalRepository;
-use Summae\Laravel\Repository\EloquentOpenItemRepository;
-use Summae\Laravel\Repository\EloquentPartnerRepository;
-use Summae\Laravel\Repository\EloquentVoucherRepository;
+use Summae\Laravel\Repository\DatabaseAccountRepository;
+use Summae\Laravel\Repository\DatabaseAssetRepository;
+use Summae\Laravel\Repository\DatabaseAuditTrail;
+use Summae\Laravel\Repository\DatabaseFiscalYearRepository;
+use Summae\Laravel\Repository\DatabaseJournalRepository;
+use Summae\Laravel\Repository\DatabaseOpenItemRepository;
+use Summae\Laravel\Repository\DatabasePartnerRepository;
+use Summae\Laravel\Repository\DatabaseVoucherRepository;
 
 /**
- * Baut einen Mandanten mit Eloquent-Persistenz — gleiche Services wie
+ * Baut einen Mandanten mit Datenbank-Persistenz — gleiche Services wie
  * Tenant::inMemory, nur die Ports zeigen auf die Datenbank. Der Kern
  * bleibt unberührt (Hexagonal, AGENT-BRIEFING).
  *
@@ -39,7 +39,7 @@ use Summae\Laravel\Repository\EloquentVoucherRepository;
  * sind versionierte Daten der App-Schicht und werden pro Instanz
  * übergeben, nicht in der Adapter-Datenbank verwaltet.
  */
-final readonly class EloquentTenantFactory
+final readonly class DatabaseTenantFactory
 {
     public function __construct(
         private ConnectionInterface $connection,
@@ -66,14 +66,14 @@ final readonly class EloquentTenantFactory
 
         $tenantId ??= $ids->next();
 
-        $accounts = new EloquentAccountRepository($this->connection, $tenantId);
-        $fiscalYears = new EloquentFiscalYearRepository($this->connection, $tenantId);
-        $vouchers = new EloquentVoucherRepository($this->connection, $tenantId);
-        $journal = new EloquentJournalRepository($this->connection, $tenantId);
-        $openItems = new EloquentOpenItemRepository($this->connection, $tenantId);
-        $partners = new EloquentPartnerRepository($this->connection, $tenantId);
-        $assets = new EloquentAssetRepository($this->connection, $tenantId);
-        $audit = new EloquentAuditTrail($this->connection, $tenantId);
+        $accounts = new DatabaseAccountRepository($this->connection, $tenantId);
+        $fiscalYears = new DatabaseFiscalYearRepository($this->connection, $tenantId);
+        $vouchers = new DatabaseVoucherRepository($this->connection, $tenantId);
+        $journal = new DatabaseJournalRepository($this->connection, $tenantId);
+        $openItems = new DatabaseOpenItemRepository($this->connection, $tenantId);
+        $partners = new DatabasePartnerRepository($this->connection, $tenantId);
+        $assets = new DatabaseAssetRepository($this->connection, $tenantId);
+        $audit = new DatabaseAuditTrail($this->connection, $tenantId);
 
         $ledger = new Ledger(
             $baseCurrency,
