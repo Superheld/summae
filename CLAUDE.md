@@ -45,6 +45,20 @@ verdrahten.
 **Lesen läuft nie über gespeicherte Salden.** Jede SuSa/Bilanz/EÜR/USt-Voranmeldung
 wird aus dem Journal neu berechnet.
 
+**Jurisdiktionsfrei: Substrat → Politiksorten → Pack.** Das ist *wie summae gedacht
+ist*, sprachübergreifend — jeder Agent, der etwas baut, muss es kennen, nicht nur
+PHP. Der Kern ist ein **jurisdiktionsfreies Substrat** (Buchung, Konto, Journal,
+Saldo, Periode + die Mechanik von `post`/`settle`/`reverse`/`allocate`) — er kennt
+kein Gesetz. Alles darüber ist *genau eine* von drei **Politiksorten**: **Constraint**
+(muss gelten), **Projektion** (Journal → Sicht), **Expansion** (Absicht → ausbalancierte
+Buchungen). Die *Mechanik* der drei steckt im Kern; die *Inhalte* (Werte, Regeln,
+Mappings) kommen aus einem **Pack** — dem versionierten Bündel einer Jurisdiktion
+(„tzdata fürs Rechnungswesen"; „Deutschland" ist das *erste* Pack, nicht die eingebaute
+Annahme). Ein Pack ist komponierbar (kuratiert nehmen / anpassen / selbst à la carte).
+**Lackmustest beim Bauen:** zitiert dein Code einen Paragraphen → falsche Schicht, das
+gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus (vieles ist Konzept,
+nicht Code): `docs/architektur.md`.
+
 ## Eiserne Invarianten (nicht verletzen)
 
 - **Journal append-only; Salden sind Projektionen.** Nie einen Saldo speichern.

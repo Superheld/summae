@@ -1,4 +1,9 @@
-# Architektur
+# Architektur (PHP)
+
+PHP-spezifisch: Packages, Pfade, Adapter. Das **sprachneutrale Denkmodell**
+(jurisdiktionsfreies Substrat → drei Politiksorten → Pack → Konfiguration) steht in
+[`/docs/architektur.md`](../../../docs/architektur.md) — das gilt für alle
+Implementierungen und ist beim Bauen Pflichtlektüre.
 
 ## Drei Packages, ein Repo
 
@@ -53,13 +58,13 @@ Zusammengebaut wird ein Mandant durch:
 
 Beide liefern denselben `Tenant`; alles darüber ist identisch.
 
-## Drei fachliche Schichten
+## Fachliche Schichtung
 
-1. **Kern-Engine** (`Ledger`, Projektionen) — kennt kein Gesetz.
-2. **Regelmodule** — Steuersätze, Kontenrahmen, Mappings, GWG-Grenzen als
-   versionierte **Daten** (App-Schicht, der Factory übergeben). Lackmustest:
-   Zitiert Code einen Paragraphen → falsche Schicht, das gehört in Daten.
-3. **App** — nicht unser Problem (das Laravel-/Node-Projekt des Nutzers).
+Das Schichtenmodell (Substrat → Politiksorten → Pack → Konfiguration) ist
+sprachneutral und steht in [`/docs/architektur.md`](../../../docs/architektur.md).
+In PHP konkret: Der `core` ist das Substrat; Regelmodul-/Pack-Daten werden der
+Factory (`Tenant::inMemory` / `EloquentTenantFactory::build`) als Daten übergeben;
+die App ist das Laravel-Projekt des Nutzers.
 
 ## Eiserne Invarianten
 
