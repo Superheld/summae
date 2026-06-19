@@ -83,9 +83,15 @@ jobs:
       - name: pnpm install
         working-directory: implementations/node
         run: pnpm install --frozen-lockfile
-      - name: PHP schreibt SQLite-Bestände
+      - name: PHP schreibt SQLite-Bestände (+ Oracle)
         working-directory: implementations/php
         run: php runner/bin/cross-export.php --dir=${{ github.workspace }}/.cross-dbs
-      - name: Node liest dieselben DBs und vergleicht journalExport
+      - name: Node schreibt SQLite-Bestände (+ Oracle)
+        working-directory: implementations/node
+        run: pnpm exec tsx runner/bin/cross-write.ts --dir=${{ github.workspace }}/.cross-dbs
+      - name: PHP liest Node-DBs (Ergebnis als php-actual)
+        working-directory: implementations/php
+        run: php runner/bin/cross-read.php --dir=${{ github.workspace }}/.cross-dbs
+      - name: Node vergleicht journalExport in BEIDEN Richtungen
         working-directory: implementations/node
         run: pnpm exec tsx runner/bin/cross-read.ts --dir=${{ github.workspace }}/.cross-dbs
