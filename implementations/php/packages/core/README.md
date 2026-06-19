@@ -20,6 +20,6 @@ $susa = $ops->project('trialBalance', ['fiscalYear' => 2026, 'throughPeriod' => 
 
 **📖 Vollständige Dokumentation** — Installation, Initialisierung, Konfiguration,
 komplette API-Referenz (alle Operationen & Projektionen), Value Objects,
-Fehlerkatalog: **[summae-Handbuch](../../../../docs/handbuch/README.md)**.
+Fehlerkatalog: **[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
-Lizenz: MIT — siehe [LICENSE](../../LICENSE).
+Lizenz: MIT — siehe [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).
