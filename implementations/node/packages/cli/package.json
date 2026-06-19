@@ -1,6 +1,6 @@
 {
   "name": "@superheld/summae-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI (Node) für summae — JSON-Ein/Ausgabe, persistenter SQLite-Arbeitsbereich über @superheld/summae-knex",
   "type": "module",
   "license": "MIT",
