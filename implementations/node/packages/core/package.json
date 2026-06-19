@@ -1,6 +1,6 @@
 {
   "name": "@superheld/summae-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Framework-freier Rechnungswesen-Kern (Node) — GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR; Parität zur PHP-Referenz",
   "type": "module",
   "license": "MIT",
