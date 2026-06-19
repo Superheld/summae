@@ -17,6 +17,6 @@ summae report trialBalance --dir ./buchhaltung --params '{"fiscalYear":2026,"thr
 
 **📖 Vollständige Dokumentation** — Arbeitsbereich, Regeldatei, komplette
 API-Referenz (alle Operationen & Projektionen), Fehlerkatalog:
-**[summae-Handbuch](../../../../docs/handbuch/README.md)**.
+**[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
-Lizenz: MIT — siehe [LICENSE](../../LICENSE).
+Lizenz: MIT — siehe [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).
