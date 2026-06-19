@@ -1,0 +1,50 @@
+{
+  "name": "@superheld/summae-cli",
+  "version": "0.1.0",
+  "description": "CLI (Node) für summae — JSON-Ein/Ausgabe, persistenter SQLite-Arbeitsbereich über @superheld/summae-knex",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["accounting", "rechnungswesen", "summae", "cli"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/superheld/summae.git",
+    "directory": "implementations/node/packages/cli"
+  },
+  "homepage": "https://github.com/superheld/summae/tree/main/implementations/node/packages/cli#readme",
+  "bugs": "https://github.com/superheld/summae/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "summae": "./dist/summae.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup"
+  },
+  "dependencies": {
+    "@superheld/summae-core": "workspace:*",
+    "@superheld/summae-knex": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsup": "^8.5.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    }
+  }
+}

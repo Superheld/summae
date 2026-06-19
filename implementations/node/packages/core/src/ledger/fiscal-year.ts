@@ -47,6 +47,21 @@ export class FiscalYear {
     return new FiscalYear(id, year, start, end, periods);
   }
 
+  /**
+   * Aus Persistenz wiederherstellen: Status und Perioden explizit übernehmen
+   * (kein Neuaufbau, keine Validierung) — Pendant zu PHPs `FiscalYear::restore`.
+   */
+  static restore(
+    id: Uuid,
+    year: number,
+    start: CalendarDate,
+    end: CalendarDate,
+    status: FiscalYearStatus,
+    periods: Period[],
+  ): FiscalYear {
+    return new FiscalYear(id, year, start, end, periods, status);
+  }
+
   private static monthlyPeriods(start: CalendarDate, end: CalendarDate): Period[] {
     const periods: Period[] = [];
     let cursor = start;

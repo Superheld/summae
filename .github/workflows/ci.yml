@@ -34,3 +34,58 @@ jobs:
 
       - name: Konformitäts-Fixtures gegen Database-Adapter (strict, SQLite)
         run: php runner/bin/run-fixtures.php --strict --subject=database
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: implementations/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Vitest
+        run: pnpm test
+      - name: Konformitäts-Fixtures gegen In-Memory-Kern (strict)
+        run: pnpm fixtures --strict
+      - name: Konformitäts-Fixtures gegen Database-Adapter (strict, SQLite)
+        run: pnpm fixtures --subject=database --strict
+
+  # SF-15: geteilte DB über die Sprachgrenze — PHP schreibt SQLite, Node liest.
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath
+          coverage: none
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Composer install
+        working-directory: implementations/php
+        run: composer install --no-interaction --no-progress
+      - name: pnpm install
+        working-directory: implementations/node
+        run: pnpm install --frozen-lockfile
+      - name: PHP schreibt SQLite-Bestände
+        working-directory: implementations/php
+        run: php runner/bin/cross-export.php --dir=${{ github.workspace }}/.cross-dbs
+      - name: Node liest dieselben DBs und vergleicht journalExport
+        working-directory: implementations/node
+        run: pnpm exec tsx runner/bin/cross-read.ts --dir=${{ github.workspace }}/.cross-dbs

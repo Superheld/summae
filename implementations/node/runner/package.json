@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "Konformitäts-Fixture-Runner (Node) — liest die geteilte Root-Testsuite",
-  "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@superheld/summae-core": "workspace:*"
+    "@superheld/summae-core": "workspace:*",
+    "@superheld/summae-knex": "workspace:*"
   }
 }

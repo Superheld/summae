@@ -1,17 +1,23 @@
 import { loadFixtures } from '../src/fixture-loader.js';
 import { SuiteRunner } from '../src/suite-runner.js';
+import type { SubjectFactory } from '../src/subject.js';
 import { CoreSubjectFactory } from '../src/subject/core-subject-factory.js';
+import { DatabaseSubjectFactory } from '../src/subject/database-subject-factory.js';
 
 const args = process.argv.slice(2);
 let filter: string | undefined;
 let strict = false;
+let subject = 'core';
 for (const arg of args) {
   if (arg.startsWith('--filter=')) filter = arg.slice('--filter='.length);
+  else if (arg.startsWith('--subject=')) subject = arg.slice('--subject='.length);
   else if (arg === '--strict') strict = true;
 }
 
+const factory: SubjectFactory = subject === 'database' ? new DatabaseSubjectFactory() : new CoreSubjectFactory();
+
 const fixtures = loadFixtures();
-const suite = new SuiteRunner(new CoreSubjectFactory()).run(fixtures, filter);
+const suite = new SuiteRunner(factory).run(fixtures, filter);
 
 let green = 0;
 let red = 0;
