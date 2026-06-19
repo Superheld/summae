@@ -57,7 +57,7 @@ ohne dass sich die Fachlogik ändert:
 | Variante | Persistenz | Wofür |
 |---|---|---|
 | **In-Memory** | flüchtig (RAM) | Tests, Skripte, Konformitätsläufe |
-| **Eloquent** (PHP/Laravel) | Datenbank (`summae_*`-Tabellen) | Produktion in Laravel-Apps |
+| **Laravel-Adapter** (PHP) | Datenbank (`summae_*`-Tabellen) | Produktion in Laravel-Apps |
 | **CLI-Arbeitsbereich** (PHP) | lokale SQLite-Datei | Terminal/Automatisierung |
 
 ---
@@ -158,7 +158,7 @@ const tenant = Tenant.inMemory('Muster GmbH', Currency.of('EUR'), clock, new Uui
 const ops    = new TenantOperations(tenant);
 ```
 
-### Eloquent / Laravel (PHP, persistent)
+### Laravel-Adapter (PHP, persistent)
 
 ```php
 use Summae\Core\Shared\Currency;
