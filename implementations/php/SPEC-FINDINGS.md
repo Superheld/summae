@@ -112,3 +112,28 @@ Format je Befund:
   offenen Perioden — „Abschlussvoraussetzung verletzt").
 - **Vorschlag:** Eigenen Code `E_FISCALYEAR_UNFINALIZED_ENTRIES` erwägen
   oder die Wiederverwendung dokumentieren.
+
+## F-CROSS-001: Zeitstempel-Serialisierung nicht kanonisch über Implementierungen
+
+- **Job:** Node-M4 (SF-15 Cross-Test, beide Richtungen)
+- **Was:** PHP und Node serialisieren die Zeitstempel `recordedAt` (Buchung) und
+  `at` (Audit) **unterschiedlich**: PHP als ATOM mit erhaltenem Offset und ohne
+  Millisekunden (`2026-06-07T12:00:00+02:00`), Node via `toISOString` als UTC mit
+  Millisekunden (`2026-06-07T10:00:00.000Z`). **Gleicher Moment, andere
+  Schreibweise.** Auffällig erst im bidirektionalen Cross-Test: in PHP→Node reicht
+  Node PHPs String wörtlich durch (passt), in Node→PHP reformatiert PHP beim Lesen
+  über `DateTimeImmutable` → die Inline-Felder *und* die abgeleiteten
+  `manifest.contentHashes` (sha256 über die Roh-Stream-Bytes) divergieren. Die
+  Konformitätssuite toleriert es (normalisierter Vergleich); strikte Cross-Impl-
+  Byte-Gleichheit nicht.
+- **Wo:** `determinismus.md` (Zeitstempel-Format nicht festgelegt); PHP
+  `JournalEntry`/`AuditRecord` (ATOM via `DateTimeImmutable`), Node
+  `recordedAt`/`at` als roher String.
+- **Gewähltes Verhalten:** Der Cross-Test (`cross-read.ts`) vergleicht `at`/
+  `recordedAt` als **Instant** (auf UTC/ms normiert) und lässt die format-
+  abhängigen `contentHashes` + das volatile `exportedAt` außen vor; alle übrigen
+  Felder byte-genau. Beweist Datenparität, nicht Schreibweisen-Gleichheit.
+- **Vorschlag:** Ein **kanonisches Zeitstempel-Format** in `determinismus.md`
+  festlegen (z. B. RFC 3339, UTC `Z`, feste Millisekunden) und beide
+  Implementierungen darauf ziehen — dann matchen auch die `contentHashes`
+  byte-genau in beide Richtungen.
