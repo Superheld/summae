@@ -20,8 +20,10 @@ import { loadFixtures } from '../src/fixture-loader.js';
  *  2. Node→PHP: vergleicht Nodes Oracle (`*.node.expected.json`) mit PHPs
  *     Ergebnis (`*.php-actual.json`, von `cross-read.php` aus der Node-DB berechnet).
  *
- * journalExport ist konfig-/placeholder-frei. Zeitstempel werden als Instant
- * verglichen (SPEC-FINDING F-CROSS-001), alles andere byte-genau.
+ * journalExport ist konfig-/placeholder-frei. Verglichen wird der **vollständige**
+ * kanonische journalExport byte-genau — inkl. der sha256-contentHashes und des
+ * exportedAt (gleiche fixe Uhr beidseits). Seit der Zeitstempel-Kanonisierung
+ * (F-CROSS-001 gelöst: UTC-Z/ms in beiden Sprachen) sind keine Ausnahmen mehr nötig.
  */
 
 const dirArg = process.argv.slice(2).find((a) => a.startsWith('--dir='));
@@ -47,38 +49,6 @@ function discoverTenantId(db: SyncDb): string | null {
     if (row !== null && typeof row.tenant_id === 'string') return row.tenant_id;
   }
   return null;
-}
-
-/**
- * Vergleichbar machen (alles wegen F-CROSS-001 = Zeitstempel-Format-Divergenz):
- * - `exportedAt` (Export-Erzeugungszeit) raus — keine Daten.
- * - `at`/`recordedAt` auf kanonischen Instant (UTC, ms) normieren. PHP serialisiert
- *   ATOM (Offset, ohne ms), Node toISOString (UTC, ms) — gleicher Moment, andere
- *   Schreibweise; verglichen wird der Wert.
- * - `contentHashes` raus: das sind sha256-Digests über die Roh-Stream-Bytes, sie
- *   backen das Zeitstempel-Format ein und lassen sich nicht normieren. Die Streams
- *   selbst (in `data`) werden ohnehin direkt + vollständig verglichen — der Digest
- *   ist dazu redundant.
- */
-function normalizeForCompare(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    value.forEach((item, i) => {
-      value[i] = normalizeForCompare(item);
-    });
-    return value;
-  }
-  if (value === null || typeof value !== 'object') return value;
-  const obj = value as Record<string, unknown>;
-  for (const [key, val] of Object.entries(obj)) {
-    if (key === 'exportedAt' || key === 'contentHashes') delete obj[key];
-    else if ((key === 'at' || key === 'recordedAt') && typeof val === 'string') obj[key] = new Date(val).toISOString();
-    else obj[key] = normalizeForCompare(val);
-  }
-  return obj;
-}
-
-function canonicalOfFile(path: string): string {
-  return canonicalJson(normalizeForCompare(JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>));
 }
 
 interface Result {
@@ -111,8 +81,8 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.en
     const tenant = DatabaseTenantFactory.build(db, tenantName, Currency.of(currency), clock, new DeterministicIdGenerator(clock), {
       tenantId: Uuid.fromString(tenantId),
     });
-    const actual = canonicalJson(normalizeForCompare(new TenantOperations(tenant).project('journalExport', { format: 'gobd-z3' })));
-    const expected = canonicalOfFile(join(dir, `${name}.expected.json`));
+    const actual = canonicalJson(new TenantOperations(tenant).project('journalExport', { format: 'gobd-z3' }));
+    const expected = readFileSync(join(dir, `${name}.expected.json`), 'utf8');
     if (actual === expected) phpToNode.green++;
     else {
       phpToNode.red++;
@@ -129,8 +99,8 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.php-actual.json')
   const name = file.slice(0, -'.php-actual.json'.length);
   const oracle = join(dir, `${name}.node.expected.json`);
   if (!existsSync(oracle)) continue;
-  const actual = canonicalOfFile(join(dir, file));
-  const expected = canonicalOfFile(oracle);
+  const actual = readFileSync(join(dir, file), 'utf8');
+  const expected = readFileSync(oracle, 'utf8');
   if (actual === expected) nodeToPhp.green++;
   else {
     nodeToPhp.red++;

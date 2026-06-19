@@ -14,6 +14,7 @@ use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Shared\CanonicalJson;
 use Summae\Core\Shared\Clock;
 use Summae\Core\Shared\Currency;
+use Summae\Core\Shared\Timestamp;
 use Summae\Core\Shared\Uuid;
 
 /**
@@ -101,7 +102,7 @@ final readonly class JournalExportProjection
                 'tenantId' => $this->tenantId->value,
                 'tenantName' => $this->tenantName,
                 'baseCurrency' => $this->baseCurrency->code,
-                'exportedAt' => $this->clock->now()->format(\DateTimeInterface::ATOM),
+                'exportedAt' => Timestamp::canonical($this->clock->now()),
                 'hashAlgorithm' => 'sha256',
                 'streams' => array_map(strval(...), array_keys($streams)),
                 'contentHashes' => $contentHashes,
