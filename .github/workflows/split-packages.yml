@@ -3,14 +3,19 @@ name: Split PHP packages
 # Spiegelt jedes PHP-Paket-Unterverzeichnis in sein eigenes read-only Repo
 # (Superheld/summae-core, -laravel, -cli) — das Symfony/Laravel-Monorepo-Muster.
 # Packagist liest pro Repo eine composer.json im Root; diese Splits liefern das.
-# Auslöser: Git-Tag v* (der Tag wird in die Split-Repos mitgespiegelt).
-# Voraussetzung: Repository-Secret SPLIT_TOKEN (PAT mit Schreibrecht auf die
-# Split-Repos). Der initiale 0.1.0-Split wurde manuell erstellt.
+# Auslöser: Git-Tag v* (automatisch) oder manuell (workflow_dispatch mit Tag).
+# Voraussetzung: Repository-Secret SPLIT_TOKEN (PAT mit Push-Recht auf die
+# Split-Repos). Die Action liest den Token aus der Umgebungsvariable GITHUB_TOKEN.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Zu splittender Tag (z. B. v0.2.0)'
+        required: true
 
 jobs:
   split:
@@ -25,14 +30,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Split ${{ matrix.package.repo }}
         uses: danharrin/monorepo-split-github-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPLIT_TOKEN }}
         with:
+          tag: ${{ inputs.tag || github.ref_name }}
           package_directory: ${{ matrix.package.dir }}
           repository_organization: Superheld
           repository_name: ${{ matrix.package.repo }}
           user_name: github-actions
           user_email: github-actions@github.com
-          api_token: ${{ secrets.SPLIT_TOKEN }}
-          tag: ${{ github.ref_name }}
