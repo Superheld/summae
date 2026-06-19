@@ -13,7 +13,7 @@ use Summae\Core\Shared\Money;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentAssetRepository implements AssetRepository
+final readonly class DatabaseAssetRepository implements AssetRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

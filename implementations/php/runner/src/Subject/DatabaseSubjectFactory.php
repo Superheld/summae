@@ -6,16 +6,16 @@ namespace Summae\Runner\Subject;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Summae\Core\Tenant;
-use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
  * Zweiter Runner-Lauf (JOB-012): dieselbe Konformitätssuite gegen den
- * Eloquent-Adapter. Je Fixture eine frische Datenbank — SQLite
+ * Database-Adapter. Je Fixture eine frische Datenbank — SQLite
  * in-memory per Default, Postgres über SUMMAE_DB_DRIVER=pgsql
  * (SUMMAE_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD).
  */
-final class EloquentSubjectFactory implements SubjectFactory
+final class DatabaseSubjectFactory implements SubjectFactory
 {
     public function create(): Subject
     {
@@ -35,7 +35,7 @@ final class EloquentSubjectFactory implements SubjectFactory
              * @var \Summae\Core\Tax\TaxProfile|null $taxProfile
              * @var \Summae\Core\Mapping\MappingRegistry|null $mappings
              */
-            return (new EloquentTenantFactory($connection))->build(
+            return (new DatabaseTenantFactory($connection))->build(
                 $name,
                 $currency,
                 $clock,

@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-cli",
-    "description": "CLI für summae-core — JSON-Ausgaben, persistenter Arbeitsbereich (SQLite via Eloquent-Adapter)",
+    "description": "CLI für summae-core — JSON-Ausgaben, persistenter Arbeitsbereich (SQLite via Database-Adapter)",
     "type": "library",
     "license": "MIT",
     "homepage": "https://github.com/superheld/summae",

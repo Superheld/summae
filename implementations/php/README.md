@@ -21,7 +21,7 @@ Implementierung muss alle Fixtures byte-identisch und deterministisch erfüllen.
 | Pfad | Inhalt |
 |---|---|
 | `packages/core/` | `superheld/summae-core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
-| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, Eloquent-Adapter, Migrationen |
+| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, Database-Adapter, Migrationen |
 | `packages/cli/` | `superheld/summae-cli` — CLI, JSON-Ausgaben |
 | `runner/` | Fixture-Runner für die Konformitätssuite |
 | `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only** (Maintainer: `make sync`) |

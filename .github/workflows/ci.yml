@@ -32,5 +32,5 @@ jobs:
       - name: Konformitäts-Fixtures gegen In-Memory-Kern (strict)
         run: php runner/bin/run-fixtures.php --strict
 
-      - name: Konformitäts-Fixtures gegen Eloquent-Adapter (strict, SQLite)
-        run: php runner/bin/run-fixtures.php --strict --subject=eloquent
+      - name: Konformitäts-Fixtures gegen Database-Adapter (strict, SQLite)
+        run: php runner/bin/run-fixtures.php --strict --subject=database

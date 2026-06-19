@@ -10,7 +10,7 @@ Implementierungen und ist beim Bauen Pflichtlektüre.
 | Package | Composer-Name | Rolle |
 |---|---|---|
 | `packages/core` | `superheld/summae-core` | Framework-freier Fachkern. Die gesamte Buchführungslogik. Einzige Abhängigkeit: `brick/math`. |
-| `packages/laravel` | `superheld/summae-laravel` | Adapter: DB-Persistenz (`illuminate/database`-Query-Builder, **nicht** das Eloquent-ORM), ServiceProvider, Migrationen. **Keine Fachlogik.** |
+| `packages/laravel` | `superheld/summae-laravel` | Adapter: DB-Persistenz (`illuminate/database`-Query-Builder, **kein ORM**), ServiceProvider, Migrationen. **Keine Fachlogik.** |
 | `packages/cli` | `superheld/summae-cli` | Terminal-Werkzeug (`summae`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
 
 Daneben `superheld/summae-php` (`implementations/php/composer.json`) — die
@@ -47,18 +47,18 @@ Zwei Adapter-Sätze implementieren sie:
 
 - **In-Memory** (`packages/core/src/InMemory/`) — für Tests, Konformitätsläufe,
   die CLI-Logik. Schnell, ohne I/O.
-- **DB-Adapter** (`packages/laravel/src/Repository/`) — für die echte DB.
-  Persistiert die Aggregat-Innereien als JSON-Dokumente in `summae_*`-Tabellen,
-  exakt in Published-Language-Form. **Namens-Hinweis:** Die Klassen heißen
-  historisch `Eloquent*` (`EloquentJournalRepository`, …), nutzen aber den
-  **`illuminate/database`-Query-Builder** (`$connection->table(...)`), **nicht das
-  Eloquent-ORM** (kein `extends Model`). Das Node-Pendant ist Knex — derselbe
-  Query-Builder-Ansatz.
+- **Database** (`packages/laravel/src/Repository/`, Klassen `Database*Repository`) —
+  für die echte DB. Persistiert die Aggregat-Innereien als JSON-Dokumente in
+  `summae_*`-Tabellen, exakt in Published-Language-Form. Nutzt den
+  **`illuminate/database`-Query-Builder** (`$connection->table(...)`), **kein ORM**
+  (kein `extends Model`). Rollenbasiert benannt (nicht nach dem Tool) — das
+  Node-Pendant `@superheld/summae-knex` heißt seine Klassen ebenso `Database*` und
+  nutzt Knex als Query-Builder. Siehe `/docs/architektur.md`.
 
 Zusammengebaut wird ein Mandant durch:
 
 - `Tenant::inMemory(...)` — der Kern für In-Memory-Betrieb.
-- `EloquentTenantFactory::build(...)` — derselbe `Tenant`, nur mit DB-Ports.
+- `DatabaseTenantFactory::build(...)` — derselbe `Tenant`, nur mit DB-Ports.
 
 Beide liefern denselben `Tenant`; alles darüber ist identisch.
 
@@ -67,7 +67,7 @@ Beide liefern denselben `Tenant`; alles darüber ist identisch.
 Das Schichtenmodell (Substrat → Politiksorten → Pack → Konfiguration) ist
 sprachneutral und steht in [`/docs/architektur.md`](../../../docs/architektur.md).
 In PHP konkret: Der `core` ist das Substrat; Regelmodul-/Pack-Daten werden der
-Factory (`Tenant::inMemory` / `EloquentTenantFactory::build`) als Daten übergeben;
+Factory (`Tenant::inMemory` / `DatabaseTenantFactory::build`) als Daten übergeben;
 die App ist das Laravel-Projekt des Nutzers.
 
 ## Eiserne Invarianten
@@ -93,7 +93,7 @@ hält die Operationsliste an *einer* Stelle.
 postVoucher(input)
   → TaxService::expand     (Steuerexpansion, Rundung pro Beleg)
   → Ledger::post           (Prüfreihenfolge, Invarianten, Journalnummer)
-      → JournalRepository::append   (Port → In-Memory oder Eloquent)
+      → JournalRepository::append   (Port → In-Memory oder Database)
       → OpenItem-Automatik bei AR/AP
       → AuditTrail::append
   → PostResult (entry + erzeugte offene Posten)
