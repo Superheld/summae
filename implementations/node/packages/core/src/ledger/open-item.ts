@@ -24,6 +24,26 @@ export class OpenItem {
     readonly partnerId: Uuid | null = null,
   ) {}
 
+  /**
+   * Aus Persistenz wiederherstellen: bereits validierte Ausgleiche direkt setzen
+   * (keine erneute Prüfung) — Pendant zu PHPs `OpenItem::restore`.
+   */
+  static restore(
+    id: Uuid,
+    kind: OpenItemKind,
+    originEntryId: Uuid,
+    originLineIndex: number,
+    money: Money,
+    voucherId: Uuid,
+    openedAt: CalendarDate,
+    partnerId: Uuid | null,
+    settlements: Settlement[],
+  ): OpenItem {
+    const item = new OpenItem(id, kind, originEntryId, originLineIndex, money, voucherId, openedAt, partnerId);
+    item.settlementList.push(...settlements);
+    return item;
+  }
+
   settlements(): Settlement[] {
     return this.settlementList;
   }

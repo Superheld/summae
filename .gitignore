@@ -3,3 +3,4 @@ vendor/
 phpunit.xml
 phpstan.neon
 .DS_Store
+.cross-dbs/

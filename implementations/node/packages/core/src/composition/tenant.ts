@@ -71,16 +71,57 @@ export class Tenant {
     mappings: MappingRegistry = MappingRegistry.empty(),
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
+    return Tenant.fromPorts(
+      idGen.next(), // Mandanten-ID = erste generierte ID (Determinismus)
+      name,
+      baseCurrency,
+      {
+        accounts: new InMemoryAccountRepository(),
+        fiscalYears: new InMemoryFiscalYearRepository(),
+        vouchers: new InMemoryVoucherRepository(),
+        journal: new InMemoryJournalRepository(),
+        openItems: new InMemoryOpenItemRepository(),
+        assets: new InMemoryAssetRepository(),
+        partners: new InMemoryPartnerRepository(),
+        audit: new InMemoryAuditTrail(),
+      },
+      clock,
+      idGen,
+      dimensions,
+      taxCodes,
+      taxProfile,
+      mappings,
+    );
+  }
 
-    const accounts = new InMemoryAccountRepository();
-    const fiscalYears = new InMemoryFiscalYearRepository();
-    const vouchers = new InMemoryVoucherRepository();
-    const journal = new InMemoryJournalRepository();
-    const openItems = new InMemoryOpenItemRepository();
-    const assets = new InMemoryAssetRepository();
-    const partners = new InMemoryPartnerRepository();
-    const audit = new InMemoryAuditTrail();
-
+  /**
+   * Mandant aus beliebigen Ports bauen (Service-Verdrahtung bleibt hier im Kern).
+   * `inMemory` nutzt das mit In-Memory-Ports; der Persistenz-Adapter
+   * (`@superheld/summae-knex`) reicht DB-gestützte Ports herein — derselbe
+   * `Tenant`, nur andere Ports.
+   */
+  static fromPorts(
+    tenantId: Uuid,
+    name: string,
+    baseCurrency: Currency,
+    ports: {
+      accounts: AccountRepository;
+      fiscalYears: FiscalYearRepository;
+      vouchers: VoucherRepository;
+      journal: JournalRepository;
+      openItems: OpenItemRepository;
+      assets: AssetRepository;
+      partners: PartnerRepository;
+      audit: AuditTrail;
+    },
+    clock: Clock,
+    ids: IdGenerator,
+    dimensions: DimensionRegistry = DimensionRegistry.empty(),
+    taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
+    taxProfile: TaxProfile = TaxProfile.default(),
+    mappings: MappingRegistry = MappingRegistry.empty(),
+  ): Tenant {
+    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, audit } = ports;
     const ledger = new Ledger(
       baseCurrency,
       accounts,
@@ -91,15 +132,15 @@ export class Tenant {
       audit,
       dimensions,
       clock,
-      idGen,
+      ids,
     );
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal);
-    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, idGen);
-    const costing = new CostingService(baseCurrency, accounts, journal, idGen);
-    const partnerService = new PartnerService(partners, audit, clock, idGen);
+    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);
+    const costing = new CostingService(baseCurrency, accounts, journal, ids);
+    const partnerService = new PartnerService(partners, audit, clock, ids);
 
     return new Tenant(
-      idGen.next(),
+      tenantId,
       name,
       baseCurrency,
       accounts,
@@ -117,7 +158,7 @@ export class Tenant {
       partnerService,
       mappings,
       clock,
-      idGen,
+      ids,
     );
   }
 }
