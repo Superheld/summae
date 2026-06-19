@@ -114,7 +114,7 @@ Es gibt zwei Wege, einen Mandanten zu erzeugen:
    sofort buchbar (siehe [§ 5](#5-setup--regelmodul-datenformat) und
    [createTenant](#createtenant-bootstrap-operation-sf-01)).
 2. **Programmatisch** über `Tenant::inMemory(...)` (Core, In-Memory-Ports) oder
-   `EloquentTenantFactory::build(...)` (Laravel-Adapter, DB-Persistenz) — hier
+   `DatabaseTenantFactory::build(...)` (Laravel-Adapter, DB-Persistenz) — hier
    übergibt man die Registries (Steuerschlüssel, Mappings, …) als fertige
    Objekte selbst.
 
@@ -163,14 +163,14 @@ const ops    = new TenantOperations(tenant);
 ```php
 use Summae\Core\Shared\Currency;
 use Summae\Core\Composition\TenantOperations;
-use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\DatabaseTenantFactory;
 
 // Factory aus dem Container; nutzt die konfigurierte DB-Connection (s. § 4)
-$tenant = app(EloquentTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
+$tenant = app(DatabaseTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
 $ops    = new TenantOperations($tenant);
 ```
 
-`EloquentTenantFactory::build(...)` hat dieselben Parameter wie `inMemory`, plus
+`DatabaseTenantFactory::build(...)` hat dieselben Parameter wie `inMemory`, plus
 einen zusätzlichen letzten Parameter `tenantId` (`?Uuid`, Default: frisch
 generiert) — damit lässt sich eine bestehende Mandanten-ID wieder aufnehmen.
 Voraussetzung: `php artisan migrate` wurde ausgeführt (s. § 4).
@@ -245,7 +245,7 @@ Die CLI braucht **keine** Datenbank-Zugangsdaten. Sie legt im Arbeitsverzeichnis
 | Datei | Inhalt |
 |---|---|
 | `summae.json` | Mandanten-Meta (Name, Währung, `tenantId`) + Regelmodul-Daten |
-| `summae.sqlite` | die Buchungsdaten (Eloquent/SQLite) |
+| `summae.sqlite` | die Buchungsdaten (Datenbank/SQLite) |
 
 ### Node / In-Memory: keine Konfiguration
 

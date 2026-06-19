@@ -13,7 +13,7 @@ use Illuminate\Support\ServiceProvider;
  * — der framework-freie Kern kommt als Abhängigkeit mit, der Nutzer
  * richtet genau ein Package ein.
  *
- * Bereitgestellt wird die EloquentTenantFactory (Mandanten mit
+ * Bereitgestellt wird die DatabaseTenantFactory (Mandanten mit
  * DB-Persistenz) auf der konfigurierten Connection; Migrationen und
  * Config sind publizierbar.
  */
@@ -23,7 +23,7 @@ final class SummaeServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/summae.php', 'summae');
 
-        $this->app->singleton(EloquentTenantFactory::class, static function (Application $app): EloquentTenantFactory {
+        $this->app->singleton(DatabaseTenantFactory::class, static function (Application $app): DatabaseTenantFactory {
             /** @var \Illuminate\Database\DatabaseManager $db */
             $db = $app->make('db');
             /** @var \Illuminate\Contracts\Config\Repository $config */
@@ -34,7 +34,7 @@ final class SummaeServiceProvider extends ServiceProvider
             /** @var ConnectionInterface $connection */
             $connection = $db->connection($connectionName);
 
-            return new EloquentTenantFactory($connection);
+            return new DatabaseTenantFactory($connection);
         });
     }
 

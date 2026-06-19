@@ -13,7 +13,7 @@ use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentOpenItemRepository implements OpenItemRepository
+final readonly class DatabaseOpenItemRepository implements OpenItemRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

@@ -3,7 +3,7 @@
 Eigenständiges Kommandozeilen-Werkzeug (`summae`) für summae. Alle Ein- und
 Ausgaben sind **JSON** — Zielnutzer ist ein Mensch oder ein LLM-Operator.
 Exit-Codes entsprechen den Fehlercodes der API. Persistiert in einen lokalen
-Arbeitsbereich (SQLite, via Eloquent-Adapter).
+Arbeitsbereich (SQLite, via Database-Adapter).
 
 ```bash
 composer require superheld/summae-cli

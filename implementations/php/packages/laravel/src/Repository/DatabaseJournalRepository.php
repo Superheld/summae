@@ -18,7 +18,7 @@ use Summae\Laravel\Schema\SchemaInstaller;
  * veränderlichen Aggregat-Teile (Status, Text, Zeilen-Korrektur,
  * Storno-Verweis); gelöscht wird nie.
  */
-final readonly class EloquentJournalRepository implements JournalRepository
+final readonly class DatabaseJournalRepository implements JournalRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

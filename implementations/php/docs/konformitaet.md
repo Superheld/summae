@@ -30,7 +30,7 @@ Zwei Subjects, derselbe Runner:
 
 ```bash
 php runner/bin/run-fixtures.php --strict                    # In-Memory-Kern
-php runner/bin/run-fixtures.php --strict --subject=eloquent # Eloquent-Adapter
+php runner/bin/run-fixtures.php --strict --subject=database # Database-Adapter
 ```
 
 Ein neues Subject (z. B. später ein HTTP-Client gegen Node) implementiert nur
@@ -55,7 +55,7 @@ Aus `determinismus.md` der Wissensbasis — jede hat eigene Fixtures:
 ## Status
 
 - **43 Fixtures, 34 Fehlercodes**, alle grün strict gegen In-Memory **und**
-  Eloquent (SQLite + Postgres), Doppellauf deterministisch.
+  Datenbank (SQLite + Postgres), Doppellauf deterministisch.
 - Exporte validieren zusätzlich gegen `testsuite/schema/format.schema.json`
   (JSON Schema draft 2020-12).
 - Spec-Stand: v0.5 (Datenformat). Die Schleife Implementierung → Findings →

@@ -13,7 +13,7 @@ use Summae\Core\Shared\AccountNumber;
 use Summae\Core\Shared\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
-final readonly class EloquentAccountRepository implements AccountRepository
+final readonly class DatabaseAccountRepository implements AccountRepository
 {
     public function __construct(
         private ConnectionInterface $connection,

@@ -9,11 +9,11 @@ Retrofit JOB-V04 (Spec v0.4) vollständig abgearbeitet.
 |---|---|---|
 | M1 | buchfähiger GoBD-Kern, Suite-Teil „core" grün | ✅ |
 | M2 | voller Fibu-Umfang inkl. EÜR/Bilanz | ✅ |
-| M3 | **alle 40 Fixtures grün + Doppellauf deterministisch** | ✅ (In-Memory UND Eloquent) |
+| M3 | **alle 40 Fixtures grün + Doppellauf deterministisch** | ✅ (In-Memory UND Datenbank) |
 | M4 | Laravel-Adapter + CLI nutzbar | ✅ |
 
 - Konformitätssuite: **40/40 grün, 0 Crashes, Doppellauf byte-identisch** —
-  gegen den In-Memory-Kern, gegen Eloquent/SQLite und gegen Eloquent/Postgres 16.
+  gegen den In-Memory-Kern, gegen Datenbank/SQLite und gegen Datenbank/Postgres 16.
 - Qualität: PHPStan level max ohne Fehler, 93 Unit-/Smoke-Tests grün,
   Exporte validieren gegen `format.schema.json` (draft 2020-12).
 - Spec-Stand bei Abnahme: Datenformat v0.4, Testsuite 40 Fixtures
@@ -26,7 +26,7 @@ Retrofit JOB-V04 (Spec v0.4) vollständig abgearbeitet.
 | NF-7.1 Einzelbuchung inkl. Tax-Expansion (postVoucher) | < 50 ms | **3,5 ms** |
 | NF-7.2 SuSa über GJ mit 100.000 Buchungen | Sekunden, nicht Minuten | **0,34 s** |
 | NF-7.2 EÜR-Projektion über denselben Bestand | Sekunden | **0,53 s** |
-| NF-7.3 Konformitätssuite komplett (inkl. Doppellauf) | Minutenbereich | **0,07 s** (In-Memory) / **0,19 s** (Eloquent/SQLite) |
+| NF-7.3 Konformitätssuite komplett (inkl. Doppellauf) | Minutenbereich | **0,07 s** (In-Memory) / **0,19 s** (Datenbank/SQLite) |
 
 Massendurchsatz `post`: ~0,013 ms/Buchung (77k Buchungen/s); Peak-Memory
 bei 100k Buchungen in-memory: 310 MB (Adapter-Betrieb hält das Journal

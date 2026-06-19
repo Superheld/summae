@@ -1,6 +1,6 @@
 # superheld/summae-laravel
 
-Laravel-Integration von summae: ServiceProvider, Eloquent-Persistenz
+Laravel-Integration von summae: ServiceProvider, Datenbank-Persistenz
 (`summae_*`-Tabellen), Migrationen. Der framework-freie Kern
 (`superheld/summae-core`) kommt automatisch als Abhängigkeit mit — du
 installierst **ein** Package.
@@ -16,9 +16,9 @@ weitere Konfiguration nutzt das Package die Default-DB-Connection deiner App.
 ```php
 use Summae\Core\Shared\Currency;
 use Summae\Core\Composition\TenantOperations;
-use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\DatabaseTenantFactory;
 
-$tenant = app(EloquentTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
+$tenant = app(DatabaseTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
 $ops    = new TenantOperations($tenant);
 ```
 

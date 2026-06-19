@@ -14,7 +14,7 @@ use Summae\Core\Shared\UuidV7IdGenerator;
 use Summae\Core\Tax\TaxCodeRegistry;
 use Summae\Core\Tax\TaxProfile;
 use Summae\Core\Tenant;
-use Summae\Laravel\EloquentTenantFactory;
+use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
@@ -110,7 +110,7 @@ final class Workspace
 
         $tenantId = is_string($config['tenantId'] ?? null) ? Uuid::fromString($config['tenantId']) : null;
 
-        $tenant = (new EloquentTenantFactory($this->connection()))->build(
+        $tenant = (new DatabaseTenantFactory($this->connection()))->build(
             is_string($config['name'] ?? null) ? $config['name'] : 'CLI',
             Currency::of(is_string($config['baseCurrency'] ?? null) ? $config['baseCurrency'] : 'EUR'),
             $clock,
