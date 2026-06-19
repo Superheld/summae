@@ -6,8 +6,10 @@ PHP     = $(COMPOSE) run --rm php
 fixtures:     ## Konformitäts-Fixtures gegen den Kern laufen lassen
 	$(PHP) php runner/bin/run-fixtures.php
 
-cross:        ## SF-15 Cross-Test: PHP schreibt SQLite, Node liest dieselbe DB (geteilte Daten)
+cross:        ## SF-15 Cross-Test (beide Richtungen): PHP <-> Node auf geteilter SQLite
 	$(PHP) php runner/bin/cross-export.php
+	cd implementations/node && pnpm exec tsx runner/bin/cross-write.ts
+	$(PHP) php runner/bin/cross-read.php
 	cd implementations/node && pnpm exec tsx runner/bin/cross-read.ts
 
 build:        ## PHP-Image bauen
