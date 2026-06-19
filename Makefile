@@ -1,10 +1,14 @@
 COMPOSE = docker compose
 PHP     = $(COMPOSE) run --rm php
 
-.PHONY: build install test stan check sync shell fixtures
+.PHONY: build install test stan check sync shell fixtures cross
 
 fixtures:     ## Konformitäts-Fixtures gegen den Kern laufen lassen
 	$(PHP) php runner/bin/run-fixtures.php
+
+cross:        ## SF-15 Cross-Test: PHP schreibt SQLite, Node liest dieselbe DB (geteilte Daten)
+	$(PHP) php runner/bin/cross-export.php
+	cd implementations/node && pnpm exec tsx runner/bin/cross-read.ts
 
 build:        ## PHP-Image bauen
 	$(COMPOSE) build php
