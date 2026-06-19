@@ -29,9 +29,13 @@ pnpm fixtures      # Konformitäts-Runner (tsx); --strict = Doppellauf byte-iden
   `verbatimModuleSyntax` (`tsconfig.base.json`) — **nicht aufweichen.**
 - **Geld nie als `number`** → `big.js` (Money), gleiche half-up-Regel wie PHP
   (von Null weg, *kein* banker's rounding).
-- **Kern framework-frei:** in `packages/core/**` keine Web-/DB-Frameworks — eslint
-  `no-restricted-imports` erzwingt das. Strukturelles Pendant zu „kein
-  `use Illuminate\…` im Core". Adapter werden eigene Pakete (ab M4).
+- **Kern framework-frei:** in `packages/core/**` keine Web-/DB-Frameworks und keine
+  DB-Treiber — eslint `no-restricted-imports` erzwingt das. Strukturelles Pendant zu
+  „kein `use Illuminate\…` im Core". Adapter werden eigene Pakete (ab M4).
+- **Persistenz (M4):** über **Knex** als Schema-/Query-Builder (direktes Pendant zu
+  `illuminate/database` der PHP-Seite) mit **better-sqlite3** als sqlite-Treiber, **pg**
+  für Postgres. Ziel ist bit-genaues Treffen des `summae_*`-Schemas der PHP-Seite
+  (geteilte DB, siehe Qualitätsrichtlinie im Root-`CLAUDE.md`).
 - Tests mit **vitest**; Determinismus wie projektweit gefordert (injizierbare
   Clock/IdGenerator, Runner nutzt `FixedClock` + `DeterministicIdGenerator`).
 - Bewusst ungenutzte Bindungen mit `_`-Präfix kennzeichnen.
