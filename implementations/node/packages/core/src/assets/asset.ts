@@ -77,6 +77,65 @@ export class Asset {
     this.depreciations.push({ planMonth, date, amount, entryId });
   }
 
+  /** AfA-Lebenslauf in persistierbarer Form — Pendant zu PHPs `depreciationsForPersistence`. */
+  depreciationsForPersistence(): Array<{
+    planMonth: number;
+    date: string;
+    amount: { amount: string; currency: string };
+    entryId: string;
+  }> {
+    return this.depreciations.map((booking) => ({
+      planMonth: booking.planMonth,
+      date: booking.date.iso,
+      amount: booking.amount.toJSON(),
+      entryId: booking.entryId.value,
+    }));
+  }
+
+  /**
+   * Aus Persistenz wiederherstellen: Stammdaten + AfA-Lebenslauf + Abgangsstatus
+   * direkt setzen (keine erneute Prüfung) — Pendant zu PHPs `Asset::restore`.
+   */
+  static restore(
+    id: Uuid,
+    name: string,
+    assetClass: string,
+    assetAccount: AccountNumber,
+    acquisitionCost: Money,
+    acquiredOn: CalendarDate,
+    route: AssetRoute,
+    usefulLifeMonths: number | null,
+    monthlySchedule: Money[],
+    voucherId: Uuid,
+    depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid }>,
+    disposed: boolean,
+    disposedOn: CalendarDate | null,
+  ): Asset {
+    const asset = new Asset(
+      id,
+      name,
+      assetClass,
+      assetAccount,
+      acquisitionCost,
+      acquiredOn,
+      route,
+      usefulLifeMonths,
+      monthlySchedule,
+      voucherId,
+    );
+    for (const booking of depreciations) {
+      asset.depreciations.push({
+        planMonth: booking.planMonth,
+        date: booking.date,
+        amount: booking.amount,
+        entryId: booking.entryId,
+      });
+    }
+    asset.disposed = disposed;
+    asset.disposedOn = disposedOn;
+    return asset;
+  }
+
   accumulatedDepreciationAt(asOf: CalendarDate | null): Money {
     let sum = this.acquisitionCost.subtract(this.acquisitionCost); // 0 in Mandantenwährung
     for (const booking of this.depreciations) {

@@ -2,12 +2,14 @@ import {
   Account,
   AccountNumber,
   CalendarDate,
+  type Clock,
   Currency,
   DeterministicIdGenerator,
   DimensionRegistry,
   DomainError,
   FixedClock,
   FiscalYear,
+  type IdGenerator,
   MappingRegistry,
   type PeriodDefinition,
   TaxCodeRegistry,
@@ -39,10 +41,39 @@ function asRecordList(value: unknown): Record<string, unknown>[] {
  * setup-Block und routet execute/project über TenantOperations; DomainError
  * wird in SubjectError (Katalog-Code) übersetzt.
  */
+/**
+ * Adapter-Hook: baut den Mandanten aus dem setup-Block. Default = In-Memory;
+ * der Database-Subject reicht einen Builder herein, der DB-gestützte Ports
+ * verdrahtet (Signatur = `Tenant.inMemory`).
+ */
+export type TenantBuilder = (
+  name: string,
+  baseCurrency: Currency,
+  clock: Clock,
+  ids: IdGenerator,
+  dimensions: DimensionRegistry,
+  taxCodes: TaxCodeRegistry,
+  taxProfile: TaxProfile,
+  mappings: MappingRegistry,
+) => Tenant;
+
 export class CoreSubject implements Subject {
   private tenant: Tenant | null = null;
   private ruleModules: Record<string, unknown> = {};
   private readonly tenants = new Map<string, Tenant>();
+
+  constructor(
+    private readonly buildTenant: TenantBuilder = (
+      name,
+      baseCurrency,
+      clock,
+      ids,
+      dimensions,
+      taxCodes,
+      taxProfile,
+      mappings,
+    ) => Tenant.inMemory(name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings),
+  ) {}
 
   setup(setup: Record<string, unknown>): void {
     // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
@@ -96,7 +127,7 @@ export class CoreSubject implements Subject {
       Array.isArray(ruleModules.mappings) ? ruleModules.mappings : [],
     );
 
-    const tenant = Tenant.inMemory(name, currency, clock, ids, dimensions, taxCodes, taxProfile, mappings);
+    const tenant = this.buildTenant(name, currency, clock, ids, dimensions, taxCodes, taxProfile, mappings);
     tenant.assetService.setRuleModule(ruleModules);
 
     for (const accountData of asRecordList(setup.accounts)) {
