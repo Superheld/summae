@@ -7,6 +7,7 @@ namespace Summae\Core\Ledger;
 use Summae\Core\DomainError;
 use Summae\Core\Shared\CalendarDate;
 use Summae\Core\Shared\PeriodRef;
+use Summae\Core\Shared\Timestamp;
 use Summae\Core\Shared\Uuid;
 
 /**
@@ -112,7 +113,7 @@ final class JournalEntry implements \JsonSerializable
             'status' => $this->status->value,
             'entryDate' => $this->entryDate->iso,
             'voucherDate' => $this->voucherDate?->iso,
-            'recordedAt' => $this->recordedAt->format(\DateTimeInterface::ATOM),
+            'recordedAt' => Timestamp::canonical($this->recordedAt),
             'periodRef' => $this->periodRef->jsonSerialize(),
             'voucherId' => $this->voucherId->value,
             'text' => $this->text,

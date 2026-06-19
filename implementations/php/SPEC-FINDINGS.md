@@ -113,7 +113,17 @@ Format je Befund:
 - **Vorschlag:** Eigenen Code `E_FISCALYEAR_UNFINALIZED_ENTRIES` erwägen
   oder die Wiederverwendung dokumentieren.
 
-## F-CROSS-001: Zeitstempel-Serialisierung nicht kanonisch über Implementierungen
+## F-CROSS-001: Zeitstempel-Serialisierung nicht kanonisch über Implementierungen — ✅ GELÖST
+
+> **Aufgelöst (2026-06-20):** Kanonisches Format eingeführt — UTC, RFC 3339 mit
+> fester Millisekunden-Stelle und `Z` (byte-identisch zu JS `toISOString`). PHP:
+> neuer Helper `Summae\Core\Shared\Timestamp::canonical()`, genutzt für `recordedAt`
+> (JournalEntry + DB-Spalte `recorded_at`), `at` (AuditRecord) und `exportedAt`
+> (journalExport). Node erzeugte das Format bereits. Der bidirektionale Cross-Test
+> vergleicht seither den **vollständigen** journalExport **byte-genau** (inkl.
+> contentHashes + exportedAt), ohne jede Ausnahme — 44/44 in beide Richtungen.
+> Kein Fixture pinnte die Zeitstempel, daher keine Konformitätsänderung. Spec-Notiz
+> für `determinismus.md` (Wissensbasis): kanonisches Zeitstempel-Format festschreiben.
 
 - **Job:** Node-M4 (SF-15 Cross-Test, beide Richtungen)
 - **Was:** PHP und Node serialisieren die Zeitstempel `recordedAt` (Buchung) und

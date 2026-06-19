@@ -15,7 +15,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Core\Shared\CanonicalJson;
 use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\SystemClock;
+use Summae\Core\Shared\FixedClock;
 use Summae\Core\Shared\Uuid;
 use Summae\Core\Shared\UuidV7IdGenerator;
 use Summae\Laravel\DatabaseTenantFactory;
@@ -74,7 +74,8 @@ foreach ($files as $dbFile) {
         continue;
     }
 
-    $clock = new SystemClock();
+    // Gleiche fixe Uhr wie Nodes Oracle ⇒ auch das exportedAt-Instant stimmt überein.
+    $clock = FixedClock::at('2026-06-07T12:00:00+02:00');
     $tenant = (new DatabaseTenantFactory($connection))->build(
         is_string($tenantData['name'] ?? null) ? $tenantData['name'] : 'Cross',
         Currency::of(is_string($tenantData['baseCurrency'] ?? null) ? $tenantData['baseCurrency'] : 'EUR'),
