@@ -16,7 +16,9 @@ export default tseslint.config(
   },
   {
     // Kern framework-frei — strukturelles Pendant zu PHP "kein use Illuminate\…".
-    // Adapter (NestJS/Express, Prisma/Knex) sind eigene Pakete (ab Node-M4).
+    // Adapter sind eigene Pakete (ab Node-M4): Persistenz via Knex (Schema-/Query-Builder,
+    // Pendant zu illuminate/database) + better-sqlite3 (sqlite) / pg (postgres) als Treiber;
+    // HTTP via NestJS/Express o. Ä. Im Kern weder Framework noch DB-Treiber.
     files: ['packages/core/**/*.ts'],
     rules: {
       'no-restricted-imports': [
@@ -27,6 +29,8 @@ export default tseslint.config(
             'fastify',
             '@nestjs/*',
             'knex',
+            'better-sqlite3',
+            'pg',
             'prisma',
             '@prisma/*',
             'typeorm',

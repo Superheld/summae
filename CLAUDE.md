@@ -32,7 +32,7 @@ Buchführungslogik. Persistenz und Terminal-Werkzeug sind dünne Adapter *außen
 
 **Ports & Adapter.** Der Core definiert Interfaces (`AccountRepository`,
 `JournalRepository`, …). Adapter-Sätze: In-Memory (Tests/Konformität) und echte
-Persistenz (z. B. Eloquent, persistiert Aggregate als JSON in `summae_*`-Tabellen —
+Persistenz (z. B. der PHP-`laravel`-Adapter via `illuminate/database`, persistiert Aggregate als JSON in `summae_*`-Tabellen —
 das geteilte Datenformat, siehe Qualitätsrichtlinie). Ein Mandant (`Tenant`) wird
 mit dem einen oder anderen Port-Satz gebaut.
 
