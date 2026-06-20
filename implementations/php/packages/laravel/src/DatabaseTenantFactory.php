@@ -33,7 +33,7 @@ use Summae\Laravel\Repository\DatabaseVoucherRepository;
 /**
  * Baut einen Mandanten mit Datenbank-Persistenz — gleiche Services wie
  * Tenant::inMemory, nur die Ports zeigen auf die Datenbank. Der Kern
- * bleibt unberührt (Hexagonal, AGENT-BRIEFING).
+ * bleibt unberührt (Hexagonal, RUNTIME-LEITFADEN).
  *
  * Regelmodul-Daten (Steuerschlüssel, Profile, Mappings, Dimensionen)
  * sind versionierte Daten der App-Schicht und werden pro Instanz

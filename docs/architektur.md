@@ -5,7 +5,7 @@ Implementierung (PHP, Node, …) und für jeden, der ein Pack oder eine Operatio
 baut. Sprachspezifische Pfade/Packages stehen in `implementations/<sprache>/docs/`.
 
 > Normative Tiefe liegt in der Wissensbasis (`40-domaenenmodell/jurisdiction-profil.md`,
-> `subdomains-und-kontexte.md`). Die wird **nicht** mit ausgeliefert — darum trägt
+> `context-map.md`). Die wird **nicht** mit ausgeliefert — darum trägt
 > dieses Dokument das Modell self-contained im Repo.
 
 ## Der Stapel
