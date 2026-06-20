@@ -5,6 +5,12 @@ sich widersprechen oder etwas fehlt. Regel aus dem Briefing: **nicht raten, nich
 die Fixture ändern** — hier dokumentieren, mit dem nächstplausiblen Verhalten
 weiterbauen. Fließt zurück ins Entscheidungslog der Wissensbasis.
 
+> **Master ist die Wissensbasis** (`80-implementierung/SPEC-FINDINGS.md`) — sie ist
+> Obermenge und enthält zusätzlich die fachlichen Findings F-008…F-011 (USt/Storno,
+> aus der Fixture-Verifikation). Diese Datei ist der lokale Eskalationspunkt der
+> PHP-Implementierung; neue Befunde hier anlegen **und** in den Wissensbasis-Master
+> spiegeln. F-CROSS-001 (unten) ist dort bereits übernommen.
+
 > **✅ Alle Befunde F-001 bis F-007 in Spec v0.5 aufgelöst** (2026-06-08,
 > Entscheidungslog + `SPEC-UPDATE-v0.5.md`) und in JOB-V05 implementiert:
 > - F-001 → eigener Code `E_VOUCHER_UNKNOWN`
