@@ -54,7 +54,7 @@ Aus `determinismus.md` der Wissensbasis — jede hat eigene Fixtures:
 
 ## Status
 
-- **43 Fixtures, 34 Fehlercodes**, alle grün strict gegen In-Memory **und**
+- **45 Fixtures, 34 Fehlercodes**, alle grün strict gegen In-Memory **und**
   Datenbank (SQLite + Postgres), Doppellauf deterministisch.
 - Exporte validieren zusätzlich gegen `testsuite/schema/format.schema.json`
   (JSON Schema draft 2020-12).
