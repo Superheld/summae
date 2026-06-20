@@ -2,7 +2,7 @@
 #
 # Synchronisiert die Konformitäts-Testsuite aus der Wissensbasis.
 # Einbahnstraße: Wissensbasis -> testsuite/. Fixtures werden hier NIE editiert
-# (Befunde gehören nach SPEC-FINDINGS.md, siehe AGENT-BRIEFING).
+# (Befunde gehören nach SPEC-FINDINGS.md, siehe RUNTIME-LEITFADEN).
 #
 # Quelle: $SUMMAE_TESTSUITE_SRC, sonst Auto-Suche nach ../Rechnungswesen*/70-testsuite
 set -euo pipefail
