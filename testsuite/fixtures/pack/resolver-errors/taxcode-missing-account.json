@@ -1,0 +1,55 @@
+{
+  "fixture": "resolver-taxcode-missing-account",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: ein Steuerschlüssel bucht per taxAccount auf ein Konto, das der gewählte Kontenrahmen nicht enthält (Integritätsprüfung I1). Referenz zeigt ins Nichts → E_PACK_UNRESOLVED_REF.",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_UNRESOLVED_REF", "I1"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-ohne-ustkonto", "version": "1.0",
+        "name": "Kontenrahmen ohne USt-Konto", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "tax", "id": "de-ust-2026", "version": "2026.1",
+        "name": "USt Deutschland 2026", "contributes": ["taxCodes"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-ohne-ustkonto" } ],
+        "data": { "taxCodes": [
+          { "code": "USt19", "versions": [
+            { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81", "mechanism": "standard" }
+          ] }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-tax-no-account", "name": "Pack: Steuerkonto fehlt im Kontenrahmen", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "coa-ohne-ustkonto", "version": "1.0" },
+          { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-tax-no-account", "version": "1.0" } },
+      "expect": {
+        "comment": "USt19 bucht auf taxAccount 1776; der Kontenrahmen coa-ohne-ustkonto hat nur 1200/8400. I1: jeder taxAccount muss im gefalteten Kontenrahmen existieren — fehlt → Referenz ins Nichts → E_PACK_UNRESOLVED_REF.",
+        "error": "E_PACK_UNRESOLVED_REF"
+      }
+    }
+  ],
+  "projections": []
+}

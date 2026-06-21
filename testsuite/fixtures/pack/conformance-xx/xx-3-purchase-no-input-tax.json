@@ -1,0 +1,120 @@
+{
+  "fixture": "xx-3-purchase-no-input-tax",
+  "description": "Test-Pack XX (komponiert): Einkauf ohne Vorsteuerabzug als Struktur-Beweis. Das Pack definiert kein tax_in-Konto und keinen Eingangssteuer-Code — gezahlte Sales Tax ist schlicht Aufwand (eine Bruttozeile, kein taxTag). Der Versuch, einen nicht definierten Eingangssteuer-Code zu nutzen, scheitert laut. Der Sales-Tax-Report zeigt nur die Ausgangsseite. Erwartungswerte 1:1 aus entwurf-pack-policy-testpack-2026-06-09.md § 4 (Fixture XX-3).",
+  "covers": ["F-TAX-001", "F-PACK-POLICY-003"],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "xx-minimal", "kind": "accounts", "version": "2026.1",
+          "name": "XX Minimal-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+          "data": { "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "120", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "200", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+            { "number": "210", "name": "Sales Tax fällig", "type": "liability", "subtype": "tax_out" },
+            { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+            { "number": "400", "name": "Erlöse", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-salestax", "kind": "tax", "version": "2026.1",
+          "name": "XX Sales Tax ST75", "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "xx-minimal" } ],
+          "data": { "taxCodes": [
+            { "code": "ST75", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "7.50", "taxAccount": "210", "reportingKey": "S1", "mechanism": "standard" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-policy", "kind": "policy", "version": "2026.1",
+          "name": "XX Policy", "contributes": ["policy"], "dependsOn": [],
+          "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 } }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6", "id": "xx-test-conformance", "name": "Fiktive Jurisdiktion XX", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+          { "kind": "tax", "id": "xx-salestax", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "XX Trade GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "accountCount": 7, "taxationMethod": "accrual" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-XX-001", "voucherDate": "2026-05-10" },
+        "entryDate": "2026-05-10", "text": "Ausgangsrechnung 100.000 netto",
+        "taxCode": "ST75", "direction": "output",
+        "netLines": [
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.320", "currency": "XXD" } }
+        ],
+        "counterAccount": "120"
+      },
+      "expect": {
+        "result": {
+          "comment": "perLine Skala 3 → Steuer 7.501 (vgl. XX-1); Forderung 107.501.",
+          "entry": { "sequenceNumber": 1 },
+          "grossTotal": { "amount": "107.501", "currency": "XXD" }
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-20", "taxCode": "VST75", "direction": "input",
+        "netLines": [ { "account": "600", "money": { "amount": "40.000", "currency": "XXD" } } ]
+      },
+      "expect": {
+        "error": "E_TAXCODE_UNKNOWN",
+        "comment": "Das Pack definiert keinen Eingangssteuer-Code — der Versuch scheitert laut (E_TAXCODE_UNKNOWN). Hätte ein Profil/Manifest den fehlenden Code referenziert, wäre es schon bei der Auflösung E_PACK_UNRESOLVED_REF (I4: jeder referenzierte taxCode muss von einem aufgelösten tax-Modul stammen)."
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-XX-001", "voucherDate": "2026-05-20" },
+        "entryDate": "2026-05-20", "text": "Eingangsrechnung brutto (gezahlte Sales Tax ist Aufwand)",
+        "lines": [
+          { "account": "600", "side": "debit", "money": { "amount": "43.000", "currency": "XXD" } },
+          { "account": "200", "side": "credit", "money": { "amount": "43.000", "currency": "XXD" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Netto 40.000 + vom Lieferanten berechnete 7,5 % = 3.000 → Brutto 43.000. Eine Aufwandszeile zum Bruttobetrag, kein taxTag, kein tax_in-Konto. Der Kern erzwingt nirgends eine Eingangssteuer-Expansion.",
+          "entry": { "sequenceNumber": 2 }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2, "asOf": "2026-07-01" },
+      "expect": {
+        "comment": "Nur die Ausgangsseite (Kennzahl S1): Basis 100.000, Steuer 7.501. Der Einkauf taucht steuerlich nirgends auf — kein Vorsteuerabzug ist im XX-Pack eine Daten-Aussage.",
+        "keys": {
+          "S1": { "base": "100.000", "tax": "7.501" }
+        },
+        "payload": { "amount": "7.501", "currency": "XXD" }
+      }
+    }
+  ]
+}

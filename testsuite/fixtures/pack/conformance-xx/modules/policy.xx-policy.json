@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "xx-policy",
+  "kind": "policy",
+  "version": "2026.1",
+  "name": "XX Policy (half-up, perLine, Skala 3)",
+  "contributes": ["policy"],
+  "dependsOn": [],
+  "data": {
+    "packPolicy": {
+      "roundingMode": "halfUpAwayFromZero",
+      "taxRoundingGranularity": "perLine",
+      "currencyScale": 3
+    }
+  }
+}

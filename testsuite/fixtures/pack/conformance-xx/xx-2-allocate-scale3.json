@@ -1,0 +1,94 @@
+{
+  "fixture": "xx-2-allocate-scale3",
+  "description": "Test-Pack XX (komponiert): allocate (largest remainder, Gleichstand → erster in stabiler Reihenfolge) auf currencyScale 3. (a) 100.000 auf 3 → 33.334/33.333/33.333; (b) Kleinstbetrag 0.010 auf 3 → 0.004/0.003/0.003 (Restverteilung dominiert den Betrag). Beweist, dass allocate die Zielskala aus packPolicy.currencyScale bezieht. Erwartungswerte 1:1 aus entwurf-pack-policy-testpack-2026-06-09.md § 4 (Fixture XX-2).",
+  "covers": ["F-KLR-003", "F-PACK-POLICY-002"],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "xx-minimal", "kind": "accounts", "version": "2026.1",
+          "name": "XX Minimal-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+          "data": { "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "120", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "200", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+            { "number": "210", "name": "Sales Tax fällig", "type": "liability", "subtype": "tax_out" },
+            { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+            { "number": "400", "name": "Erlöse", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-salestax", "kind": "tax", "version": "2026.1",
+          "name": "XX Sales Tax ST75", "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "xx-minimal" } ],
+          "data": { "taxCodes": [
+            { "code": "ST75", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "7.50", "taxAccount": "210", "reportingKey": "S1", "mechanism": "standard" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-policy", "kind": "policy", "version": "2026.1",
+          "name": "XX Policy", "contributes": ["policy"], "dependsOn": [],
+          "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 } }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6", "id": "xx-test-conformance", "name": "Fiktive Jurisdiktion XX", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+          { "kind": "tax", "id": "xx-salestax", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "XX Costing GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "accountCount": 7, "taxationMethod": "accrual" } }
+    },
+    {
+      "op": "allocate",
+      "input": {
+        "tenant": "$T1",
+        "total": { "amount": "100.000", "currency": "XXD" },
+        "weights": ["1", "1", "1"]
+      },
+      "expect": {
+        "result": {
+          "comment": "(a) 100.000 ÷ 3 = 33.333 3…; je Teil 33.333 → Σ 99.999, Rest 0.001 (eine Skaleneinheit). Reste gleich → Gleichstand → erster Teil bekommt den Rest. Skala 3 aus packPolicy.",
+          "parts": [
+            { "amount": "33.334", "currency": "XXD" },
+            { "amount": "33.333", "currency": "XXD" },
+            { "amount": "33.333", "currency": "XXD" }
+          ],
+          "total": { "amount": "100.000", "currency": "XXD" }
+        }
+      }
+    },
+    {
+      "op": "allocate",
+      "input": {
+        "tenant": "$T1",
+        "total": { "amount": "0.010", "currency": "XXD" },
+        "weights": ["1", "1", "1"]
+      },
+      "expect": {
+        "result": {
+          "comment": "(b) 0.010 ÷ 3 = 0.003 3…; je 0.003 → Σ 0.009, Rest 0.001 → erster Teil. Restverteilung dominiert den Kleinstbetrag — keine Float-/Prozent-Ausweichlogik.",
+          "parts": [
+            { "amount": "0.004", "currency": "XXD" },
+            { "amount": "0.003", "currency": "XXD" },
+            { "amount": "0.003", "currency": "XXD" }
+          ],
+          "total": { "amount": "0.010", "currency": "XXD" }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

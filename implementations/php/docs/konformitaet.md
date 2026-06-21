@@ -54,8 +54,10 @@ Aus `determinismus.md` der Wissensbasis — jede hat eigene Fixtures:
 
 ## Status
 
-- **45 Fixtures, 34 Fehlercodes**, alle grün strict gegen In-Memory **und**
-  Datenbank (SQLite + Postgres), Doppellauf deterministisch.
+- **45 Kern-Fixtures, 38 Fehlercodes (36 mit Fixture)**, alle grün strict gegen
+  In-Memory **und** Datenbank (SQLite + Postgres), Doppellauf deterministisch.
+  Die 13 Pack-Fixtures (`testsuite/fixtures/pack/`) prüfen die v0.6-Pack-Komposition
+  (Resolver) — Stand Gate 1.
 - Exporte validieren zusätzlich gegen `testsuite/schema/format.schema.json`
   (JSON Schema draft 2020-12).
 - Spec-Stand: v0.5 (Datenformat). Die Schleife Implementierung → Findings →

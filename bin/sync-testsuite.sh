@@ -10,7 +10,9 @@ cd "$(dirname "$0")/.."
 
 SRC="${SUMMAE_TESTSUITE_SRC:-}"
 if [[ -z "$SRC" ]]; then
-    for candidate in ../Rechnungswesen*/70-testsuite; do
+    # summae als Geschwister der Wissensbasis (../Rechnungswesen*/70-testsuite)
+    # ODER als Kind der Wissensbasis (../70-testsuite).
+    for candidate in ../Rechnungswesen*/70-testsuite ../70-testsuite; do
         if [[ -d "$candidate" ]]; then
             SRC="$candidate"
             break
@@ -30,6 +32,13 @@ rsync -a --delete "$SRC"/ testsuite/
 SCHEMA_SRC="$(dirname "$SRC")/50-spezifikation/schema"
 if [[ -d "$SCHEMA_SRC" ]]; then
     rsync -a --delete "$SCHEMA_SRC"/ testsuite/schema/
+fi
+
+# Fehlerkatalog (normativ) mitführen, damit validate.py die Code-Abdeckung
+# auch im Spiegel prüft (sonst nur in der Wissensbasis auffindbar).
+KATALOG_SRC="$(dirname "$SRC")/50-spezifikation/fehlerkatalog.md"
+if [[ -f "$KATALOG_SRC" ]]; then
+    cp "$KATALOG_SRC" testsuite/fehlerkatalog.md
 fi
 
 echo "Testsuite synchronisiert aus: $SRC"

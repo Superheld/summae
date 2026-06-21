@@ -1,0 +1,52 @@
+{
+  "fixture": "resolver-colliding-override",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: ein replace-Override zielt auf eine ref, die in der Modulliste gar nicht steht (ins Leere greifender Override). Overrides müssen greifen — sonst ist das Bündel in sich widersprüchlich → E_PACK_INCOHERENT (Auflösungsreihenfolge Schritt 1, Override- und Kollisions-Semantik).",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_INCOHERENT", "override"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "skr03", "version": "2026.1",
+        "name": "SKR03 (Auszug)", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [ { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" } ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "mein-coa", "version": "1.0",
+        "name": "Eigener Kontenrahmen (Ersatz)", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [ { "number": "100000", "name": "Bank", "type": "asset", "subtype": "bank" } ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-bad-override", "name": "Pack mit ins-Leere-greifendem Override", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "skr03", "version": "2026.1" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [
+          {
+            "op": "replace",
+            "ref": { "kind": "accounts", "id": "skr04" },
+            "with": { "kind": "accounts", "id": "mein-coa", "version": "1.0" }
+          }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-bad-override", "version": "1.0" } },
+      "expect": {
+        "comment": "replace-Override auf accounts/skr04 — dieses Modul steht nicht in modules (gelistet ist skr03). Der Override greift ins Leere; Overrides müssen greifen, sonst kollidiert die Auflöse-Absicht mit der Liste → E_PACK_INCOHERENT (kein UNRESOLVED_REF: das Ersatzmodul mein-coa existiert, nur die ref-Identität passt nicht).",
+        "error": "E_PACK_INCOHERENT"
+      }
+    }
+  ],
+  "projections": []
+}

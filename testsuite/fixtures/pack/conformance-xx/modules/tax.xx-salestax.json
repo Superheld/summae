@@ -1,0 +1,19 @@
+{
+  "formatVersion": "0.6",
+  "id": "xx-salestax",
+  "kind": "tax",
+  "version": "2026.1",
+  "name": "XX Sales Tax ST75 (7,5 %, nur Ausgangsseite)",
+  "contributes": ["taxCodes"],
+  "dependsOn": [ { "kind": "accounts", "id": "xx-minimal" } ],
+  "data": {
+    "taxCodes": [
+      {
+        "code": "ST75",
+        "versions": [
+          { "validFrom": "2024-01-01", "validTo": null, "rate": "7.50", "taxAccount": "210", "reportingKey": "S1", "mechanism": "standard" }
+        ]
+      }
+    ]
+  }
+}

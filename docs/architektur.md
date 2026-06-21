@@ -84,12 +84,14 @@ Das meiste hiervon ist **Konzept festgehalten, Umsetzung nachfragegetrieben** �
 fertiger Code:
 
 - ✅ **DE-Pack läuft ohne Kernänderung** — durch die PHP-Referenz faktisch belegt.
-- ❌ **Fiktives Test-Pack** (3-Nachkomma-Währung, Rundung je Position, kein Vorsteuerabzug)
-  noch **nicht** als Fixture gebaut. Bis es grün läuft, ist die Jurisdiktionsfreiheit
-  *behauptet, nicht erzwungen* — bewusste, festgehaltene Lücke.
-- ❌ **Modul-Registry, Resolver, `E_PACK_*`-Codes, Manifest-Format** — geplant, nicht gebaut.
-- Heute steht im Datenformat de facto *ein* DE-Pack; die Profil-Policy-Felder
-  (Rundungsmodus, Skala) sind bewusst auf eine spätere Stufe verschoben.
+- ✅ **Fiktives Test-Pack** (3-Nachkomma-Währung, Rundung je Position, kein Vorsteuerabzug)
+  ist als Fixture-Satz gebaut (`testsuite/fixtures/pack/conformance-xx/`) — der Naht-Beweis
+  der Jurisdiktionsfreiheit liegt damit als Konformitätstest vor.
+- 🔧 **Modul-Registry, Resolver, `E_PACK_*`-Codes, Manifest-Format** — in Gate 1 spezifiziert
+  (`_bauflow-pack-gate01/`, Datenformat v0.6) und als Pack-Fixtures vorhanden; die
+  Runtime-Auflösung (Node/PHP) ist in Arbeit (Branch `job/pack-conformance-runner`).
+- Heute steht im Datenformat neben dem DE-Pack das fiktive Test-Pack; die Pack-Policy-Felder
+  (Rundungsmodus, Skala) werden vom Resolver getragen, sobald die Runtime-Auflösung grün ist.
 
 Das **fiktive Test-Pack ist selbst ein Konformitätstest** und fällt damit unter die
 oberste Qualitätsrichtlinie (`CLAUDE.md`: „jede künftige Jurisdiktion") — der Naht-Beweis

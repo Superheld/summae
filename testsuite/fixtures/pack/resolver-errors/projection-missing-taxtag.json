@@ -1,0 +1,57 @@
+{
+  "fixture": "resolver-referenced-taxcode-missing",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: ein Profil/Manifest referenziert einen taxCode, den kein aufgelöstes tax-Modul bereitstellt (Integritätsprüfung I4, mapping-frei reformuliert). Referenz zeigt ins Nichts → E_PACK_UNRESOLVED_REF.",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_UNRESOLVED_REF", "I4"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-mini", "version": "1.0",
+        "name": "Mini-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+          { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "tax", "id": "de-ust-only-19", "version": "1.0",
+        "name": "USt-Modul, stellt nur USt19 bereit", "contributes": ["taxCodes"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-mini" } ],
+        "data": { "taxCodes": [
+          { "code": "USt19", "versions": [
+            { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81", "mechanism": "standard" }
+          ] }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-referenced-taxcode-missing", "name": "Pack: referenzierter taxCode ohne erzeugendes tax-Modul", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "coa-mini", "version": "1.0" },
+          { "kind": "tax", "id": "de-ust-only-19", "version": "1.0" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [],
+        "taxCodes": ["USt19", "VSt19"],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-referenced-taxcode-missing", "version": "1.0" } },
+      "expect": {
+        "comment": "Das synthetisierte Profil referenziert taxCodes USt19 + VSt19; das einzige tax-Modul (de-ust-only-19) stellt nur USt19 bereit. I4 (mapping-frei): jeder von einem Profil/Manifest referenzierte taxCode muss von einem aufgelösten tax-Modul stammen — VSt19 fehlt → Referenz zeigt ins Nichts → E_PACK_UNRESOLVED_REF.",
+        "error": "E_PACK_UNRESOLVED_REF"
+      }
+    }
+  ],
+  "projections": []
+}
