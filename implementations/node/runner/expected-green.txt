@@ -47,6 +47,8 @@ vat-return-reversal
 voucher-unknown
 
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
+# Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
+default-pack-resolves
 de-complete-override-remove-equals-base
 resolve-de-complete-equals-handfed
 resolver-colliding-override

@@ -41,5 +41,13 @@ if [[ -f "$KATALOG_SRC" ]]; then
     cp "$KATALOG_SRC" testsuite/fehlerkatalog.md
 fi
 
+# Ausgelieferte Pack-Bibliothek (wählbare Packs + wiederverwendbare Module)
+# mitführen — anders als testsuite/ ist das Produkt-Datenbestand, nicht Test.
+PACKLIB_SRC="$(dirname "$SRC")/pack-library"
+if [[ -d "$PACKLIB_SRC" ]]; then
+    rsync -a --delete "$PACKLIB_SRC"/ pack-library/
+    echo "Pack-Bibliothek synchronisiert: $(find pack-library -name '*.json' | wc -l | tr -d ' ') Dateien"
+fi
+
 echo "Testsuite synchronisiert aus: $SRC"
 echo "Fixtures: $(find testsuite/fixtures -name '*.json' | wc -l | tr -d ' ')"

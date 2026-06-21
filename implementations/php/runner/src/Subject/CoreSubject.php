@@ -15,6 +15,7 @@ use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\FiscalYear;
 use Summae\Core\Ledger\Voucher;
 use Summae\Core\Mapping\MappingRegistry;
+use Summae\Runner\PackLibrary;
 use Summae\Core\Shared\AccountNumber;
 use Summae\Core\Shared\CalendarDate;
 use Summae\Core\Shared\Currency;
@@ -42,9 +43,18 @@ final class CoreSubject implements Subject
     /** @var \Closure(string, mixed...): Tenant|null Adapter-Hook: baut den Mandanten (Default: In-Memory) */
     private readonly ?\Closure $tenantBuilder;
 
-    public function __construct(?\Closure $tenantBuilder = null)
+    /** @var array{modules: list<array<mixed>>, manifests: list<array<mixed>>} ausgelieferte Pack-Bibliothek */
+    private readonly array $library;
+
+    /**
+     * @param array{modules: list<array<mixed>>, manifests: list<array<mixed>>}|null $library
+     */
+    public function __construct(?\Closure $tenantBuilder = null, ?array $library = null)
     {
         $this->tenantBuilder = $tenantBuilder;
+        // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
+        // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+        $this->library = $library ?? PackLibrary::load();
     }
 
     private ?Tenant $tenant = null;
@@ -95,13 +105,20 @@ final class CoreSubject implements Subject
         } else {
             $moduleList = [];
         }
-        $this->packModules = array_values(array_filter($moduleList, is_array(...)));
+        // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+        $this->packModules = [
+            ...array_values(array_filter($moduleList, is_array(...))),
+            ...$this->library['modules'],
+        ];
 
         $manifests = is_array($setup['manifests'] ?? null) ? array_values($setup['manifests']) : [];
         if ($pack !== null && is_array($pack['manifest'] ?? null)) {
             $manifests[] = $pack['manifest'];
         }
-        $this->packManifests = array_values(array_filter($manifests, is_array(...)));
+        $this->packManifests = [
+            ...array_values(array_filter($manifests, is_array(...))),
+            ...$this->library['manifests'],
+        ];
 
         if (!is_array($setup['tenant'] ?? null)) {
             // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule
