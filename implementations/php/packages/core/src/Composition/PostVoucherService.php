@@ -68,6 +68,26 @@ final readonly class PostVoucherService
         );
         $this->tenant->vouchers->add($voucher);
 
+        // Direkter Brutto-Modus: explizite `lines` ohne Steuerexpansion (z. B. Zahlungen).
+        if (is_array($input['lines'] ?? null)) {
+            $directResult = $this->tenant->ledger->post([
+                'actor' => $input['actor'] ?? null,
+                'entryDate' => $input['entryDate'] ?? $voucherDate->iso,
+                'voucherId' => $voucher->id->value,
+                'text' => $input['text'] ?? '',
+                'lines' => $input['lines'],
+            ]);
+
+            return [
+                'entry' => $directResult->entry->jsonSerialize(),
+                'openItemsCreated' => array_map(
+                    static fn (OpenItem $item): array => $item->jsonSerialize(),
+                    $directResult->openItemsCreated,
+                ),
+                'voucherId' => $voucher->id->value,
+            ];
+        }
+
         $expansion = $this->tenant->tax->expand([
             'date' => $voucherDate->iso,
             'serviceDate' => $voucher->taxDate()->iso,
