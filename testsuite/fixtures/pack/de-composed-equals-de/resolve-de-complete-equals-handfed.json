@@ -43,6 +43,7 @@
           { "kind": "policy", "id": "de-eur", "version": "2026.1" }
         ],
         "overrides": [],
+        "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" },
         "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
       }
     ]
