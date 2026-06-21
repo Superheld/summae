@@ -5,7 +5,7 @@
   "version": "2026.1",
   "name": "Umsatzsteuer Deutschland (Regelsatz 19 %, ermäßigt 7 %, §13b, ig. Lieferung, Wertabgabe)",
   "contributes": ["taxCodes"],
-  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": {
     "taxCodes": [
       { "code": "USt19", "versions": [

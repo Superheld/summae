@@ -1,15 +1,15 @@
 # de-pack — Deutschland
 
-Das erste vollständige Jurisdiktions-Pack: Deutschland auf dem **neutralen** Kern. Wählbar als
-`createTenant(pack: "de")`. **Eigener Kontenrahmen** (kein SKR übernommen) — wir verwalten die
-Konten selbst; SKR03/04 bleiben über `importChartOfAccounts` zuladbar.
+Das erste vollständige Jurisdiktions-Pack: Deutschland. Wählbar als `createTenant(pack: "de")`.
+**Self-contained:** alle Module liegen in diesem Ordner, kein geteiltes Modul mit anderen Packs
+(Packs bauen nicht aufeinander auf). **Eigener Kontenrahmen** (kein SKR übernommen) — wir verwalten
+die Konten selbst; SKR03/04 bleiben über `importChartOfAccounts` zuladbar.
 
 ## Was drin ist (Module → das Manifest `de.json` komponiert sie)
 
 | Modul | kind | Inhalt |
 |---|---|---|
-| `neutral` *(geteilt, aus `../modules/accounts/`)* | accounts | 32 neutrale Standardkonten |
-| `accounts/de-extras` | accounts | 8 DE-Zusatzkonten: 4020 Skonto/Erlösschmälerung · 4030 ig. Lieferungen · 4040 Kleinunternehmer-Erlöse · 4050 unentgeltliche Wertabgaben · 6010/6020 Bewirtung abziehbar/nicht · 1900/3900 aktive/passive Rechnungsabgrenzung |
+| `accounts/de-konten` | accounts | Eigener DE-Kontenrahmen, **40 Konten** (Standard + DE-Zusatz: 4020 Skonto/Erlösschmälerung · 4030 ig. Lieferungen · 4040 Kleinunternehmer-Erlöse · 4050 Wertabgabe · 6010/6020 Bewirtung · 1900/3900 Rechnungsabgrenzung) |
 | `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (ig. Lieferung), USt19WA (Wertabgabe) — Sätze/Kennzahlen, Konten auf neutralen Nummern |
 | `mappings/de-bilanz` | mapping | Bilanzgliederung HGB §266 |
 | `mappings/de-guv` | mapping | GuV-Gliederung HGB §275 (Gesamtkostenverfahren) |
@@ -30,7 +30,7 @@ Inline) und sind grün in **PHP und Node** (`--strict`, byte-identischer Doppell
 
 | Modul | Anforderung | Test-Fixture |
 |---|---|---|
-| accounts (neutral+de-extras) | löst auf, 40 Konten, als Pack wählbar | `de-pack-resolves` |
+| accounts (`de-konten`) | löst auf, 40 Konten, als Pack wählbar | `de-pack-resolves` |
 | tax · USt19 Regelsatz | F-TAX-002 / SF-02 | `de-pack-resolves`, `de-jahresgang` |
 | tax · USt7 ermäßigt | F-TAX-002 | `de-ust7-ermaessigt` |
 | tax · VSt19 Vorsteuer | F-TAX-002 / SF-03 | `de-eingangsrechnung` |
@@ -38,10 +38,10 @@ Inline) und sind grün in **PHP und Node** (`--strict`, byte-identischer Doppell
 | tax · igL | F-TAX-012 / SF-21 | `de-ig-lieferung` |
 | tax · USt19WA Wertabgabe | F-TAX-010 / SF-20 | `de-wertabgabe` |
 | tax · USt-Voranmeldung | F-TAX-005 / SF-09 | `de-vat-return` |
-| de-extras · 4020 Skonto §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang` |
-| de-extras · 6010/6020 Bewirtung §4(7) | SF-23 | `de-bewirtung` |
-| de-extras · 4040 Kleinunternehmer §19 | F-TAX-004 / SF-11 | `de-kleinunternehmer` |
-| de-extras · 1900/3900 Rechnungsabgrenzung | HGB §266 | `de-jahresgang` |
+| de-konten · 4020 Skonto §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang` |
+| de-konten · 6010/6020 Bewirtung §4(7) | SF-23 | `de-bewirtung` |
+| de-konten · 4040 Kleinunternehmer §19 | F-TAX-004 / SF-11 | `de-kleinunternehmer` |
+| de-konten · 1900/3900 Rechnungsabgrenzung | HGB §266 | `de-jahresgang` |
 | mappings · de-bilanz §266 + de-guv §275 | F-CORE-015 / SF-10 | `de-bilanz-guv`, `de-jahresgang` |
 | depreciation + assetAccounts | F-AST-001/002/003 / SF-05 | `de-afa-lauf`, `de-jahresgang` |
 | policy · perVoucher/Skala 2 | Determinismus | `de-pack-resolves`; Mechanismus `conformance-xx` |

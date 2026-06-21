@@ -5,7 +5,7 @@
   "version": "2026.1",
   "name": "DE Anlagen-Gegenkonten (Zugang, AfA-Aufwand, GWG, Abgang)",
   "contributes": ["assetAccounts"],
-  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": {
     "default": {
       "acquisitionCounterAccount": "1200",

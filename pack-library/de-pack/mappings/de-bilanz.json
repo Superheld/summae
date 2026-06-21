@@ -5,7 +5,7 @@
   "version": "2026.1",
   "name": "Bilanzgliederung HGB §266 (auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
-  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": {
     "mapping": {
       "id": "de-bilanz",

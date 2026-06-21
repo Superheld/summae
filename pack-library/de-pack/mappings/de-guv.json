@@ -5,7 +5,7 @@
   "version": "2026.1",
   "name": "GuV-Gliederung HGB §275 Gesamtkostenverfahren (auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
-  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": {
     "mapping": {
       "id": "de-guv",

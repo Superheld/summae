@@ -4,8 +4,7 @@
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
   "version": "2026.1",
   "modules": [
-    { "kind": "accounts", "id": "neutral", "version": "2026.1" },
-    { "kind": "accounts", "id": "de-extras", "version": "2026.1" },
+    { "kind": "accounts", "id": "de-konten", "version": "2026.1" },
     { "kind": "tax", "id": "de-ust", "version": "2026.1" },
     { "kind": "mapping", "id": "de-bilanz", "version": "2026.1" },
     { "kind": "mapping", "id": "de-guv", "version": "2026.1" },
