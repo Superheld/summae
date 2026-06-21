@@ -45,3 +45,18 @@ partner-and-ec-sales
 costing-run-unknown
 fiscalyear-close-guard
 voucher-unknown
+
+# Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
+de-complete-override-remove-equals-base
+resolve-de-complete-equals-handfed
+resolver-colliding-override
+resolver-dependency-cycle
+resolver-mapping-missing-accounts
+resolver-missing-account-ref
+resolver-referenced-taxcode-missing
+resolver-taxcode-missing-account
+tenant-from-de-complete-posts-identically
+xx-1-tax-perline-vs-pervoucher
+xx-2-allocate-scale3
+xx-3-purchase-no-input-tax
+xx-4-open-item-lifecycle-scale3

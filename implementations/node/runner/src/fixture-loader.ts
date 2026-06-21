@@ -32,11 +32,13 @@ function asRecordList(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.map(asRecord) : [];
 }
 
-function fixtureFromFile(file: string): Fixture {
+function fixtureFromFile(file: string): Fixture | null {
   const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-  const name = typeof data.fixture === 'string' ? data.fixture : file;
+  // Modul-/Pack-Datendateien (pack/**/{modules,packs}/) tragen keinen "fixture"-
+  // Schlüssel — sie sind Resolver-Eingaben, keine Fixtures, und werden übersprungen.
+  if (typeof data.fixture !== 'string') return null;
   return {
-    name,
+    name: data.fixture,
     file,
     setup: asRecord(data.setup),
     steps: asRecordList(data.steps),
@@ -45,22 +47,26 @@ function fixtureFromFile(file: string): Fixture {
 }
 
 /**
- * Lädt alle Fixtures der geteilten Suite (Muster `<kategorie>/<name>.json`,
- * eine Ebene tief — wie der PHP-Glob `* /*.json`), sortiert nach Fixture-Name
- * in Codepoint-Reihenfolge (deterministisch, führende Nullen signifikant).
+ * Lädt alle Fixtures der geteilten Suite rekursiv (`<kategorie>/<name>.json` und
+ * tiefer, z. B. `pack/<gruppe>/<name>.json`). Dateien ohne "fixture"-Schlüssel
+ * (Modul-/Pack-Daten) werden übersprungen. Sortiert nach Fixture-Name in
+ * Codepoint-Reihenfolge (deterministisch, führende Nullen signifikant).
  */
 export function loadFixtures(dir: string = fixturesDir): Fixture[] {
   const fixtures: Fixture[] = [];
 
-  for (const category of readdirSync(dir, { withFileTypes: true })) {
-    if (!category.isDirectory()) continue;
-    const categoryDir = join(dir, category.name);
-
-    for (const entry of readdirSync(categoryDir, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-      fixtures.push(fixtureFromFile(join(categoryDir, entry.name)));
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(path);
+      } else if (entry.isFile() && entry.name.endsWith('.json')) {
+        const fixture = fixtureFromFile(path);
+        if (fixture !== null) fixtures.push(fixture);
+      }
     }
-  }
+  };
+  walk(dir);
 
   fixtures.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return fixtures;
