@@ -1,0 +1,29 @@
+{
+  "fixture": "de-vat-return",
+  "description": "DE-Pack: USt-Voranmeldung als Projektion (F-TAX-005). Cash-Basis (de-Default): USt wird bei Vereinnahmung wirksam. Ausgangsrechnung 19% (netto 1000, USt 190) wird im Q1 bezahlt → VA Q1 Kz 81 (base 1000, tax 190), Zahllast 190.",
+  "covers": ["F-TAX-005", "SF-09"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "VA GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-01-10" },
+        "entryDate": "2026-01-10", "text": "Ausgangsrechnung 19%", "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } } ], "counterAccount": "1400" },
+      "expect": { "result": { "grossTotal": { "amount": "1190.00", "currency": "EUR" }, "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ZAHLUNG-001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10", "text": "Zahlungseingang",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ] },
+      "expect": { "result": { "entry": { "id": "$E2" } } } },
+    { "op": "settle", "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } } }
+  ],
+  "projections": [
+    { "name": "vatReturn", "params": { "tenant": "$T1", "year": 2026, "quarter": 1, "asOf": "2026-04-01" },
+      "expect": { "keys": { "81": { "base": "1000.00", "tax": "190.00" } }, "payload": { "amount": "190.00", "currency": "EUR" } } }
+  ]
+}

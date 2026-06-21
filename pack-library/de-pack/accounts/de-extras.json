@@ -13,7 +13,9 @@
       { "number": "4040", "name": "Erlöse Kleinunternehmer (steuerfrei §19 UStG)", "type": "revenue" },
       { "number": "4050", "name": "Unentgeltliche Wertabgaben (Ertrag)", "type": "revenue" },
       { "number": "6010", "name": "Bewirtungskosten, abziehbar", "type": "expense" },
-      { "number": "6020", "name": "Bewirtungskosten, nicht abziehbar", "type": "expense" }
+      { "number": "6020", "name": "Bewirtungskosten, nicht abziehbar", "type": "expense" },
+      { "number": "1900", "name": "Aktive Rechnungsabgrenzung", "type": "asset" },
+      { "number": "3900", "name": "Passive Rechnungsabgrenzung", "type": "liability" }
     ]
   }
 }

@@ -55,11 +55,13 @@ de-bewirtung
 de-bilanz-guv
 de-eingangsrechnung
 de-ig-lieferung
+de-jahresgang
 de-kleinunternehmer
 de-pack-resolves
 de-reverse-charge
 de-skonto
 de-ust7-ermaessigt
+de-vat-return
 de-wertabgabe
 de-complete-override-remove-equals-base
 resolve-de-complete-equals-handfed

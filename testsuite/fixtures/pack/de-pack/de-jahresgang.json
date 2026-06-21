@@ -1,0 +1,88 @@
+{
+  "fixture": "de-jahresgang",
+  "description": "DE-Pack End-to-End: ein vollständiges Geschäftsjahr über die API auf dem ausgelieferten de-Pack (kein Inline). Einfache Buchung → Vorsteuer → Skonto+settle → ermäßigter Satz → Anlagenzugang → Rechnungsabgrenzung → AfA. Bilanz und Journal zu jeder Zeit korrekt: Zwischenstand 30.06. balanciert (15012=15012), Jahresende balanciert (14012=14012), Jahresergebnis 11800.",
+  "covers": ["F-CORE-015", "F-CORE-016", "SF-10", "SF-05", "SF-18"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Jahresgang GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 40 } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-01-10" },
+        "entryDate": "2026-01-10", "text": "Ausgangsrechnung 19%", "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "10000.00", "currency": "EUR" } } ], "counterAccount": "1400" },
+      "expect": { "result": { "grossTotal": { "amount": "11900.00", "currency": "EUR" }, "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "11900.00", "currency": "EUR" } } ] } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ER-001", "voucherDate": "2026-02-15" },
+        "entryDate": "2026-02-15", "text": "Eingangsrechnung 19%", "taxCode": "VSt19", "direction": "input",
+        "netLines": [ { "account": "6000", "money": { "amount": "2000.00", "currency": "EUR" } } ], "counterAccount": "1200" },
+      "expect": { "result": { "grossTotal": { "amount": "2380.00", "currency": "EUR" } } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ZAHLUNG-001", "voucherDate": "2026-04-15" },
+        "entryDate": "2026-04-15", "text": "Zahlungseingang abzgl. 2% Skonto",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "11662.00", "currency": "EUR" } },
+          { "account": "4020", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-200.00", "currency": "EUR" } } },
+          { "account": "3100", "side": "debit", "money": { "amount": "38.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-200.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "11900.00", "currency": "EUR" } }
+        ] },
+      "expect": { "result": { "entry": { "id": "$E2" } } } },
+
+    { "op": "settle", "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "11900.00", "currency": "EUR" }, "difference": { "money": { "amount": "238.00", "currency": "EUR" }, "kind": "discount" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "AR-002", "voucherDate": "2026-06-30" },
+        "entryDate": "2026-06-30", "text": "Barverkauf 7%", "taxCode": "USt7", "direction": "output",
+        "netLines": [ { "account": "4010", "money": { "amount": "5000.00", "currency": "EUR" } } ], "counterAccount": "1200" },
+      "expect": { "result": { "grossTotal": { "amount": "5350.00", "currency": "EUR" } } } },
+
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-LAPTOP", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset", "input": {
+        "tenant": "$T1", "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "6000.00", "currency": "EUR" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 36 } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ABGR-001", "voucherDate": "2026-11-30" },
+        "entryDate": "2026-11-30", "text": "Vorausbezahlte Versicherung (aktive Rechnungsabgrenzung)",
+        "lines": [
+          { "account": "1900", "side": "debit", "money": { "amount": "1200.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "1200.00", "currency": "EUR" } }
+        ] },
+      "expect": { "result": { "entry": { "sequenceNumber": 6 } } } },
+
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "1000.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "balanceSheet", "params": { "tenant": "$T1", "asOf": "2026-06-30", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": { "assetsTotal": "15012.00", "liabilitiesAndEquityTotal": "15012.00" } },
+    { "name": "balanceSheet", "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": { "assetsTotal": "14012.00", "liabilitiesAndEquityTotal": "14012.00" } },
+    { "name": "incomeStatement", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": { "netIncome": "11800.00" } },
+    { "name": "assetRegister", "params": { "tenant": "$T1", "asOf": "2026-12-31" },
+      "expect": { "assets": [ { "name": "Laptop", "bookValue": { "amount": "5000.00", "currency": "EUR" } } ] } },
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "0100", "balance": "5000.00" },
+        { "account": "1200", "balance": "7432.00" },
+        { "account": "1400", "balance": "0.00" },
+        { "account": "1500", "balance": "380.00" },
+        { "account": "1900", "balance": "1200.00" },
+        { "account": "3100", "balance": "-1862.00" },
+        { "account": "3110", "balance": "-350.00" },
+        { "account": "4000", "balance": "-10000.00" },
+        { "account": "4010", "balance": "-5000.00" },
+        { "account": "4020", "balance": "200.00" },
+        { "account": "6000", "balance": "2000.00" },
+        { "account": "6500", "balance": "1000.00" }
+      ] } }
+  ]
+}

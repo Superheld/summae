@@ -1,6 +1,6 @@
 {
   "fixture": "de-pack-resolves",
-  "description": "DE-Pack-Skeleton: das ausgelieferte `de`-Pack wird aus der Pack-Bibliothek geladen (kein Inline) — neutraler Rahmen (32) + de-extras (6) = 38 Konten, USt-Steuercodes, DE-Policy (cash/perVoucher). Beweist Auflösung + Mandantenbau + eine Standard-USt-Ausgangsbuchung (SF-02) auf den eigenen, neutralen DE-Nummern (4000 Erlöse, 3100 USt — NICHT SKR).",
+  "description": "DE-Pack-Skeleton: das ausgelieferte `de`-Pack wird aus der Pack-Bibliothek geladen (kein Inline) — neutraler Rahmen (32) + de-extras (8) = 40 Konten, USt-Steuercodes, DE-Policy (cash/perVoucher). Beweist Auflösung + Mandantenbau + eine Standard-USt-Ausgangsbuchung (SF-02) auf den eigenen, neutralen DE-Nummern (4000 Erlöse, 3100 USt — NICHT SKR).",
   "covers": ["F-PACK-011", "SF-02"],
   "setup": {},
   "steps": [
@@ -11,7 +11,7 @@
         "result": {
           "id": "de",
           "version": "2026.1",
-          "accountCount": 38,
+          "accountCount": 40,
           "assetAccounts": { "default": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "6500", "gwgExpenseAccount": "6510", "disposalProceedsAccount": "4900", "disposalLossAccount": "6900" } },
           "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
         }
@@ -20,7 +20,7 @@
     {
       "op": "createTenant",
       "input": { "name": "Mustermann GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 38, "taxationMethod": "cash" } }
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 40, "taxationMethod": "cash" } }
     },
     {
       "op": "postVoucher",
