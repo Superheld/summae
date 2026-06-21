@@ -21,11 +21,16 @@ export class Currency {
     readonly scale: number,
   ) {}
 
-  static of(code: string): Currency {
+  /**
+   * `scaleOverride` setzt die Nachkommastellen-Skala explizit (Pack-Parameter
+   * `packPolicy.currencyScale`) — überstimmt die globale Default-/ISO-Skala pro
+   * Mandant (jurisdiktionsfreies Substrat: Skala ist Pack-Sache, nicht global).
+   */
+  static of(code: string, scaleOverride?: number): Currency {
     if (!/^[A-Z]{3}$/.test(code)) {
       throw new InvalidValue(`Ungültiger ISO-4217-Code: "${code}"`);
     }
-    return new Currency(code, SCALES[code] ?? 2);
+    return new Currency(code, scaleOverride ?? SCALES[code] ?? 2);
   }
 
   equals(other: Currency): boolean {

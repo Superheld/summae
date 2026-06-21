@@ -51,14 +51,26 @@ export class TenantFactory {
     const defaults = isRecord(profile.defaults) ? profile.defaults : {};
     const taxProfile = TaxProfile.fromData(defaults);
 
+    // packPolicy.currencyScale ist ein Pack-Parameter: er bestimmt die Geld-Skala
+    // des Mandanten (jurisdiktionsfrei), nicht die globale ISO-Default-Skala.
+    const packPolicy = isRecord(this.ruleModules.packPolicy) ? this.ruleModules.packPolicy : null;
+    const currencyScale =
+      packPolicy !== null && typeof packPolicy.currencyScale === 'number' ? packPolicy.currencyScale : undefined;
+    const taxRoundingGranularity =
+      packPolicy !== null && typeof packPolicy.taxRoundingGranularity === 'string'
+        ? packPolicy.taxRoundingGranularity
+        : undefined;
+
     const tenant = Tenant.inMemory(
       asString(input.name) ?? 'Tenant',
-      Currency.of(asString(input.baseCurrency) ?? 'EUR'),
+      Currency.of(asString(input.baseCurrency) ?? 'EUR', currencyScale),
       this.clock,
       this.ids,
       undefined,
       TaxCodeRegistry.fromData(taxCodeData),
       taxProfile,
+      undefined,
+      taxRoundingGranularity,
     );
 
     let accountCount = 0;

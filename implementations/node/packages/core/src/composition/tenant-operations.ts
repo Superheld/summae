@@ -1,4 +1,5 @@
 import { DomainError } from '../domain-error.js';
+import { Money } from '../shared/money.js';
 import { AssetRegisterProjection } from '../projection/asset-register.js';
 import { MappingImporter } from '../mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../projection/account-sheet.js';
@@ -81,6 +82,19 @@ export class TenantOperations {
         return this.tenant.assetService.dispose(input);
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
+      case 'allocate': {
+        // Largest-Remainder-Verteilung (Money.allocate), Skala aus Mandanten-Währung
+        // (Pack-Parameter currencyScale). Reine Berechnung, kein Journal-Effekt.
+        const totalRaw = input.total;
+        const amount =
+          totalRaw !== null && typeof totalRaw === 'object' && !Array.isArray(totalRaw)
+            ? (totalRaw as Record<string, unknown>).amount
+            : null;
+        const total = Money.of(typeof amount === 'string' ? amount : '', this.tenant.baseCurrency);
+        const weights = Array.isArray(input.weights) ? (input.weights as Array<number | string>) : [];
+        const parts = total.allocate(...weights);
+        return { parts: parts.map((part) => part.toJSON()), total: total.toJSON() };
+      }
       case 'setAllocationScheme':
         return this.tenant.costing.setAllocationScheme(input);
       case 'runCosting': {
