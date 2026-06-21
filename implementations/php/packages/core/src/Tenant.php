@@ -75,6 +75,7 @@ final readonly class Tenant
         ?TaxCodeRegistry $taxCodes = null,
         ?TaxProfile $taxProfile = null,
         ?MappingRegistry $mappings = null,
+        string $taxRoundingGranularity = 'perVoucher',
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -105,7 +106,7 @@ final readonly class Tenant
             $ids,
         );
 
-        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal);
+        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids);
         $costing = new CostingService($baseCurrency, $accounts, $journal, $ids);

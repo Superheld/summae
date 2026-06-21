@@ -1,0 +1,20 @@
+{
+  "formatVersion": "0.6",
+  "id": "xx-minimal",
+  "kind": "accounts",
+  "version": "2026.1",
+  "name": "XX Minimal-Kontenrahmen (7 Konten, kein tax_in)",
+  "contributes": ["accounts"],
+  "dependsOn": [],
+  "data": {
+    "accounts": [
+      { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "120", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "200", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "210", "name": "Sales Tax fällig", "type": "liability", "subtype": "tax_out" },
+      { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+      { "number": "400", "name": "Erlöse", "type": "revenue" },
+      { "number": "600", "name": "Aufwand", "type": "expense" }
+    ]
+  }
+}

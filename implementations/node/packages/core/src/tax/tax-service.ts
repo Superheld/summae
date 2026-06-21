@@ -34,6 +34,8 @@ export class TaxService {
     private readonly registry: TaxCodeRegistry,
     private readonly profileValue: TaxProfile,
     private readonly journal: JournalRepository,
+    // Pack-Parameter: 'perVoucher' (Steuer einmal je Schlüssel) | 'perLine' (je Position).
+    private readonly taxRoundingGranularity: string = 'perVoucher',
   ) {}
 
   profile(): TaxProfile {
@@ -94,6 +96,34 @@ export class TaxService {
         })),
         taxLines: [],
         grossTotal: netTotal.toJSON(),
+      };
+    }
+
+    // perLine (Pack-Parameter): Steuer je Position runden, eine Steuerzeile je
+    // Position. Nur Standard-Mechanismus (perLine wird nicht mit RC/IC kombiniert).
+    if (this.taxRoundingGranularity === 'perLine') {
+      const taxLines: Array<Record<string, unknown>> = [];
+      let grossTotal = netTotal;
+      const lineTags = netLines.map((line) => {
+        const version = versions.get(line.code)!;
+        const tag = this.tag(line.code, version, version.reportingKey, line.money);
+        const tax = Money.fromCalculation(
+          new Big(line.money.amountAsString()).times(version.rate).div(100),
+          this.baseCurrency,
+        );
+        taxLines.push({ account: version.taxAccount, side: sideFor, money: tax.toJSON(), taxTag: tag });
+        grossTotal = grossTotal.add(tax);
+        return tag;
+      });
+      return {
+        netLines: netLines.map((line, index) => ({
+          account: line.account,
+          side: sideFor,
+          money: line.money.toJSON(),
+          taxTag: lineTags[index] ?? null,
+        })),
+        taxLines,
+        grossTotal: grossTotal.toJSON(),
       };
     }
 

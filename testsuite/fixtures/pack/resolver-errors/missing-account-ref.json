@@ -1,0 +1,58 @@
+{
+  "fixture": "resolver-missing-account-ref",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: ein assetAccounts-Modul verweist per number auf ein Anlagen-Bewegungskonto, das der gefaltete Kontenrahmen nicht hat (Integritätsprüfung I3). Referenz zeigt ins Nichts → E_PACK_UNRESOLVED_REF.",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_UNRESOLVED_REF", "I3"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-mini", "version": "1.0",
+        "name": "Mini-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "0480", "name": "Betriebsausstattung", "type": "asset" },
+          { "number": "4830", "name": "Abschreibungen", "type": "expense" }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "assetAccounts", "id": "aa-broken", "version": "1.0",
+        "name": "Anlagenkonten (kaputt)", "contributes": ["assetAccounts"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-mini" } ],
+        "data": { "default": {
+          "acquisitionCounterAccount": "1200",
+          "depreciationExpenseAccount": "4830",
+          "gwgExpenseAccount": "4855",
+          "disposalProceedsAccount": "8820",
+          "disposalLossAccount": "2310"
+        } }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-missing-account", "name": "Pack mit fehlendem Anlagenkonto", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "coa-mini", "version": "1.0" },
+          { "kind": "assetAccounts", "id": "aa-broken", "version": "1.0" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-missing-account", "version": "1.0" } },
+      "expect": {
+        "comment": "gwgExpenseAccount 4855, disposalProceedsAccount 8820, disposalLossAccount 2310 fehlen im gefalteten Kontenrahmen (nur 1200/0480/4830 vorhanden). I3: jedes assetAccounts.*Account muss existieren — Referenz zeigt ins Nichts.",
+        "error": "E_PACK_UNRESOLVED_REF"
+      }
+    }
+  ],
+  "projections": []
+}

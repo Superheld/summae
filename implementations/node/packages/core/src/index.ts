@@ -118,3 +118,11 @@ export { Tenant } from './composition/tenant.js';
 export { TenantOperations } from './composition/tenant-operations.js';
 export { PostVoucherService } from './composition/post-voucher-service.js';
 export { TenantFactory } from './composition/tenant-factory.js';
+export {
+  resolvePack,
+  ruleModulesFromResolved,
+  type ResolvedPack,
+  type PackModule,
+  type PackManifest,
+  type ModuleRef,
+} from './composition/pack-resolver.js';

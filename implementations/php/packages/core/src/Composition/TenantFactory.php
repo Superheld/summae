@@ -62,14 +62,23 @@ final readonly class TenantFactory
         $defaults = is_array($profile['defaults'] ?? null) ? $profile['defaults'] : [];
         $taxProfile = TaxProfile::fromData($defaults);
 
+        // packPolicy ist Pack-Parameter (Geld-Skala + Steuer-Granularität), nicht global.
+        $packPolicy = is_array($this->ruleModules['packPolicy'] ?? null) ? $this->ruleModules['packPolicy'] : null;
+        $currencyScale = is_int($packPolicy['currencyScale'] ?? null) ? $packPolicy['currencyScale'] : null;
+        $granularity = is_string($packPolicy['taxRoundingGranularity'] ?? null)
+            ? $packPolicy['taxRoundingGranularity']
+            : 'perVoucher';
+
         $tenant = Tenant::inMemory(
             is_string($input['name'] ?? null) ? $input['name'] : 'Tenant',
-            Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR'),
+            Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR', $currencyScale),
             $this->clock,
             $this->ids,
             null,
             TaxCodeRegistry::fromData($taxCodeData),
             $taxProfile,
+            null,
+            $granularity,
         );
 
         $accountCount = 0;

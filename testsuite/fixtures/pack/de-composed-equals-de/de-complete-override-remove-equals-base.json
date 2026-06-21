@@ -1,0 +1,87 @@
+{
+  "fixture": "de-complete-override-remove-equals-base",
+  "description": "DE komponiert == DE heute (Override-Pfad, Nutzungsweg 2 'kuratiert + anpassen'): ein de-mini-regression-plus-Manifest listet ein zusätzliches Mapping-Modul, das per overrides[remove] wieder entfernt wird. Der ResolvedPack muss byte-identisch zur reinen Mini-Regressionsbasis (resolve-de-complete-equals-handfed) sein — remove darf nichts an den verbleibenden Beiträgen ändern, und der entfernte Beitrag taucht nirgends auf. Beweist: Komposition über Overrides verändert das Ergebnis nicht still.",
+  "covers": ["F-PACK-003", "SF-27"],
+  "setup": {
+    "moduleSource": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "skr-mini-test", "kind": "accounts", "version": "2026.1",
+          "name": "Mini-Kontenrahmen (DE-Regressionsbasis)",
+          "contributes": ["accounts"],
+          "data": { "accounts": [
+            { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+            { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-ust-2026", "kind": "tax", "version": "2026.1",
+          "name": "USt Deutschland 2026",
+          "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "skr-mini-test" } ],
+          "data": { "taxCodes": [
+            { "code": "USt19", "versions": [
+              { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-eur", "kind": "policy", "version": "2026.1",
+          "name": "DE-Policy (EUR)",
+          "contributes": ["policy"],
+          "data": { "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-guv-275", "kind": "mapping", "version": "2026.1",
+          "name": "GuV §275 (für Remove-Probe)",
+          "contributes": ["mappings"],
+          "dependsOn": [ { "kind": "accounts", "id": "skr-mini-test" } ],
+          "data": { "mapping": {
+            "id": "de-guv-275", "kind": "income-statement", "version": "2026.1",
+            "positions": [ { "key": "1", "label": "Umsatzerlöse", "accounts": [ { "from": "8000", "to": "8999" } ] } ] } }
+        }
+      ]
+    },
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "de-mini-regression-plus", "name": "Deutschland — Mini-Regressionsbasis + GuV, GuV per Override entfernt", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "skr-mini-test", "version": "2026.1" },
+          { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
+          { "kind": "policy", "id": "de-eur", "version": "2026.1" },
+          { "kind": "mapping", "id": "de-guv-275", "version": "2026.1" }
+        ],
+        "overrides": [
+          { "op": "remove", "ref": { "kind": "mapping", "id": "de-guv-275" } }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": "de-mini-regression-plus", "version": "2026.1" },
+      "expect": {
+        "result": {
+          "comment": "Identisch zu resolve-de-complete-equals-handfed: das per remove entfernte GuV-Mapping erscheint nicht, alles andere unverändert.",
+          "chartOfAccounts": {
+            "accounts": [
+              { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+              { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+              { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+            ]
+          },
+          "taxCodes": [
+            { "code": "USt19", "versions": [
+              { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+          ],
+          "mappings": [],
+          "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

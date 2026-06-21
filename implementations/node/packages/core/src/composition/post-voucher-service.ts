@@ -59,6 +59,23 @@ export class PostVoucherService {
     });
     this.tenant.vouchers.add(voucher);
 
+    // Direkter Brutto-Modus: explizite `lines` werden ohne Steuerexpansion gebucht
+    // (z. B. Zahlungen). Der Beleg umhüllt eine gewöhnliche Buchung.
+    if (Array.isArray(input.lines)) {
+      const directResult = this.tenant.ledger.post({
+        actor: input.actor ?? null,
+        entryDate: input.entryDate ?? voucherDate.iso,
+        voucherId: voucher.id.value,
+        text: input.text ?? '',
+        lines: input.lines,
+      });
+      return {
+        entry: JSON.parse(JSON.stringify(directResult.entry)) as Record<string, unknown>,
+        openItemsCreated: directResult.openItemsCreated.map((item) => JSON.parse(JSON.stringify(item)) as unknown),
+        voucherId: voucher.id.value,
+      };
+    }
+
     const expansion = this.tenant.tax.expand({
       date: voucherDate.iso,
       serviceDate: voucher.taxDate().iso,
