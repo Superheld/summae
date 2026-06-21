@@ -26,10 +26,18 @@ final class PackLibrary
             return self::$cached;
         }
 
-        $library = [
-            'modules' => self::readJsonRecursive($dir . '/modules'),
-            'manifests' => self::readJsonRecursive($dir . '/packs'),
-        ];
+        // Inhaltsbasierte Klassifikation: Ordnerstruktur egal — `modules/`+`packs/` ODER ein
+        // gesammelter Pack-Ordner (z. B. `de-pack/`). Manifest = hat `modules[]`; Modul = hat `kind`.
+        $modules = [];
+        $manifests = [];
+        foreach (self::readJsonRecursive($dir) as $json) {
+            if (isset($json['modules']) && is_array($json['modules'])) {
+                $manifests[] = $json;
+            } elseif (isset($json['kind']) && is_string($json['kind'])) {
+                $modules[] = $json;
+            }
+        }
+        $library = ['modules' => $modules, 'manifests' => $manifests];
 
         if ($dir === $default) {
             self::$cached = $library;

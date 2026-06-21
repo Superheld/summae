@@ -1,0 +1,27 @@
+{
+  "fixture": "de-ig-lieferung",
+  "description": "DE-Pack: steuerfreie innergemeinschaftliche Lieferung (taxCode igL → eigenes Konto 4030, Kz 41). Keine Steuerzeile, brutto = netto 1000; Forderung auf 1400 erzeugt offenen Posten.",
+  "covers": ["F-TAX-012", "SF-21"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Export GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-AT-1", "voucherDate": "2026-03-10", "kind": "invoice_out" },
+        "entryDate": "2026-03-10", "text": "ig. Lieferung Österreich",
+        "taxCode": "igL", "direction": "output",
+        "netLines": [ { "account": "4030", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "1000.00", "currency": "EUR" }, "openItemsCreated": [ { "kind": "receivable" } ] } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1400", "balance": "1000.00" },
+        { "account": "4030", "balance": "-1000.00" }
+      ] } }
+  ]
+}

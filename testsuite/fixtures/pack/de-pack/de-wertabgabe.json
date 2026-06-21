@@ -1,0 +1,28 @@
+{
+  "fixture": "de-wertabgabe",
+  "description": "DE-Pack: unentgeltliche Wertabgabe (Kfz-Privatnutzung, §3 Abs. 9a UStG) — taxCode USt19WA, Ertrag 4050, USt 3100, Gegenkonto Privat 2400. Netto 200 → brutto 238, kein Geldfluss.",
+  "covers": ["F-TAX-010", "SF-20"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Freiberufler EÜR", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "EIGENBELEG-KFZ", "voucherDate": "2026-12-31" },
+        "entryDate": "2026-12-31", "text": "Kfz-Privatnutzung 2026 (1-%-Wert)",
+        "taxCode": "USt19WA", "direction": "output",
+        "netLines": [ { "account": "4050", "money": { "amount": "200.00", "currency": "EUR" } } ],
+        "counterAccount": "2400"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "238.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "2400", "balance": "238.00" },
+        { "account": "3100", "balance": "-38.00" },
+        { "account": "4050", "balance": "-200.00" }
+      ] } }
+  ]
+}

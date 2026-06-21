@@ -39,10 +39,17 @@ let cached: PackLibrary | null = null;
  */
 export function loadPackLibrary(dir: string = packLibraryDir): PackLibrary {
   if (dir === packLibraryDir && cached !== null) return cached;
-  const library: PackLibrary = {
-    modules: readJsonFilesRecursive(join(dir, 'modules')) as PackModule[],
-    manifests: readJsonFilesRecursive(join(dir, 'packs')) as PackManifest[],
-  };
+  // Inhaltsbasierte Klassifikation: Ordnerstruktur egal — `modules/`+`packs/` ODER ein
+  // gesammelter Pack-Ordner (z. B. `de-pack/`). Manifest = hat `modules[]`; Modul = hat `kind`.
+  const modules: PackModule[] = [];
+  const manifests: PackManifest[] = [];
+  for (const json of readJsonFilesRecursive(dir)) {
+    if (json === null || typeof json !== 'object') continue;
+    const rec = json as Record<string, unknown>;
+    if (Array.isArray(rec.modules)) manifests.push(rec as unknown as PackManifest);
+    else if (typeof rec.kind === 'string') modules.push(rec as unknown as PackModule);
+  }
+  const library: PackLibrary = { modules, manifests };
   if (dir === packLibraryDir) cached = library;
   return library;
 }

@@ -295,6 +295,14 @@ final class PackResolver
         $profile = is_array($pack['profile'] ?? null) ? $pack['profile'] : [];
         $coa = is_array($pack['chartOfAccounts'] ?? null) ? $pack['chartOfAccounts'] : [];
 
+        // assetAccounts: Resolver-I3 validiert die `default`-Form ({default:{Konten}}); der AssetService
+        // liest die Konten flach → hier auf die flache Form auspacken (Pack-Pfad-Parität zum Inline-Pfad).
+        $aa = is_array($pack['assetAccounts'] ?? null) ? $pack['assetAccounts'] : [];
+        $assetAccounts = is_array($aa['default'] ?? null) ? $aa['default'] : $aa;
+        // depreciation-Daten (gwgThresholds, usefulLife) liest der AssetService top-level → spreaden.
+        /** @var array<string, mixed> $depreciation */
+        $depreciation = is_array($pack['depreciation'] ?? null) ? $pack['depreciation'] : [];
+
         return [
             'profiles' => [$profile],
             'chartsOfAccounts' => [[
@@ -303,8 +311,8 @@ final class PackResolver
             ]],
             'taxCodes' => is_array($pack['taxCodes'] ?? null) ? $pack['taxCodes'] : [],
             'mappings' => is_array($pack['mappings'] ?? null) ? $pack['mappings'] : [],
-            'assetAccounts' => is_array($pack['assetAccounts'] ?? null) ? $pack['assetAccounts'] : [],
-            'depreciation' => is_array($pack['depreciation'] ?? null) ? $pack['depreciation'] : [],
+            'assetAccounts' => $assetAccounts,
+            ...$depreciation,
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],
         ];
     }

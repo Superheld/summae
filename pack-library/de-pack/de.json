@@ -1,0 +1,24 @@
+{
+  "formatVersion": "0.6",
+  "id": "de",
+  "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
+  "version": "2026.1",
+  "modules": [
+    { "kind": "accounts", "id": "neutral", "version": "2026.1" },
+    { "kind": "accounts", "id": "de-extras", "version": "2026.1" },
+    { "kind": "tax", "id": "de-ust", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-bilanz", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-guv", "version": "2026.1" },
+    { "kind": "depreciation", "id": "de-afa", "version": "2026.1" },
+    { "kind": "assetAccounts", "id": "de-assets", "version": "2026.1" },
+    { "kind": "policy", "id": "de-policy", "version": "2026.1" }
+  ],
+  "overrides": [],
+  "taxCodes": ["USt19", "USt7", "VSt19", "VSt7", "RC13b", "igL", "USt19WA"],
+  "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" },
+  "packPolicy": {
+    "roundingMode": "halfUpAwayFromZero",
+    "taxRoundingGranularity": "perVoucher",
+    "currencyScale": 2
+  }
+}

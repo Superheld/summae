@@ -1,0 +1,24 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-guv",
+  "kind": "mapping",
+  "version": "2026.1",
+  "name": "GuV-Gliederung HGB §275 Gesamtkostenverfahren (auf den neutralen DE-Rahmen)",
+  "contributes": ["mappings"],
+  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "data": {
+    "mapping": {
+      "id": "de-guv",
+      "kind": "income-statement",
+      "version": "2026.1",
+      "positions": [
+        { "key": "1", "label": "Umsatzerlöse", "accounts": [ { "from": "4000", "to": "4099" } ] },
+        { "key": "2", "label": "Sonstige betriebliche Erträge", "accounts": [ { "from": "4900", "to": "4999" } ] },
+        { "key": "3", "label": "Materialaufwand", "accounts": [ { "from": "5000", "to": "5999" } ] },
+        { "key": "4", "label": "Personalaufwand", "accounts": [ { "from": "6300", "to": "6399" } ] },
+        { "key": "5", "label": "Abschreibungen", "accounts": [ { "from": "6500", "to": "6599" } ] },
+        { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "accounts": [ { "from": "6000", "to": "6099" }, { "from": "6700", "to": "6999" } ] }
+      ]
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "fixture": "de-bilanz-guv",
+  "description": "DE-Pack: Bilanz + GuV als Projektion über die mitgelieferten Mappings de-bilanz (HGB §266) und de-guv (§275), auf neutralen Nummern. Verkauf 1.190 (USt 19) + Bürobedarf 300; Jahresergebnis 700 schließt die Bilanz, Aktiva 890 = Passiva 890.",
+  "covers": ["F-CORE-015", "SF-10"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Bilanz GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Barverkauf",
+        "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1200"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "1190.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-001", "voucherDate": "2026-03-15" },
+        "entryDate": "2026-03-15", "text": "Bürobedarf",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "300.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": {
+        "positions": [
+          { "key": "1", "amount": "1000.00" },
+          { "key": "6", "amount": "-300.00" }
+        ],
+        "netIncome": "700.00"
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "assetsTotal": "890.00",
+        "liabilitiesAndEquityTotal": "890.00"
+      }
+    }
+  ]
+}

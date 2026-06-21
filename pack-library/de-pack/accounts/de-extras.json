@@ -1,0 +1,19 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-extras",
+  "kind": "accounts",
+  "version": "2026.1",
+  "name": "Deutschland — Zusatzkonten zum neutralen Rahmen (eigener Entwurf, keine SKR-Übernahme)",
+  "contributes": ["accounts"],
+  "dependsOn": [],
+  "data": {
+    "accounts": [
+      { "number": "4020", "name": "Gewährte Skonti und Erlösschmälerungen", "type": "revenue" },
+      { "number": "4030", "name": "Steuerfreie innergemeinschaftliche Lieferungen", "type": "revenue" },
+      { "number": "4040", "name": "Erlöse Kleinunternehmer (steuerfrei §19 UStG)", "type": "revenue" },
+      { "number": "4050", "name": "Unentgeltliche Wertabgaben (Ertrag)", "type": "revenue" },
+      { "number": "6010", "name": "Bewirtungskosten, abziehbar", "type": "expense" },
+      { "number": "6020", "name": "Bewirtungskosten, nicht abziehbar", "type": "expense" }
+    ]
+  }
+}

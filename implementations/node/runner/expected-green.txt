@@ -49,6 +49,17 @@ voucher-unknown
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
 default-pack-resolves
+# DE-Pack (Gate 2): vollständiges Deutschland-Pack auf neutralem Rahmen
+de-bewirtung
+de-bilanz-guv
+de-eingangsrechnung
+de-ig-lieferung
+de-kleinunternehmer
+de-pack-resolves
+de-reverse-charge
+de-skonto
+de-ust7-ermaessigt
+de-wertabgabe
 de-complete-override-remove-equals-base
 resolve-de-complete-equals-handfed
 resolver-colliding-override

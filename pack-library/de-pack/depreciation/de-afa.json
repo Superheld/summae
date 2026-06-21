@@ -1,0 +1,17 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-afa",
+  "kind": "depreciation",
+  "version": "2026.1",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Nutzungsdauern aus AfA-Tabellen)",
+  "contributes": ["depreciation"],
+  "dependsOn": [],
+  "data": {
+    "gwgThresholds": [
+      { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00" }
+    ],
+    "usefulLife": [
+      { "assetClass": "it-hardware", "months": 36 }
+    ]
+  }
+}
