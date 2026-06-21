@@ -19,16 +19,16 @@ function asString(value: unknown): string | null {
 export class PostVoucherService {
   constructor(private readonly tenant: Tenant) {}
 
-  post(input: Record<string, unknown>): Record<string, unknown> {
+  /** Beleg aus `input.voucher` bauen + ablegen — geteilt von postVoucher und createVoucher. */
+  private buildAndAddVoucher(input: Record<string, unknown>): Voucher {
     const voucherData = isRecord(input.voucher) ? input.voucher : {};
-    const voucherNumber = asString(voucherData.voucherNumber) ?? '';
 
     let voucherDate: CalendarDate;
     try {
       voucherDate = CalendarDate.of(asString(voucherData.voucherDate) ?? '');
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_ENTRY_NO_VOUCHER', 'postVoucher braucht voucher.voucherDate');
+        throw new DomainError('E_ENTRY_NO_VOUCHER', 'Beleg braucht voucher.voucherDate');
       }
       throw error;
     }
@@ -45,7 +45,7 @@ export class PostVoucherService {
 
     const voucher = new Voucher({
       id: this.tenant.ids.next(),
-      voucherNumber,
+      voucherNumber: asString(voucherData.voucherNumber) ?? '',
       voucherDate,
       due: date(voucherData.due),
       recurring: voucherData.recurring === true,
@@ -58,6 +58,18 @@ export class PostVoucherService {
       issuer: asString(voucherData.issuer),
     });
     this.tenant.vouchers.add(voucher);
+    return voucher;
+  }
+
+  /** createVoucher: Beleg anlegen, ohne zu buchen — macht Pack-Modus-Fixtures vollwertig (post/acquireAsset). */
+  createVoucher(input: Record<string, unknown>): Record<string, unknown> {
+    const voucher = this.buildAndAddVoucher(input);
+    return { id: voucher.id.value, voucherNumber: voucher.voucherNumber };
+  }
+
+  post(input: Record<string, unknown>): Record<string, unknown> {
+    const voucher = this.buildAndAddVoucher(input);
+    const voucherDate = voucher.voucherDate;
 
     // Direkter Brutto-Modus: explizite `lines` werden ohne Steuerexpansion gebucht
     // (z. B. Zahlungen). Der Beleg umhüllt eine gewöhnliche Buchung.

@@ -50,6 +50,7 @@ voucher-unknown
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
 default-pack-resolves
 # DE-Pack (Gate 2): vollständiges Deutschland-Pack auf neutralem Rahmen
+de-afa-lauf
 de-bewirtung
 de-bilanz-guv
 de-eingangsrechnung

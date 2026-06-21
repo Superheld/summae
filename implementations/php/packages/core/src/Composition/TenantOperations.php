@@ -50,6 +50,7 @@ final readonly class TenantOperations
             'expandTax' => $tenant->tax->expand($input),
             'setTaxProfile' => $this->serialize($tenant->tax->setProfile($input)),
             'postVoucher' => (new PostVoucherService($tenant))->post($input),
+            'createVoucher' => (new PostVoucherService($tenant))->createVoucher($input),
             'post' => $this->postResult($ledger->post($input)),
             'correct' => $this->serialize($ledger->correct($input)),
             'finalize' => ['finalizedCount' => $ledger->finalize($input)],

@@ -39,6 +39,8 @@ export class TenantOperations {
         return serialize(this.tenant.tax.setProfile(input));
       case 'postVoucher':
         return new PostVoucherService(this.tenant).post(input);
+      case 'createVoucher':
+        return new PostVoucherService(this.tenant).createVoucher(input);
       case 'post': {
         const result = ledger.post(input);
         return {

@@ -1,0 +1,33 @@
+{
+  "fixture": "de-afa-lauf",
+  "description": "DE-Pack: Anlagenzugang + AfA-Lauf im Pack-Modus (createVoucher seedet die Belege). GWG-Weiche aus de-afa (immediateMax 800 → Monitor 600 Sofortabzug 6510; Laptop 3000 Aktivierung 0100, Nutzungsdauer 36 Monate). AfA-Lauf monatsgenau (6/36 von 3000 = 500). Anlagen-Gegenkonten aus de-assets.",
+  "covers": ["F-AST-001", "F-AST-002", "F-AST-003", "SF-05"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Anlagen GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-LAPTOP", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset",
+      "input": { "tenant": "$T1", "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "3000.00", "currency": "EUR" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 36 } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-MONITOR", "voucherDate": "2026-09-10" } },
+      "expect": { "result": { "id": "$V2" } } },
+    { "op": "acquireAsset",
+      "input": { "tenant": "$T1", "name": "Monitor", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "600.00", "currency": "EUR" }, "acquiredOn": "2026-09-10", "voucherId": "$V2", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "immediate_expense", "expenseAccount": "6510" } } },
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "500.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "0100", "balance": "2500.00" },
+        { "account": "1200", "balance": "-3600.00" },
+        { "account": "6500", "balance": "500.00" },
+        { "account": "6510", "balance": "600.00" }
+      ] } }
+  ]
+}
