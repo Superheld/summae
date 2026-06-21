@@ -71,16 +71,30 @@ Annahme). Ein Pack ist komponierbar (kuratiert nehmen / anpassen / selbst à la 
 **Lackmustest beim Bauen:** zitiert dein Code einen Paragraphen → falsche Schicht, das
 gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus: `docs/architektur.md`.
 
-**Packs konkret (Vokabular + Stand).** *Gebaut:* die Kompositions-Schicht — `PackResolver`
-(byte-gleich PHP↔Node), der Pack-Loader (liest die `pack-library/`), `createTenant(pack:"…")`
-und der `default`-Pack. *Noch Konzept:* das meiste oberhalb des Substrats (weitere Politik-Inhalte,
-weitere Jurisdiktionen). Begriffe **sauber halten:** **base** = der Kern (trägt **keine** Konten) ·
-**Pack** = `packs/<id>.json`, die *Wahl* beim Anlegen · **Modul** = `modules/<kind>/<id>.json`, ein
-wiederverwendbarer Baustein (mehrere Packs teilen ihn). **Der Kontenrahmen kommt als Pack-Wahl,
-einmalig beim Anlegen, gepinnt — kein Override.** Die Engine isst *ein* aufgelöstes Bündel
-(`ruleModules`: `profiles/chartsOfAccounts/taxCodes/mappings/assetAccounts/depreciation/packPolicy`);
-dahin führen **inline** (Bündel direkt gereicht) **oder komponiert** (Manifest → `PackResolver`).
-`packPolicy` parametrisiert jurisdiktionsfrei (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
+**Packs konkret (Vokabular, Modell, Stand).** Drei Schichten: **Kern/Substrat** (reine Mechanik) →
+**Politiksorten** (Constraint · Projektion · Expansion; Mechanik im Kern) → **Pack** (oben). **„Modul" ist
+keine vierte Schicht**, sondern die *Bau-Einheit der Pack-Schicht*: ein **Modul** = eine Daten-Datei
+(`kind` + `data`, ein kohärenter Regelsatz), die **genau eine Politiksorte bedient**. Ein **Pack** =
+Manifest, das Module auflistet. (Altwort „Regelmodul" = Pack — vermeiden. **base** = der Kern, kontenlos.)
+Eindeutige Modul→Politiksorte-Zuordnung über `kind`:
+
+| `kind` | bedient |
+|---|---|
+| `tax` · `depreciation` · `assetAccounts` | **Expansion** (Stecker) |
+| `mapping` | **Projektion** (Mappings) |
+| `accounts` | **Substrat** (Kontenrahmen) |
+| `policy` | **Parameter** (Rundung/Skala) |
+| *(`constraint` — fehlt noch)* | Constraint (heute nur generisch im Kern) |
+
+**Packs sind self-contained — sie bauen nicht aufeinander auf:** jedes Pack hält seine eigenen Module in
+`pack-library/<pack>/` (z. B. `de-pack/`, `default-pack/`), **kein geteiltes `modules/`**, eindeutige IDs je
+Pack. Der Kontenrahmen ist Pack-Inhalt und kommt als **Pack-Wahl, einmalig beim Anlegen, gepinnt — kein
+Override**. *Gebaut:* `PackResolver` (byte-gleich PHP↔Node), Loader (`pack-library/`), `createTenant(pack:"…")`,
+CLI `summae init --pack …`, Packs `default` + `de`. *Noch Konzept:* weitere Jurisdiktionen, `constraint`-Sorte.
+
+Die Engine isst *ein* aufgelöstes Bündel (`ruleModules`: `profiles/chartsOfAccounts/taxCodes/mappings/
+assetAccounts/depreciation/packPolicy`); dahin führen **inline** (Bündel direkt) **oder komponiert** (Manifest
+→ `PackResolver`). `packPolicy` parametrisiert jurisdiktionsfrei (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
 
 ## Bau-Konventionen (Patterns & Rezepte — damit es konsistent bleibt)
 
