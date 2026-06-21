@@ -70,6 +70,12 @@ In PHP konkret: Der `core` ist das Substrat; Regelmodul-/Pack-Daten werden der
 Factory (`Tenant::inMemory` / `DatabaseTenantFactory::build`) als Daten übergeben;
 die App ist das Laravel-Projekt des Nutzers.
 
+**CLI wählt ein Pack.** `summae init --pack de` lädt das Pack aus der ausgelieferten
+`pack-library/` (`packages/cli/src/PackLibrary.php`: `packToRules` = `PackResolver::resolve` →
+`ruleModulesFromResolved` → CLI-`rules`-Struktur) und schreibt die aufgelösten Regeln in den
+Arbeitsbereich. `--pack-library <dir>` übersteuert den Pfad; Alternative: eigene `--rules`-Datei.
+Byte-gleich zum Node-CLI-Pendant (`packages/cli/src/pack-library.ts`).
+
 ## Eiserne Invarianten
 
 - **Journal append-only; Salden sind Projektionen.** Nie einen Saldo speichern —

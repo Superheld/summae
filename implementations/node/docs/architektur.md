@@ -69,6 +69,12 @@ assetAccounts, depreciation, packPolicy). Dahin führen zwei Wege:
   pinnt das Manifest. **`packPolicy` parametrisiert** den Kern (`currencyScale`→`Currency`,
   `taxRoundingGranularity`→`TaxService`). Details: Root-`CLAUDE.md`, Sektion „Packs konkret".
 
+**CLI wählt ein Pack.** `summae init --pack de` lädt das Pack aus der ausgelieferten
+`pack-library/` und schreibt die aufgelösten Regeln in den Arbeitsbereich:
+`packages/cli/src/pack-library.ts` (`loadPackLibrary` inhaltsbasiert + `packToRules` =
+`resolvePack`→`ruleModulesFromResolved`→CLI-`rules`-Struktur). `--pack-library <dir>` übersteuert den
+Pfad (Default: Repo-Wurzel/`pack-library`). Alternative zu `--pack`: eine eigene `--rules`-Datei.
+
 ## Datenfluss einer Buchung (Beispiel)
 
 ```

@@ -101,6 +101,51 @@ final class CliSmokeTest extends TestCase
         );
     }
 
+    public function testInitPackDeBilanzBalanciert(): void
+    {
+        // Frontend wählt das ausgelieferte de-Pack aus der Bibliothek — kein Inline.
+        $init = $this->runCli([
+            'command' => 'init',
+            '--name' => 'DE GmbH',
+            '--pack' => 'de',
+            '--first-fiscal-year' => '2026',
+            '--dir' => $this->dir,
+        ]);
+        self::assertSame(0, $init['exit'], $init['raw']);
+        $created = $init['json']['created'] ?? null;
+        self::assertIsArray($created);
+        self::assertSame(40, $created['accounts'] ?? null);
+
+        $op = $this->runCli([
+            'command' => 'op',
+            'operation' => 'postVoucher',
+            '--dir' => $this->dir,
+            '--input' => json_encode([
+                'voucher' => ['voucherNumber' => 'AR-1', 'voucherDate' => '2026-03-01'],
+                'entryDate' => '2026-03-01',
+                'taxCode' => 'USt19',
+                'direction' => 'output',
+                'counterAccount' => '1200',
+                'netLines' => [['account' => '4000', 'money' => ['amount' => '1000.00', 'currency' => 'EUR']]],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertSame(0, $op['exit'], $op['raw']);
+        $gross = $op['json']['grossTotal'] ?? null;
+        self::assertIsArray($gross);
+        self::assertSame('1190.00', $gross['amount'] ?? null);
+
+        // Bilanz über die mitgelieferten Mappings: Aktiva == Passiva.
+        $bs = $this->runCli([
+            'command' => 'report',
+            'projection' => 'balanceSheet',
+            '--dir' => $this->dir,
+            '--params' => '{"asOf":"2026-12-31","mapping":"de-bilanz","incomeMapping":"de-guv"}',
+        ]);
+        self::assertSame(0, $bs['exit'], $bs['raw']);
+        self::assertSame('1190.00', $bs['json']['assetsTotal'] ?? null);
+        self::assertSame('1190.00', $bs['json']['liabilitiesAndEquityTotal'] ?? null);
+    }
+
     public function testErrorsMapToExitCodes(): void
     {
         $this->runCli(['command' => 'init', '--name' => 'X', '--dir' => $this->dir]);

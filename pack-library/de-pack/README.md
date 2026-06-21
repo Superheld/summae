@@ -50,6 +50,6 @@ Inline) und sind grün in **PHP und Node** (`--strict`, byte-identischer Doppell
 `de-jahresgang` ist der durchgehende End-to-End-Test eines Geschäftsjahres (Buchung → Vorsteuer →
 Skonto → Anlagenzugang → Rechnungsabgrenzung → AfA) mit balancierter Bilanz zu mehreren Stichtagen.
 
-**Offen:** Test über die **CLI** (`summae`) statt über die API — dazu muss die CLI noch auf die
-Pack-Bibliothek verdrahtet werden (lädt heute inline aus `summae.json`). Funktional ist alles über
-die API-Oberfläche (`TenantOperations`, die die CLI selbst nutzt) abgedeckt.
+**Auch vom Frontend (CLI) getestet:** `summae init --pack de` lädt das Pack aus der Bibliothek —
+in **beiden** CLIs (PHP + Node). End-to-End-Smoke (init → buchen → Bilanz balanciert) ist in beiden
+CLI-Test-Suites grün. Nutzung: `docs/handbuch` § 3.

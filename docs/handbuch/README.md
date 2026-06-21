@@ -175,16 +175,24 @@ einen zusätzlichen letzten Parameter `tenantId` (`?Uuid`, Default: frisch
 generiert) — damit lässt sich eine bestehende Mandanten-ID wieder aufnehmen.
 Voraussetzung: `php artisan migrate` wurde ausgeführt (s. § 4).
 
-### CLI-Arbeitsbereich (PHP)
+### CLI-Arbeitsbereich (PHP und Node)
+
+Beide CLIs (`summae`) legen `summae.json` (Mandanten-Meta + Regeln) und `summae.sqlite` (Buchungen)
+an. Zwei Wege, den Mandanten zu bestücken:
 
 ```bash
-# legt summae.json (Mandanten-Meta + Regeln) und summae.sqlite (Buchungen) an
+# (a) Ausgeliefertes Pack aus der Bibliothek wählen (empfohlen)
+summae init --name "Muster GmbH" --pack de --first-fiscal-year 2026 --dir ./buchhaltung
+
+# (b) Eigene Regeldatei (Konten, Geschäftsjahre, Steuerschlüssel, Mappings …)
 summae init --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
 ```
 
-`regeln.json` trägt die Regelmodul-Daten (Konten, Geschäftsjahre,
-Steuerschlüssel, Mappings …, siehe § 5). Jeder weitere Aufruf lädt den Mandanten
-aus dem Arbeitsbereich, führt aus, und die SQLite-Datei persistiert.
+`--pack de` (oder `--pack default`) lädt das Pack aus der **Pack-Bibliothek** (`pack-library/`; mit
+`--pack-library <dir>` übersteuerbar), löst es auf und legt Kontenrahmen, Steuerschlüssel, Mappings,
+AfA-Regeln und Policy in *einem* Schritt an — der Kontenrahmen kommt also als **Pack-Wahl**, nicht
+als inline gepflegte `regeln.json`. `regeln.json` (§ 5) bleibt der Weg für eigene/abweichende Regeln.
+Jeder weitere Aufruf lädt den Mandanten aus dem Arbeitsbereich, führt aus, die SQLite-Datei persistiert.
 
 ---
 
