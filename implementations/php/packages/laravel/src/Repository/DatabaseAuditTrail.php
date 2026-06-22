@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;

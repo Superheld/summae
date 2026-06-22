@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Records;
 
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Uuid;

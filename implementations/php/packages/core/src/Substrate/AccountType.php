@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Substrate;
 
 /**
  * Kontotyp bestimmt die Saldenmechanik (ledger-modell.md):

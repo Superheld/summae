@@ -17,23 +17,23 @@ import type { IdGenerator } from '../substrate/id-generator.js';
 import { Money } from '../substrate/money.js';
 import { PeriodRef } from '../substrate/period-ref.js';
 import { Uuid } from '../substrate/uuid.js';
-import { Account } from './account.js';
-import { AuditRecord, type AuditChanges } from './audit-record.js';
-import { DimensionRegistry } from './dimension-registry.js';
-import { EntryLine } from './entry-line.js';
-import { FiscalYear } from './fiscal-year.js';
-import { JournalEntry } from './journal-entry.js';
-import { OpenItem } from './open-item.js';
-import { PostResult } from './post-result.js';
-import { Settlement } from './settlement.js';
+import { Account } from '../substrate/account.js';
+import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
+import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
+import { EntryLine } from '../substrate/entry-line.js';
+import { FiscalYear } from '../substrate/fiscal-year.js';
+import { JournalEntry } from '../substrate/journal-entry.js';
+import { OpenItem } from '../records/open-item.js';
+import { PostResult } from '../substrate/post-result.js';
+import { Settlement } from '../policies/expansion/settlement.js';
 import {
   isAccountType,
   type OpenItemKind,
   parseSettlementDifferenceKind,
   type SettlementDifferenceKind,
   type Side,
-} from './types.js';
-import type { Voucher } from './voucher.js';
+} from '../substrate/types.js';
+import type { Voucher } from '../records/voucher.js';
 
 interface ParsedLine {
   readonly account: string;

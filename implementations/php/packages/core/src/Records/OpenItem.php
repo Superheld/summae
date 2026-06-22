@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Records;
 
 use Summae\Core\DomainError;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\OpenItemKind;
+use Summae\Core\Substrate\OpenItemStatus;
+use Summae\Core\Policies\Expansion\Settlement;
 
 /**
  * Offener Posten (ledger-modell.md Aggregat 5): entsteht aus einer

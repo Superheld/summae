@@ -4,8 +4,8 @@ import type {
   PartnerRepository,
   VoucherRepository,
 } from '../../port.js';
-import type { EntryLine } from '../../ledger/entry-line.js';
-import type { JournalEntry } from '../../ledger/journal-entry.js';
+import type { EntryLine } from '../../substrate/entry-line.js';
+import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 
 const TAX_SUBTYPES = new Set(['tax_in', 'tax_out']);

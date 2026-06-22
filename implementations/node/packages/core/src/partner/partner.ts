@@ -1,4 +1,4 @@
-import type { AuditChanges } from '../ledger/audit-record.js';
+import type { AuditChanges } from '../records/audit-record.js';
 import type { Uuid } from '../substrate/uuid.js';
 
 /**

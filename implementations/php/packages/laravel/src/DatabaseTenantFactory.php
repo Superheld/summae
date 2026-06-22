@@ -7,7 +7,7 @@ namespace Summae\Laravel;
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Policies\Expansion\Assets\AssetService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
-use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\Ledger;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Partner\PartnerService;

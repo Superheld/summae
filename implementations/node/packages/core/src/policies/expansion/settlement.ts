@@ -1,7 +1,7 @@
-import type { CalendarDate } from '../substrate/calendar-date.js';
-import type { Money } from '../substrate/money.js';
-import type { Uuid } from '../substrate/uuid.js';
-import type { SettlementDifferenceKind } from './types.js';
+import type { CalendarDate } from '../../substrate/calendar-date.js';
+import type { Money } from '../../substrate/money.js';
+import type { Uuid } from '../../substrate/uuid.js';
+import type { SettlementDifferenceKind } from '../../substrate/types.js';
 
 /**
  * Einzelner Ausgleich eines offenen Postens. `money` ist der ausgeglichene

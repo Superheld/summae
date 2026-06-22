@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Laravel\Repository;
 
-use Summae\Core\Ledger\EntryLine;
-use Summae\Core\Ledger\Side;
+use Summae\Core\Substrate\EntryLine;
+use Summae\Core\Substrate\Side;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;

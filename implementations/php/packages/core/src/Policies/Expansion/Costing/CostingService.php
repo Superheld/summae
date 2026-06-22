@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Costing;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\Side;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\Side;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\Currency;

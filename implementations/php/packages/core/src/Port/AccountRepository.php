@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Port;
 
-use Summae\Core\Ledger\Account;
+use Summae\Core\Substrate\Account;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Uuid;
 

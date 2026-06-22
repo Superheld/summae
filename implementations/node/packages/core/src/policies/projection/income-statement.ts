@@ -3,7 +3,7 @@ import type { MappingRegistry } from './mapping/mapping-registry.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import { isBalanceCarrying } from '../../ledger/types.js';
+import { isBalanceCarrying } from '../../substrate/types.js';
 
 /**
  * GuV als Projektion über ein Mapping (SF-09). Vorzeichen: Haben − Soll

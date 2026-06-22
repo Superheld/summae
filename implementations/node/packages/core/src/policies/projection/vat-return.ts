@@ -9,8 +9,8 @@ import { AccountNumber } from '../../substrate/account-number.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import type { JournalEntry } from '../../ledger/journal-entry.js';
-import type { OpenItem } from '../../ledger/open-item.js';
+import type { JournalEntry } from '../../substrate/journal-entry.js';
+import type { OpenItem } from '../../records/open-item.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 import type { TaxProfile } from '../expansion/tax/tax-profile.js';
 

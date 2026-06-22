@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\Uuid;
 

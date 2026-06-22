@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Policies\Constraint;
 
 use Summae\Core\DomainError;
 use Summae\Core\Substrate\AccountNumber;

@@ -1,6 +1,6 @@
 import { DomainError } from '../../../domain-error.js';
 import type { Ledger } from '../../../ledger/ledger.js';
-import { Voucher } from '../../../ledger/voucher.js';
+import { Voucher } from '../../../records/voucher.js';
 import type { AssetRepository, FiscalYearRepository, VoucherRepository } from '../../../port.js';
 import { AccountNumber } from '../../../substrate/account-number.js';
 import { CalendarDate } from '../../../substrate/calendar-date.js';

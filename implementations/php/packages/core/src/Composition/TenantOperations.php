@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Ledger\PostResult;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\PostResult;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountSheetProjection;

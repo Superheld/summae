@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 
 final class InMemoryAuditTrail implements AuditTrail

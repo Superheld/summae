@@ -1,4 +1,4 @@
-import type { CalendarDate } from '../substrate/calendar-date.js';
+import type { CalendarDate } from './calendar-date.js';
 import type { PeriodStatus } from './types.js';
 
 /**

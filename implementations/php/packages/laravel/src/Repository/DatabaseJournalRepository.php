@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Ledger\EntryLine;
-use Summae\Core\Ledger\EntryStatus;
-use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Substrate\EntryLine;
+use Summae\Core\Substrate\EntryStatus;
+use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\PeriodRef;
 use Summae\Core\Substrate\Timestamp;

@@ -18,7 +18,10 @@ const FRAMEWORK_PATTERNS = [
 
 // Achse 2 (Substrat-Grenze): das Substrat ist eingefroren und liegt zuunterst —
 // es darf nichts von den Schichten darüber importieren.
+// records/ ist eine Daten-Schicht, die das Substrat referenzieren darf (z. B. PostResult);
+// die Grenze schützt vor Policy/Recht im Substrat, nicht vor Daten-Records.
 const ABOVE_SUBSTRATE_PATTERNS = [
+  '**/policies/**',
   '**/ledger/**',
   '**/tax/**',
   '**/assets/**',

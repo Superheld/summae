@@ -12,9 +12,9 @@ import type {
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import type { Account } from '../../ledger/account.js';
-import type { EntryLine } from '../../ledger/entry-line.js';
-import type { JournalEntry } from '../../ledger/journal-entry.js';
+import type { Account } from '../../substrate/account.js';
+import type { EntryLine } from '../../substrate/entry-line.js';
+import type { JournalEntry } from '../../substrate/journal-entry.js';
 
 const NON_PROFIT_SUBTYPES = new Set(['bank', 'cash', 'transit', 'ar', 'ap']);
 

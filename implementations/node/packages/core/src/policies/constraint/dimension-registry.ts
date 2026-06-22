@@ -1,6 +1,6 @@
-import { DomainError } from '../domain-error.js';
-import type { AccountNumber } from '../substrate/account-number.js';
-import type { DimensionValue } from '../substrate/dimension-value.js';
+import { DomainError } from '../../domain-error.js';
+import type { AccountNumber } from '../../substrate/account-number.js';
+import type { DimensionValue } from '../../substrate/dimension-value.js';
 
 interface DimensionRule {
   readonly from: string;

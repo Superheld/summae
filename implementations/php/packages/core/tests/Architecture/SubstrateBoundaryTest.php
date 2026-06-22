@@ -16,9 +16,10 @@ final class SubstrateBoundaryTest extends TestCase
     public function testSubstrateImportsNothingFromAbove(): void
     {
         $substrateDir = dirname(__DIR__, 2) . '/src/Substrate';
+        // Policies = die Politiksorten-Schicht (Recht/Mechanik). Records ist bewusst
+        // NICHT verboten: Daten-Records (z. B. OpenItem in PostResult) sind Substrat-nah.
         $forbidden = [
-            'Ledger', 'Tax', 'Assets', 'Costing', 'Projection',
-            'Mapping', 'Composition', 'Partner', 'Port', 'InMemory',
+            'Policies', 'Ledger', 'Composition', 'Partner', 'Port', 'InMemory',
         ];
 
         $iterator = new \RecursiveIteratorIterator(

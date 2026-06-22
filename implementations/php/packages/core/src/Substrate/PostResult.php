@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Substrate;
+
+use Summae\Core\Records\OpenItem;
 
 /**
  * Ergebnis von `post`: die Buchung plus die dabei entstandenen

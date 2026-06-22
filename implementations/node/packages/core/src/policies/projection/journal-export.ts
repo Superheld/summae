@@ -10,7 +10,7 @@ import type {
   PartnerRepository,
   VoucherRepository,
 } from '../../port.js';
-import type { JournalEntry } from '../../ledger/journal-entry.js';
+import type { JournalEntry } from '../../substrate/journal-entry.js';
 
 const FORMAT_VERSION = '0.4';
 const LINE_FIELDS = ['accountId', 'side', 'money', 'dimensions', 'taxTag'] as const;

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Tests\Projection;
 
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Ledger\Voucher;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\FiscalYear;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
 use Summae\Core\Substrate\AccountNumber;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Substrate;
 
 use Summae\Core\Substrate\CalendarDate;
 

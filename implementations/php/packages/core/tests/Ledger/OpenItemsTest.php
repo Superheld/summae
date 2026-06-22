@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tests\Ledger;
 
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\OpenItemKind;
-use Summae\Core\Ledger\OpenItemStatus;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\OpenItemKind;
+use Summae\Core\Substrate\OpenItemStatus;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;

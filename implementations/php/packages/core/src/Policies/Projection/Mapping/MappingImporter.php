@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection\Mapping;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\Account;
+use Summae\Core\Substrate\Account;
 use Summae\Core\Port\AccountRepository;
 
 /**

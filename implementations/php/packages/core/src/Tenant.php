@@ -14,7 +14,7 @@ use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
-use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\Ledger;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;

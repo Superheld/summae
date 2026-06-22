@@ -1,6 +1,6 @@
 import { DomainError } from '../../../domain-error.js';
 import type { AccountRepository } from '../../../port.js';
-import { isBalanceCarrying } from '../../../ledger/types.js';
+import { isBalanceCarrying } from '../../../substrate/types.js';
 import { leafMatches, Mapping } from './mapping.js';
 import type { MappingRegistry } from './mapping-registry.js';
 

@@ -1,5 +1,5 @@
-import { AccountNumber } from '../substrate/account-number.js';
-import type { Uuid } from '../substrate/uuid.js';
+import { AccountNumber } from './account-number.js';
+import type { Uuid } from './uuid.js';
 import type { AccountStatus, AccountType } from './types.js';
 
 /**

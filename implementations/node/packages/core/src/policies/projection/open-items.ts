@@ -1,7 +1,7 @@
 import type { JournalRepository, OpenItemRepository, VoucherRepository } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
-import type { OpenItem } from '../../ledger/open-item.js';
-import { parseOpenItemKind } from '../../ledger/types.js';
+import type { OpenItem } from '../../records/open-item.js';
+import { parseOpenItemKind } from '../../substrate/types.js';
 
 /**
  * OP-Liste: deterministisch, asOf-fähig (Zeitreise über settledAt). Sortierung:

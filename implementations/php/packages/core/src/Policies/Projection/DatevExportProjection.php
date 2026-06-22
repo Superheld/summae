@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
-use Summae\Core\Ledger\EntryLine;
-use Summae\Core\Ledger\JournalEntry;
+use Summae\Core\Substrate\EntryLine;
+use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Partner\Partner;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;

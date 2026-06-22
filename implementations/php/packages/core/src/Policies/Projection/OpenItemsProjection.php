@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Ledger\OpenItemKind;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\VoucherRepository;

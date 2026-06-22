@@ -6,7 +6,7 @@ namespace Summae\Core\Policies\Expansion\Assets;
 
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Ledger\Voucher;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\VoucherRepository;

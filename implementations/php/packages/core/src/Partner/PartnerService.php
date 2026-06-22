@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Partner;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Substrate\Clock;

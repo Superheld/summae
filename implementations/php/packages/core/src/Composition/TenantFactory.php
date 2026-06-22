@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountStatus;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountStatus;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\FiscalYear;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;

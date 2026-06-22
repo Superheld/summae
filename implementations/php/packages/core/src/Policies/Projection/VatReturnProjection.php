@@ -6,9 +6,9 @@ namespace Summae\Core\Policies\Projection;
 
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
-use Summae\Core\Ledger\JournalEntry;
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Ledger\Side;
+use Summae\Core\Substrate\JournalEntry;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\Side;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;

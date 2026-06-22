@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Ledger;
+namespace Summae\Core\Policies\Expansion;
 
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\SettlementDifferenceKind;
 
 /**
  * Einzelner Ausgleich eines offenen Postens. `money` ist der

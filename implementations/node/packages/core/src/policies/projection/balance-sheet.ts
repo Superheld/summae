@@ -5,7 +5,7 @@ import type { AccountRepository, JournalRepository } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import { isBalanceCarrying } from '../../ledger/types.js';
+import { isBalanceCarrying } from '../../substrate/types.js';
 
 type Section = 'assets' | 'liabilitiesAndEquity';
 

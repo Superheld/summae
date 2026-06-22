@@ -11,7 +11,7 @@ import {
   InMemoryVoucherRepository,
 } from '../in-memory.js';
 import { PartnerService } from '../partner/partner-service.js';
-import { DimensionRegistry } from '../ledger/dimension-registry.js';
+import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { Ledger } from '../ledger/ledger.js';
 import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';

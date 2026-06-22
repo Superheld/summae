@@ -1,7 +1,7 @@
 import type { AccountRepository, JournalRepository } from '../../port.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import { isBalanceCarrying } from '../../ledger/types.js';
+import { isBalanceCarrying } from '../../substrate/types.js';
 
 interface Totals {
   opening: Money;

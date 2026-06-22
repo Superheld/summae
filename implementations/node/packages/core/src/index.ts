@@ -33,23 +33,23 @@ export {
   isBalanceCarrying,
   parseOpenItemKind,
   parseSettlementDifferenceKind,
-} from './ledger/types.js';
-export { Account } from './ledger/account.js';
-export { EntryLine } from './ledger/entry-line.js';
-export { JournalEntry } from './ledger/journal-entry.js';
-export { Voucher, type VoucherProps } from './ledger/voucher.js';
-export { Period } from './ledger/period.js';
-export { FiscalYear, type PeriodDefinition } from './ledger/fiscal-year.js';
-export { AuditRecord, type AuditChanges } from './ledger/audit-record.js';
-export { OpenItem } from './ledger/open-item.js';
-export { Settlement } from './ledger/settlement.js';
-export { PostResult } from './ledger/post-result.js';
+} from './substrate/types.js';
+export { Account } from './substrate/account.js';
+export { EntryLine } from './substrate/entry-line.js';
+export { JournalEntry } from './substrate/journal-entry.js';
+export { Voucher, type VoucherProps } from './records/voucher.js';
+export { Period } from './substrate/period.js';
+export { FiscalYear, type PeriodDefinition } from './substrate/fiscal-year.js';
+export { AuditRecord, type AuditChanges } from './records/audit-record.js';
+export { OpenItem } from './records/open-item.js';
+export { Settlement } from './policies/expansion/settlement.js';
+export { PostResult } from './substrate/post-result.js';
 export {
   DimensionRegistry,
   type DimensionTypeData,
   type DimensionValueData,
   type DimensionRuleData,
-} from './ledger/dimension-registry.js';
+} from './policies/constraint/dimension-registry.js';
 export { Ledger } from './ledger/ledger.js';
 
 // Ports & Adapter

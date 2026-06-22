@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\OpenItem;
+use Summae\Core\Records\OpenItem;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Substrate\Uuid;
 
