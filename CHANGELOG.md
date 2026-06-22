@@ -3,6 +3,25 @@
 Bemerkenswerte Änderungen je Release. Lose an *Keep a Changelog* angelehnt,
 Versionierung nach SemVer (0.x: Minor darf brechen).
 
+## 0.3.1 — 2026-06-23
+
+Intern + Doku — **keine API-/Verhaltensänderung** (Byte-Parität unverändert bewiesen).
+
+### Intern / Wartbarkeit
+- **`core/src` nach der Architektur strukturiert**: `substrate/` (Substrat) · `ledger/`
+  (Orchestrator) · `records/` · `policies/{expansion,projection,constraint}/` ·
+  `composition/` · `partner/` · ports/adapters. Die Substrat-Grenze („importiert nichts
+  von oben") ist **mechanisch erzwungen** (Node eslint, PHP Arch-Test).
+- **Testabdeckung** als Kennzahl + Floor (Kern-Zeilen ≥ 88 %), **fest im Testlauf** beider
+  Sprachen. PHP fährt die volle Konformitäts-Suite jetzt auch unter PHPUnit
+  (`ConformanceTest`), sodass sie in die Coverage zählt (pcov im Image).
+
+### Doku
+- Nutzer-**Handbuch** und **Entwickler-Docs** beider Sprachen **auf Englisch** und auf den
+  aktuellen Stand gebracht: Architektur-Modell **Substrat → Politiksorten (Sockel/Stecker) →
+  Pack**, Dependency Inversion (der Kern importiert nie ein Pack), die umgesetzte
+  Verzeichnisstruktur. Hartkodierte Fixture-Stände entfernt.
+
 ## 0.3.0 — 2026-06-22
 
 ### Packs (sprachübergreifend, byte-parität PHP↔Node)
