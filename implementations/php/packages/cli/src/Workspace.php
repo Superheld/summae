@@ -6,7 +6,7 @@ namespace Summae\Cli;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Summae\Core\Ledger\DimensionRegistry;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\SystemClock;
 use Summae\Core\Substrate\Uuid;

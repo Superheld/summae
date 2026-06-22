@@ -14,7 +14,7 @@ use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\FiscalYear;
 use Summae\Core\Ledger\Voucher;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Runner\PackLibrary;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;

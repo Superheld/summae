@@ -9,7 +9,7 @@ use Summae\Core\Ledger\Account;
 use Summae\Core\Ledger\AccountStatus;
 use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Clock;

@@ -2,7 +2,7 @@ import { DomainError } from '../domain-error.js';
 import { Account } from '../ledger/account.js';
 import { FiscalYear } from '../ledger/fiscal-year.js';
 import { isAccountType } from '../ledger/types.js';
-import { MappingRegistry } from '../mapping/mapping-registry.js';
+import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
 import { AccountNumber } from '../substrate/account-number.js';
 import { CalendarDate } from '../substrate/calendar-date.js';
 import type { Clock } from '../substrate/clock.js';

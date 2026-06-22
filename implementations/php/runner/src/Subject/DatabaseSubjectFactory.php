@@ -33,7 +33,7 @@ final class DatabaseSubjectFactory implements SubjectFactory
              * @var \Summae\Core\Ledger\DimensionRegistry|null $dimensions
              * @var \Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry|null $taxCodes
              * @var \Summae\Core\Policies\Expansion\Tax\TaxProfile|null $taxProfile
-             * @var \Summae\Core\Mapping\MappingRegistry|null $mappings
+             * @var \Summae\Core\Policies\Projection\Mapping\MappingRegistry|null $mappings
              */
             return (new DatabaseTenantFactory($connection))->build(
                 $name,

@@ -9,7 +9,7 @@ use Summae\Core\Policies\Expansion\Assets\AssetService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Partner\PartnerService;
 use Summae\Core\Substrate\Clock;
 use Summae\Core\Substrate\Currency;

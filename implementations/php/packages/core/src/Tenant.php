@@ -16,7 +16,7 @@ use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
 use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\FiscalYearRepository;

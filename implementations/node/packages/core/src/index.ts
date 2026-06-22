@@ -86,25 +86,25 @@ export { Partner } from './partner/partner.js';
 export { PartnerService } from './partner/partner-service.js';
 export type { PartnerRepository } from './port.js';
 export { InMemoryPartnerRepository } from './in-memory.js';
-export { EcSalesListProjection } from './projection/ec-sales-list.js';
+export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 
 // Projektionen
-export { TrialBalanceProjection } from './projection/trial-balance.js';
-export { OpenItemsProjection } from './projection/open-items.js';
-export { AccountSheetProjection } from './projection/account-sheet.js';
-export { AuditLogProjection } from './projection/audit-log.js';
-export { VatReturnProjection } from './projection/vat-return.js';
-export { IncomeStatementProjection } from './projection/income-statement.js';
-export { BalanceSheetProjection } from './projection/balance-sheet.js';
-export { CashBasisProjection } from './projection/cash-basis.js';
-export { AssetRegisterProjection } from './projection/asset-register.js';
-export { JournalExportProjection } from './projection/journal-export.js';
-export { DatevExportProjection } from './projection/datev-export.js';
+export { TrialBalanceProjection } from './policies/projection/trial-balance.js';
+export { OpenItemsProjection } from './policies/projection/open-items.js';
+export { AccountSheetProjection } from './policies/projection/account-sheet.js';
+export { AuditLogProjection } from './policies/projection/audit-log.js';
+export { VatReturnProjection } from './policies/projection/vat-return.js';
+export { IncomeStatementProjection } from './policies/projection/income-statement.js';
+export { BalanceSheetProjection } from './policies/projection/balance-sheet.js';
+export { CashBasisProjection } from './policies/projection/cash-basis.js';
+export { AssetRegisterProjection } from './policies/projection/asset-register.js';
+export { JournalExportProjection } from './policies/projection/journal-export.js';
+export { DatevExportProjection } from './policies/projection/datev-export.js';
 
 // Mappings
-export { Mapping, type MappingLeaf, leafMatches } from './mapping/mapping.js';
-export { MappingRegistry } from './mapping/mapping-registry.js';
-export { MappingImporter } from './mapping/mapping-importer.js';
+export { Mapping, type MappingLeaf, leafMatches } from './policies/projection/mapping/mapping.js';
+export { MappingRegistry } from './policies/projection/mapping/mapping-registry.js';
+export { MappingImporter } from './policies/projection/mapping/mapping-importer.js';
 
 // Tax
 export { TaxCode } from './policies/expansion/tax/tax-code.js';

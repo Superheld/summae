@@ -8,7 +8,7 @@ use Summae\Core\Ledger\Account;
 use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\OpenItemKind;
 use Summae\Core\Ledger\OpenItemStatus;
-use Summae\Core\Projection\OpenItemsProjection;
+use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 
