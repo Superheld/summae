@@ -20,6 +20,26 @@ final readonly class Fixture
     ) {
     }
 
+    /**
+     * Wie fromFile, liefert aber `null` für Dateien ohne "fixture"-Schlüssel
+     * (Modul-/Pack-Datendateien unter pack/**, keine Fixtures).
+     */
+    public static function tryFromFile(string $path): ?self
+    {
+        $raw = file_get_contents($path);
+        if ($raw === false) {
+            throw new \RuntimeException(sprintf('Fixture nicht lesbar: %s', $path));
+        }
+
+        /** @var mixed $data */
+        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || !is_string($data['fixture'] ?? null)) {
+            return null;
+        }
+
+        return self::fromFile($path);
+    }
+
     public static function fromFile(string $path): self
     {
         $raw = file_get_contents($path);

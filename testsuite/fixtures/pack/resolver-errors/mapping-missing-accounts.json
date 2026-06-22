@@ -1,0 +1,58 @@
+{
+  "fixture": "resolver-mapping-missing-accounts",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: ein Bilanz-Mapping hat eine Position, deren accounts-Selektor (Bereich) ausschließlich ins Leere zeigt — kein einziges existierendes Konto fällt hinein (Integritätsprüfung I2). Referenz zeigt ins Nichts → E_PACK_UNRESOLVED_REF.",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_UNRESOLVED_REF", "I2"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-mini", "version": "1.0",
+        "name": "Mini-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "3000", "name": "Eigenkapital", "type": "equity" }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "mapping", "id": "bilanz-luecke", "version": "1.0",
+        "name": "Bilanz-Mapping mit Leerselektor", "contributes": ["mappings"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-mini" } ],
+        "data": { "mapping": {
+          "id": "bilanz-luecke", "kind": "balance-sheet", "version": "1.0",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "side": "assets", "children": [
+              { "key": "A.I", "label": "Anlagevermögen", "accounts": [ { "from": "0001", "to": "0999" } ] }
+            ] }
+          ]
+        } }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-mapping-gap", "name": "Pack: Mapping-Selektor trifft kein Konto", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "coa-mini", "version": "1.0" },
+          { "kind": "mapping", "id": "bilanz-luecke", "version": "1.0" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-mapping-gap", "version": "1.0" } },
+      "expect": {
+        "comment": "Position A.I selektiert Bereich 0001-0999; der Kontenrahmen hat dort kein Konto (nur 1200/3000). I2: kein Selektor darf ausschließlich ins Leere zeigen → E_PACK_UNRESOLVED_REF. Abgrenzung: dies ist eine Resolver-Komposition (Selektor ohne Treffer im Pack), NICHT die laufzeitliche gapWarnings-Auffangposition einer gebuchten SuSa.",
+        "error": "E_PACK_UNRESOLVED_REF"
+      }
+    }
+  ],
+  "projections": []
+}

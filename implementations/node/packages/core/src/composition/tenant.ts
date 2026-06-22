@@ -69,6 +69,7 @@ export class Tenant {
     taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
+    taxRoundingGranularity = 'perVoucher',
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     return Tenant.fromPorts(
@@ -91,6 +92,7 @@ export class Tenant {
       taxCodes,
       taxProfile,
       mappings,
+      taxRoundingGranularity,
     );
   }
 
@@ -120,6 +122,7 @@ export class Tenant {
     taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
+    taxRoundingGranularity = 'perVoucher',
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, audit } = ports;
     const ledger = new Ledger(
@@ -134,7 +137,7 @@ export class Tenant {
       clock,
       ids,
     );
-    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal);
+    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity);
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);
     const costing = new CostingService(baseCurrency, accounts, journal, ids);
     const partnerService = new PartnerService(partners, audit, clock, ids);

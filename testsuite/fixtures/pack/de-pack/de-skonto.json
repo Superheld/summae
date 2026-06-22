@@ -1,0 +1,52 @@
+{
+  "fixture": "de-skonto",
+  "description": "DE-Pack: Zahlung mit 2 % Skonto — Erlösschmälerung auf eigenem Konto 4020 + USt-Korrektur §17 (3100), offener Posten voll ausgeglichen. Rechnung 1190 (netto 1000 + USt 190); Skonto 23,80 brutto = 20 netto + 3,80 USt.",
+  "covers": ["F-CORE-019", "F-TAX-008", "SF-18"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Skonto GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-300", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01", "text": "Ausgangsrechnung, 2% Skonto bei Zahlung in 10 Tagen",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "3100", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-300", "voucherDate": "2026-04-09" },
+        "entryDate": "2026-04-09", "text": "Zahlung abzgl. 2% Skonto",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1166.20", "currency": "EUR" } },
+          { "account": "4020", "side": "debit", "money": { "amount": "20.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "3100", "side": "debit", "money": { "amount": "3.80", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "id": "$E2" } } } },
+    { "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" }, "difference": { "money": { "amount": "23.80", "currency": "EUR" }, "kind": "discount" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.00", "currency": "EUR" }, "status": "settled" } ] } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "1166.20" },
+        { "account": "1400", "balance": "0.00" },
+        { "account": "3100", "balance": "-186.20" },
+        { "account": "4000", "balance": "-1000.00" },
+        { "account": "4020", "balance": "20.00" }
+      ] } }
+  ]
+}

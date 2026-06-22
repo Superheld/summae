@@ -1,0 +1,28 @@
+{
+  "fixture": "de-kleinunternehmer",
+  "description": "DE-Pack: Kleinunternehmer-Erlös ohne USt (§19 UStG) auf dem eigenen Konto 4040. Direkt gebucht (keine Steuerexpansion), 100 brutto = netto.",
+  "covers": ["F-TAX-004", "SF-11"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Klein GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-KU", "voucherDate": "2026-03-20" },
+        "entryDate": "2026-03-20", "text": "Verkauf ohne USt (Kleinunternehmer)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "4040", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "100.00" },
+        { "account": "4040", "balance": "-100.00" }
+      ] } }
+  ]
+}

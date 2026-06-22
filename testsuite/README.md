@@ -1,6 +1,6 @@
 # Konformitäts-Testsuite
 
-**Der Kompatibilitätsvertrag.** Eine Implementierung (laufzeitübergreifend; erste: PHP/Laravel ✅, dann Node, Python) gilt als konform, wenn alle Fixtures grün sind. Sprachneutral: reine JSON-Daten, kein Code.
+**Der Kompatibilitätsvertrag.** Eine Implementierung (laufzeitübergreifend; PHP/Laravel ✅, Node/TypeScript ✅, weitere Sprachen folgen) gilt als konform, wenn alle Fixtures grün sind. Sprachneutral: reine JSON-Daten, kein Code.
 
 ## Fixture-Format
 
@@ -33,10 +33,10 @@ Eine Fixture = eine JSON-Datei:
 ## Konventionen
 
 - Jeder Fehlercode aus `50-spezifikation/api.md` bekommt ≥ 1 Fixture.
-- Jeder Standardfall SF-01–26 bekommt ≥ 1 Fixture (SF-15 erst mit zweiter Runtime).
+- Jeder Standardfall SF-01–26 bekommt ≥ 1 Fixture (SF-15 = Cross-Kompatibilität, erfüllt seit der Node-Runtime + bidirektionalem Cross-Test).
 - Rundungs- und Sortierfälle sind eigene Fixtures (häufigste Cross-Impl-Abweichung).
 - Fixtures sind append-only: Verhaltensänderung = neue Fixture + Entscheidungslog, nie stilles Editieren.
 
-## Stand (2026-06-08)
+## Stand (2026-06-21)
 
-**43 Fixtures, 34/34 Fehlercodes, 25/26 Standardfälle** (SF-15 wartet auf die zweite Runtime). Aktueller Stand und Abdeckungsmatrix: `abdeckung.md`, Validierung: `validate.py`. Die PHP-Referenz besteht die Suite vollständig (`../80-implementierung/ABSCHLUSSBERICHT.md`).
+**58 Fixtures (45 Kern + 13 Pack), 38 Fehlercodes (36 mit Fixture, 2 offen), 26/26 Standardfälle** (SF-15 erfüllt: PHP ↔ Node bidirektional grün). Die 45 Kern-Fixtures sind PHP- und Node-grün; die 13 Pack-Fixtures (`fixtures/pack/`) prüfen die v0.6-Pack-Komposition (Resolver) — Gegenstand von Gate 1. Aktueller Stand und Abdeckungsmatrix: `abdeckung.md`, Validierung: `validate.py`. PHP- und Node-Referenz bestehen den Kern-Vertrag vollständig (`../80-implementierung/ABSCHLUSSBERICHT.md`, `RUNTIME-LEITFADEN.md`).

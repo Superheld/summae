@@ -1,0 +1,26 @@
+{
+  "fixture": "de-reverse-charge",
+  "description": "DE-Pack: Reverse Charge §13b (taxCode RC13b) — expandTax erzeugt USt (3100, Kz 47) und Vorsteuer (1500, Kz 67) gleichzeitig; Zahlbetrag = Netto.",
+  "covers": ["F-TAX-006"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "RC GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-02", "taxCode": "RC13b", "direction": "input",
+        "netLines": [ { "account": "5000", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "taxLines": [
+            { "account": "3100", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" }, "taxTag": { "code": "RC13b", "reportingKey": "47" } },
+            { "account": "1500", "side": "debit", "money": { "amount": "190.00", "currency": "EUR" }, "taxTag": { "code": "RC13b", "reportingKey": "67" } }
+          ],
+          "grossTotal": { "amount": "1000.00", "currency": "EUR" }
+        }
+      } }
+  ],
+  "projections": []
+}

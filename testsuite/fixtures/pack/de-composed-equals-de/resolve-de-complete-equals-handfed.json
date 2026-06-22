@@ -1,0 +1,75 @@
+{
+  "fixture": "resolve-de-complete-equals-handfed",
+  "description": "DE komponiert == DE heute (Pivot-Beweis): das de-mini-regression-Manifest (die 3-Modul-Mini-Regressionsbasis, NICHT das kanonische 9-Modul-de-complete) wird zu einem ResolvedPack aufgelöst, der byte-identisch den heute hand-gereichten DE-Regelmodul-Daten (Kontenrahmen, taxCodes, packPolicy) entspricht. Kein Buchungs-Verhalten — nur die Auflösung. Ist dieser Pack gleich dem hand-gereichten Bündel, dann sind ALLE 45 bestehenden Fixtures, gegen genau dieses Bündel gerechnet, automatisch byte-identisch grün (Transitivität, siehe README).",
+  "covers": ["F-PACK-001", "SF-27"],
+  "setup": {
+    "moduleSource": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "skr-mini-test", "kind": "accounts", "version": "2026.1",
+          "name": "Mini-Kontenrahmen (DE-Regressionsbasis)",
+          "contributes": ["accounts"],
+          "data": { "accounts": [
+            { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+            { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-ust-2026", "kind": "tax", "version": "2026.1",
+          "name": "USt Deutschland 2026",
+          "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "skr-mini-test" } ],
+          "data": { "taxCodes": [
+            { "code": "USt19", "versions": [
+              { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-eur", "kind": "policy", "version": "2026.1",
+          "name": "DE-Policy (EUR)",
+          "contributes": ["policy"],
+          "data": { "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+        }
+      ]
+    },
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "de-mini-regression", "name": "Deutschland — Mini-Regressionsbasis (3 Module)", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "skr-mini-test", "version": "2026.1" },
+          { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
+          { "kind": "policy", "id": "de-eur", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": "de-mini-regression", "version": "2026.1" },
+      "expect": {
+        "result": {
+          "comment": "Der ResolvedPack ist exakt das Bündel, das createTenant heute als hand-gereichtes ruleModules bekommt — nichts erfunden, nur gefaltet (module-manifest-resolver.md § 4.1).",
+          "chartOfAccounts": {
+            "accounts": [
+              { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+              { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+              { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+            ]
+          },
+          "taxCodes": [
+            { "code": "USt19", "versions": [
+              { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+          ],
+          "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

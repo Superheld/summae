@@ -11,7 +11,11 @@ import {
   FiscalYear,
   type IdGenerator,
   MappingRegistry,
+  type PackManifest,
+  type PackModule,
   type PeriodDefinition,
+  resolvePack,
+  ruleModulesFromResolved,
   TaxCodeRegistry,
   TaxProfile,
   Tenant,
@@ -22,6 +26,7 @@ import {
   isAccountType,
 } from '@superheld/summae-core';
 import { type Subject, SubjectError } from '../subject.js';
+import { loadPackLibrary, type PackLibrary } from '../pack-library.js';
 
 // Feste Uhr: recordedAt/at-Zeitstempel sind über beide Suite-Läufe identisch.
 const FIXED_NOW = '2026-06-07T12:00:00+02:00';
@@ -60,6 +65,8 @@ export type TenantBuilder = (
 export class CoreSubject implements Subject {
   private tenant: Tenant | null = null;
   private ruleModules: Record<string, unknown> = {};
+  private packModules: PackModule[] = [];
+  private packManifests: PackManifest[] = [];
   private readonly tenants = new Map<string, Tenant>();
 
   constructor(
@@ -73,6 +80,9 @@ export class CoreSubject implements Subject {
       taxProfile,
       mappings,
     ) => Tenant.inMemory(name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings),
+    // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
+    // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+    private readonly library: PackLibrary = loadPackLibrary(),
   ) {}
 
   setup(setup: Record<string, unknown>): void {
@@ -82,6 +92,30 @@ export class CoreSubject implements Subject {
       ...(isRecord(setup.ruleModule) ? setup.ruleModule : {}),
     };
     this.ruleModules = ruleModules;
+
+    // Pack-Quelle (Resolver): Module unter setup.modules | setup.moduleSource | setup.pack.modules;
+    // Manifeste unter setup.manifests + setup.pack.manifest (Singular).
+    const pack = isRecord(setup.pack) ? setup.pack : null;
+    const moduleSource = setup.moduleSource;
+    const moduleList = asRecordList(setup.modules).length
+      ? asRecordList(setup.modules)
+      : isRecord(moduleSource)
+        ? asRecordList(moduleSource.modules)
+        : Array.isArray(moduleSource)
+          ? asRecordList(moduleSource)
+          : pack
+            ? asRecordList(pack.modules)
+            : [];
+    // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+    this.packModules = [
+      ...(moduleList as unknown as PackModule[]),
+      ...this.library.modules,
+    ];
+    this.packManifests = [
+      ...(asRecordList(setup.manifests) as unknown as PackManifest[]),
+      ...(pack && isRecord(pack.manifest) ? [pack.manifest as unknown as PackManifest] : []),
+      ...this.library.manifests,
+    ];
 
     const tenantData = isRecord(setup.tenant) ? setup.tenant : null;
     if (tenantData === null) {
@@ -151,6 +185,13 @@ export class CoreSubject implements Subject {
         throw this.translate(error);
       }
     }
+    if (op === 'resolvePack') {
+      try {
+        return this.resolvePackOp(input);
+      } catch (error) {
+        throw this.translate(error);
+      }
+    }
     const tenant = this.resolveTenant(input);
     const { tenant: _ignored, ...rest } = input;
     try {
@@ -172,10 +213,55 @@ export class CoreSubject implements Subject {
 
   private createTenant(input: Record<string, unknown>): Record<string, unknown> {
     const clock = FixedClock.at(FIXED_NOW);
+    // Pack-Pfad: Manifest auflösen -> ruleModules -> unveränderte Factory; im Ergebnis
+    // tauscht `profile` gegen `pack` (Mandant pinnt das Manifest, api.additions A.1).
+    if (typeof input.pack === 'string' || isRecord(input.pack)) {
+      const manifest = this.findManifest({ manifest: input.pack });
+      const resolved = resolvePack(manifest, this.packModules);
+      const factory = new TenantFactory(
+        ruleModulesFromResolved(resolved),
+        clock,
+        new DeterministicIdGenerator(clock),
+      );
+      const created = factory.create({ ...input, profile: asString(resolved.profile.id) ?? '' });
+      this.tenants.set(created.tenant.id.value, created.tenant);
+      const { profile: _profile, ...rest } = created.result;
+      return { ...rest, pack: { id: resolved.id, version: resolved.version } };
+    }
     const factory = new TenantFactory(this.ruleModules, clock, new DeterministicIdGenerator(clock));
     const created = factory.create(input);
     this.tenants.set(created.tenant.id.value, created.tenant);
     return created.result;
+  }
+
+  private resolvePackOp(input: Record<string, unknown>): Record<string, unknown> {
+    const manifest = this.findManifest(input);
+    const resolved = resolvePack(manifest, this.packModules);
+    return {
+      id: resolved.id,
+      version: resolved.version,
+      accountCount: resolved.chartOfAccounts.accounts.length,
+      chartOfAccounts: resolved.chartOfAccounts,
+      taxCodes: resolved.taxCodes,
+      mappings: resolved.mappings,
+      ...(resolved.assetAccounts !== null ? { assetAccounts: resolved.assetAccounts } : {}),
+      ...(resolved.depreciation !== null ? { depreciation: resolved.depreciation } : {}),
+      packPolicy: resolved.packPolicy,
+    };
+  }
+
+  /** Manifest-Referenz auflösen: `manifest` als String-id (+ `version`) oder als `{id, version}`. */
+  private findManifest(ref: Record<string, unknown>): PackManifest {
+    const raw = ref.manifest;
+    const id = isRecord(raw) ? asString(raw.id) : asString(raw);
+    const version = isRecord(raw) ? asString(raw.version) : asString(ref.version);
+    const found = this.packManifests.find(
+      (m) => m.id === id && (version === null || m.version === version),
+    );
+    if (found === undefined) {
+      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest nicht gefunden: ${String(id)}`);
+    }
+    return found;
   }
 
   /** Routing: explizite tenant-Referenz, sonst Setup-Mandant, sonst zuletzt angelegter. */

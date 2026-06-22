@@ -50,6 +50,9 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
   begründenden Kommentar).
 - PHP-Namespace `Summae\…` (z. B. `Summae\Core\Ledger`), unabhängig vom
   Composer-Vendor `superheld/`.
+- **Pack-Komposition:** Resolver `packages/core/src/Composition/PackResolver.php`; Loader (liest die
+  ausgelieferte `pack-library/`) `runner/src/PackLibrary.php`. Module/Manifeste **referenzieren**,
+  nicht inline duplizieren.
 
 ## Definition of Green (hier)
 
@@ -65,3 +68,7 @@ PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` 
 - `docs/konformitaet.md` — der Kompatibilitätsvertrag, wie der Runner arbeitet,
   die häufigsten Cross-Impl-Fallen, der SPEC-FINDINGS-Eskalationsweg.
 - `SPEC-FINDINGS.md` — dokumentierte Widersprüche zwischen Spec/Fixture/Modell.
+
+Die **sprachneutralen Bau-Patterns** (Ports/Factory/Dispatcher, „neue Operation = Service + ein
+`case` + Fixture", Pack = Daten nicht Code, 1:1-Spiegelung) stehen einmal im Root-`CLAUDE.md`
+(Sektion „Bau-Konventionen") — hier nur die PHP-Idiome.

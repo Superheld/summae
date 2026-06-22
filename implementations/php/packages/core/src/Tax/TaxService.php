@@ -29,6 +29,8 @@ final readonly class TaxService
         private TaxCodeRegistry $registry,
         private TaxProfile $profile,
         private JournalRepository $journal,
+        // Pack-Parameter: 'perVoucher' (Steuer einmal je Schlüssel) | 'perLine' (je Position).
+        private string $taxRoundingGranularity = 'perVoucher',
     ) {
     }
 
@@ -111,6 +113,45 @@ final readonly class TaxService
                 ], $netLines),
                 'taxLines' => [],
                 'grossTotal' => $netTotal->jsonSerialize(),
+            ];
+        }
+
+        $sideFor = $direction === 'output' ? 'credit' : 'debit';
+
+        // perLine (Pack-Parameter): Steuer je Position runden, eine Steuerzeile je
+        // Position. Nur Standard-Mechanismus (perLine nicht mit RC/IC kombiniert).
+        if ($this->taxRoundingGranularity === 'perLine') {
+            $taxLines = [];
+            $grossTotal = $netTotal;
+            $resultNetLines = [];
+            foreach ($netLines as $line) {
+                $version = $versions[$line['code']];
+                $tag = $this->tag($line['code'], $version, $version->reportingKey, $line['money']);
+                $tax = Money::fromCalculation(
+                    BigDecimal::of($line['money']->amountAsString())
+                        ->multipliedBy(BigDecimal::of($version->rate))
+                        ->dividedBy(100, 10, \Brick\Math\RoundingMode::UNNECESSARY),
+                    $this->baseCurrency,
+                );
+                $taxLines[] = [
+                    'account' => $version->taxAccount,
+                    'side' => $sideFor,
+                    'money' => $tax->jsonSerialize(),
+                    'taxTag' => $tag,
+                ];
+                $grossTotal = $grossTotal->add($tax);
+                $resultNetLines[] = [
+                    'account' => $line['account'],
+                    'side' => $sideFor,
+                    'money' => $line['money']->jsonSerialize(),
+                    'taxTag' => $tag,
+                ];
+            }
+
+            return [
+                'netLines' => $resultNetLines,
+                'taxLines' => $taxLines,
+                'grossTotal' => $grossTotal->jsonSerialize(),
             ];
         }
 

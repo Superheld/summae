@@ -1,0 +1,28 @@
+{
+  "fixture": "de-ust7-ermaessigt",
+  "description": "DE-Pack: Ausgangsrechnung zum ermäßigten Satz 7 % (taxCode USt7 → 3110, Erlöse 4010). Netto 200 → brutto 214.",
+  "covers": ["F-TAX-002", "SF-02"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Ermäßigt GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-007", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01", "text": "Buchverkauf 7 %",
+        "taxCode": "USt7", "direction": "output",
+        "netLines": [ { "account": "4010", "money": { "amount": "200.00", "currency": "EUR" } } ],
+        "counterAccount": "1200"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "214.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "214.00" },
+        { "account": "3110", "balance": "-14.00" },
+        { "account": "4010", "balance": "-200.00" }
+      ] } }
+  ]
+}

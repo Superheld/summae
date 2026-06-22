@@ -3,6 +3,10 @@
 Wie die Pakete in die Registries kommen. Nutzer-Doku liegt im
 [Handbuch](docs/handbuch/README.md); dies hier ist nur für Maintainer.
 
+> **Modell-Entscheidung** (Weg A, eine SemVer-Linie, verworfene Alternativen B/C)
+> liegt in der Wissensbasis: `00-projekt/entscheidungen.md` (2026-06-20) und
+> `oss-governance.md`. Dieses Dokument hält nur die **operativen Schritte**.
+
 ## Versionsschema
 
 Ein Git-Tag `vX.Y.Z` markiert ein Release. Vor dem Tag:
@@ -63,8 +67,8 @@ aktualisiert die drei Repos inkl. Tag → Packagist zieht via Webhook nach.
    ```bash
    gh secret set SPLIT_TOKEN --repo Superheld/summae
    ```
-   (Der initiale 0.1.0-Split lief ohne Workflow direkt über die lokale
-   SSH-Anmeldung; das Secret ist erst für künftige Tags nötig.)
+   (Seit 0.2.0 läuft der Split turnkey über den Workflow; das Secret ist gesetzt.
+   Der initiale 0.1.0-Split lief noch manuell über die lokale SSH-Anmeldung.)
 2. **Packagist-Anmeldung:** auf packagist.org mit GitHub einloggen und die drei
    Split-Repos einreichen (Submit → Repo-URL). Beim Submit installiert Packagist
    den GitHub-Webhook für Auto-Updates. Reihenfolge: erst `summae-core`, dann

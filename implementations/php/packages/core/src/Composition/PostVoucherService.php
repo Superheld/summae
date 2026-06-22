@@ -28,16 +28,20 @@ final readonly class PostVoucherService
      *
      * @return array<string, mixed>
      */
-    public function post(array $input): array
+    /**
+     * Beleg aus `input.voucher` bauen + ablegen — geteilt von postVoucher und createVoucher.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function buildAndAddVoucher(array $input): Voucher
     {
         $voucherData = is_array($input['voucher'] ?? null) ? $input['voucher'] : [];
-        $voucherNumber = is_string($voucherData['voucherNumber'] ?? null) ? $voucherData['voucherNumber'] : '';
         $voucherDateRaw = is_string($voucherData['voucherDate'] ?? null) ? $voucherData['voucherDate'] : '';
 
         try {
             $voucherDate = CalendarDate::of($voucherDateRaw);
         } catch (InvalidValue) {
-            throw new DomainError('E_ENTRY_NO_VOUCHER', 'postVoucher braucht voucher.voucherDate');
+            throw new DomainError('E_ENTRY_NO_VOUCHER', 'Beleg braucht voucher.voucherDate');
         }
 
         // v0.4: Partner muss existieren, bevor irgendetwas entsteht.
@@ -53,7 +57,7 @@ final readonly class PostVoucherService
 
         $voucher = new Voucher(
             $this->tenant->ids->next(),
-            $voucherNumber,
+            is_string($voucherData['voucherNumber'] ?? null) ? $voucherData['voucherNumber'] : '',
             $voucherDate,
             is_string($voucherData['due'] ?? null) ? CalendarDate::of($voucherData['due']) : null,
             (bool) ($voucherData['recurring'] ?? false),
@@ -67,6 +71,53 @@ final readonly class PostVoucherService
             is_string($voucherData['issuer'] ?? null) ? $voucherData['issuer'] : null,
         );
         $this->tenant->vouchers->add($voucher);
+
+        return $voucher;
+    }
+
+    /**
+     * createVoucher: Beleg anlegen, ohne zu buchen — macht Pack-Modus-Fixtures vollwertig.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function createVoucher(array $input): array
+    {
+        $voucher = $this->buildAndAddVoucher($input);
+
+        return ['id' => $voucher->id->value, 'voucherNumber' => $voucher->voucherNumber];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function post(array $input): array
+    {
+        $voucher = $this->buildAndAddVoucher($input);
+        $voucherDate = $voucher->voucherDate;
+
+        // Direkter Brutto-Modus: explizite `lines` ohne Steuerexpansion (z. B. Zahlungen).
+        if (is_array($input['lines'] ?? null)) {
+            $directResult = $this->tenant->ledger->post([
+                'actor' => $input['actor'] ?? null,
+                'entryDate' => $input['entryDate'] ?? $voucherDate->iso,
+                'voucherId' => $voucher->id->value,
+                'text' => $input['text'] ?? '',
+                'lines' => $input['lines'],
+            ]);
+
+            return [
+                'entry' => $directResult->entry->jsonSerialize(),
+                'openItemsCreated' => array_map(
+                    static fn (OpenItem $item): array => $item->jsonSerialize(),
+                    $directResult->openItemsCreated,
+                ),
+                'voucherId' => $voucher->id->value,
+            ];
+        }
 
         $expansion = $this->tenant->tax->expand([
             'date' => $voucherDate->iso,

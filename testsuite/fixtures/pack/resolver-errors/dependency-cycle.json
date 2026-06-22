@@ -1,0 +1,49 @@
+{
+  "fixture": "resolver-dependency-cycle",
+  "description": "ENTWURF (Gate 1, nicht normativ). Resolver: zwei Module verweisen per dependsOn wechselseitig aufeinander — der Abhängigkeits-DAG ist keiner. Alle Referenzen existieren, aber der Graph hat einen Zyklus → E_PACK_INCOHERENT (Auflösungsreihenfolge Schritt 3).",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_INCOHERENT", "cycle"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-a", "version": "1.0",
+        "name": "Kontenrahmen A (haengt zirkulaer an B)", "contributes": ["accounts"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-b" } ],
+        "data": { "accounts": [ { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash" } ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "coa-b", "version": "1.0",
+        "name": "Kontenrahmen B (haengt zirkulaer an A)", "contributes": ["accounts"],
+        "dependsOn": [ { "kind": "accounts", "id": "coa-a" } ],
+        "data": { "accounts": [ { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" } ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-cycle", "name": "Pack mit Abhaengigkeits-Zyklus", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "coa-a", "version": "1.0" },
+          { "kind": "accounts", "id": "coa-b", "version": "1.0" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "overrides": [],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-cycle", "version": "1.0" } },
+      "expect": {
+        "comment": "coa-a dependsOn coa-b, coa-b dependsOn coa-a: beide existieren, aber die topologische Sortierung scheitert am Zyklus. Bündel in sich widersprüchlich → E_PACK_INCOHERENT (nicht UNRESOLVED_REF, da kein Ziel fehlt).",
+        "error": "E_PACK_INCOHERENT"
+      }
+    }
+  ],
+  "projections": []
+}

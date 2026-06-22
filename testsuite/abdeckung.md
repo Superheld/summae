@@ -1,14 +1,14 @@
-# Abdeckungsstand (2026-06-14)
+# Abdeckungsstand (2026-06-21)
 
-Automatisch prüfbar via `python3 validate.py`. **45 Fixtures — alle von der PHP-Referenz bestanden** (45/45 grün gegen In-Memory, Doppellauf deterministisch, PHPStan max, 93 Unit-Tests; verifiziert 2026-06-14). Die zwei am 2026-06-09 ergänzten Steuer-Fixtures (`vat-return-reversal`, `vat-return-cash-basis-rounding`) sind damit verbindlich; ihre Verifikation förderte F-010 (Fixture-Erwartung korrigiert) und F-011 (PHP-Bug gefixt) zutage — `../80-implementierung/SPEC-FINDINGS.md`.
+Automatisch prüfbar via `python3 validate.py`. **58 Fixtures gesamt** (45 Kern + 13 Pack), dazu 4 Modul-/Pack-Datendateien (keine Fixtures). Die **45 Kern-Fixtures** sind von der PHP- **und** Node-Referenz bestanden (grün gegen In-Memory, Doppellauf deterministisch, PHPStan max; verifiziert 2026-06-14). Die **13 Pack-Fixtures** (`fixtures/pack/`) prüfen die v0.6-Pack-Komposition (Resolver) und sind Gegenstand von Gate 1. Die zwei am 2026-06-09 ergänzten Steuer-Fixtures (`vat-return-reversal`, `vat-return-cash-basis-rounding`) sind damit verbindlich; ihre Verifikation förderte F-010 (Fixture-Erwartung korrigiert) und F-011 (PHP-Bug gefixt) zutage — `../80-implementierung/SPEC-FINDINGS.md`.
 
-## Fehlercodes: 34 / 34 ✅
+## Fehlercodes: 36 / 38 (2 offen, Gate 1)
 
-Alle Codes aus `50-spezifikation/fehlerkatalog.md` haben ≥ 1 Fixture.
+36 der 38 Codes aus `50-spezifikation/fehlerkatalog.md` haben ≥ 1 Fixture. Offen (✗): `E_POLICY_INVALID`, `E_AMOUNT_SCALE_MISMATCH` — beide Pack-Komposition, Fixtures in Gate 1.
 
-## Standardfälle: 25 / 26 ✅ (offen nur SF-15)
+## Standardfälle: 26 / 26 ✅
 
-SF-15 (Cross-Implementierung: Datenbestand aus Runtime A in B weiterführen) ist per Definition erst mit der **zweiten Runtime** (Node) testbar — Cross-Test-Protokoll in `README.md`. Alle übrigen SF-01…26 haben mindestens eine Fixture.
+SF-15 (Cross-Implementierung: Datenbestand aus Runtime A in B weiterführen) ist mit der **zweiten Runtime** (Node) erfüllt — bidirektionaler PHP↔Node-Cross-Test grün; Cross-Test-Protokoll in `README.md`. Alle SF-01…26 haben mindestens eine Fixture.
 
 ## Determinismus-Pflichtfälle: 5 / 5 ✅
 
@@ -31,4 +31,4 @@ Von vier gemeldeten Lücken hielten zwei der Prüfung nicht stand: **§ 17-Korre
 
 ## Fazit
 
-**Vertrag erfüllt für die PHP-Referenz.** Eine Implementierung, die die **45** Fixtures (plus Determinismus-Doppellauf) besteht, ist konform. Zwei fachliche Rückfragen offen (RQ-1/RQ-2, `40-domaenenmodell/offene-fragen.md`) — beide betreffen nur die VA-Darstellungs-/Zuordnungssemantik, nicht den Buchungskern. SF-15 wird mit der zweiten Runtime (Node) scharf geschaltet.
+**Kern-Vertrag erfüllt für PHP- und Node-Referenz.** Eine Implementierung, die die **45 Kern-Fixtures** (plus Determinismus-Doppellauf) besteht, ist für den Buchungskern konform. Die **13 Pack-Fixtures** (v0.6-Pack-Komposition) erweitern den Vertrag um die Resolver-Ebene — Stand Gate 1. Zwei fachliche Rückfragen offen (RQ-1/RQ-2, `40-domaenenmodell/offene-fragen.md`) — beide betreffen nur die VA-Darstellungs-/Zuordnungssemantik, nicht den Buchungskern. SF-15 ist mit der zweiten Runtime (Node) erfüllt: bidirektionaler Cross-Test grün.

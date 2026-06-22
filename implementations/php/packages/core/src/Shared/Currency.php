@@ -30,13 +30,18 @@ final readonly class Currency implements \JsonSerializable, \Stringable
     ) {
     }
 
-    public static function of(string $code): self
+    /**
+     * `$scaleOverride` setzt die Nachkommastellen-Skala explizit (Pack-Parameter
+     * `packPolicy.currencyScale`) — überstimmt die globale Default-/ISO-Skala pro
+     * Mandant (Skala ist Pack-Sache, nicht global).
+     */
+    public static function of(string $code, ?int $scaleOverride = null): self
     {
         if (preg_match('/^[A-Z]{3}$/', $code) !== 1) {
             throw new InvalidValue(sprintf('Ungültiger ISO-4217-Code: "%s"', $code));
         }
 
-        return new self($code, self::SCALES[$code] ?? 2);
+        return new self($code, $scaleOverride ?? self::SCALES[$code] ?? 2);
     }
 
     public function equals(self $other): bool

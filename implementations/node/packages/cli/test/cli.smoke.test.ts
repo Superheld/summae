@@ -66,3 +66,50 @@ test('init → postVoucher → trialBalance über die CLI (persistente SQLite)',
   expect(report).toContain('8400');
   expect(report).toContain('1000.00');
 });
+
+test('init --pack de → buchen → Bilanz balanciert (Pack-Bibliothek vom Frontend gewählt)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'summae-cli-de-'));
+
+  // Frontend wählt das ausgelieferte de-Pack aus der Bibliothek — kein Inline.
+  const init = capture(['init', '--name', 'DE GmbH', '--pack', 'de', '--first-fiscal-year', '2026', '--dir', dir]);
+  expect(JSON.parse(init[0] ?? '{}')).toMatchObject({
+    initialized: true,
+    created: { accounts: 40, fiscalYears: 1 },
+  });
+
+  capture([
+    'op',
+    'postVoucher',
+    '--dir',
+    dir,
+    '--input',
+    JSON.stringify({
+      voucher: { voucherNumber: 'AR-1', voucherDate: '2026-03-01' },
+      entryDate: '2026-03-01',
+      taxCode: 'USt19',
+      direction: 'output',
+      counterAccount: '1200',
+      netLines: [{ account: '4000', money: { amount: '1000.00', currency: 'EUR' } }],
+    }),
+  ]);
+
+  // Journal: USt-Ausgangsbuchung auf den neutralen DE-Nummern.
+  const tb = capture(['report', 'trialBalance', '--dir', dir, '--params', '{"fiscalYear":2026}']).join('');
+  expect(tb).toContain('4000');
+  expect(tb).toContain('-1000.00');
+  expect(tb).toContain('-190.00');
+
+  // Bilanz: über die mitgelieferten Mappings, Aktiva == Passiva.
+  const bs = JSON.parse(
+    capture([
+      'report',
+      'balanceSheet',
+      '--dir',
+      dir,
+      '--params',
+      '{"asOf":"2026-12-31","mapping":"de-bilanz","incomeMapping":"de-guv"}',
+    ])[0] ?? '{}',
+  ) as { assetsTotal: string; liabilitiesAndEquityTotal: string };
+  expect(bs.assetsTotal).toBe('1190.00');
+  expect(bs.liabilitiesAndEquityTotal).toBe('1190.00');
+});

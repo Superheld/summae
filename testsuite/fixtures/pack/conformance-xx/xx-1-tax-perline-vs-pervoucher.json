@@ -1,0 +1,90 @@
+{
+  "fixture": "xx-1-tax-perline-vs-pervoucher",
+  "description": "Test-Pack XX (komponiert): packPolicy.taxRoundingGranularity=perLine + currencyScale 3. expandTax rundet je Position auf Skala 3 (half-up away from zero) → Steuer 7.501; perVoucher ergäbe 7.500. Beweist, dass die Granularität aus der Policy kommt und nicht im Kern verdrahtet ist. Erwartungswerte 1:1 aus entwurf-pack-policy-testpack-2026-06-09.md § 4 (Fixture XX-1).",
+  "covers": ["F-TAX-001", "F-TAX-002", "SF-02", "SF-03", "F-PACK-POLICY-001"],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "xx-minimal", "kind": "accounts", "version": "2026.1",
+          "name": "XX Minimal-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+          "data": { "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "120", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "200", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+            { "number": "210", "name": "Sales Tax fällig", "type": "liability", "subtype": "tax_out" },
+            { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+            { "number": "400", "name": "Erlöse", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-salestax", "kind": "tax", "version": "2026.1",
+          "name": "XX Sales Tax ST75", "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "xx-minimal" } ],
+          "data": { "taxCodes": [
+            { "code": "ST75", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "7.50", "taxAccount": "210", "reportingKey": "S1", "mechanism": "standard" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-policy", "kind": "policy", "version": "2026.1",
+          "name": "XX Policy", "contributes": ["policy"], "dependsOn": [],
+          "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 } }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6", "id": "xx-test-conformance", "name": "Fiktive Jurisdiktion XX", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+          { "kind": "tax", "id": "xx-salestax", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": "xx-test-conformance", "version": "2026.1" },
+      "expect": {
+        "result": {
+          "comment": "Komposition löst sauber auf: 3 Module (accounts/tax/policy), Policy-Kopie == policy-Modul, ST75.taxAccount 210 existiert im Kontenrahmen (I1). Die USt-VA ist mapping-frei: die Kennzahl S1 lebt an der ST75-Version (reportingKey), kein vat-report-Mapping nötig.",
+          "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 },
+          "accountCount": 7
+        }
+      }
+    },
+    {
+      "op": "createTenant",
+      "input": { "name": "XX Sales GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "accountCount": 7, "taxationMethod": "accrual" } }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-10", "taxCode": "ST75", "direction": "output",
+        "netLines": [
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.320", "currency": "XXD" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "perLine, Skala 3, half-up away from zero: P1 33.340×0.075=2.5005→2.501; P2 2.5005→2.501; P3 33.320×0.075=2.4990→2.499. Σ Steuer 7.501 (perVoucher wäre 100.000×0.075=7.500 exakt). Eine Steuerzeile je Position, baseMoney = Positionsnetto.",
+          "taxLines": [
+            { "account": "210", "side": "credit", "money": { "amount": "2.501", "currency": "XXD" }, "taxTag": { "code": "ST75", "reportingKey": "S1", "baseMoney": { "amount": "33.340", "currency": "XXD" } } },
+            { "account": "210", "side": "credit", "money": { "amount": "2.501", "currency": "XXD" }, "taxTag": { "code": "ST75", "reportingKey": "S1", "baseMoney": { "amount": "33.340", "currency": "XXD" } } },
+            { "account": "210", "side": "credit", "money": { "amount": "2.499", "currency": "XXD" }, "taxTag": { "code": "ST75", "reportingKey": "S1", "baseMoney": { "amount": "33.320", "currency": "XXD" } } }
+          ],
+          "grossTotal": { "amount": "107.501", "currency": "XXD" }
+        }
+      }
+    }
+  ],
+  "projections": []
+}

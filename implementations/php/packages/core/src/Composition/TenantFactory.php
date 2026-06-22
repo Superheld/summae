@@ -9,6 +9,7 @@ use Summae\Core\Ledger\Account;
 use Summae\Core\Ledger\AccountStatus;
 use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Mapping\MappingRegistry;
 use Summae\Core\Shared\AccountNumber;
 use Summae\Core\Shared\CalendarDate;
 use Summae\Core\Shared\Clock;
@@ -62,14 +63,29 @@ final readonly class TenantFactory
         $defaults = is_array($profile['defaults'] ?? null) ? $profile['defaults'] : [];
         $taxProfile = TaxProfile::fromData($defaults);
 
+        // packPolicy ist Pack-Parameter (Geld-Skala + Steuer-Granularität), nicht global.
+        $packPolicy = is_array($this->ruleModules['packPolicy'] ?? null) ? $this->ruleModules['packPolicy'] : null;
+        $currencyScale = is_int($packPolicy['currencyScale'] ?? null) ? $packPolicy['currencyScale'] : null;
+        $granularity = is_string($packPolicy['taxRoundingGranularity'] ?? null)
+            ? $packPolicy['taxRoundingGranularity']
+            : 'perVoucher';
+
+        // Mappings (Bilanz/GuV/EÜR) aus dem aufgelösten Pack in die Registry des Mandanten —
+        // sonst finden balanceSheet/incomeStatement die Mappings nicht (Pack-Pfad-Parität zum Inline-Pfad).
+        $mappings = MappingRegistry::fromRuleModules(
+            is_array($this->ruleModules['mappings'] ?? null) ? array_values($this->ruleModules['mappings']) : [],
+        );
+
         $tenant = Tenant::inMemory(
             is_string($input['name'] ?? null) ? $input['name'] : 'Tenant',
-            Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR'),
+            Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR', $currencyScale),
             $this->clock,
             $this->ids,
             null,
             TaxCodeRegistry::fromData($taxCodeData),
             $taxProfile,
+            $mappings,
+            $granularity,
         );
 
         $accountCount = 0;
@@ -98,6 +114,9 @@ final readonly class TenantFactory
                 CalendarDate::of(sprintf('%04d-12-31', $year)),
             ));
         }
+
+        // Asset-/AfA-Regeln aus dem Pack (assetAccounts, depreciation) — Parität zum Inline-Pfad.
+        $tenant->assetService->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

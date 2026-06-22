@@ -17,8 +17,21 @@ eine sprachneutrale Konformitäts-Suite (`testsuite/`).
 Repo-Layout:
 - `testsuite/` — der Kompatibilitätsvertrag: `fixtures/**.json` + `schema/`. Geteilt von allen Implementierungen.
 - `implementations/php/` — PHP-Referenz (Packages `core`, `laravel`, `cli` + `runner/`). Befehle/Konventionen: `implementations/php/CLAUDE.md`, Tiefe in `docs/`.
-- `implementations/node/` — Node/TypeScript (Package `core` + `runner/`). Befehle/Konventionen: `implementations/node/CLAUDE.md`.
+- `implementations/node/` — Node/TypeScript (Packages `core`, `knex`, `cli` + `runner/`). Befehle/Konventionen: `implementations/node/CLAUDE.md`.
+- `pack-library/` — ausgelieferte **Pack-Bibliothek** (Produkt-Daten, *keine* Tests): wählbare Packs (`packs/<id>.json`) + wiederverwendbare Module (`modules/<kind>/<id>.json`). Quelle Wissensbasis, via `make sync` gespiegelt; **getrennt von `testsuite/`**.
 - `Makefile`, `compose.yaml`, `docker/` — Docker-Toolchain (treibt aktuell die PHP-Seite).
+
+## Scope: Fähigkeiten, nicht Workflows
+
+summae liefert **Fähigkeiten** (GoBD-konformes Buchen, Auswertungen, Exporte); rechtliche
+**Workflows** baut die einbettende App. Faustregel: „*die Daten müssen…*" = Package · „*der
+Anwender muss bis X…*" = App. Bibliothek, kein App: **kein UI, kein Server, keine erzwungene DB**
+(Persistenz hinter einer Schnittstelle), mandantenfähig auf Datenebene. Bewusst **außerhalb**
+(nicht „noch nicht gebaut" — nicht versehentlich anfangen): UI/Frontend · ELSTER-/Behörden-Übermittlung ·
+E-Rechnung erzeugen/parsen (XRechnung/ZUGFeRD) · Banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+sind die Andockpunkte für *geparste* Umsätze) · Kassensysteme/TSE · Lohn*abrechnung* (nur die
+*Verbuchung* des Lohnbelegs ist drin) · Steuerermittlung über USt hinaus (ESt/KSt/GewSt).
+Master der Abgrenzung: `30-anforderungen/out-of-scope.md`.
 
 ## Architektur (das große Bild)
 
@@ -56,8 +69,56 @@ Mappings) kommen aus einem **Pack** — dem versionierten Bündel einer Jurisdik
 („tzdata fürs Rechnungswesen"; „Deutschland" ist das *erste* Pack, nicht die eingebaute
 Annahme). Ein Pack ist komponierbar (kuratiert nehmen / anpassen / selbst à la carte).
 **Lackmustest beim Bauen:** zitiert dein Code einen Paragraphen → falsche Schicht, das
-gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus (vieles ist Konzept,
-nicht Code): `docs/architektur.md`.
+gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus: `docs/architektur.md`.
+
+**Packs konkret (Vokabular, Modell, Stand).** Drei Schichten: **Kern/Substrat** (reine Mechanik) →
+**Politiksorten** (Constraint · Projektion · Expansion; Mechanik im Kern) → **Pack** (oben). **„Modul" ist
+keine vierte Schicht**, sondern die *Bau-Einheit der Pack-Schicht*: ein **Modul** = eine Daten-Datei
+(`kind` + `data`, ein kohärenter Regelsatz), die **genau eine Politiksorte bedient**. Ein **Pack** =
+Manifest, das Module auflistet. (Altwort „Regelmodul" = Pack — vermeiden. **base** = der Kern, kontenlos.)
+Eindeutige Modul→Politiksorte-Zuordnung über `kind`:
+
+| `kind` | bedient |
+|---|---|
+| `tax` · `depreciation` · `assetAccounts` | **Expansion** (Stecker) |
+| `mapping` | **Projektion** (Mappings) |
+| `accounts` | **Substrat** (Kontenrahmen) |
+| `policy` | **Parameter** (Rundung/Skala) |
+| *(`constraint` — fehlt noch)* | Constraint (heute nur generisch im Kern) |
+
+**Packs sind self-contained — sie bauen nicht aufeinander auf:** jedes Pack hält seine eigenen Module in
+`pack-library/<pack>/` (z. B. `de-pack/`, `default-pack/`), **kein geteiltes `modules/`**, eindeutige IDs je
+Pack. Der Kontenrahmen ist Pack-Inhalt und kommt als **Pack-Wahl, einmalig beim Anlegen, gepinnt — kein
+Override**. *Gebaut:* `PackResolver` (byte-gleich PHP↔Node), Loader (`pack-library/`), `createTenant(pack:"…")`,
+CLI `summae init --pack …`, Packs `default` + `de`. *Noch Konzept:* weitere Jurisdiktionen, `constraint`-Sorte.
+
+Die Engine isst *ein* aufgelöstes Bündel (`ruleModules`: `profiles/chartsOfAccounts/taxCodes/mappings/
+assetAccounts/depreciation/packPolicy`); dahin führen **inline** (Bündel direkt) **oder komponiert** (Manifest
+→ `PackResolver`). `packPolicy` parametrisiert jurisdiktionsfrei (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
+
+## Bau-Konventionen (Patterns & Rezepte — damit es konsistent bleibt)
+
+Bewährte Patterns verwenden, **keine neuen Strukturen erfinden** — der Code wird über die Zeit
+von vielen Perspektiven (menschlich wie maschinell) getragen:
+
+- **Test-driven & Walking Skeleton (inside-out):** Erst der Test, dann der Code. Im **Kern**
+  mit Tests + **Fakes** (In-Memory-Ports) beginnen; dann nach außen arbeiten und die Fakes
+  schrittweise durch echte Interfaces/Adapter (DB/CLI) ersetzen. Ein roter Test gegen den
+  In-Memory-Kern ist eindeutig ein Fachfehler, kein Persistenzfehler.
+- **Verwendete Patterns:** Ports & Adapter (Repository-Interfaces + In-Memory/DB-Adapter) ·
+  Factory (`TenantFactory`) · Value Object (`Money`/`Currency`/`CalendarDate` — unveränderlich,
+  kein Float) · Registry (`TaxCodeRegistry`/`MappingRegistry`/`DimensionRegistry`) ·
+  Dispatcher/Command (`TenantOperations`) · Strategy (z. B. `AssetRoute`).
+- **Neue Operation/Projektion:** Fachlogik in einen Service (oder `Ledger`) + **einen `case`** in
+  `TenantOperations.execute`/`.project` — **in beiden Sprachen** — + eine Fixture. Sonst nichts.
+- **Neue Pack-Fähigkeit = Daten, nicht Code:** ein Modul/Manifest; die Engine bleibt unverändert.
+  Konsumenten **referenzieren** das Pack per Name, statt Konten/Regeln **inline** zu kopieren.
+- **PHP und Node spiegeln sich 1:1.** Jede Kern-Änderung landet in *beiden* identisch — Byte-Parität
+  (SF-15) ist Vertrag, kein Nice-to-have.
+- **Framework-frei im Kern** (Node: eslint `no-restricted-imports`; PHP: nur `brick/math`).
+  Persistenz/CLI sind Adapter außen.
+
+Schritt-für-Schritt-Tiefe (Operation anbauen, Spec-Retrofit): `implementations/php/docs/entwicklung.md`.
 
 ## Eiserne Invarianten (nicht verletzen)
 
@@ -119,3 +180,9 @@ Konformitätssuite `--strict` inkl. byte-identischem Doppellauf — Details in d
 jeweiligen `implementations/<sprache>/CLAUDE.md`). Sprachübergreifend zusätzlich:
 jede Fähigkeit, die in ≥ 2 Implementierungen existiert, besteht den Cross-Test —
 gleiches Ergebnis über alle anwendbaren Packages (siehe Qualitätsrichtlinie).
+
+**Quality-Gate: jede Anforderung ist getestet.** `30-anforderungen/` (funktionale **F-…** und
+nicht-funktionale **NF-…**) ist die Soll-Liste. Jede Anforderung wird durch einen Test *bewiesen* —
+funktional über eine Fixture (verlinkt im `covers`-Feld), und wo Fixtures nicht reichen
+(Nebenläufigkeit NF-6, Performance NF-7) über einen **dedizierten** Test je Implementierung. Eine
+Anforderung **ohne** Test ist selbst ein Befund (gehört auf die Gate-Lücken-Liste), kein „erledigt".

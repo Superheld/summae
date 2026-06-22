@@ -1,0 +1,18 @@
+{
+  "formatVersion": "0.6",
+  "id": "xx-test-conformance",
+  "name": "Fiktive Jurisdiktion XX (Konformitäts-Pack)",
+  "version": "2026.1",
+  "modules": [
+    { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+    { "kind": "tax", "id": "xx-salestax", "version": "2026.1" },
+    { "kind": "policy", "id": "xx-policy", "version": "2026.1" }
+  ],
+  "overrides": [],
+  "defaults": { "taxationMethod": "accrual" },
+  "packPolicy": {
+    "roundingMode": "halfUpAwayFromZero",
+    "taxRoundingGranularity": "perLine",
+    "currencyScale": 3
+  }
+}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Runner\Subject;
 
+use Summae\Core\Composition\PackResolver;
 use Summae\Core\Composition\TenantFactory;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Core\DomainError;
@@ -14,6 +15,7 @@ use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\FiscalYear;
 use Summae\Core\Ledger\Voucher;
 use Summae\Core\Mapping\MappingRegistry;
+use Summae\Runner\PackLibrary;
 use Summae\Core\Shared\AccountNumber;
 use Summae\Core\Shared\CalendarDate;
 use Summae\Core\Shared\Currency;
@@ -41,9 +43,18 @@ final class CoreSubject implements Subject
     /** @var \Closure(string, mixed...): Tenant|null Adapter-Hook: baut den Mandanten (Default: In-Memory) */
     private readonly ?\Closure $tenantBuilder;
 
-    public function __construct(?\Closure $tenantBuilder = null)
+    /** @var array{modules: list<array<mixed>>, manifests: list<array<mixed>>} ausgelieferte Pack-Bibliothek */
+    private readonly array $library;
+
+    /**
+     * @param array{modules: list<array<mixed>>, manifests: list<array<mixed>>}|null $library
+     */
+    public function __construct(?\Closure $tenantBuilder = null, ?array $library = null)
     {
         $this->tenantBuilder = $tenantBuilder;
+        // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
+        // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+        $this->library = $library ?? PackLibrary::load();
     }
 
     private ?Tenant $tenant = null;
@@ -53,6 +64,12 @@ final class CoreSubject implements Subject
 
     /** @var array<string, mixed> Regelmodul-Daten für createTenant */
     private array $ruleModules = [];
+
+    /** @var list<array<mixed>> Modulbestand für den Pack-Resolver */
+    private array $packModules = [];
+
+    /** @var list<array<mixed>> Manifeste für den Pack-Resolver */
+    private array $packManifests = [];
 
     public function setup(array $setup): void
     {
@@ -72,6 +89,36 @@ final class CoreSubject implements Subject
             $ruleModules = [...$ruleModules, ...$setup['ruleModule']];
         }
         $this->ruleModules = $ruleModules;
+
+        // Pack-Quelle (Resolver): Module unter setup.modules | setup.moduleSource | setup.pack.modules;
+        // Manifeste unter setup.manifests + setup.pack.manifest.
+        $pack = is_array($setup['pack'] ?? null) ? $setup['pack'] : null;
+        $moduleSource = $setup['moduleSource'] ?? null;
+        if (is_array($setup['modules'] ?? null) && $setup['modules'] !== []) {
+            $moduleList = $setup['modules'];
+        } elseif (is_array($moduleSource) && is_array($moduleSource['modules'] ?? null)) {
+            $moduleList = $moduleSource['modules'];
+        } elseif (is_array($moduleSource)) {
+            $moduleList = $moduleSource;
+        } elseif ($pack !== null && is_array($pack['modules'] ?? null)) {
+            $moduleList = $pack['modules'];
+        } else {
+            $moduleList = [];
+        }
+        // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+        $this->packModules = [
+            ...array_values(array_filter($moduleList, is_array(...))),
+            ...$this->library['modules'],
+        ];
+
+        $manifests = is_array($setup['manifests'] ?? null) ? array_values($setup['manifests']) : [];
+        if ($pack !== null && is_array($pack['manifest'] ?? null)) {
+            $manifests[] = $pack['manifest'];
+        }
+        $this->packManifests = [
+            ...array_values(array_filter($manifests, is_array(...))),
+            ...$this->library['manifests'],
+        ];
 
         if (!is_array($setup['tenant'] ?? null)) {
             // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule
@@ -159,6 +206,14 @@ final class CoreSubject implements Subject
             }
         }
 
+        if ($op === 'resolvePack') {
+            try {
+                return $this->resolvePackOp($input);
+            } catch (DomainError $e) {
+                throw new SubjectError($e->errorCode, $e->getMessage());
+            }
+        }
+
         $tenant = $this->resolveTenant($input);
         unset($input['tenant']);
 
@@ -212,12 +267,94 @@ final class CoreSubject implements Subject
     private function createTenant(array $input): array
     {
         $clock = FixedClock::at(self::FIXED_NOW);
+
+        // Pack-Pfad: Manifest auflösen -> ruleModules -> unveränderte Factory; im Ergebnis
+        // tauscht `profile` gegen `pack` (Mandant pinnt das Manifest, api.additions A.1).
+        $packRef = $input['pack'] ?? null;
+        if (is_string($packRef) || is_array($packRef)) {
+            $manifest = $this->findManifest(['manifest' => $packRef]);
+            $resolved = PackResolver::resolve($manifest, $this->packModules);
+            $factory = new TenantFactory(
+                PackResolver::ruleModulesFromResolved($resolved),
+                $clock,
+                new DeterministicIdGenerator($clock),
+            );
+            $profile = is_array($resolved['profile'] ?? null) ? $resolved['profile'] : [];
+            $profileId = is_string($profile['id'] ?? null) ? $profile['id'] : '';
+            $created = $factory->create([...$input, 'profile' => $profileId]);
+            $this->tenants[$created['tenant']->id->value] = $created['tenant'];
+            $result = $created['result'];
+            unset($result['profile']);
+            $result['pack'] = ['id' => $resolved['id'], 'version' => $resolved['version']];
+
+            return $result;
+        }
+
         $factory = new TenantFactory($this->ruleModules, $clock, new DeterministicIdGenerator($clock));
         $created = $factory->create($input);
 
         $this->tenants[$created['tenant']->id->value] = $created['tenant'];
 
         return $created['result'];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    private function resolvePackOp(array $input): array
+    {
+        $manifest = $this->findManifest($input);
+        $resolved = PackResolver::resolve($manifest, $this->packModules);
+
+        $coa = is_array($resolved['chartOfAccounts'] ?? null) ? $resolved['chartOfAccounts'] : [];
+        $accounts = is_array($coa['accounts'] ?? null) ? $coa['accounts'] : [];
+
+        $result = [
+            'id' => $resolved['id'],
+            'version' => $resolved['version'],
+            'accountCount' => count($accounts),
+            'chartOfAccounts' => $resolved['chartOfAccounts'],
+            'taxCodes' => $resolved['taxCodes'],
+            'mappings' => $resolved['mappings'],
+        ];
+        if (($resolved['assetAccounts'] ?? null) !== null) {
+            $result['assetAccounts'] = $resolved['assetAccounts'];
+        }
+        if (($resolved['depreciation'] ?? null) !== null) {
+            $result['depreciation'] = $resolved['depreciation'];
+        }
+        $result['packPolicy'] = $resolved['packPolicy'];
+
+        return $result;
+    }
+
+    /**
+     * Manifest-Referenz auflösen: `manifest` als String-id (+ `version`) oder als `{id, version}`.
+     *
+     * @param array<string, mixed> $ref
+     *
+     * @return array<mixed>
+     */
+    private function findManifest(array $ref): array
+    {
+        $raw = $ref['manifest'] ?? null;
+        if (is_array($raw)) {
+            $id = is_string($raw['id'] ?? null) ? $raw['id'] : null;
+            $version = is_string($raw['version'] ?? null) ? $raw['version'] : null;
+        } else {
+            $id = is_string($raw) ? $raw : null;
+            $version = is_string($ref['version'] ?? null) ? $ref['version'] : null;
+        }
+
+        foreach ($this->packManifests as $manifest) {
+            if (($manifest['id'] ?? null) === $id && ($version === null || ($manifest['version'] ?? null) === $version)) {
+                return $manifest;
+            }
+        }
+
+        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest nicht gefunden: ' . ($id ?? ''));
     }
 
     /**

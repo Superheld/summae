@@ -1,0 +1,139 @@
+{
+  "fixture": "xx-4-open-item-lifecycle-scale3",
+  "description": "Test-Pack XX (komponiert): OP-Lebenszyklus auf currencyScale 3. Forderung 107.501 (aus XX-1-Verkauf) → Teilzahlung 50.000 (Rest 57.501, partially_settled) → Schlusszahlung 57.501 (Rest 0.000, settled). Explizites settle, kein FIFO-Automatismus. Alle Beträge kanonisch mit exakt 3 Nachkommastellen (\"57.501\", nie \"57.50\"/\"57.5010\"). Erwartungswerte 1:1 aus entwurf-pack-policy-testpack-2026-06-09.md § 4 (Fixture XX-4).",
+  "covers": ["F-CORE-009", "SF-04", "F-PACK-POLICY-004"],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "xx-minimal", "kind": "accounts", "version": "2026.1",
+          "name": "XX Minimal-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+          "data": { "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "120", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "200", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+            { "number": "210", "name": "Sales Tax fällig", "type": "liability", "subtype": "tax_out" },
+            { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+            { "number": "400", "name": "Erlöse", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-salestax", "kind": "tax", "version": "2026.1",
+          "name": "XX Sales Tax ST75", "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "xx-minimal" } ],
+          "data": { "taxCodes": [
+            { "code": "ST75", "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "7.50", "taxAccount": "210", "reportingKey": "S1", "mechanism": "standard" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-policy", "kind": "policy", "version": "2026.1",
+          "name": "XX Policy", "contributes": ["policy"], "dependsOn": [],
+          "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 } }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6", "id": "xx-test-conformance", "name": "Fiktive Jurisdiktion XX", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+          { "kind": "tax", "id": "xx-salestax", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 3 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "XX Receivables GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "accountCount": 7, "taxationMethod": "accrual" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-XX-010", "voucherDate": "2026-02-01" },
+        "entryDate": "2026-02-01", "text": "Ausgangsrechnung 100.000 netto",
+        "taxCode": "ST75", "direction": "output",
+        "netLines": [
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.340", "currency": "XXD" } },
+          { "account": "400", "money": { "amount": "33.320", "currency": "XXD" } }
+        ],
+        "counterAccount": "120"
+      },
+      "expect": {
+        "result": {
+          "comment": "perLine Skala 3 → Steuer 7.501; Forderung 107.501 → OP receivable über 107.501.",
+          "entry": { "sequenceNumber": 1 },
+          "grossTotal": { "amount": "107.501", "currency": "XXD" },
+          "openItemsCreated": [ { "id": "$OP1", "kind": "receivable", "money": { "amount": "107.501", "currency": "XXD" } } ]
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-XX-1", "voucherDate": "2026-02-15" },
+        "entryDate": "2026-02-15", "text": "Teilzahlung 50.000",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "50.000", "currency": "XXD" } },
+          { "account": "120", "side": "credit", "money": { "amount": "50.000", "currency": "XXD" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 2, "id": "$E2" } } }
+    },
+    {
+      "op": "settle",
+      "input": { "tenant": "$T1", "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "50.000", "currency": "XXD" } } ] },
+      "expect": {
+        "result": {
+          "comment": "Rest 107.501 − 50.000 = 57.501; Σ settlements (50.000) ≤ money (107.501).",
+          "openItems": [ { "id": "$OP1", "remaining": { "amount": "57.501", "currency": "XXD" }, "status": "partially_settled" } ]
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-XX-2", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Schlusszahlung 57.501",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "57.501", "currency": "XXD" } },
+          { "account": "120", "side": "credit", "money": { "amount": "57.501", "currency": "XXD" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 3, "id": "$E3" } } }
+    },
+    {
+      "op": "settle",
+      "input": { "tenant": "$T1", "entryId": "$E3", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "57.501", "currency": "XXD" } } ] },
+      "expect": {
+        "result": {
+          "comment": "Rest 0.000, ausgeglichen; Σ settlements = 107.501 = money. Kanonische 3-Stellen-Form über den ganzen Lebenszyklus.",
+          "openItems": [ { "id": "$OP1", "remaining": { "amount": "0.000", "currency": "XXD" }, "status": "settled" } ]
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-02-20", "kind": "receivable" },
+      "expect": {
+        "comment": "Zeitreise: Mitte Februar war der Posten teilausgeglichen (Rest 57.501).",
+        "items": [ { "voucherNumber": "AR-XX-010", "remaining": { "amount": "57.501", "currency": "XXD" } } ]
+      }
+    },
+    {
+      "name": "openItems",
+      "params": { "asOf": "2026-12-31", "kind": "receivable" },
+      "expect": { "comment": "Jahresende: vollständig ausgeglichen.", "items": [] }
+    }
+  ]
+}

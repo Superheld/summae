@@ -7,6 +7,7 @@ namespace Summae\Core\Composition;
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\OpenItem;
 use Summae\Core\Ledger\PostResult;
+use Summae\Core\Shared\Money;
 use Summae\Core\Mapping\MappingImporter;
 use Summae\Core\Projection\AccountSheetProjection;
 use Summae\Core\Projection\AssetRegisterProjection;
@@ -49,6 +50,7 @@ final readonly class TenantOperations
             'expandTax' => $tenant->tax->expand($input),
             'setTaxProfile' => $this->serialize($tenant->tax->setProfile($input)),
             'postVoucher' => (new PostVoucherService($tenant))->post($input),
+            'createVoucher' => (new PostVoucherService($tenant))->createVoucher($input),
             'post' => $this->postResult($ledger->post($input)),
             'correct' => $this->serialize($ledger->correct($input)),
             'finalize' => ['finalizedCount' => $ledger->finalize($input)],
@@ -72,6 +74,7 @@ final readonly class TenantOperations
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
+            'allocate' => $this->allocate($input),
             'setAllocationScheme' => $tenant->costing->setAllocationScheme($input),
             'runCosting' => [
                 'runId' => ($run = $tenant->costing->run($input))->id->value,
@@ -170,6 +173,29 @@ final readonly class TenantOperations
                 $name,
             )),
         };
+    }
+
+    /**
+     * Largest-Remainder-Verteilung (Money::allocate), Skala aus Mandanten-Währung
+     * (Pack-Parameter currencyScale). Reine Berechnung, kein Journal-Effekt.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    private function allocate(array $input): array
+    {
+        $totalRaw = is_array($input['total'] ?? null) ? $input['total'] : [];
+        $amount = is_string($totalRaw['amount'] ?? null) ? $totalRaw['amount'] : '';
+        $total = Money::of($amount, $this->tenant->baseCurrency);
+        /** @var list<int|string> $weights */
+        $weights = is_array($input['weights'] ?? null) ? array_values($input['weights']) : [];
+        $parts = $total->allocate(...$weights);
+
+        return [
+            'parts' => array_map(static fn (Money $part): array => $part->jsonSerialize(), $parts),
+            'total' => $total->jsonSerialize(),
+        ];
     }
 
     /**

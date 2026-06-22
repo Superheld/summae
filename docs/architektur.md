@@ -5,7 +5,7 @@ Implementierung (PHP, Node, …) und für jeden, der ein Pack oder eine Operatio
 baut. Sprachspezifische Pfade/Packages stehen in `implementations/<sprache>/docs/`.
 
 > Normative Tiefe liegt in der Wissensbasis (`40-domaenenmodell/jurisdiction-profil.md`,
-> `subdomains-und-kontexte.md`). Die wird **nicht** mit ausgeliefert — darum trägt
+> `context-map.md`). Die wird **nicht** mit ausgeliefert — darum trägt
 > dieses Dokument das Modell self-contained im Repo.
 
 ## Der Stapel
@@ -78,18 +78,43 @@ Ein Pack ist **kein Monolith**, sondern selbst eine Komposition.
   kein Modul erzeugt?) und **scheitert laut** (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`)
   statt still falsch zu rechnen.
 
+### Modul → Politiksorte (eindeutig über `kind`)
+
+Ein **Modul ist keine eigene Schicht** — es ist die *Bau-Einheit der Pack-Schicht*. Jedes Modul
+**bedient genau eine Politiksorte**, eindeutig bestimmt durch sein `kind`:
+
+| `kind` | bedient |
+|---|---|
+| `tax` · `depreciation` · `assetAccounts` | **Expansion** (die *Stecker*) |
+| `mapping` | **Projektion** (die *Mappings*) |
+| `accounts` | **Substrat** (der Kontenrahmen) |
+| `policy` | **Parameter** (Rundung/Skala — querliegend) |
+| *(`constraint` — noch keine Modul-Sorte)* | **Constraint** (heute nur generisch im Kern) |
+
+So liest sich auch der Zensus rückwärts: *eine Jurisdiktion bauen = je Politiksorte das passende
+`kind`-Modul liefern.* Ein Pack „bedient sich" der generischen Politiksorten-Mechanik im Kern, indem es
+Daten in diese Steckplätze legt — es reimplementiert nichts.
+
+### Self-contained Packs (bauen nicht aufeinander auf)
+
+Jedes Pack hält **seine eigenen Module in seinem Ordner** (`pack-library/<pack>/`, z. B. `de-pack/`,
+`default-pack/`) — **kein geteiltes `modules/`**, eindeutige Modul-IDs je Pack. Packs erben nicht
+voneinander; freie À-la-carte-Komposition bleibt möglich, aber die ausgelieferten Packs sind abgeschlossen.
+
 ## Baustatus — ehrlich (wichtig!)
 
 Das meiste hiervon ist **Konzept festgehalten, Umsetzung nachfragegetrieben** — nicht
 fertiger Code:
 
 - ✅ **DE-Pack läuft ohne Kernänderung** — durch die PHP-Referenz faktisch belegt.
-- ❌ **Fiktives Test-Pack** (3-Nachkomma-Währung, Rundung je Position, kein Vorsteuerabzug)
-  noch **nicht** als Fixture gebaut. Bis es grün läuft, ist die Jurisdiktionsfreiheit
-  *behauptet, nicht erzwungen* — bewusste, festgehaltene Lücke.
-- ❌ **Modul-Registry, Resolver, `E_PACK_*`-Codes, Manifest-Format** — geplant, nicht gebaut.
-- Heute steht im Datenformat de facto *ein* DE-Pack; die Profil-Policy-Felder
-  (Rundungsmodus, Skala) sind bewusst auf eine spätere Stufe verschoben.
+- ✅ **Fiktives Test-Pack** (3-Nachkomma-Währung, Rundung je Position, kein Vorsteuerabzug)
+  ist als Fixture-Satz gebaut (`testsuite/fixtures/pack/conformance-xx/`) — der Naht-Beweis
+  der Jurisdiktionsfreiheit liegt damit als Konformitätstest vor.
+- 🔧 **Modul-Registry, Resolver, `E_PACK_*`-Codes, Manifest-Format** — in Gate 1 spezifiziert
+  (`_bauflow-pack-gate01/`, Datenformat v0.6) und als Pack-Fixtures vorhanden; die
+  Runtime-Auflösung (Node/PHP) ist in Arbeit (Branch `job/pack-conformance-runner`).
+- Heute steht im Datenformat neben dem DE-Pack das fiktive Test-Pack; die Pack-Policy-Felder
+  (Rundungsmodus, Skala) werden vom Resolver getragen, sobald die Runtime-Auflösung grün ist.
 
 Das **fiktive Test-Pack ist selbst ein Konformitätstest** und fällt damit unter die
 oberste Qualitätsrichtlinie (`CLAUDE.md`: „jede künftige Jurisdiktion") — der Naht-Beweis

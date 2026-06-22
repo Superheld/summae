@@ -1,0 +1,94 @@
+{
+  "fixture": "tenant-from-de-complete-posts-identically",
+  "description": "DE komponiert == DE heute (Substitutions-Beweis): derselbe Mandant wie in core/create-tenant-profile, aber aufgebaut aus dem aufgelösten de-mini-regression-Manifest (setup.pack) statt aus inline ruleModules. Buchung (USt-Expansion) und trialBalance müssen byte-identisch zur hand-gereichten Variante sein. Beweist, dass die Engine keinen Unterschied sieht, ob die Regelmodul-Daten von Hand oder aus Modulen kamen.",
+  "covers": ["F-PACK-002", "SF-27"],
+  "setup": {
+    "moduleSource": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "skr-mini-test", "kind": "accounts", "version": "2026.1",
+          "name": "Mini-Kontenrahmen (DE-Regressionsbasis)",
+          "contributes": ["accounts"],
+          "data": { "accounts": [
+            { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+            { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-ust-2026", "kind": "tax", "version": "2026.1",
+          "name": "USt Deutschland 2026",
+          "contributes": ["taxCodes"],
+          "dependsOn": [ { "kind": "accounts", "id": "skr-mini-test" } ],
+          "data": { "taxCodes": [
+            { "code": "USt19", "versions": [
+              { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ] }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "de-eur", "kind": "policy", "version": "2026.1",
+          "name": "DE-Policy (EUR)",
+          "contributes": ["policy"],
+          "data": { "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+        }
+      ]
+    },
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "de-mini-regression", "name": "Deutschland — Mini-Regressionsbasis (3 Module)", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "skr-mini-test", "version": "2026.1" },
+          { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
+          { "kind": "policy", "id": "de-eur", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ],
+    "pack": {
+      "comment": "Statt ruleModules: der Mandant pinnt ein Manifest; der Runner löst es über moduleSource auf und reicht den ResolvedPack als Regelmodul-Bündel in createTenant — exakt der Gate-4-Pfad (api.additions.md A.1, Pinning).",
+      "manifest": "de-mini-regression", "version": "2026.1"
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Mustermann Consulting", "baseCurrency": "EUR", "pack": "de-mini-regression", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "accountCount": 3, "taxationMethod": "cash" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10", "text": "Beratung Februar",
+        "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1200"
+      },
+      "expect": {
+        "result": {
+          "comment": "Byte-identisch zu core/create-tenant-profile Schritt 3 — gleiche Expansion, gleicher Bruttobetrag.",
+          "entry": { "sequenceNumber": 1 },
+          "grossTotal": { "amount": "1190.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Identisch zur trialBalance-Projektion in core/create-tenant-profile.",
+        "rows": [
+          { "account": "1200", "balance": "1190.00" },
+          { "account": "1776", "balance": "-190.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    }
+  ]
+}
