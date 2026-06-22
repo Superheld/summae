@@ -125,9 +125,11 @@ nächstplausiblen Verhalten weiterbauen.
 
 ## Konventionen (sprachneutral)
 
-- **Produkt-Doku auf Englisch** (OSS-Reichweite): Nutzer-Handbuch `docs/handbuch/` und
-  Entwickler-Docs `implementations/*/docs/`. **CLAUDE-Dateien und Code-Kommentare bleiben
-  Deutsch** (interne Arbeitssprache); API-/Klassennamen englisch.
+- **Alles auf Englisch** — das Projekt wird mit dem us-pack international (OSS): Code-Kommentare,
+  Doku, CHANGELOG/Release-Notes, Paket-Beschreibungen (`package.json`/`composer.json`),
+  CLAUDE-Dateien. Nur die **Arbeitssprache im Chat** (Mensch↔KI) bleibt Deutsch. *Bestehendes
+  Deutsch (viele Code-Kommentare, diese CLAUDE-Prosa) wird beim Anfassen / nachfragegetrieben
+  übersetzt — nicht in einem Rutsch; spätestens mit/vor dem us-pack.*
 - Doku-Verweise immer **annotiert**: kurz dazuschreiben, was dort zu finden ist.
 - Git: **nie direkt auf geteilte Branches** (`main`, `develop`) — pro Aufgabe ein
   Branch (`job/…`, `chore/…`, `fix/…`); Merge per `--no-ff`, wenn grün.
