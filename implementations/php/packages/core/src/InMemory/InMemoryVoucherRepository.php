@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\Voucher;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 
 final class InMemoryVoucherRepository implements VoucherRepository
 {

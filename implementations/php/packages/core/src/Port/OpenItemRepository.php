@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Port;
 
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\Uuid;
 
 interface OpenItemRepository
 {

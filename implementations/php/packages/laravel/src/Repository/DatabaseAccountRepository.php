@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountStatus;
-use Summae\Core\Ledger\AccountType;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountStatus;
+use Summae\Core\Substrate\AccountType;
 use Summae\Core\Port\AccountRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseAccountRepository implements AccountRepository

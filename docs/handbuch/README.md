@@ -1,64 +1,63 @@
-# summae — Handbuch
+# summae — Handbook
 
-Das **eine** Dokument für Konfiguration, Initialisierung und Nutzung der
-summae-Pakete. Sprachübergreifend: dieselbe API, dasselbe Datenformat,
-byte-identisches Verhalten in PHP und Node. Wo es hilft, stehen Beispiele in
-beiden Sprachen; die **PHP-Implementierung ist die Referenz**, Node spiegelt sie
-namensgleich.
+The **one** document for configuring, initializing, and using the summae
+packages. Cross-language: the same API, the same data format, byte-identical
+behavior in PHP and Node. Where it helps, examples are given in both languages;
+the **PHP implementation is the reference**, Node mirrors it name-for-name.
 
-> Die Paket-READMEs sind bewusst dünn und verweisen hierher — die vollständige
-> Beschreibung lebt nur in diesem Handbuch.
+> The package READMEs are deliberately thin and point here — the complete
+> description lives only in this handbook.
 
-**Inhalt**
+**Contents**
 
-1. [Überblick & mentales Modell](#1-überblick--mentales-modell)
+1. [Overview & mental model](#1-overview--mental-model)
 2. [Installation](#2-installation)
-3. [Initialisierung — einen Mandanten erzeugen](#3-initialisierung--einen-mandanten-erzeugen)
-4. [Konfiguration](#4-konfiguration)
-5. [Setup- & Regelmodul-Datenformat](#5-setup--regelmodul-datenformat)
-6. [API-Referenz: Operationen](#6-api-referenz-operationen)
-   - [6.1 Aufrufmodell](#61-aufrufmodell)
-   - [6.2 Ledger-Schreiboperationen](#62-ledger-schreiboperationen)
-   - [6.3 Steuer, Mapping & Partner](#63-steuer-mapping--partner)
-   - [6.4 Anlagen & Kostenrechnung](#64-anlagen--kostenrechnung)
-7. [API-Referenz: Projektionen](#7-api-referenz-projektionen)
-8. [Value Objects](#8-value-objects)
-9. [Fehlerkatalog](#9-fehlerkatalog)
-10. [Determinismus & Datenformat](#10-determinismus--datenformat)
-11. [Weiterführend](#11-weiterführend)
+3. [Initialization — creating a tenant](#3-initialization--creating-a-tenant)
+4. [Configuration](#4-configuration)
+5. [Setup & rule-module data format](#5-setup--rule-module-data-format)
+6. [API reference: operations](#6-api-reference-operations)
+   - [6.1 Call model](#61-call-model)
+   - [6.2 Ledger write operations](#62-ledger-write-operations)
+   - [6.3 Tax, mapping & partners](#63-tax-mapping--partners)
+   - [6.4 Assets & cost accounting](#64-assets--cost-accounting)
+7. [API reference: projections](#7-api-reference-projections)
+8. [Value objects](#8-value-objects)
+9. [Error catalog](#9-error-catalog)
+10. [Determinism & data format](#10-determinism--data-format)
+11. [Further reading](#11-further-reading)
 
 ---
 
-## 1. Überblick & mentales Modell
+## 1. Overview & mental model
 
-summae ist eine **einbettbare Bibliothek**, keine Anwendung. Du baust einen
-**Mandanten** (`Tenant`) und sprichst ihn über **einen einzigen Einstiegspunkt**
-an: den Dispatcher `TenantOperations`. Er kennt zwei Methoden:
+summae is an **embeddable library**, not an application. You build a **tenant**
+(`Tenant`) and talk to it through **a single entry point**: the dispatcher
+`TenantOperations`. It knows two methods:
 
-- `execute(op, input)` — **Schreiboperationen** (buchen, Stammdaten anlegen,
-  abschließen …)
-- `project(name, params)` — **lesende Projektionen** (SuSa, Bilanz, GuV, EÜR,
-  USt-Voranmeldung, Export …)
+- `execute(op, input)` — **write operations** (posting, creating master data,
+  closing …)
+- `project(name, params)` — **read-only projections** (trial balance, balance
+  sheet, income statement, cash-basis report, VAT return, export …)
 
-Drei Invarianten prägen alles:
+Three invariants shape everything:
 
-- **Das Journal ist append-only.** Salden werden nie gespeichert, sondern bei
-  jeder Auswertung neu aus dem Journal berechnet. Eine Projektion ist immer eine
-  frische Sicht, nie ein zwischengespeicherter Wert.
-- **Geld ist nie ein Float.** Beträge laufen über einen exakten Dezimaltyp
-  (`Money`), kaufmännisch gerundet (half-up, von Null weg).
-- **Determinismus.** Gleiche Eingabe → byte-identisches Ergebnis. Uhr und
-  ID-Generator sind injizierbar; in Produktion Systemuhr + UUIDv7, in Tests
-  feste Uhr + deterministische IDs.
+- **The journal is append-only.** Balances are never stored; they are
+  recomputed from the journal on every evaluation. A projection is always a
+  fresh view, never a cached value.
+- **Money is never a float.** Amounts run through an exact decimal type
+  (`Money`), commercially rounded (half-up, away from zero).
+- **Determinism.** Same input → byte-identical result. Clock and ID generator
+  are injectable; in production the system clock + UUIDv7, in tests a fixed
+  clock + deterministic IDs.
 
-Wo die Daten liegen, bestimmt der **Port-Satz** des Mandanten — austauschbar,
-ohne dass sich die Fachlogik ändert:
+Where the data lives is determined by the tenant's **port set** — swappable
+without changing the business logic:
 
-| Variante | Persistenz | Wofür |
+| Variant | Persistence | For what |
 |---|---|---|
-| **In-Memory** | flüchtig (RAM) | Tests, Skripte, Konformitätsläufe |
-| **Laravel-Adapter** (PHP) | Datenbank (`summae_*`-Tabellen) | Produktion in Laravel-Apps |
-| **CLI-Arbeitsbereich** (PHP) | lokale SQLite-Datei | Terminal/Automatisierung |
+| **In-memory** | volatile (RAM) | tests, scripts, conformance runs |
+| **Laravel adapter** (PHP) | database (`summae_*` tables) | production in Laravel apps |
+| **CLI workspace** (PHP) | local SQLite file | terminal/automation |
 
 ---
 
@@ -77,13 +76,13 @@ composer require superheld/summae-laravel
 composer require superheld/summae-cli
 ```
 
-Voraussetzungen: **PHP ≥ 8.3** (empfohlen mit `bcmath`- oder `gmp`-Extension für
-schnelle Dezimalarithmetik — läuft auch ohne, dann langsamer). Für die
-Laravel-Integration zusätzlich Laravel 11 oder 12 und eine unterstützte
-Datenbank (MySQL, MariaDB, PostgreSQL oder SQLite — engine-agnostisch).
+Requirements: **PHP ≥ 8.3** (recommended with the `bcmath` or `gmp` extension
+for fast decimal arithmetic — it also runs without, just more slowly). For the
+Laravel integration you additionally need Laravel 11 or 12 and a supported
+database (MySQL, MariaDB, PostgreSQL or SQLite — engine-agnostic).
 
-Der Laravel-ServiceProvider wird über Package-Discovery automatisch registriert
-— kein Eintrag in `config/app.php` nötig.
+The Laravel ServiceProvider is registered automatically via package discovery —
+no entry in `config/app.php` is required.
 
 ### Node (npm / pnpm / yarn)
 
@@ -91,36 +90,36 @@ Der Laravel-ServiceProvider wird über Package-Discovery automatisch registriert
 pnpm add @superheld/summae-core      # oder: npm i / yarn add
 ```
 
-Voraussetzung: **Node ≥ 22**. Das Paket wird dual ausgeliefert — **ESM**
-(`import`) und **CJS** (`require`), inklusive Typdeklarationen. Einzige
-Laufzeit-Abhängigkeit: `big.js`.
+Requirement: **Node ≥ 22**. The package ships dual — **ESM** (`import`) and
+**CJS** (`require`), including type declarations. The only runtime dependency is
+`big.js`.
 
-> **Veröffentlichungs-Status.** Alle Pakete sind in den öffentlichen Registries
-> gelistet (v0.1.0) — die Befehle oben (`composer require …` / `pnpm add …`)
-> funktionieren direkt, ohne weitere Konfiguration.
+> **Publishing status.** All packages are listed in the public registries
+> (v0.1.0) — the commands above (`composer require …` / `pnpm add …`) work
+> directly, with no further configuration.
 >
-> Falls du stattdessen aus dem Quellrepo arbeiten willst: Node im Klon mit
-> `pnpm install && pnpm build`; PHP via Path-/VCS-Repository auf die
-> Paket-Verzeichnisse bzw. die Split-Repos `Superheld/summae-{core,laravel,cli}`.
+> If you would rather work from the source repo: Node in the clone with
+> `pnpm install && pnpm build`; PHP via a path/VCS repository pointing at the
+> package directories or the split repos `Superheld/summae-{core,laravel,cli}`.
 
 ---
 
-## 3. Initialisierung — einen Mandanten erzeugen
+## 3. Initialization — creating a tenant
 
-Es gibt zwei Wege, einen Mandanten zu erzeugen:
+There are two ways to create a tenant:
 
-1. **`createTenant` (SF-01)** — die deklarative Bootstrap-Operation: Mandant wird
-   aus einem **Profil** und versionierten **Regelmodul-Daten** angelegt und ist
-   sofort buchbar (siehe [§ 5](#5-setup--regelmodul-datenformat) und
+1. **`createTenant` (SF-01)** — the declarative bootstrap operation: a tenant is
+   created from a **profile** and versioned **rule-module data** and is
+   immediately postable (see [§ 5](#5-setup--rule-module-data-format) and
    [createTenant](#createtenant-bootstrap-operation-sf-01)).
-2. **Programmatisch** über `Tenant::inMemory(...)` (Core, In-Memory-Ports) oder
-   `DatabaseTenantFactory::build(...)` (Laravel-Adapter, DB-Persistenz) — hier
-   übergibt man die Registries (Steuerschlüssel, Mappings, …) als fertige
-   Objekte selbst.
+2. **Programmatically** via `Tenant::inMemory(...)` (core, in-memory ports) or
+   `DatabaseTenantFactory::build(...)` (Laravel adapter, DB persistence) — here
+   you pass the registries (tax codes, mappings, …) yourself as ready-made
+   objects.
 
-Optionale Parameter haben sinnvolle Defaults und können später ergänzt werden.
+Optional parameters have sensible defaults and can be supplied later.
 
-### In-Memory (PHP)
+### In-memory (PHP)
 
 ```php
 use Summae\Core\Tenant;
@@ -132,20 +131,20 @@ $ops    = new TenantOperations($tenant);
 // ohne Uhr/IdGenerator → SystemClock + UuidV7IdGenerator
 ```
 
-`Tenant::inMemory(...)` — Parameter:
+`Tenant::inMemory(...)` — parameters:
 
-| Parameter | Typ | Pflicht | Default |
+| Parameter | Type | Required | Default |
 |---|---|---|---|
-| `name` | `string` | **ja** | — |
-| `baseCurrency` | `Currency` | **ja** | — |
-| `clock` | `?Clock` | nein | `new SystemClock()` |
-| `ids` | `?IdGenerator` | nein | `new UuidV7IdGenerator($clock)` |
-| `dimensions` | `?DimensionRegistry` | nein | `DimensionRegistry::empty()` |
-| `taxCodes` | `?TaxCodeRegistry` | nein | `TaxCodeRegistry::empty()` |
-| `taxProfile` | `?TaxProfile` | nein | `TaxProfile::default()` (accrual, kein Kleinunternehmer, quarterly) |
-| `mappings` | `?MappingRegistry` | nein | `MappingRegistry::empty()` |
+| `name` | `string` | **yes** | — |
+| `baseCurrency` | `Currency` | **yes** | — |
+| `clock` | `?Clock` | no | `new SystemClock()` |
+| `ids` | `?IdGenerator` | no | `new UuidV7IdGenerator($clock)` |
+| `dimensions` | `?DimensionRegistry` | no | `DimensionRegistry::empty()` |
+| `taxCodes` | `?TaxCodeRegistry` | no | `TaxCodeRegistry::empty()` |
+| `taxProfile` | `?TaxProfile` | no | `TaxProfile::default()` (accrual, not small-business, quarterly) |
+| `mappings` | `?MappingRegistry` | no | `MappingRegistry::empty()` |
 
-### In-Memory (Node)
+### In-memory (Node)
 
 ```ts
 import {
@@ -158,7 +157,7 @@ const tenant = Tenant.inMemory('Muster GmbH', Currency.of('EUR'), clock, new Uui
 const ops    = new TenantOperations(tenant);
 ```
 
-### Laravel-Adapter (PHP, persistent)
+### Laravel adapter (PHP, persistent)
 
 ```php
 use Summae\Core\Shared\Currency;
@@ -170,15 +169,15 @@ $tenant = app(DatabaseTenantFactory::class)->build('Muster GmbH', Currency::of('
 $ops    = new TenantOperations($tenant);
 ```
 
-`DatabaseTenantFactory::build(...)` hat dieselben Parameter wie `inMemory`, plus
-einen zusätzlichen letzten Parameter `tenantId` (`?Uuid`, Default: frisch
-generiert) — damit lässt sich eine bestehende Mandanten-ID wieder aufnehmen.
-Voraussetzung: `php artisan migrate` wurde ausgeführt (s. § 4).
+`DatabaseTenantFactory::build(...)` takes the same parameters as `inMemory`,
+plus one additional trailing parameter `tenantId` (`?Uuid`, default: freshly
+generated) — this lets you resume an existing tenant ID. Prerequisite:
+`php artisan migrate` has been run (see § 4).
 
-### CLI-Arbeitsbereich (PHP und Node)
+### CLI workspace (PHP and Node)
 
-Beide CLIs (`summae`) legen `summae.json` (Mandanten-Meta + Regeln) und `summae.sqlite` (Buchungen)
-an. Zwei Wege, den Mandanten zu bestücken:
+Both CLIs (`summae`) create `summae.json` (tenant metadata + rules) and
+`summae.sqlite` (postings). There are two ways to populate the tenant:
 
 ```bash
 # (a) Ausgeliefertes Pack aus der Bibliothek wählen (empfohlen)
@@ -188,22 +187,24 @@ summae init --name "Muster GmbH" --pack de --first-fiscal-year 2026 --dir ./buch
 summae init --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
 ```
 
-`--pack de` (oder `--pack default`) lädt das Pack aus der **Pack-Bibliothek** (`pack-library/`; mit
-`--pack-library <dir>` übersteuerbar), löst es auf und legt Kontenrahmen, Steuerschlüssel, Mappings,
-AfA-Regeln und Policy in *einem* Schritt an — der Kontenrahmen kommt also als **Pack-Wahl**, nicht
-als inline gepflegte `regeln.json`. `regeln.json` (§ 5) bleibt der Weg für eigene/abweichende Regeln.
-Jeder weitere Aufruf lädt den Mandanten aus dem Arbeitsbereich, führt aus, die SQLite-Datei persistiert.
+`--pack de` (or `--pack default`) loads the pack from the **pack library**
+(`pack-library/`; overridable with `--pack-library <dir>`), resolves it, and
+creates the chart of accounts, tax codes, mappings, depreciation rules, and
+policy in *one* step — the chart of accounts thus comes as a **pack choice**,
+not as an inline-maintained `regeln.json`. `regeln.json` (§ 5) remains the route
+for your own/deviating rules. Every subsequent call loads the tenant from the
+workspace, executes, and the SQLite file persists.
 
 ---
 
-## 4. Konfiguration
+## 4. Configuration
 
-### Laravel: Datenbank
+### Laravel: database
 
-Das Package legt seine Tabellen über eine **Laravel-DB-Connection** an.
-Standardmäßig die **Default-Connection** deiner App — du musst nichts weiter
-einstellen, die `summae_*`-Tabellen landen in derselben Datenbank wie der Rest
-deiner Anwendung. Zugangsdaten kommen an die gewohnte Stelle:
+The package creates its tables over a **Laravel DB connection**. By default the
+**default connection** of your app — you need to set nothing further; the
+`summae_*` tables land in the same database as the rest of your application.
+Credentials go to the usual place:
 
 ```dotenv
 # .env (Standard-Laravel, nichts Package-Spezifisches)
@@ -215,9 +216,9 @@ DB_USERNAME=app
 DB_PASSWORD=geheim
 ```
 
-**Separate Datenbank für die Buchhaltung** (optional, z. B. aus Compliance-
-Gründen): zweite Connection in `config/database.php` definieren und dem Package
-zuweisen:
+**Separate database for the accounting** (optional, e.g. for compliance
+reasons): define a second connection in `config/database.php` and assign it to
+the package:
 
 ```php
 // config/database.php → 'connections'
@@ -235,60 +236,62 @@ zuweisen:
 SUMMAE_DB_CONNECTION=buchhaltung   # die einzige Package-eigene Einstellung; leer = App-Default
 ```
 
-Migration und (optionales) Veröffentlichen der Config:
+Migration and (optional) publishing of the config:
 
 ```bash
 php artisan migrate                              # legt die summae_*-Tabellen an
 php artisan vendor:publish --tag=summae-config   # optional: config/summae.php (nur 'connection')
 ```
 
-Die Migration ist im Package enthalten und wird automatisch gefunden — für die
-Standardnutzung ist kein `vendor:publish` nötig.
+The migration is shipped in the package and is found automatically — for
+standard use no `vendor:publish` is needed.
 
-### CLI: Arbeitsbereich
+### CLI: workspace
 
-Die CLI braucht **keine** Datenbank-Zugangsdaten. Sie legt im Arbeitsverzeichnis
-(`--dir`, Default: aktuelles Verzeichnis) zwei Dateien an:
+The CLI needs **no** database credentials. In the working directory (`--dir`,
+default: current directory) it creates two files:
 
-| Datei | Inhalt |
+| File | Content |
 |---|---|
-| `summae.json` | Mandanten-Meta (Name, Währung, `tenantId`) + Regelmodul-Daten |
-| `summae.sqlite` | die Buchungsdaten (Datenbank/SQLite) |
+| `summae.json` | tenant metadata (name, currency, `tenantId`) + rule-module data |
+| `summae.sqlite` | the posting data (database/SQLite) |
 
-### Node / In-Memory: keine Konfiguration
+### Node / in-memory: no configuration
 
-Kein Persistenz-Setup. Steuerbar sind nur die Determinismus-Hooks (`Clock`,
-`IdGenerator`) als Konstruktor-Parameter — siehe § 10.
+No persistence setup. The only things you control are the determinism hooks
+(`Clock`, `IdGenerator`) as constructor parameters — see § 10.
 
 ---
 
-## 5. Setup- & Regelmodul-Datenformat
+## 5. Setup & rule-module data format
 
-Stammdaten kommen über zwei kombinierbare Stile in den Mandanten:
+Master data enters the tenant through two combinable styles:
 
-- **Profil-Stil** — `ruleModules.profiles[]` + `chartsOfAccounts[]` + `taxCodes[]`;
-  daraus baut `createTenant` den Mandanten (CLI-`regeln.json`, Fixtures).
-- **Direkter Stil** — bei programmatischer Erzeugung übergibt man die fertigen
-  Registries (`TaxCodeRegistry`, `MappingRegistry`, `DimensionRegistry`,
-  `TaxProfile`) an `inMemory`/`build`.
+- **Profile style** — `ruleModules.profiles[]` + `chartsOfAccounts[]` +
+  `taxCodes[]`; from this `createTenant` builds the tenant (CLI `regeln.json`,
+  fixtures).
+- **Direct style** — for programmatic creation you pass the ready-made
+  registries (`TaxCodeRegistry`, `MappingRegistry`, `DimensionRegistry`,
+  `TaxProfile`) to `inMemory`/`build`.
 
-Die folgenden Strukturen sind das maßgebliche Format (aus Code + Fixtures).
+The following structures are the authoritative format (from code + fixtures).
 
-### Ein eigenes Pack von Hand schreiben
+### Writing your own pack by hand
 
-Ein **Pack** ist ein Ordner `pack-library/<name>-pack/` mit **Modul-Dateien** + einem **Manifest**.
-Ein **Modul** ist eine Daten-Datei, die *genau eine Politiksorte bedient* — die Sorte folgt eindeutig
-aus dem `kind`. Pro Politiksorte, die du bedienen willst, legst du ein Modul an:
+A **pack** is a folder `pack-library/<name>-pack/` containing **module files** +
+a **manifest**. A **module** is a data file that *serves exactly one policy
+kind* — the kind follows unambiguously from its `kind`. For each policy kind you
+want to serve, you create one module:
 
-| willst du bedienen … | `kind` | `data` enthält |
+| if you want to serve … | `kind` | `data` contains |
 |---|---|---|
-| Kontenrahmen (Substrat) | `accounts` | `accounts[]` (`number/name/type/subtype?`) |
-| Steuer (Expansion) | `tax` | `taxCodes[]` (`code`, `versions[]` mit `rate/mechanism/taxAccount/reportingKey`) |
-| Bilanz/GuV/EÜR (Projektion) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
-| AfA (Expansion) | `depreciation` + `assetAccounts` | AfA-Tabellen bzw. die 5 Anlagen-Gegenkonten |
-| Rundung/Skala (Parameter) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
+| chart of accounts (substrate) | `accounts` | `accounts[]` (`number/name/type/subtype?`) |
+| tax (expansion) | `tax` | `taxCodes[]` (`code`, `versions[]` with `rate/mechanism/taxAccount/reportingKey`) |
+| balance sheet / income statement / cash-basis (projection) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
+| depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
+| rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
 
-Modul-Skelett (`pack-library/<name>-pack/<kind>/<id>.json`):
+Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 ```json
 { "formatVersion": "0.6", "id": "de-ust", "kind": "tax", "version": "2026.1",
   "contributes": ["taxCodes"], "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
@@ -297,7 +300,8 @@ Modul-Skelett (`pack-library/<name>-pack/<kind>/<id>.json`):
       "taxAccount": "3100", "reportingKey": "81" } ] } ] } }
 ```
 
-Manifest (`pack-library/<name>-pack/<id>.json`) — listet die Module, trägt `packPolicy` + `defaults`:
+Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
+`packPolicy` + `defaults`:
 ```json
 { "formatVersion": "0.6", "id": "de", "version": "2026.1",
   "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.1" },
@@ -306,37 +310,39 @@ Manifest (`pack-library/<name>-pack/<id>.json`) — listet die Module, trägt `p
   "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
 ```
 
-Wählen mit `summae init --pack de`. Der **Resolver prüft Kohärenz** (zeigt ein Steuerkonto auf ein Konto,
-das der Kontenrahmen nicht hat? trifft ein Mapping keine Konten?) und **scheitert laut** (`E_PACK_UNRESOLVED_REF`
-/ `E_PACK_INCOHERENT`), statt still falsch zu rechnen. **Packs sind self-contained** — alle Module im eigenen
-Ordner, eindeutige IDs, kein geteiltes `modules/`. Vollständige Vorlage: `pack-library/de-pack/`.
+Choose it with `summae init --pack de`. The **resolver checks coherence** (does
+a tax account point at an account the chart of accounts doesn't have? does a
+mapping hit no accounts?) and **fails loudly** (`E_PACK_UNRESOLVED_REF` /
+`E_PACK_INCOHERENT`) instead of silently computing the wrong thing. **Packs are
+self-contained** — all modules in their own folder, unique IDs, no shared
+`modules/`. Full template: `pack-library/de-pack/`.
 
 ### `profiles[]`
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `id` | string | ja | Referenz aus `createTenant.input.profile` |
-| `name` | string | — | Anzeigename |
-| `version` | string | ja | wird in den Mandanten gepinnt (Output `profile.version`) |
-| `chartOfAccounts` | string | ja | ID eines Eintrags in `chartsOfAccounts[]` |
-| `taxCodes` | list\<string\> | — | Codes, die aus `taxCodes[]` expandiert werden |
-| `mappings` | list | — | Gliederungs-Mappings |
-| `defaults` | object | — | Steuer-Defaults → `TaxProfile` (siehe unten) |
+| `id` | string | yes | referenced from `createTenant.input.profile` |
+| `name` | string | — | display name |
+| `version` | string | yes | pinned into the tenant (output `profile.version`) |
+| `chartOfAccounts` | string | yes | ID of an entry in `chartsOfAccounts[]` |
+| `taxCodes` | list\<string\> | — | codes expanded from `taxCodes[]` |
+| `mappings` | list | — | statement mappings |
+| `defaults` | object | — | tax defaults → `TaxProfile` (see below) |
 
 ### `chartsOfAccounts[]` + `accounts[]`
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `id` | string | ja | vom Profil referenziert |
-| `accounts[].number` | string | ja | Kontonummer (Codepoint-Vergleich, führende Nullen signifikant) |
-| `accounts[].name` | string | ja | Kontobezeichnung |
-| `accounts[].type` | string (enum) | ja | `asset`, `liability`, `equity`, `expense`, `revenue` |
-| `accounts[].subtype` | string\|null | — | freier Marker, steuert u. a. die OP-Automatik |
+| `id` | string | yes | referenced by the profile |
+| `accounts[].number` | string | yes | account number (codepoint comparison, leading zeros significant) |
+| `accounts[].name` | string | yes | account label |
+| `accounts[].type` | string (enum) | yes | `asset`, `liability`, `equity`, `expense`, `revenue` |
+| `accounts[].subtype` | string\|null | — | free marker; among other things drives the open-item automation |
 
-`type` bestimmt die Saldenmechanik: `asset`/`liability`/`equity` sind
-bestandsführend (tragen über Jahre vor), `expense`/`revenue` sind je
-Geschäftsjahr. `subtype` ist im Code ein freier String (keine Enum-Prüfung); in
-Fixtures belegt: `bank`, `cash`, `ar`, `ap`, `tax_in`, `tax_out`, `fixed_asset`,
+`type` determines the balance mechanics: `asset`/`liability`/`equity` are
+balance-carrying (carry forward across years), `expense`/`revenue` are per
+fiscal year. `subtype` is a free string in the code (no enum check); used in
+fixtures: `bank`, `cash`, `ar`, `ap`, `tax_in`, `tax_out`, `fixed_asset`,
 `opening_balance`, `transit`.
 
 ```json
@@ -350,22 +356,22 @@ Fixtures belegt: `bank`, `cash`, `ar`, `ap`, `tax_in`, `tax_out`, `fixed_asset`,
 ]
 ```
 
-### `taxCodes[]` mit `versions[]`
+### `taxCodes[]` with `versions[]`
 
-Ein Code bündelt zeitlich gestaffelte Versionen.
+A code bundles time-staggered versions.
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `code` | string | ja | Schlüssel (führend; eigene Codes vor DATEV) |
-| `versions[].validFrom` | string (Datum) | ja | Beginn der Gültigkeit (zonenlos) |
-| `versions[].validTo` | string\|null | — | Ende; `null` = offen |
-| `versions[].rate` | string (Dezimal) | — | Steuersatz, z. B. `"19.00"`; Default `"0"` |
-| `versions[].taxAccount` | string | — | Steuerkonto |
-| `versions[].reportingKey` | string\|null | — | VA-Kennzahl (z. B. `"81"`, `"66"`, `"41"`) |
-| `versions[].mechanism` | string | — | Default `"standard"`; belegt: `intra_community_supply`, `reverse_charge` |
-| `versions[].inputTaxAccount` | string\|null | — | Vorsteuerkonto (z. B. Reverse-Charge) |
-| `versions[].inputReportingKey` | string\|null | — | Vorsteuer-Kennzahl |
-| `versions[].baseReportingKey` | string\|null | — | Bemessungsgrundlagen-Kennzahl |
+| `code` | string | yes | key (leading; your own codes before DATEV) |
+| `versions[].validFrom` | string (date) | yes | start of validity (zoneless) |
+| `versions[].validTo` | string\|null | — | end; `null` = open |
+| `versions[].rate` | string (decimal) | — | tax rate, e.g. `"19.00"`; default `"0"` |
+| `versions[].taxAccount` | string | — | tax account |
+| `versions[].reportingKey` | string\|null | — | VAT-return key (e.g. `"81"`, `"66"`, `"41"`) |
+| `versions[].mechanism` | string | — | default `"standard"`; used: `intra_community_supply`, `reverse_charge` |
+| `versions[].inputTaxAccount` | string\|null | — | input-tax account (e.g. reverse charge) |
+| `versions[].inputReportingKey` | string\|null | — | input-tax key |
+| `versions[].baseReportingKey` | string\|null | — | tax-base key |
 
 ```json
 "taxCodes": [
@@ -376,29 +382,29 @@ Ein Code bündelt zeitlich gestaffelte Versionen.
 ]
 ```
 
-Zugriff auf einen undefinierten Schlüssel → `E_TAXCODE_UNKNOWN`.
+Accessing an undefined key → `E_TAXCODE_UNKNOWN`.
 
 ### `taxProfile` / `defaults`
 
-Direkt als `setup.tenant.taxProfile` oder als `profile.defaults`.
+Directly as `setup.tenant.taxProfile` or as `profile.defaults`.
 
-| Feld | Typ | Default | Bedeutung |
+| Field | Type | Default | Meaning |
 |------|-----|---------|-----------|
-| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | Ist-/Soll-Versteuerung (alles ≠ `"cash"` ⇒ accrual) |
-| `vatPeriod` | `"monthly"` \| `"quarterly"` | `quarterly` | VA-Zeitraum |
-| `smallBusiness` | bool \| list | `false` | Kleinunternehmer; als bool oder Segmentliste `[{validFrom, value}]` für unterjährigen Wechsel |
+| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation (anything ≠ `"cash"` ⇒ accrual) |
+| `vatPeriod` | `"monthly"` \| `"quarterly"` | `quarterly` | VAT-return period |
+| `smallBusiness` | bool \| list | `false` | small-business scheme; as bool or as a segment list `[{validFrom, value}]` for a mid-year switch |
 
 ### `dimensionTypes[]` / `dimensionValues[]` / `dimensionRules[]`
 
-| Block | Feld | Typ | Bedeutung |
+| Block | Field | Type | Meaning |
 |-------|------|-----|-----------|
-| `dimensionTypes[]` | `code` | string | Typ-Code (z. B. `costCenter`) |
-| `dimensionValues[]` | `typeCode` / `code` | string | Verweis auf Typ / Wert-Code (eindeutig je `typeCode:code`) |
-| `dimensionRules[]` | `accountRange.from`/`.to` | string | Kontonummern-Bereich (Codepoint-Vergleich) |
-| | `requiredDimension` | string | in diesem Bereich verpflichtender Typ |
+| `dimensionTypes[]` | `code` | string | type code (e.g. `costCenter`) |
+| `dimensionValues[]` | `typeCode` / `code` | string | reference to type / value code (unique per `typeCode:code`) |
+| `dimensionRules[]` | `accountRange.from`/`.to` | string | account-number range (codepoint comparison) |
+| | `requiredDimension` | string | type mandatory within this range |
 
-Verstoß ⇒ `E_DIMENSION_INVALID` (unbekannter Typ/Wert oder fehlende
-Pflichtdimension).
+A violation ⇒ `E_DIMENSION_INVALID` (unknown type/value or missing mandatory
+dimension).
 
 ```json
 "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
@@ -408,19 +414,19 @@ Pflichtdimension).
 
 ### `mappings[]`
 
-Gliederungs-Mappings (Bilanz, GuV, EÜR-Kategorien). Knoten mit `children[]`
-werden rekursiv aufgelöst, Blätter tragen `accounts[]` (Selektoren: Bereiche
-`{from,to}` und/oder Einzelkonten `{numbers:[…]}`).
+Statement mappings (balance sheet, income statement, cash-basis categories).
+Nodes with `children[]` are resolved recursively; leaves carry `accounts[]`
+(selectors: ranges `{from,to}` and/or single accounts `{numbers:[…]}`).
 
-| Feld | Typ | Bedeutung |
+| Field | Type | Meaning |
 |------|-----|-----------|
-| `id` | string | Mapping-ID (von Projektionen referenziert) |
+| `id` | string | mapping ID (referenced by projections) |
 | `kind` | string | `balance-sheet`, `income-statement`, `cash-basis-categories` |
-| `version` | string | Version |
-| `positions[].key` / `.label` | string | Positionsschlüssel / Anzeige (Default = key) |
-| `positions[].side` | string\|null | am Wurzelknoten gesetzt, an Blätter vererbt |
-| `positions[].accounts[]` | list | Konto-Selektoren |
-| `positions[].includeNonCash` / `includesNetIncome` | bool | EÜR-/Bilanz-Flags |
+| `version` | string | version |
+| `positions[].key` / `.label` | string | position key / display (default = key) |
+| `positions[].side` | string\|null | set at the root node, inherited to leaves |
+| `positions[].accounts[]` | list | account selectors |
+| `positions[].includeNonCash` / `includesNetIncome` | bool | cash-basis / balance-sheet flags |
 
 ```json
 "mappings": [
@@ -434,11 +440,11 @@ werden rekursiv aufgelöst, Blätter tragen `accounts[]` (Selektoren: Bereiche
 
 ---
 
-## 6. API-Referenz: Operationen
+## 6. API reference: operations
 
-### 6.1 Aufrufmodell
+### 6.1 Call model
 
-Alle Schreiboperationen laufen über den Dispatcher:
+All write operations run through the dispatcher:
 
 ```php
 $tenantOperations->execute(string $op, array $input): array;   // PHP
@@ -447,28 +453,28 @@ $tenantOperations->execute(string $op, array $input): array;   // PHP
 tenantOperations.execute(op, input);                           // Node
 ```
 
-Konventionen für den ganzen Abschnitt:
+Conventions for this whole section:
 
-- Geldwerte sind immer Objekte `{"amount":"119.00","currency":"EUR"}`. Fremd­währung wird in v1 abgelehnt (es zählt die Mandantenwährung).
-- Jeder Input darf optional `actor` (String) tragen → Audit-Trail, Default `"system"`.
-- Fehler werden als `DomainError` mit `E_*`-Code geworfen (siehe § 9); beim Buchen kommt **nur der erste** Fehler in fester Prüfreihenfolge zurück.
+- Money values are always objects `{"amount":"119.00","currency":"EUR"}`. Foreign currency is rejected in v1 (only the tenant currency counts).
+- Every input may optionally carry `actor` (string) → audit trail, default `"system"`.
+- Errors are thrown as a `DomainError` with an `E_*` code (see § 9); when posting, **only the first** error in fixed check order is returned.
 
-#### createTenant (Bootstrap-Operation, SF-01)
+#### createTenant (bootstrap operation, SF-01)
 
-Mandant per Profil anlegen — **kein** normaler `execute`-Op, sondern Bootstrap
-über die `TenantFactory` (in Runner/CLI als `op: createTenant` dispatcht). Das
-Profil verweist auf Kontenrahmen + Steuerschlüssel; die Factory expandiert
-beides, pinnt die Profil-Version und legt optional das erste Geschäftsjahr an.
+Create a tenant from a profile — **not** a normal `execute` op, but a bootstrap
+via the `TenantFactory` (dispatched as `op: createTenant` in runner/CLI). The
+profile references a chart of accounts + tax codes; the factory expands both,
+pins the profile version, and optionally creates the first fiscal year.
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `name` | string | nein (Default `"Tenant"`) | Anzeigename |
-| `baseCurrency` | string (ISO-4217) | nein (Default `"EUR"`) | Hauswährung |
-| `profile` | string | **ja** | Profil-ID aus `profiles[]`; unbekannt → `E_PROFILE_UNKNOWN` |
-| `firstFiscalYear` | int | nein | Bei `> 0` wird GJ `JJJJ-01-01…JJJJ-12-31` angelegt |
+| `name` | string | no (default `"Tenant"`) | display name |
+| `baseCurrency` | string (ISO-4217) | no (default `"EUR"`) | base currency |
+| `profile` | string | **yes** | profile ID from `profiles[]`; unknown → `E_PROFILE_UNKNOWN` |
+| `firstFiscalYear` | int | no | when `> 0`, fiscal year `YYYY-01-01…YYYY-12-31` is created |
 
 Output: `id`, `name`, `profile.{id,version}`, `accountCount`, `taxationMethod`.
-Fehler: `E_PROFILE_UNKNOWN` (Profil **oder** dessen Kontenrahmen fehlt).
+Error: `E_PROFILE_UNKNOWN` (profile **or** its chart of accounts is missing).
 
 ```json
 { "op": "createTenant",
@@ -476,32 +482,32 @@ Fehler: `E_PROFILE_UNKNOWN` (Profil **oder** dessen Kontenrahmen fehlt).
   "expect": { "result": { "id": "$T1", "profile": { "id": "de-freiberufler-euer", "version": "2026.1" }, "accountCount": 3, "taxationMethod": "cash" } } }
 ```
 
-### 6.2 Ledger-Schreiboperationen
+### 6.2 Ledger write operations
 
 #### post
 
-Erfasst eine Buchung im Journal (append-only). Erzeugt automatisch offene Posten
-bei Buchung auf AR-/AP-Konten (Soll auf `subtype:"ar"` → `receivable`, Haben auf
-`subtype:"ap"` → `payable`).
+Records a posting in the journal (append-only). Automatically creates open items
+when posting to AR/AP accounts (debit on `subtype:"ar"` → `receivable`, credit
+on `subtype:"ap"` → `payable`).
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `voucherId` | string (UUID) | ja | existierender Beleg; keine Buchung ohne Beleg |
-| `entryDate` | string (`YYYY-MM-DD`) | ja | Buchungsdatum (zonenlos); bestimmt GJ + Periode |
-| `lines` | array | ja | Buchungszeilen, mind. 2 |
-| `text` | string | nein | Buchungstext (Default `""`) |
+| `voucherId` | string (UUID) | yes | existing voucher; no posting without a voucher |
+| `entryDate` | string (`YYYY-MM-DD`) | yes | posting date (zoneless); determines fiscal year + period |
+| `lines` | array | yes | posting lines, at least 2 |
+| `text` | string | no | posting text (default `""`) |
 
-Buchungszeile (`lines[]`): `account` (string, ja), `side` (`"debit"`/`"credit"`,
-ja), `money` (Money > 0, ja), `dimensions` (`[{type,code}]`, nein), `taxTag`
-(object, nein).
+Posting line (`lines[]`): `account` (string, yes), `side`
+(`"debit"`/`"credit"`, yes), `money` (Money > 0, yes), `dimensions`
+(`[{type,code}]`, no), `taxTag` (object, no).
 
-**Prüfreihenfolge / Fehlercodes:** 1) Struktur `E_ENTRY_TOO_FEW_LINES`,
-`E_ENTRY_INVALID_AMOUNT`; 2) Referenzen `E_ENTRY_NO_VOUCHER`,
+**Check order / error codes:** 1) structure `E_ENTRY_TOO_FEW_LINES`,
+`E_ENTRY_INVALID_AMOUNT`; 2) references `E_ENTRY_NO_VOUCHER`,
 `E_VOUCHER_UNKNOWN`, `E_ACCOUNT_UNKNOWN`, `E_ACCOUNT_LOCKED`,
-`E_DIMENSION_INVALID`; 3) Bilanz `E_ENTRY_UNBALANCED`; 4) Zeit
+`E_DIMENSION_INVALID`; 3) balance `E_ENTRY_UNBALANCED`; 4) time
 `E_PERIOD_UNKNOWN`, `E_PERIOD_CLOSED`.
 
-Output: serialisierte Buchung (`id`, `sequenceNumber`, `status`, `entryDate`,
+Output: serialized posting (`id`, `sequenceNumber`, `status`, `entryDate`,
 `periodRef`, `lines[]`, `reverses`/`reversedBy`, …) plus `openItemsCreated[]`.
 
 ```json
@@ -515,28 +521,28 @@ Output: serialisierte Buchung (`id`, `sequenceNumber`, `status`, `entryDate`,
 // → result.sequenceNumber: 1, result.status: "entered"
 ```
 
-Buchung auf ein AR-Konto erzeugt `openItemsCreated: [{ "kind": "receivable", "money": {…} }]`.
+A posting to an AR account creates `openItemsCreated: [{ "kind": "receivable", "money": {…} }]`.
 
 #### postVoucher
 
-Der Ein-Aufruf-Standardfall (SF-02/03): legt den **Beleg an**, **expandiert die
-Steuer** aus Netto-Zeilen + `taxCode` und **bucht** in einem Schritt. Anders als
-`post` liefert man Belegdaten und Netto-Zeilen; Brutto-Gegenkonto und
-Steuerzeilen entstehen automatisch.
+The single-call standard case (SF-02/03): it **creates the voucher**,
+**expands the tax** from net lines + `taxCode`, and **posts**, all in one step.
+Unlike `post`, you supply voucher data and net lines; the gross contra-account
+and tax lines are produced automatically.
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `voucher` | object | ja | Belegdaten |
-| `voucher.voucherNumber` | string | ja | Belegnummer |
-| `voucher.voucherDate` | string (Datum) | ja | fehlend/ungültig → `E_ENTRY_NO_VOUCHER` |
-| `voucher.partnerId` | string | nein | muss existieren (`E_PARTNER_UNKNOWN`) |
-| `taxCode` | string | nein | Steuerschlüssel für die Expansion |
-| `direction` | string | nein | `"output"` (Default) oder `"input"` |
-| `netLines` | array von `{account, money}` | nein | Netto-Zeilen |
-| `counterAccount` | string | ja | Brutto-Gegenkonto (Bank/Forderung) |
-| `entryDate` | string | nein | Default = `voucher.voucherDate` |
+| `voucher` | object | yes | voucher data |
+| `voucher.voucherNumber` | string | yes | voucher number |
+| `voucher.voucherDate` | string (date) | yes | missing/invalid → `E_ENTRY_NO_VOUCHER` |
+| `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
+| `taxCode` | string | no | tax code for the expansion |
+| `direction` | string | no | `"output"` (default) or `"input"` |
+| `netLines` | array of `{account, money}` | no | net lines |
+| `counterAccount` | string | yes | gross contra-account (bank/receivable) |
+| `entryDate` | string | no | default = `voucher.voucherDate` |
 
-Output: `entry` (wie `post`), `openItemsCreated[]`, `grossTotal` (Money),
+Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
 
 ```json
@@ -551,17 +557,17 @@ Output: `entry` (wie `post`), `openItemsCreated[]`, `grossTotal` (Money),
 
 #### correct
 
-Ändert Text und/oder Zeilen einer Buchung — nur im Status `entered`, mit
-Audit-Trail (kein Löschen). `entryId` (ja), `text` (nein), `lines` (nein, ≥ 2 &
-balanciert). Output: serialisierte (geänderte) Buchung. Fehler:
-`E_ENTRY_UNKNOWN`, `E_ENTRY_FINALIZED`, plus die `lines`-Fehler von `post`.
+Changes the text and/or lines of a posting — only in status `entered`, with an
+audit trail (no deletion). `entryId` (yes), `text` (no), `lines` (no, ≥ 2 &
+balanced). Output: serialized (changed) posting. Errors: `E_ENTRY_UNKNOWN`,
+`E_ENTRY_FINALIZED`, plus the `lines` errors of `post`.
 
 #### finalize
 
-Schreibt Buchungen fest (`entered` → `finalized`). Einzeln (`entryId`) oder als
-Massenauslöser (`finalizeUntil`: alle bis einschließlich Datum). Idempotent.
-Output: `{ "finalizedCount": <int> }`. Fehler: `E_ENTRY_UNKNOWN` (weder Feld
-gesetzt oder unbekannte `entryId`).
+Finalizes postings (`entered` → `finalized`). Individually (`entryId`) or as a
+bulk trigger (`finalizeUntil`: all up to and including the date). Idempotent.
+Output: `{ "finalizedCount": <int> }`. Error: `E_ENTRY_UNKNOWN` (neither field
+set, or unknown `entryId`).
 
 ```json
 { "finalizeUntil": "2026-01-31" }   // → { "finalizedCount": 1 }
@@ -569,11 +575,12 @@ gesetzt oder unbekannte `entryId`).
 
 #### reverse
 
-Storno per Generalumkehr: neue Buchung mit Rückverweis (`reverses`), gleiche
-Konten/Seiten, **negierte Beträge**. `entryId` (ja), `entryDate` (ja, offene
-Periode), `text` (nein, Default `"Storno <seqNo>"`). Output: serialisierte
-Stornobuchung; Original bekommt `reversedBy`. Fehler: `E_ENTRY_UNKNOWN`,
-`E_ENTRY_ALREADY_REVERSED`, `E_PERIOD_UNKNOWN`, `E_PERIOD_CLOSED`.
+Reversal by full counter-entry: a new posting with a back-reference
+(`reverses`), same accounts/sides, **negated amounts**. `entryId` (yes),
+`entryDate` (yes, open period), `text` (no, default `"Storno <seqNo>"`). Output:
+serialized reversal posting; the original gets `reversedBy`. Errors:
+`E_ENTRY_UNKNOWN`, `E_ENTRY_ALREADY_REVERSED`, `E_PERIOD_UNKNOWN`,
+`E_PERIOD_CLOSED`.
 
 ```json
 // input { "entryId": "$E1", "entryDate": "2026-02-03", "text": "Storno Bürobedarf" }
@@ -582,18 +589,18 @@ Stornobuchung; Original bekommt `reversedBy`. Fehler: `E_ENTRY_UNKNOWN`,
 
 #### settle
 
-Gleicht offene Posten aus — explizite Zuordnung Zahlung → Posten, auch
-teilweise, optional mit Differenz (Skonto/Ausfall/Kleindifferenz). `entryId`
-(ja, Zahlungsbuchung), `allocations` (ja, ≥ 1), `actor` (nein).
+Settles open items — an explicit allocation payment → item, also partial,
+optionally with a difference (discount/bad debt/minor difference). `entryId`
+(yes, the payment posting), `allocations` (yes, ≥ 1), `actor` (no).
 
-Zuordnung (`allocations[]`): `openItemId` (ja), `money` (Money > 0, inkl.
-Differenz, ja), `difference` (`{money, kind}` mit kind
-`"discount"`/`"bad_debt"`/`"minor"`, nein).
+Allocation (`allocations[]`): `openItemId` (yes), `money` (Money > 0, including
+the difference, yes), `difference` (`{money, kind}` with kind
+`"discount"`/`"bad_debt"`/`"minor"`, no).
 
-Output: `{ "openItems": [ … ] }` (betroffene Posten mit `remaining`, `status`
-∈ `open`/`partially_settled`/`settled`, `settlements[]`). Fehler:
+Output: `{ "openItems": [ … ] }` (affected items with `remaining`, `status` ∈
+`open`/`partially_settled`/`settled`, `settlements[]`). Errors:
 `E_ENTRY_UNKNOWN`, `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
-`E_SETTLEMENT_DIFFERENCE_INVALID`. Validierung ist all-or-nothing.
+`E_SETTLEMENT_DIFFERENCE_INVALID`. Validation is all-or-nothing.
 
 ```json
 // Teilzahlung
@@ -609,67 +616,69 @@ Output: `{ "openItems": [ … ] }` (betroffene Posten mit `remaining`, `status`
 
 #### createAccount
 
-`number` (ja), `name` (ja), `type` (ja: asset/liability/equity/expense/revenue),
-`subtype` (nein), `status` (nein: `active`/`locked`). Output: serialisiertes
-Konto. Fehler: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
+`number` (yes), `name` (yes), `type` (yes:
+asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
+`active`/`locked`). Output: serialized account. Errors:
+`E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
 
 #### importChartOfAccounts
 
-Atomarer Kontenrahmen-Import: erst alles validieren, dann anlegen. `rows` (ja,
-nicht leer; je Zeile Felder wie `createAccount`), `format` (nein, im Kern nicht
-ausgewertet). Output: `{ "importedCount": <int> }`. Fehler:
-`E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (auch Duplikat im Batch).
+Atomic chart-of-accounts import: validate everything first, then create. `rows`
+(yes, non-empty; each row carries fields like `createAccount`), `format` (no,
+not evaluated in the core). Output: `{ "importedCount": <int> }`. Errors:
+`E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
+batch).
 
 #### lockAccount
 
-Sperrt ein Konto (`active` → `locked`); danach `E_ACCOUNT_LOCKED` bei `post`.
-`number` (ja). Output: serialisiertes Konto mit `status:"locked"`. Fehler:
+Locks an account (`active` → `locked`); afterwards `E_ACCOUNT_LOCKED` on `post`.
+`number` (yes). Output: serialized account with `status:"locked"`. Error:
 `E_ACCOUNT_UNKNOWN`.
 
 #### createFiscalYear
 
-`year` (ja), `start` (ja), `end` (ja). Ohne explizite Perioden 12 Monate.
-Output: `{ "year": <int>, "periodCount": <int> }`. Fehler:
-`E_FISCALYEAR_OVERLAP` (Datumsüberschneidung oder gleiches `year`).
+`year` (yes), `start` (yes), `end` (yes). Without explicit periods, 12 months.
+Output: `{ "year": <int>, "periodCount": <int> }`. Error:
+`E_FISCALYEAR_OVERLAP` (date overlap or same `year`).
 
 #### closePeriod / reopenPeriod
 
-`fiscalYear` (ja), `period` (ja). Schließen nur in Reihenfolge. Output:
-`{ "fiscalYear", "period", "status" }` (`"closed"` bzw. `"open"`). Fehler:
-`E_PERIOD_UNKNOWN`, `E_PERIOD_OUT_OF_ORDER` (nur close), `E_FISCALYEAR_CLOSED`.
+`fiscalYear` (yes), `period` (yes). Closing only in order. Output:
+`{ "fiscalYear", "period", "status" }` (`"closed"` resp. `"open"`). Errors:
+`E_PERIOD_UNKNOWN`, `E_PERIOD_OUT_OF_ORDER` (close only), `E_FISCALYEAR_CLOSED`.
 
 #### closeFiscalYear
 
-Reiner Statuswechsel — **keine** Abschlussbuchungen. Voraussetzung: alle
-Perioden geschlossen **und** alle Buchungen festgeschrieben. `fiscalYear` (ja).
-Output: `{ "fiscalYear", "status": "closed" }`. Fehler: `E_PERIOD_UNKNOWN`,
+A pure status change — **no** closing entries. Prerequisite: all periods closed
+**and** all postings finalized. `fiscalYear` (yes). Output:
+`{ "fiscalYear", "status": "closed" }`. Errors: `E_PERIOD_UNKNOWN`,
 `E_PERIOD_OUT_OF_ORDER`, `E_FISCALYEAR_UNFINALIZED_ENTRIES`.
 
-### 6.3 Steuer, Mapping & Partner
+### 6.3 Tax, mapping & partners
 
 #### expandTax
 
-Reine, seiteneffektfreie Funktion: expandiert Netto-Positionen zu vollständigen
-Buchungszeilen inkl. Steuerzeilen, Steuer-Tags und Brutto-Summe (Vorstufe von
-`postVoucher`); verändert keinen Zustand.
+A pure, side-effect-free function: expands net positions into complete posting
+lines including tax lines, tax tags, and the gross total (the precursor to
+`postVoucher`); changes no state.
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |------|-----|---------|-----------|
-| `date` | string (Datum) | ja | Belegdatum; Versionswahl, falls kein `serviceDate` |
-| `serviceDate` | string (Datum) | nein | Leistungsdatum (§ 27 UStG); Vorrang bei Versionswahl |
-| `direction` | string | nein | `output` (default, credit) oder `input` (debit) |
-| `taxCode` | string | nein | Default-Schlüssel für Positionen ohne eigenen |
-| `netLines` | array | ja | ≥ 1 Netto-Position (`account`, `money`, optional `taxCode`) |
+| `date` | string (date) | yes | voucher date; version selection if no `serviceDate` |
+| `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
+| `direction` | string | no | `output` (default, credit) or `input` (debit) |
+| `taxCode` | string | no | default key for positions without their own |
+| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`) |
 
-Berechnung: Steuer **pro Beleg je Steuersatz** (Netto-Summe je Schlüssel,
-einmal half-up runden — nicht positionsweise); Gruppen nach Steuerkonto
-(Codepoints) sortiert. Kleinunternehmer → keine `taxLines`, `taxTag` = null,
-`grossTotal` = Netto. Reverse-Charge → USt-credit + VSt-debit, `grossTotal` =
-Netto. Innergemeinschaftliche Lieferung → steuerfrei, nur Kennzahl-Tag.
+Calculation: tax **per voucher and per rate** (net total per key, rounded
+half-up once — not per position); groups sorted by tax account (codepoints).
+Small business → no `taxLines`, `taxTag` = null, `grossTotal` = net. Reverse
+charge → VAT credit + input-tax debit, `grossTotal` = net. Intra-community
+supply → tax-free, only a key tag.
 
-Output: `netLines[]` (mit `side`, `taxTag`), `taxLines[]`, `grossTotal`. Fehler:
-`E_ENTRY_TOO_FEW_LINES`, `E_TAXCODE_UNKNOWN`, `E_TAXCODE_NO_VALID_VERSION`,
-`E_ENTRY_INVALID_AMOUNT`.
+Output: `netLines[]` (with `side`, `taxTag`), `taxLines[]`, `grossTotal`.
+Errors: `E_ENTRY_TOO_FEW_LINES`, `E_TAXCODE_UNKNOWN`,
+`E_TAXCODE_NO_VALID_VERSION`, `E_ENTRY_INVALID_AMOUNT`.
 
 ```json
 // input — drei Positionen à 0.33 → Steuer pro Beleg gerundet
@@ -682,15 +691,16 @@ Output: `netLines[]` (mit `side`, `taxTag`), `taxLines[]`, `grossTotal`. Fehler:
 
 #### setTaxProfile
 
-Setzt/ändert den Kleinunternehmer-Status zum Stichtag. ⚠ Im Code wertet
-`setProfile()` nur den `smallBusiness`-Block aus; `taxationMethod`/`vatPeriod`
-stammen aus der Tenant-Konfiguration (im Output dennoch enthalten).
+Sets/changes the small-business status as of a cutoff date. ⚠ In the code
+`setProfile()` evaluates only the `smallBusiness` block;
+`taxationMethod`/`vatPeriod` come from the tenant configuration (yet are still
+included in the output).
 
-`smallBusiness` (ja): `{ validFrom (ja), value (bool, default false) }`.
-Output: das serialisierte `TaxProfile` (`taxationMethod`, `vatPeriod`,
-`smallBusiness[]` nach `validFrom` sortiert). Fehler:
-`E_PROFILE_RETROACTIVE_CONFLICT` (kein `validFrom` oder ab Stichtag bereits
-festgeschriebene Buchungen).
+`smallBusiness` (yes): `{ validFrom (yes), value (bool, default false) }`.
+Output: the serialized `TaxProfile` (`taxationMethod`, `vatPeriod`,
+`smallBusiness[]` sorted by `validFrom`). Error:
+`E_PROFILE_RETROACTIVE_CONFLICT` (no `validFrom`, or postings already finalized
+as of the cutoff date).
 
 ```json
 { "smallBusiness": { "validFrom": "2026-07-01", "value": false } }
@@ -699,20 +709,21 @@ festgeschriebene Buchungen).
 
 #### importMapping
 
-Importiert ein Gliederungs-Mapping (Bilanz/GuV/EÜR). Prüft jedes relevante Konto
-gegen die Positionen; Überlappung ist Fehler, Lücken sind Warnungen. Input unter
-`mapping`: `id` (ja), `kind` (ja), `version` (nein), `positions[]` (ja, Struktur
-siehe § 5).
+Imports a statement mapping (balance sheet / income statement / cash-basis).
+Checks every relevant account against the positions; overlap is an error, gaps
+are warnings. Input under `mapping`: `id` (yes), `kind` (yes), `version` (no),
+`positions[]` (yes, structure see § 5).
 
 Output: `{ "imported": true, "id", "kind", "gapWarnings": [ { "account", "assignedTo": "_unassigned" } ] }`.
-Fehler: `E_MAPPING_OVERLAP` (Konto in mehreren Positionen).
+Error: `E_MAPPING_OVERLAP` (account in more than one position).
 
 #### createPartner
 
-Schlanke Partner-Stammdaten (OP-je-Partner, USt-IdNr., ZM, DATEV). Alle Felder
-optional mit Defaults: `name` (`""`), `kind` (`customer`/`supplier`/`both`,
-default `both`), `vatId`, `paymentTermsDays`, `accountNumbers[]`, `address`.
-Output: serialisierter Partner mit generierter `id`. Schreibt Audit-Eintrag.
+Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
+All fields optional with defaults: `name` (`""`), `kind`
+(`customer`/`supplier`/`both`, default `both`), `vatId`, `paymentTermsDays`,
+`accountNumbers[]`, `address`. Output: serialized partner with a generated `id`.
+Writes an audit entry.
 
 ```json
 { "name": "Alpen Handel GmbH", "kind": "customer", "vatId": "ATU12345678", "paymentTermsDays": 30, "accountNumbers": ["1400"] }
@@ -720,19 +731,20 @@ Output: serialisierter Partner mit generierter `id`. Schreibt Audit-Eintrag.
 
 #### updatePartner
 
-Aktualisiert vorhandene Partner; nur geänderte Felder werden geschrieben (Diff im
-Audit-Trail). `partnerId` (ja), `name`/`vatId`/`kind`/`paymentTermsDays` (nein).
-`vatId: null` löscht die USt-IdNr.; `accountNumbers`/`address` werden hier nicht
-geändert. Output: serialisierter Partner. Fehler: `E_PARTNER_UNKNOWN`.
+Updates existing partners; only changed fields are written (diff in the audit
+trail). `partnerId` (yes), `name`/`vatId`/`kind`/`paymentTermsDays` (no).
+`vatId: null` clears the VAT ID; `accountNumbers`/`address` are not changed
+here. Output: serialized partner. Error: `E_PARTNER_UNKNOWN`.
 
-### 6.4 Anlagen & Kostenrechnung
+### 6.4 Assets & cost accounting
 
-Die Anlagen-Operationen brauchen ein **Regelmodul** im Mandanten-Setup
-(`ruleModule`) mit `gwgThresholds` (datierte GWG-Grenzen), `usefulLife`
-(Nutzungsdauer je `assetClass` in Monaten) und `assetAccounts`
+The asset operations need a **rule module** in the tenant setup (`ruleModule`)
+with `gwgThresholds` (dated low-value-asset thresholds), `usefulLife` (useful
+life per `assetClass` in months), and `assetAccounts`
 (`acquisitionCounterAccount`, `depreciationExpenseAccount`,
-`gwgExpenseAccount`). Anlagen-Buchungen werden sofort festgeschrieben (GoBD); die
-KLR ist ein eigener Rechnungskreis und lässt das Fibu-Journal unberührt.
+`gwgExpenseAccount`). Asset postings are finalized immediately (GoBD); cost
+accounting is a separate accounting circle and leaves the financial-accounting
+journal untouched.
 
 ```json
 "ruleModule": {
@@ -744,23 +756,23 @@ KLR ist ein eigener Rechnungskreis und lässt das Fibu-Journal unberührt.
 
 #### acquireAsset
 
-Erfasst einen Zugang und entscheidet die GWG-Weiche.
+Records an acquisition and decides the low-value-asset (GWG) routing.
 
-| Feld | Typ | Pflicht | Bedeutung |
+| Field | Type | Required | Meaning |
 |---|---|---|---|
-| `name` | string | nein | Bezeichnung |
-| `assetClass` | string | ja bei Aktivierung | Schlüssel in `usefulLife` |
-| `assetAccount` | string | ja | Aktivkonto |
-| `acquisitionCost` | Money | ja | AHK |
-| `acquiredOn` | string (Datum) | ja | bestimmt die GWG-Grenze |
-| `voucherId` | string (UUID) | ja | Beleg (fehlt → `InvalidValue` ⚠) |
-| `gwgChoice` | string | nein (`"auto"`) | sonst `capitalize`/`immediate_expense`/`pool` |
+| `name` | string | no | label |
+| `assetClass` | string | yes when capitalizing | key in `usefulLife` |
+| `assetAccount` | string | yes | asset account |
+| `acquisitionCost` | Money | yes | acquisition/production cost |
+| `acquiredOn` | string (date) | yes | determines the GWG threshold |
+| `voucherId` | string (UUID) | yes | voucher (missing → `InvalidValue` ⚠) |
+| `gwgChoice` | string | no (`"auto"`) | otherwise `capitalize`/`immediate_expense`/`pool` |
 
-GWG-Weiche bei `auto`: AHK ≤ `immediateMax` → `immediate_expense`; `poolMin` ≤
-AHK ≤ `poolMax` → `pool` (60 Monate, 1/5); sonst → `capitalize` (Nutzungsdauer
-aus `usefulLife`). Output: serialisiertes Asset (`route`,
-`usefulLifeMonths`, …; bei `immediate_expense` zusätzlich `expenseAccount`).
-Fehler: `E_ASSET_UNKNOWN` (keine Nutzungsdauer), `E_ACCOUNT_UNKNOWN`.
+GWG routing with `auto`: cost ≤ `immediateMax` → `immediate_expense`;
+`poolMin` ≤ cost ≤ `poolMax` → `pool` (60 months, 1/5); otherwise →
+`capitalize` (useful life from `usefulLife`). Output: serialized asset (`route`,
+`usefulLifeMonths`, …; for `immediate_expense` additionally `expenseAccount`).
+Errors: `E_ASSET_UNKNOWN` (no useful life), `E_ACCOUNT_UNKNOWN`.
 
 ```json
 { "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0420",
@@ -771,18 +783,17 @@ Fehler: `E_ASSET_UNKNOWN` (keine Nutzungsdauer), `E_ACCOUNT_UNKNOWN`.
 
 #### disposeAsset
 
-`assetId` (ja), `disposedOn` (ja), `proceeds`/`proceedsAccount` (nein, nur
-zusammen wird gebucht), `bankAccount` (nein, Default
-`acquisitionCounterAccount`), `voucherId` (nein). Output: serialisiertes Asset
-mit `status:"disposed"`. Fehler: `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`. ⚠ Keine
-Fixture; aus Code belegt.
+`assetId` (yes), `disposedOn` (yes), `proceeds`/`proceedsAccount` (no, only
+posted together), `bankAccount` (no, default `acquisitionCounterAccount`),
+`voucherId` (no). Output: serialized asset with `status:"disposed"`. Errors:
+`E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`. ⚠ No fixture; documented from code.
 
 #### runDepreciation
 
-AfA-Lauf, idempotent. `fiscalYear` (ja); mit `period` Monatslauf, ohne
-Jahreslauf. Verteilung Largest-Remainder (Σ = AHK exakt). Output:
-`{ "entriesCreated", "totalDepreciation" }` bzw. bei No-op
-`{ "alreadyRun": true, "entriesCreated": 0 }`. Fehler: `E_PERIOD_UNKNOWN`.
+Depreciation run, idempotent. `fiscalYear` (yes); with `period` a monthly run,
+without it a yearly run. Distribution via largest-remainder (Σ = acquisition
+cost exactly). Output: `{ "entriesCreated", "totalDepreciation" }`, resp. on a
+no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 
 ```json
 { "fiscalYear": 2026 }   // → entriesCreated 1, totalDepreciation 500.00 (6/36 von 3000)
@@ -790,10 +801,10 @@ Jahreslauf. Verteilung Largest-Remainder (Σ = AHK exakt). Output:
 
 #### setAllocationScheme
 
-Umlageschema (Stufenleiter). `method` (nein, default `"step_ladder"`), `steps[]`
-(`sender` ja, `receivers[].code` ja, `receivers[].share` nein, default `"1"`).
-Output: `{ "valid", "method", "stepCount" }`. Fehler: `E_COSTING_CYCLE`;
-fehlender `sender` → `InvalidValue` ⚠.
+Allocation scheme (step-ladder). `method` (no, default `"step_ladder"`),
+`steps[]` (`sender` yes, `receivers[].code` yes, `receivers[].share` no, default
+`"1"`). Output: `{ "valid", "method", "stepCount" }`. Errors:
+`E_COSTING_CYCLE`; missing `sender` → `InvalidValue` ⚠.
 
 ```json
 { "method": "step_ladder", "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] } ] }
@@ -801,49 +812,49 @@ fehlender `sender` → `InvalidValue` ⚠.
 
 #### runCosting
 
-Abrechnungslauf: Primärkosten aus Aufwandszeilen mit `costCenter`-Dimension,
-dann Umlage. `fiscalYear` (ja), `period` (ja). Output:
+Costing run: primary costs from expense lines carrying a `costCenter` dimension,
+then allocation. `fiscalYear` (yes), `period` (yes). Output:
 `{ "runId", "status": "draft", "version" }`.
 
 #### releaseCosting
 
-Freigabe (`draft` → `released`). `runId` (ja). Output:
-`{ "runId", "status": "released" }`. Fehler: `E_COSTING_RUN_UNKNOWN`,
+Release (`draft` → `released`). `runId` (yes). Output:
+`{ "runId", "status": "released" }`. Errors: `E_COSTING_RUN_UNKNOWN`,
 `E_COSTING_RUN_RELEASED`.
 
 ---
 
-## 7. API-Referenz: Projektionen
+## 7. API reference: projections
 
-Aufruf: `project(name, params)`. Salden werden nie gespeichert, sondern bei jedem
-Aufruf aus dem Journal neu berechnet. Sortierungen nach Unicode-Codepoints bzw.
-`sequenceNumber`/Datum. Geld erscheint je Feld als Betrags-String (`"178.50"`)
-oder als Money-Objekt — unten ausgewiesen. `asOf`/`throughPeriod` ermöglichen
-Stichtags-Auswertungen.
+Call: `project(name, params)`. Balances are never stored; they are recomputed
+from the journal on every call. Orderings by Unicode codepoints resp.
+`sequenceNumber`/date. Money appears per field either as an amount string
+(`"178.50"`) or as a Money object — noted below. `asOf`/`throughPeriod` enable
+as-of evaluations.
 
-### trialBalance — Summen- und Saldenliste (SuSa)
+### trialBalance — trial balance (summen- und saldenliste)
 
-`fiscalYear` (ja), `throughPeriod` (nein, Default alle), `includeZeroBalances`
-(nein, default false). `openingBalance` nur für bestandsführende Konten;
-`balance = openingBalance + debitTotal − creditTotal`. Geld als Betrags-Strings.
+`fiscalYear` (yes), `throughPeriod` (no, default all), `includeZeroBalances`
+(no, default false). `openingBalance` only for balance-carrying accounts;
+`balance = openingBalance + debitTotal − creditTotal`. Money as amount strings.
 
 ```json
 // params { "fiscalYear": 2026, "throughPeriod": 12 }
 { "rows": [ { "account": "1200", "openingBalance": "0.00", "debitTotal": "178.50", "creditTotal": "0.00", "balance": "178.50" } ] }
 ```
 
-### accountSheet — Kontoblatt
+### accountSheet — account ledger
 
-`account` (ja, Nummer; unbekannt → `E_ACCOUNT_UNKNOWN`), `fiscalYear` (ja),
-`throughPeriod` (nein). Output: `account`, `name`, `openingBalance`, `lines[]`
-(je `sequenceNumber`, `entryDate`, `text`, `side`, `money` [Money],
-`runningBalance`), `closingBalance`. ⚠ Shape aus Code (keine Fixture).
+`account` (yes, number; unknown → `E_ACCOUNT_UNKNOWN`), `fiscalYear` (yes),
+`throughPeriod` (no). Output: `account`, `name`, `openingBalance`, `lines[]`
+(each `sequenceNumber`, `entryDate`, `text`, `side`, `money` [Money],
+`runningBalance`), `closingBalance`. ⚠ Shape from code (no fixture).
 
-### auditLog — Änderungshistorie
+### auditLog — change history
 
-`from`/`to` (nein, Datumsbereich inkl.). Output: `records[]` mit `id`, `at`
-(ATOM mit Zone), `actor`, `objectType`, `objectId`, `action`, `changes`
-(Map `feld → {from,to}`).
+`from`/`to` (no, date range inclusive). Output: `records[]` with `id`, `at`
+(ATOM with zone), `actor`, `objectType`, `objectId`, `action`, `changes`
+(map `field → {from,to}`).
 
 ```json
 // params { "from": "2026-01-01", "to": "2026-12-31" }
@@ -851,24 +862,23 @@ Stichtags-Auswertungen.
   "changes": { "text": { "from": "Bürobedarf", "to": "Bürobedarf Januar" } } } ] }
 ```
 
-### openItems — Offene-Posten-Liste
+### openItems — open-item list
 
-`asOf` (nein, Stichtag), `kind` (nein, `receivable`/`payable`), `partnerId`
-(nein). Posten mit Restbetrag 0 zum Stichtag entfallen. Output: `items[]` mit
-`id`, `kind`, `voucherNumber`, `money` (Original, Money), `remaining` (Money),
-`status`.
+`asOf` (no, cutoff date), `kind` (no, `receivable`/`payable`), `partnerId` (no).
+Items with a remaining amount of 0 as of the cutoff date drop out. Output:
+`items[]` with `id`, `kind`, `voucherNumber`, `money` (original, Money),
+`remaining` (Money), `status`.
 
 ```json
 // params { "asOf": "2026-02-20", "kind": "receivable" }
 { "items": [ { "voucherNumber": "AR-2026-010", "remaining": { "amount": "690.00", "currency": "EUR" }, "status": "partially_settled" } ] }
 ```
 
-### assetRegister — Anlageverzeichnis
+### assetRegister — asset register
 
-`asOf` (nein, Stichtag). Output: `assets[]` mit Basisfeldern plus
-`accumulatedDepreciation` (Money), `bookValue` (Money) und —
-nur bei `route:"capitalize"` — `depreciationSchedule` (Map `months<N>to<M>` +
-`total`).
+`asOf` (no, cutoff date). Output: `assets[]` with base fields plus
+`accumulatedDepreciation` (Money), `bookValue` (Money) and — only for
+`route:"capitalize"` — `depreciationSchedule` (map `months<N>to<M>` + `total`).
 
 ```json
 // params { "asOf": "2026-12-31" }
@@ -877,12 +887,12 @@ nur bei `route:"capitalize"` — `depreciationSchedule` (Map `months<N>to<M>` +
   "bookValue": { "amount": "2500.00", "currency": "EUR" } } ] }
 ```
 
-### costAllocationSheet — Betriebsabrechnungsbogen (BAB)
+### costAllocationSheet — cost allocation sheet (BAB)
 
-`runId` (ja; unbekannt → `E_COSTING_RUN_UNKNOWN`). ⚠ `fiscalYear`/`period` in
-Fixtures vorhanden, aber nicht ausgewertet. Output: `runId`, `status`, `version`,
-`primary[]` und `afterAllocation[]` (je `{costCenter, total}`), `grandTotal`
-(Strings).
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). ⚠ `fiscalYear`/`period`
+present in fixtures, but not evaluated. Output: `runId`, `status`, `version`,
+`primary[]` and `afterAllocation[]` (each `{costCenter, total}`), `grandTotal`
+(strings).
 
 ```json
 // Verrechnungssumme 4000 bleibt erhalten, Sender VW endet bei 0
@@ -890,13 +900,13 @@ Fixtures vorhanden, aber nicht ausgewertet. Output: `runId`, `status`, `version`
   "afterAllocation": [ { "costCenter": "VW", "total": "0.00" } ], "grandTotal": "4000.00" }
 ```
 
-### vatReturn — Umsatzsteuer-Voranmeldung
+### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
-`year` (ja), `quarter` (nein, 0/fehlend = Jahr), `asOf` (nein). Soll-Versteuerung
-(accrual) zählt nach Buchungs-/Leistungsdatum; Ist-Versteuerung (cash) folgt den
-OP-Ausgleichen (`settledAt`, Teilzahlungen anteilig). Output: `keys` (je
-`reportingKey` → `{base, tax}`; `base` amtlich auf volle Euro abgerundet, `tax`
-centgenau), `payload` (Money: Σ Ausgangssteuer − Σ Vorsteuer).
+`year` (yes), `quarter` (no, 0/missing = year), `asOf` (no). Accrual taxation
+counts by posting/service date; cash taxation follows the open-item settlements
+(`settledAt`, partial payments pro rata). Output: `keys` (each `reportingKey` →
+`{base, tax}`; `base` officially rounded down to full euros, `tax` to the cent),
+`payload` (Money: Σ output tax − Σ input tax).
 
 ```json
 // params { "year": 2026, "quarter": 2, "asOf": "2026-07-01" }
@@ -904,11 +914,11 @@ centgenau), `payload` (Money: Σ Ausgangssteuer − Σ Vorsteuer).
   "payload": { "amount": "171.00", "currency": "EUR" } }
 ```
 
-### incomeStatement — Gewinn- und Verlustrechnung (GuV)
+### incomeStatement — income statement (GuV)
 
-`fiscalYear` (ja), `mapping` (ja, GuV-Mapping-ID; nicht geladen →
-`E_MAPPING_OVERLAP` ⚠), `fromPeriod`/`throughPeriod` (nein). Vorzeichen
-Haben − Soll; nur Erfolgskonten. Output: `positions[]` (`key`, `label`,
+`fiscalYear` (yes), `mapping` (yes, income-statement mapping ID; not loaded →
+`E_MAPPING_OVERLAP` ⚠), `fromPeriod`/`throughPeriod` (no). Sign: credit − debit;
+income-statement accounts only. Output: `positions[]` (`key`, `label`,
 `amount`), `netIncome`.
 
 ```json
@@ -918,13 +928,13 @@ Haben − Soll; nur Erfolgskonten. Output: `positions[]` (`key`, `label`,
   "netIncome": "700.00" }
 ```
 
-### balanceSheet — Bilanz
+### balanceSheet — balance sheet
 
-`asOf` (nein, Stichtag), `mapping` (ja, Bilanz-Mapping-ID), `incomeMapping`
-(nein; ⚠ wird von `compute()` nicht ausgewertet — das Jahresergebnis fließt über
-das `includesNetIncome`-Blatt des Bilanz-Mappings ein). Seitenzuordnung über
+`asOf` (no, cutoff date), `mapping` (yes, balance-sheet mapping ID),
+`incomeMapping` (no; ⚠ not evaluated by `compute()` — the net income flows in via
+the `includesNetIncome` leaf of the balance-sheet mapping). Side assignment via
 `side`. Output: `assets[]`, `assetsTotal`, `liabilitiesAndEquity[]`,
-`liabilitiesAndEquityTotal` — Bilanzidentität by construction.
+`liabilitiesAndEquityTotal` — balance identity by construction.
 
 ```json
 // params { "asOf": "2026-12-31", "mapping": "test-bilanz" }
@@ -933,48 +943,48 @@ das `includesNetIncome`-Blatt des Bilanz-Mappings ein). Seitenzuordnung über
   "liabilitiesAndEquityTotal": "890.00" }
 ```
 
-### cashBasisReport — Einnahmen-Überschuss-Rechnung (EÜR)
+### cashBasisReport — cash-basis report (EÜR)
 
-`year` (ja), `asOf` (nein), `mapping` (nein; ohne Mapping greift der Kontoname).
-Zahlungswirksamkeit über Geldkonten, 10-Tage-Regel, USt erfolgswirksam,
-Anlagenzahlung nicht abziehbar. Abweichendes Geschäftsjahr →
-`E_CASHBASIS_DEVIATING_FISCAL_YEAR`. Output: `income[]`/`expenses[]` (je
-`{category, amount}`, nach Kategorie sortiert).
+`year` (yes), `asOf` (no), `mapping` (no; without a mapping the account name
+applies). Cash effectiveness via money accounts, the 10-day rule, VAT
+income-effective, asset payments not deductible. A deviating fiscal year →
+`E_CASHBASIS_DEVIATING_FISCAL_YEAR`. Output: `income[]`/`expenses[]` (each
+`{category, amount}`, sorted by category).
 
 ```json
 // params { "year": 2025, "asOf": "2026-06-07" }
 { "income": [], "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ] }
 ```
 
-### ecSalesList — Zusammenfassende Meldung (ZM)
+### ecSalesList — EC sales list (zusammenfassende meldung, ZM)
 
-`year` (ja), `quarter` (nein). Innergemeinschaftliche Lieferungen je USt-IdNr.
-(aus den Kennzahl-Tags der igL-Schlüssel; Partner über den Beleg). Output:
-`rows[]` (`vatId`, `amount`, `kind`). Buchungen ohne Partner-USt-IdNr. entfallen.
+`year` (yes), `quarter` (no). Intra-community supplies per VAT ID (from the key
+tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
+`amount`, `kind`). Postings without a partner VAT ID drop out.
 
 ```json
 // params { "year": 2026, "quarter": 1 }
 { "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ] }
 ```
 
-### journalExport — GoBD-Z3-Export
+### journalExport — GoBD Z3 export
 
-`fiscalYear` (nein; fehlend = ganzes Journal), `format` (nein, nicht
-ausgewertet; `formatVersion` fix `"0.4"`). Output: `manifest`
-(`formatVersion`, `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`,
-`contentHashes`), `fieldCatalog`, `journal` (`entryCount`, `ordering`,
-`allFinalized`), `data` (`journal`, `accounts`, `vouchers`, `partners?`,
-`auditLog`). `contentHashes` = SHA-256 über RFC-8785-kanonisierte Zeilen je
-Stream. Der Audit-Trail ist immer Teil des Exports.
+`fiscalYear` (no; missing = the whole journal), `format` (no, not evaluated;
+`formatVersion` fixed at `"0.4"`). Output: `manifest` (`formatVersion`,
+`tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
+`fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
+(`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
+SHA-256 over RFC-8785-canonicalized rows per stream. The audit trail is always
+part of the export.
 
-### datevExport — DATEV-Export
+### datevExport — DATEV export
 
-`kind` (nein: `entries` default / `accounts` / `partners`); für `entries`
-zusätzlich `fiscalYear`/`fromPeriod`/`throughPeriod`. Output:
-`{ "kind", "rows": [ … ], "rowCount" }`. Zeilen je `kind` unterschiedlich
-(Stapelzeile: `amount`, `debitCredit`, `account`, `contraAccount`, `buKey`,
-`documentField1`, `date` (MMTT), `text`, `finalized`). ⚠ Exaktes
-EXTF-Headerformat noch gegen aktuelle DATEV-Doku zu verifizieren.
+`kind` (no: `entries` default / `accounts` / `partners`); for `entries`
+additionally `fiscalYear`/`fromPeriod`/`throughPeriod`. Output:
+`{ "kind", "rows": [ … ], "rowCount" }`. Rows differ per `kind` (batch row:
+`amount`, `debitCredit`, `account`, `contraAccount`, `buKey`, `documentField1`,
+`date` (MMDD), `text`, `finalized`). ⚠ The exact EXTF header format still to be
+verified against current DATEV documentation.
 
 ```json
 // params { "fiscalYear": 2026, "fromPeriod": 1, "throughPeriod": 12 }
@@ -984,19 +994,19 @@ EXTF-Headerformat noch gegen aktuelle DATEV-Doku zu verifizieren.
 
 ---
 
-## 8. Value Objects
+## 8. Value objects
 
-Alle Value Objects liegen im Namespace `Summae\Core\Shared` (Node: gleicher
-Satz), sind unveränderlich und werden **nie per `new`** konstruiert, sondern über
-statische Factories (`of`, `fromString`, …), die validieren und bei Verstoß
-`InvalidValue` (bei Money zusätzlich `CurrencyMismatch`) werfen. Diese
-Wert-/Format-Fehler sind **kein** Teil des fachlichen `E_*`-Katalogs.
+All value objects live in the namespace `Summae\Core\Shared` (Node: the same
+set), are immutable, and are **never constructed via `new`** but through static
+factories (`of`, `fromString`, …) that validate and, on a violation, throw
+`InvalidValue` (for Money additionally `CurrencyMismatch`). These value/format
+errors are **not** part of the domain `E_*` catalog.
 
 ### Money
 
-Betrag (exakter Dezimalwert) + Währung. **Nie Float.** JSON-Shape:
-`{"amount": "100.00", "currency": "EUR"}` — `amount` ist String mit fester Skala
-(EUR: 2 Nachkommastellen).
+Amount (exact decimal value) + currency. **Never a float.** JSON shape:
+`{"amount": "100.00", "currency": "EUR"}` — `amount` is a string with a fixed
+scale (EUR: 2 decimal places).
 
 ```php
 $m = Money::of('100.00', 'EUR');        // Skala MUSS passen; rundet NICHT
@@ -1007,84 +1017,85 @@ $m = Money::fromCalculation('2.225', 'EUR');   // → 2.23 (einziger Weg, auf de
 Money.of("100.00", "EUR"); Money.zero("EUR"); Money.fromCalculation("2.225", "EUR");
 ```
 
-Rundung: kaufmännisch **half-up, von Null weg** bei `.5` (kein banker's
-rounding): `2.225 → 2.23`, `-2.345 → -2.35`.
+Rounding: commercial **half-up, away from zero** at `.5` (no banker's rounding):
+`2.225 → 2.23`, `-2.345 → -2.35`.
 
-Wichtige Methoden: `add`/`subtract` (wirft `CurrencyMismatch` bei abweichender
-Währung), `negate`/`abs`, `compareTo`/`equals`, `isZero`/`isPositive`/
+Important methods: `add`/`subtract` (throws `CurrencyMismatch` on a differing
+currency), `negate`/`abs`, `compareTo`/`equals`, `isZero`/`isPositive`/
 `isNegative`, `amountAsString`, `jsonSerialize`.
 
-**`allocate(...$weights)` — Largest-Remainder.** Verteilt verlustfrei nach
-Gewichten; **Invariante: Σ Teile = Ausgangsbetrag**. Restcent geht an die Teile
-mit größtem Rest, bei Gleichstand an den kleinsten Index.
+**`allocate(...$weights)` — largest-remainder.** Distributes without loss
+according to weights; **invariant: Σ parts = original amount**. The remaining
+cent goes to the parts with the largest remainder, on a tie to the smallest
+index.
 ```php
 Money::of('100.00', 'EUR')->allocate(1, 1, 1);   // → [33.34, 33.33, 33.33]
 ```
-`allocateEvenly(int $parts)` teilt in `$parts` gleiche Teile (AfA-Raten,
-Sammelposten-Fünftel). Fehler (leer/negativ/Summe 0) → `InvalidValue`.
+`allocateEvenly(int $parts)` splits into `$parts` equal parts (depreciation
+installments, pool fifths). Error (empty/negative/sum 0) → `InvalidValue`.
 
 ### Currency
 
-ISO-4217-Code + feste Skala. `Currency::of('EUR')` (scale 2). Default-Skala 2;
-hinterlegt: JPY/KRW = 0, BHD/KWD/TND = 3. ⚠ v1 EUR-zentriert, keine echte
-ISO-Vollprüfung (jeder formal gültige 3-Letter-Code wird akzeptiert). JSON: der
-nackte Code-String `"EUR"`.
+ISO-4217 code + fixed scale. `Currency::of('EUR')` (scale 2). Default scale 2;
+registered: JPY/KRW = 0, BHD/KWD/TND = 3. ⚠ v1 is EUR-centric, with no true full
+ISO check (any formally valid 3-letter code is accepted). JSON: the bare code
+string `"EUR"`.
 
 ### CalendarDate
 
-Zonenloses Kalenderdatum (ISO `Y-m-d`). `CalendarDate::of('2026-06-18')`;
+Zoneless calendar date (ISO `Y-m-d`). `CalendarDate::of('2026-06-18')`;
 `isBefore`/`isAfter`/`isBetween`, `year`/`month`, `lastDayOfMonth`/
-`firstDayOfNextMonth`. Strenge Prüfung (`2026-02-30` → `InvalidValue`). JSON: der
-ISO-String.
+`firstDayOfNextMonth`. Strict validation (`2026-02-30` → `InvalidValue`). JSON:
+the ISO string.
 
 ### AccountNumber
 
-Kontonummer als String — **führende Nullen signifikant**, Vergleich nach
-Unicode-Codepoints (`"0420" < "1200" < "8400"`, `"10" < "9"`). 1–64 Zeichen, kein
-Whitespace/Steuerzeichen. JSON: der String.
+Account number as a string — **leading zeros significant**, comparison by
+Unicode codepoints (`"0420" < "1200" < "8400"`, `"10" < "9"`). 1–64 characters,
+no whitespace/control characters. JSON: the string.
 
 ### Uuid
 
-UUIDv7 (RFC 9562) — als String zeitlich sortierbar. `Uuid::fromString(...)`
-(normalisiert lowercase), `Uuid::v7([$clock])`. JSON: kanonischer
-Lowercase-String. Fixtures vergleichen nie ID-Werte, nur Platzhalter-Gleichheit.
+UUIDv7 (RFC 9562) — sortable in time as a string. `Uuid::fromString(...)`
+(normalizes to lowercase), `Uuid::v7([$clock])`. JSON: the canonical lowercase
+string. Fixtures never compare ID values, only placeholder equality.
 
-### Clock / IdGenerator — Determinismus-Paare
+### Clock / IdGenerator — determinism pairs
 
-Zeit und IDs sind injizierbar. `Clock.now()`, `IdGenerator.next(): Uuid`.
+Time and IDs are injectable. `Clock.now()`, `IdGenerator.next(): Uuid`.
 
-| Einsatz | Clock | IdGenerator |
+| Use | Clock | IdGenerator |
 |---|---|---|
-| **Produktion** | `SystemClock` | `UuidV7IdGenerator` (echtes v7) |
-| **Tests / Konformität** | `FixedClock` | `DeterministicIdGenerator` (Uhr + Zähler, kein Zufall) |
+| **Production** | `SystemClock` | `UuidV7IdGenerator` (real v7) |
+| **Tests / conformance** | `FixedClock` | `DeterministicIdGenerator` (clock + counter, no randomness) |
 
 ```php
 $clock = FixedClock::at('2026-06-18T10:00:00Z');
 $ids   = new DeterministicIdGenerator($clock);
 $clock->advanceMilliseconds(5);
 ```
-Tests **nie** gegen `now()`/Zufall schreiben.
+Tests **never** written against `now()`/randomness.
 
 ### CanonicalJson
 
-Kanonisches JSON nach **RFC 8785 (JCS)** — Grundlage aller Hashes/Vergleiche.
-`CanonicalJson::encode($value)` (PHP) bzw. `canonicalJson(value)` (Node).
-Schlüsselsortierung nach UTF-16-Code-Units; **Floats werden abgelehnt**;
-Ganzzahlen nur `|x| ≤ 2^53−1`. Leeres PHP-Array = leere Liste `[]`; für `{}`
-`stdClass` verwenden.
+Canonical JSON per **RFC 8785 (JCS)** — the basis of all hashes/comparisons.
+`CanonicalJson::encode($value)` (PHP) resp. `canonicalJson(value)` (Node). Key
+ordering by UTF-16 code units; **floats are rejected**; integers only
+`|x| ≤ 2^53−1`. An empty PHP array = an empty list `[]`; for `{}` use
+`stdClass`.
 
 ---
 
-## 9. Fehlerkatalog
+## 9. Error catalog
 
-Fachliche Fehler werden als `DomainError` geworfen (PHP: `Summae\Core\DomainError`,
-Node: gleiches Konzept/gleiche Codes). Drei Felder:
+Domain errors are thrown as a `DomainError` (PHP: `Summae\Core\DomainError`,
+Node: the same concept/the same codes). Three fields:
 
-| Feld | Typ | Bedeutung |
+| Field | Type | Meaning |
 |---|---|---|
-| `errorCode` | string | stabiler `E_*`-Code — **Vertragsteil: gleicher Verstoß → gleicher Code in allen Implementierungen** |
-| `message` | string | freie Beschreibung (Default = `errorCode`) |
-| `details` | object | beteiligte IDs/Werte |
+| `errorCode` | string | stable `E_*` code — **part of the contract: the same violation → the same code in all implementations** |
+| `message` | string | free description (default = `errorCode`) |
+| `details` | object | the involved IDs/values |
 
 ```php
 try { $ops->execute('post', $input); }
@@ -1095,73 +1106,72 @@ try { ops.execute('post', input); }
 catch (e) { if (e instanceof DomainError) { e.errorCode; e.details; e.message; } }
 ```
 
-**Buchung / Journal:** `E_ENTRY_TOO_FEW_LINES`, `E_ENTRY_INVALID_AMOUNT`,
+**Posting / journal:** `E_ENTRY_TOO_FEW_LINES`, `E_ENTRY_INVALID_AMOUNT`,
 `E_ENTRY_UNBALANCED`, `E_ENTRY_NO_VOUCHER`, `E_ENTRY_UNKNOWN`,
 `E_ENTRY_FINALIZED`, `E_ENTRY_ALREADY_REVERSED`, `E_VOUCHER_UNKNOWN`.
 
-**Konto / Dimensionen:** `E_ACCOUNT_UNKNOWN`, `E_ACCOUNT_NUMBER_TAKEN`,
+**Account / dimensions:** `E_ACCOUNT_UNKNOWN`, `E_ACCOUNT_NUMBER_TAKEN`,
 `E_ACCOUNT_LOCKED`, `E_COA_FORMAT_INVALID`, `E_DIMENSION_INVALID`.
 
-**Periode / Geschäftsjahr:** `E_PERIOD_UNKNOWN`, `E_PERIOD_CLOSED`,
+**Period / fiscal year:** `E_PERIOD_UNKNOWN`, `E_PERIOD_CLOSED`,
 `E_PERIOD_OUT_OF_ORDER`, `E_FISCALYEAR_CLOSED`, `E_FISCALYEAR_OVERLAP`,
 `E_FISCALYEAR_UNFINALIZED_ENTRIES`.
 
-**Steuer:** `E_TAXCODE_UNKNOWN`, `E_TAXCODE_NO_VALID_VERSION`,
+**Tax:** `E_TAXCODE_UNKNOWN`, `E_TAXCODE_NO_VALID_VERSION`,
 `E_PROFILE_RETROACTIVE_CONFLICT`.
 
-**Offene Posten:** `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
+**Open items:** `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
 `E_SETTLEMENT_DIFFERENCE_INVALID`.
 
-**Anlagen:** `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`.
+**Assets:** `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`.
 
-**Costing (KLR):** `E_COSTING_RUN_UNKNOWN`, `E_COSTING_RUN_RELEASED`,
-`E_COSTING_CYCLE`.
+**Costing (cost accounting):** `E_COSTING_RUN_UNKNOWN`,
+`E_COSTING_RUN_RELEASED`, `E_COSTING_CYCLE`.
 
 **Partner:** `E_PARTNER_UNKNOWN`.
 
-**Mapping / Profil:** `E_MAPPING_OVERLAP`, `E_PROFILE_UNKNOWN`.
+**Mapping / profile:** `E_MAPPING_OVERLAP`, `E_PROFILE_UNKNOWN`.
 
-**EÜR:** `E_CASHBASIS_DEVIATING_FISCAL_YEAR`.
+**Cash-basis (EÜR):** `E_CASHBASIS_DEVIATING_FISCAL_YEAR`.
 
-**Sonstige:** `E_NOT_IMPLEMENTED` (Operation/Projektion im Dispatcher nicht
-verdrahtet).
+**Other:** `E_NOT_IMPLEMENTED` (operation/projection not wired in the
+dispatcher).
 
-Die **CLI** bildet denselben Katalog auf Exit-Codes ab: bei Fehlern gibt sie
-`{"error": "E_…", "message": …, "details": …}` aus und beendet mit einem
-Exit-Code ≥ 10.
+The **CLI** maps the same catalog onto exit codes: on errors it prints
+`{"error": "E_…", "message": …, "details": …}` and exits with an exit code ≥ 10.
 
-> ⚠ Wert-/Format-Validierung der Value Objects (`InvalidValue`,
-> `CurrencyMismatch`) ist **kein** `DomainError` und nicht Teil dieses Katalogs.
+> ⚠ Value/format validation of the value objects (`InvalidValue`,
+> `CurrencyMismatch`) is **not** a `DomainError` and not part of this catalog.
 
 ---
 
-## 10. Determinismus & Datenformat
+## 10. Determinism & data format
 
-Gleiche Eingabe → byte-identisches Ergebnis, über Sprachen hinweg. Das macht
-Ergebnisse reproduzierbar, testbar und zwischen Implementierungen austauschbar.
+Same input → byte-identical result, across languages. That makes results
+reproducible, testable, and interchangeable between implementations.
 
-- **Uhr & IDs injizierbar** — Produktion: `SystemClock` + `UuidV7IdGenerator`;
-  Tests: `FixedClock` + `DeterministicIdGenerator` (siehe § 8).
-- **Buchungsdatum ist zonenlos** (`CalendarDate`, kein Zeitstempel mit UTC-Shift).
-- **Sortierung** nach Unicode-Codepoints, **JSON** kanonisch (RFC 8785).
-- **Geld nie als Float** — `Money`, half-up away-from-zero, `allocate`
+- **Clock & IDs injectable** — production: `SystemClock` + `UuidV7IdGenerator`;
+  tests: `FixedClock` + `DeterministicIdGenerator` (see § 8).
+- **The posting date is zoneless** (`CalendarDate`, no timestamp with a UTC
+  shift).
+- **Ordering** by Unicode codepoints, **JSON** canonical (RFC 8785).
+- **Money never as a float** — `Money`, half-up away-from-zero, `allocate`
   largest-remainder.
-- **Austausch zwischen Implementierungen** läuft über das JSON-Datenformat
-  (`journalExport` / Import), nicht über zwei lebende Engines auf derselben
-  Live-DB. Eine andere Implementierung darf dieselbe Datenbank **lesen**;
-  gleichzeitiges Schreiben durch zwei Engines auf dasselbe Journal ist bewusst
-  zu vermeiden.
+- **Exchange between implementations** runs through the JSON data format
+  (`journalExport` / import), not through two live engines on the same live DB.
+  Another implementation may **read** the same database; concurrent writing by
+  two engines onto the same journal is deliberately to be avoided.
 
 ---
 
-## 11. Weiterführend
+## 11. Further reading
 
-- **Kompatibilitätsvertrag:** `testsuite/` (Fixtures + Schema) — die normative
-  Quelle, gegen die jede Implementierung byte-identisch geprüft wird.
-- **PHP-Entwickler-Doku** (Architektur, Workflow, Konformität):
+- **Compatibility contract:** `testsuite/` (fixtures + schema) — the normative
+  source against which every implementation is checked byte-identically.
+- **PHP developer docs** (architecture, workflow, conformance):
   [implementations/php/docs/](../../implementations/php/docs/README.md).
-- **Node-Entwickler-Doku:**
+- **Node developer docs:**
   [implementations/node/README.md](../../implementations/node/README.md).
 
-Dieses Handbuch ist die maßgebliche Nutzer-Dokumentation; die Paket-READMEs sind
-nur Einstiegszeiger.
+This handbook is the authoritative user documentation; the package READMEs are
+only entry-point pointers.

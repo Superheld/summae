@@ -1,16 +1,16 @@
 # docs/ — Node/TypeScript
 
-Tiefen-Doku zur Node-Implementierung. Befehle/Konventionen im Überblick stehen in
-[`../CLAUDE.md`](../CLAUDE.md); projektweite Regeln im Repo-Root-`CLAUDE.md`.
+In-depth documentation for the Node implementation. Commands/conventions at a glance are in
+[`../CLAUDE.md`](../CLAUDE.md); project-wide rules in the repo-root `CLAUDE.md`.
 
-- [`architektur.md`](architektur.md) — Pakete (`core`/`knex`/`cli`), framework-freier Kern,
-  Ports & Adapter, Dispatcher, Datenfluss einer Buchung. **Node-spezifisch**; das
-  sprachneutrale Denkmodell steht in [`/docs/architektur.md`](../../../docs/architektur.md).
-- [`entwicklung.md`](entwicklung.md) — Setup (pnpm), was grün sein muss (= CI), Konventionen,
-  Branch-/Commit-Workflow, „neue Operation/Projektion anbauen", Spec-Retrofit, Determinismus-Hooks.
-- [`konformitaet.md`](konformitaet.md) — der Kompatibilitätsvertrag, wie der Runner arbeitet,
-  die häufigsten Cross-Impl-Fallen, der SPEC-FINDINGS-Eskalationsweg.
-- [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) — dokumentierte Widersprüche Spec/Fixture/Modell (NF-…).
+- [`architektur.md`](architektur.md) — packages (`core`/`knex`/`cli`), framework-free core,
+  ports & adapters, dispatcher, the data flow of a posting. **Node-specific**; the
+  language-neutral mental model is in [`/docs/architektur.md`](../../../docs/architektur.md).
+- [`entwicklung.md`](entwicklung.md) — setup (pnpm), what must be green (= CI, incl. coverage thresholds),
+  conventions, branch/commit workflow, "adding a new operation/projection", spec retrofit, determinism hooks.
+- [`konformitaet.md`](konformitaet.md) — the compatibility contract, how the runner works,
+  the most common cross-impl pitfalls, the SPEC-FINDINGS escalation path.
+- [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) — documented contradictions between spec/fixture/model (NF-…).
 
-> Bau-Patterns + „neue Operation = Service + ein `case` + Fixture" sind **sprachneutral** und stehen
-> einmal im Root-`CLAUDE.md` (Sektion „Bau-Konventionen"). Hier nur die Node-Idiome.
+> Build patterns + "new operation = service + one `case` + fixture" are **language-neutral** and live
+> once in the root `CLAUDE.md` (section "Bau-Konventionen"). Only the Node idioms are here.

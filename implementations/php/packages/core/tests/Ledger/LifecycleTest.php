@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tests\Ledger;
 
-use Summae\Core\Ledger\EntryStatus;
-use Summae\Core\Ledger\Side;
+use Summae\Core\Substrate\EntryStatus;
+use Summae\Core\Substrate\Side;
 
 final class LifecycleTest extends LedgerTestCase
 {

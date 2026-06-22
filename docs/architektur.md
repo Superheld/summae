@@ -1,121 +1,210 @@
-# Architektur — das Denkmodell von summae (sprachneutral)
+# Architecture — the mental model of summae (language-neutral)
 
-Wie summae **gedacht** ist, unabhängig von der Sprache. Gilt für jede
-Implementierung (PHP, Node, …) und für jeden, der ein Pack oder eine Operation
-baut. Sprachspezifische Pfade/Packages stehen in `implementations/<sprache>/docs/`.
+How summae is **conceived**, independent of the language. Applies to every
+implementation (PHP, Node, …) and to anyone building a pack or an operation.
+Language-specific paths/packages live in `implementations/<language>/docs/`.
 
-> Normative Tiefe liegt in der Wissensbasis (`40-domaenenmodell/jurisdiction-profil.md`,
-> `context-map.md`). Die wird **nicht** mit ausgeliefert — darum trägt
-> dieses Dokument das Modell self-contained im Repo.
+> Normative depth lives in the knowledge base (`40-domaenenmodell/jurisdiction-profil.md`,
+> `context-map.md`). That is **not** shipped — which is why this document carries
+> the model self-contained in the repo.
 
-## Der Stapel
+## Two axes
+
+summae is held together by two orthogonal axes. Keep both visible — they answer
+different questions.
+
+- **Hexagonal** (axis 1) — *where does the dependency point?* A framework-free
+  **core** in the middle, **ports** on the edge, **adapters** outside. Persistence
+  and CLI are thin adapters; no business logic in adapters, no framework import in
+  the core.
+- **substrate → policy kinds → pack** (axis 2) — *what is jurisdiction-free and
+  what comes from a jurisdiction?* A frozen, jurisdiction-free **substrate** plus
+  three **policy kinds**, each a **socket** in the core fed by a **plug** from the
+  **pack**.
+
+Both axes share one direction of dependency: **inward**. The pack depends on the
+core; **the core never imports a pack**. Composition injects the plug into the
+socket (**dependency inversion**).
+
+## Axis 1 — Hexagonal (framework / persistence freedom)
 
 ```
-┌─ Konfiguration / Manifest + Resolver ───────────────┐  Pack auswählen/komponieren;
-│  pack:"de-complete" | eigene Modulliste | überschr.   │  Resolver prüft Kohärenz
-├─ Pack (= Jurisdiction Profile = "Regelmodul") ───────┤  Jurisdiktions-Bündel
-│  Kontenrahmen, Steuerschlüssel, Mappings, AfA-Tabellen,│  ("tzdata fürs
-│  Rundungspolitik, Export-Adapter … — fast alles Daten │   Rechnungswesen")
-├─ Drei Politiksorten über dem Substrat ───────────────┤  Constraint · Projektion
-│  Mechanik im Kern, Inhalte aus dem Pack               │  · Expansion
-├─ Substrat (der Kern) ────────────────────────────────┤  kennt kein Gesetz
-│  Buchung, Konto, Journal, Saldo, Periode,             │
+        ┌──────────── adapters (outside) ──────────┐
+        │   in-memory · [knex] · [laravel]          │
+        │   ┌────────── ports (edge) ───────────┐   │
+        │   │   ┌──────── domain (inside) ────┐  │   │
+        │   │   │  substrate (frozen)          │  │   │
+        │   │   │  policies = SOCKETS          │  │   │
+        │   │   │  composition (wiring)        │  │   │
+        │   │   └──────────────────────────────┘  │   │
+        │   └────────────────────────────────────┘   │
+        └────────────────────────────────────────────┘
+  PLUGS (data) live in /pack-library/ ──injected──▶ into the sockets
+  Dependency points inward only · pack depends on core, never the reverse.
+```
+
+Real persistence (`knex`/`laravel`) are **separate packages** outside `core`; only
+the in-memory adapters (fakes) live in `core`.
+
+## Axis 2 — substrate → policy kinds → pack (jurisdiction freedom)
+
+### The stack
+
+```
+┌─ Configuration / manifest + resolver ───────────────┐  select/compose a pack;
+│  pack:"de-complete" | own module list | overrides    │  resolver checks coherence
+├─ Pack (= jurisdiction profile) ──────────────────────┤  jurisdiction bundle
+│  chart of accounts, tax codes, mappings, depreciation │  ("tzdata for accounting")
+│  tables, rounding policy, export adapters … mostly data│
+├─ Three policy kinds over the substrate ──────────────┤  Constraint · Projection
+│  socket in the core, plug (data) from the pack        │  · Expansion
+├─ Substrate (the core) ───────────────────────────────┤  knows no law
+│  posting, account, journal, balance, period,          │
 │  post/settle/reverse, allocate                        │
 └────────────────────────────────────────────────────────┘
 ```
 
-## 1. Substrat (der Kern)
+### 1. Substrate (the core)
 
-Jurisdiktionsfrei: Buchung, Konto, Journal, Saldo, Periode, Festschreibung, Storno,
-offener Posten, Dimension — plus die *Mechanik* `post`, Journal-Append, Saldo-Faltung,
-`sequenceNumber`-Vergabe, `correct`. Kein Paragraph, kein Steuersatz, kein Kontenrahmen.
-Ergäbe ein Konzept auch für eine *fiktive* Jurisdiktion Sinn → es gehört hierher.
+Jurisdiction-free: posting (journal entry), account, journal, balance, period,
+finalization, reversal, open item, dimension — plus the *mechanics* `post`,
+journal append, balance folding, `sequenceNumber` assignment, `correct`. No
+statute, no tax rate, no chart of accounts. **It is frozen — it does not grow.**
+If a concept would make sense even for a *fictitious* jurisdiction → it belongs here.
 
-## 2. Drei Politiksorten (alles über dem Substrat ist genau eine davon)
+### 2. Three policy kinds (everything above the substrate is exactly one of them)
 
-- **Constraint** — Prädikat, das gelten muss, durchgesetzt beim Schreiben:
-  Σ Soll = Σ Haben · Belegpflicht · Periode offen · Festschreibung unveränderbar ·
-  Belegpflichtfelder (z. B. USt-IdNr. bei innergem. Lieferung) · Journalnummer-Lückenlosigkeit.
-- **Projektion** — Journal → Sicht (nie aus gespeicherten Salden): `trialBalance`/SuSa,
-  `balanceSheet`, `incomeStatement`, `cashBasisReport`/EÜR, `vatReturn`, `ecSalesList`/ZM,
-  `openItems`, `assetRegister`, `auditLog`, `costAllocationSheet`/BAB, `journalExport`/Z3,
-  `datevExport`. Mechanik im Kern, **Mapping** aus dem Pack.
-- **Expansion** — Absicht → ausbalancierte Buchungen: `expandTax`, `postVoucher`,
-  `settle` mit Differenz (Skonto/§ 17), `runDepreciation` (AfA), GWG-Weiche bei
-  `acquireAsset`, `disposeAsset`, `reverse` (Generalumkehr), Costing-Umlagen. Sockel im
-  Kern, **Stecker** (Regeldaten) aus dem Pack.
+Each policy kind is a **socket** (the law-free mechanism in the core) fed by a
+**plug** (rules/data from the pack):
 
-**Ermessens-Grenze:** Modulfähig (Expansion) ist nur, was *deterministisch aus
-Regeldaten + Buchungsbestand* ableitbar ist (AfA = tabellengetrieben). Bewertungs-Ermessen
-(Rückstellungshöhe, Forderungsabwertung, Niederstwerttest) ist **App-Sache** — die App
-darf eine Ermessensgröße als Parameter in eine Expansion reichen, das Urteil selbst nie.
+- **Constraint** — a predicate that must hold, enforced on write:
+  Σ debit = Σ credit · voucher requirement · period open · finalization immutable ·
+  required voucher fields (e.g. VAT ID on intra-community supply) · gapless journal
+  numbering.
+- **Projection** — journal → view (never from stored balances): `trialBalance`,
+  `balanceSheet`, `incomeStatement`, `cashBasisReport`/EÜR, `vatReturn`,
+  `ecSalesList`/ZM, `openItems`, `assetRegister`, `auditLog`,
+  `costAllocationSheet`/BAB, `journalExport`/Z3, `datevExport`. Mechanism in the
+  core, **mapping** (plug) from the pack.
+- **Expansion** — intent → balanced postings: `expandTax`, `postVoucher`, `settle`
+  with a difference (cash discount/§ 17), `runDepreciation`, the low-value-asset
+  branch in `acquireAsset`, `disposeAsset`, `reverse` (general reversal), costing
+  allocations. Socket in the core, **plug** (rule data) from the pack.
 
-## 3. Pack (= Jurisdiction Profile = „Regelmodul")
+**Discretion boundary:** only what is *deterministically derivable from rule data +
+the posting set* is plug-driven (depreciation = table-driven). Valuation discretion
+(provision amounts, receivable write-downs, lower-of-cost-or-market test) is the
+**app's** business — the app may pass a discretionary figure as a parameter into an
+expansion, never the judgment itself.
 
-Das versionierte Bündel aller Daten+Regeln einer Jurisdiktion. „Deutschland" ist das
-*erste* Pack, nicht die eingebaute Annahme. **Fast alles ist Daten** — echten *Code*
-braucht ein Pack an genau zwei Stellen: ein neues Steuer-*Paradigma* (US-Sales-Tax hat
-keinen Vorsteuerabzug → anderer Algorithmus) und je ein dünner Export-Serializer
+### 3. Pack (= jurisdiction profile)
+
+The versioned bundle of all data + rules of a jurisdiction. "Germany" is the
+*first* pack, not the built-in assumption. **Almost everything is data** — a pack
+needs real *code* in exactly two places: a new tax *paradigm* (US sales tax has no
+input-tax deduction → a different algorithm) and one thin export serializer each
 (DATEV / SAF-T / FEC …).
 
-Begriffsklärung (drei Fassungen *desselben* Gedankens, zunehmend scharf):
-Drei-Schichten (Kern/Regelmodule/App) → Substrat + Politiksorten → **Pack**.
-„Regelmodul" und „Pack" sind synonym.
+### 4. Configuration: module / manifest / resolver
 
-## 4. Konfiguration: Modul / Manifest / Resolver
+A pack is **not a monolith** but itself a composition.
 
-Ein Pack ist **kein Monolith**, sondern selbst eine Komposition.
+- **Module** = addressable unit, granularity *coherent rule set* (one chart of
+  accounts, one set of tax codes, one mapping, one depreciation rule set, one
+  rounding policy). Declares *what it contributes* and *what it depends on*.
+- **Pack** = a named, resolved module list (manifest). `de-complete` is *one
+  curated* manifest, not the only path.
+- **Three ways to use it, one mechanism:** (1) take it curated · (2) curated +
+  override/omit · (3) compose à la carte yourself.
+- **Resolver** checks dependencies + referential integrity (does a tax code post
+  to an account the chart of accounts lacks? does a projection need a `taxTag` no
+  module produces?) and **fails loudly** (`E_PACK_UNRESOLVED_REF` /
+  `E_PACK_INCOHERENT`) instead of silently miscomputing.
 
-- **Modul** = adressierbare Einheit, Granularität *kohärenter Regelsatz* (ein Kontenrahmen,
-  ein Steuerschlüssel-Satz, ein Mapping, ein AfA-Regelsatz, eine Rundungspolitik).
-  Deklariert, *was es beiträgt* und *wovon es abhängt*.
-- **Pack** = benannte, aufgelöste Modulliste (Manifest). `de-complete` ist *ein
-  kuratiertes* Manifest, nicht der einzige Weg.
-- **Drei Nutzungswege, ein Mechanismus:** (1) kuratiert nehmen · (2) kuratiert +
-  überschreiben/weglassen · (3) selbst à la carte komponieren.
-- **Resolver** prüft Abhängigkeiten + referentielle Integrität (bucht ein Steuerschlüssel
-  auf ein Konto, das der Kontenrahmen nicht hat? braucht eine Projektion ein `taxTag`, das
-  kein Modul erzeugt?) und **scheitert laut** (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`)
-  statt still falsch zu rechnen.
+#### Module → policy kind (unambiguous via `kind`)
 
-### Modul → Politiksorte (eindeutig über `kind`)
+A **module is not its own layer** — it is the *build unit of the pack layer*. Each
+module **serves exactly one policy kind**, determined unambiguously by its `kind`:
 
-Ein **Modul ist keine eigene Schicht** — es ist die *Bau-Einheit der Pack-Schicht*. Jedes Modul
-**bedient genau eine Politiksorte**, eindeutig bestimmt durch sein `kind`:
-
-| `kind` | bedient |
+| `kind` | serves |
 |---|---|
-| `tax` · `depreciation` · `assetAccounts` | **Expansion** (die *Stecker*) |
-| `mapping` | **Projektion** (die *Mappings*) |
-| `accounts` | **Substrat** (der Kontenrahmen) |
-| `policy` | **Parameter** (Rundung/Skala — querliegend) |
-| *(`constraint` — noch keine Modul-Sorte)* | **Constraint** (heute nur generisch im Kern) |
+| `tax` · `depreciation` · `assetAccounts` | **Expansion** (the *plugs*) |
+| `mapping` | **Projection** (the *mappings*) |
+| `accounts` | **Substrate** (the chart of accounts) |
+| `policy` | **Parameters** (rounding/scale — cross-cutting) |
+| *(`constraint` — no module kind yet)* | **Constraint** (today only generic in the core) |
 
-So liest sich auch der Zensus rückwärts: *eine Jurisdiktion bauen = je Politiksorte das passende
-`kind`-Modul liefern.* Ein Pack „bedient sich" der generischen Politiksorten-Mechanik im Kern, indem es
-Daten in diese Steckplätze legt — es reimplementiert nichts.
+Read backwards: *building a jurisdiction = supplying, per policy kind, the matching
+`kind` module.* A pack "draws on" the generic policy-kind mechanism in the core by
+placing data into these slots — it reimplements nothing.
 
-### Self-contained Packs (bauen nicht aufeinander auf)
+#### Self-contained packs (they do not build on each other)
 
-Jedes Pack hält **seine eigenen Module in seinem Ordner** (`pack-library/<pack>/`, z. B. `de-pack/`,
-`default-pack/`) — **kein geteiltes `modules/`**, eindeutige Modul-IDs je Pack. Packs erben nicht
-voneinander; freie À-la-carte-Komposition bleibt möglich, aber die ausgelieferten Packs sind abgeschlossen.
+Each pack holds **its own modules in its own folder** (`pack-library/<pack>/`, e.g.
+`de-pack/`, `default-pack/`) — **no shared `modules/`**, unique module IDs per pack.
+Packs do not inherit from each other; free à-la-carte composition stays possible,
+but the shipped packs are closed.
 
-## Baustatus — ehrlich (wichtig!)
+## The core's directory structure (axis 2, realized)
 
-Das meiste hiervon ist **Konzept festgehalten, Umsetzung nachfragegetrieben** — nicht
-fertiger Code:
+The `core/src/` layout mirrors the two axes (structure 1:1 in PHP and Node; PHP uses
+PascalCase folders):
 
-- ✅ **DE-Pack läuft ohne Kernänderung** — durch die PHP-Referenz faktisch belegt.
-- ✅ **Fiktives Test-Pack** (3-Nachkomma-Währung, Rundung je Position, kein Vorsteuerabzug)
-  ist als Fixture-Satz gebaut (`testsuite/fixtures/pack/conformance-xx/`) — der Naht-Beweis
-  der Jurisdiktionsfreiheit liegt damit als Konformitätstest vor.
-- 🔧 **Modul-Registry, Resolver, `E_PACK_*`-Codes, Manifest-Format** — in Gate 1 spezifiziert
-  (`_bauflow-pack-gate01/`, Datenformat v0.6) und als Pack-Fixtures vorhanden; die
-  Runtime-Auflösung (Node/PHP) ist in Arbeit (Branch `job/pack-conformance-runner`).
-- Heute steht im Datenformat neben dem DE-Pack das fiktive Test-Pack; die Pack-Policy-Felder
-  (Rundungsmodus, Skala) werden vom Resolver getragen, sobald die Runtime-Auflösung grün ist.
+- **`substrate/`** — frozen, jurisdiction-free (posting sums to zero, account,
+  journal, balance, period). Does not grow. **Imports nothing from above.**
+- **`ledger/`** — `ledger.ts`, kept as the **orchestrator**.
+- **`records/`** — vouchers/records (voucher · open-item · audit). **Not** a policy
+  kind; may reference the substrate (data layer).
+- **`policies/`** — the three policy kinds; here only the **socket** (law-free
+  mechanism), the **plugs** (data) live in `/pack-library/` and are injected:
+  - **`expansion/`** — intent → balanced postings (tax · assets · costing ·
+    settle-difference · reverse)
+  - **`projection/`** — journal → view (folding engines + mappings)
+  - **`constraint/`** — predicate gates (still thin; the third kind is unfinished)
+- **`composition/`** — resolver · factory · tenant · dispatcher (dependency
+  inversion)
+- **`partner/`** — supporting subdomain (master data), **not** a policy kind
+- **`ports/` · `adapters/`** — hexagon edge / outside
 
-Das **fiktive Test-Pack ist selbst ein Konformitätstest** und fällt damit unter die
-oberste Qualitätsrichtlinie (`CLAUDE.md`: „jede künftige Jurisdiktion") — der Naht-Beweis
-der Entkopplung gehört in dieselbe sprachneutrale Suite.
+A lint/arch test guards the substrate boundary: it forbids importing `policies/` and
+upper layers into the substrate.
+
+## Engine bundle
+
+The engine eats *one* resolved `ruleModules` bundle (`profiles` / `chartsOfAccounts`
+/ `taxCodes` / `mappings` / `assetAccounts` / `depreciation` / `packPolicy`); reached
+**inline** (the bundle directly) or **composed** (manifest → `PackResolver`).
+`packPolicy` parametrizes jurisdiction-free (`currencyScale` → `Currency`,
+`taxRoundingGranularity` → `TaxService`).
+
+## Build status — honest (important!)
+
+Most of this is **concept captured, implementation demand-driven** — not finished
+code:
+
+- ✅ **The DE pack runs without a core change** — effectively proven by the PHP
+  reference.
+- ✅ **A fictitious test pack** (3-decimal currency, per-line rounding, no input-tax
+  deduction) is built as a fixture set (`testsuite/fixtures/pack/conformance-xx/`) —
+  the seam-proof of jurisdiction freedom thus exists as a conformance test.
+- 🔧 **Module registry, resolver, `E_PACK_*` codes, manifest format** — specified in
+  Gate 1 (`_bauflow-pack-gate01/`, data format v0.6) and present as pack fixtures;
+  the runtime resolution (Node/PHP) is in progress (branch
+  `job/pack-conformance-runner`).
+- 🔧 **Target model vs. current state (honest — otherwise it drifts):** the
+  socket/plug picture is the **target**. Today only infrastructure ports
+  (Clock/Id/repositories) plus the bundle as *data* are injected; the three policy
+  kinds are **not yet** built as ports (`tax-service.ts`/`asset-service.ts` are
+  concrete classes).
+- ⚠️ **Open decision — do not guess:** whether the mechanism repertoire is *closed*
+  (the core never grows, a pack = selection only) or *open* (grows only
+  law-free + visibly). The method fusions in `ledger.ts` (post + settle/reverse +
+  close in one class) and `tax-service.ts` (socket fused with the DE paradigm,
+  branching on `reverse_charge`/`intra_community_supply`) are **gated on this
+  decision** — the directory split is done, but the seam *within* those methods
+  is not.
+
+The **fictitious test pack is itself a conformance test** and thus falls under the
+top quality directive (`CLAUDE.md`: "every future jurisdiction") — the seam-proof of
+the decoupling belongs in the same language-neutral suite. Coverage is part of
+"green" (floor 88% lines).

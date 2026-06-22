@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Summae\Core\Shared\CanonicalJson;
+use Summae\Core\Substrate\CanonicalJson;
 use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 use Summae\Runner\FixtureLoader;
@@ -61,18 +61,18 @@ foreach ($fixtures as $fixture) {
     SchemaInstaller::create($connection->getSchemaBuilder());
 
     $subject = new CoreSubject(function (string $name, mixed ...$args) use ($connection): \Summae\Core\Tenant {
-        /** @var \Summae\Core\Shared\Currency $currency */
+        /** @var \Summae\Core\Substrate\Currency $currency */
         [$currency, $clock, $ids, $dimensions, $taxCodes, $taxProfile, $mappings] = $args + [
             1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null,
         ];
 
         /**
-         * @var \Summae\Core\Shared\Clock|null $clock
-         * @var \Summae\Core\Shared\IdGenerator|null $ids
-         * @var \Summae\Core\Ledger\DimensionRegistry|null $dimensions
-         * @var \Summae\Core\Tax\TaxCodeRegistry|null $taxCodes
-         * @var \Summae\Core\Tax\TaxProfile|null $taxProfile
-         * @var \Summae\Core\Mapping\MappingRegistry|null $mappings
+         * @var \Summae\Core\Substrate\Clock|null $clock
+         * @var \Summae\Core\Substrate\IdGenerator|null $ids
+         * @var \Summae\Core\Policies\Constraint\DimensionRegistry|null $dimensions
+         * @var \Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry|null $taxCodes
+         * @var \Summae\Core\Policies\Expansion\Tax\TaxProfile|null $taxProfile
+         * @var \Summae\Core\Policies\Projection\Mapping\MappingRegistry|null $mappings
          */
         return (new DatabaseTenantFactory($connection))->build(
             $name, $currency, $clock, $ids, $dimensions, $taxCodes, $taxProfile, $mappings,

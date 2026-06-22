@@ -56,8 +56,10 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 
 ## Definition of Green (hier)
 
-PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` gegen
-**beide** Subjects (`core` und `database`) inkl. byte-identischem Doppellauf.
+PHPStan level max ohne Fehler · `make test` grün (**PHPUnit inkl. `ConformanceTest`**
+über die volle Suite **+ Coverage-Gate** Kern-Zeilen ≥ 88 % via `coverage-gate.php`) ·
+Konformitätssuite `--strict` gegen **beide** Subjects (`core` und `database`) inkl.
+byte-identischem Doppellauf.
 
 ## Tiefer: `docs/`
 
@@ -69,6 +71,6 @@ PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` 
   die häufigsten Cross-Impl-Fallen, der SPEC-FINDINGS-Eskalationsweg.
 - `SPEC-FINDINGS.md` — dokumentierte Widersprüche zwischen Spec/Fixture/Modell.
 
-Die **sprachneutralen Bau-Patterns** (Ports/Factory/Dispatcher, „neue Operation = Service + ein
-`case` + Fixture", Pack = Daten nicht Code, 1:1-Spiegelung) stehen einmal im Root-`CLAUDE.md`
-(Sektion „Bau-Konventionen") — hier nur die PHP-Idiome.
+Die **sprachneutralen Bau-Prinzipien** (Pack = primär Daten/Stecker, 1:1-Spiegelung, test-driven,
+framework-frei) stehen im Root-`CLAUDE.md`; Patterns-Liste in `docs/architektur.md`, das Rezept
+„neue Operation = Service + `case` + Fixture" in `docs/entwicklung.md` — hier nur die PHP-Idiome.

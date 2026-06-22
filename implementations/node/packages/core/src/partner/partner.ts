@@ -1,5 +1,5 @@
-import type { AuditChanges } from '../ledger/audit-record.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { AuditChanges } from '../records/audit-record.js';
+import type { Uuid } from '../substrate/uuid.js';
 
 /**
  * Geschäftspartner (datenformat.md v0.4) — bewusst schlank: OP-je-Partner,

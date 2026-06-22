@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core;
 
-use Summae\Core\Assets\AssetService;
-use Summae\Core\Costing\CostingService;
+use Summae\Core\Policies\Expansion\Assets\AssetService;
+use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
 use Summae\Core\InMemory\InMemoryAuditTrail;
@@ -14,9 +14,9 @@ use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
-use Summae\Core\Ledger\DimensionRegistry;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Mapping\MappingRegistry;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\FiscalYearRepository;
@@ -26,15 +26,15 @@ use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\Clock;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\IdGenerator;
-use Summae\Core\Shared\SystemClock;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\UuidV7IdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
-use Summae\Core\Tax\TaxService;
+use Summae\Core\Substrate\Clock;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Substrate\SystemClock;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\UuidV7IdGenerator;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxService;
 
 /**
  * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`).

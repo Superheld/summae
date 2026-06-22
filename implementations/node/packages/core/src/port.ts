@@ -1,14 +1,14 @@
-import type { AccountNumber } from './shared/account-number.js';
-import type { CalendarDate } from './shared/calendar-date.js';
-import type { Uuid } from './shared/uuid.js';
-import type { Asset } from './assets/asset.js';
+import type { AccountNumber } from './substrate/account-number.js';
+import type { CalendarDate } from './substrate/calendar-date.js';
+import type { Uuid } from './substrate/uuid.js';
+import type { Asset } from './policies/expansion/assets/asset.js';
 import type { Partner } from './partner/partner.js';
-import type { Account } from './ledger/account.js';
-import type { AuditRecord } from './ledger/audit-record.js';
-import type { FiscalYear } from './ledger/fiscal-year.js';
-import type { JournalEntry } from './ledger/journal-entry.js';
-import type { OpenItem } from './ledger/open-item.js';
-import type { Voucher } from './ledger/voucher.js';
+import type { Account } from './substrate/account.js';
+import type { AuditRecord } from './records/audit-record.js';
+import type { FiscalYear } from './substrate/fiscal-year.js';
+import type { JournalEntry } from './substrate/journal-entry.js';
+import type { OpenItem } from './records/open-item.js';
+import type { Voucher } from './records/voucher.js';
 
 /** Kontonummern je Mandant eindeutig — der Adapter MUSS das zusichern. */
 export interface AccountRepository {

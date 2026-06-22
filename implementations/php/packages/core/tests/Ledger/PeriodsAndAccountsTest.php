@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tests\Ledger;
 
-use Summae\Core\Ledger\PeriodStatus;
+use Summae\Core\Substrate\PeriodStatus;
 
 final class PeriodsAndAccountsTest extends LedgerTestCase
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Partner;
 
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Geschäftspartner (datenformat.md v0.4) — bewusst schlank, kein CRM:

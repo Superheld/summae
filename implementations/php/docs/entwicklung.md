@@ -1,19 +1,19 @@
-# Entwicklung
+# Development
 
 ## Setup
 
-Alles läuft in Docker — lokal ist **kein PHP** nötig.
+Everything runs in Docker — **no local PHP** needed.
 
 ```bash
-make build      # PHP-8.3-Image bauen (einmalig; bcmath + pdo_pgsql)
+make build      # build the PHP 8.3 image (once; bcmath + pdo_pgsql + pcov)
 make install    # composer install
-make check      # PHPStan (level max) + PHPUnit — das prüft auch die CI
-make fixtures   # Konformitätssuite gegen den In-Memory-Kern
-make shell      # Shell im Container
-make sync       # Testsuite + Schema aus der Wissensbasis aktualisieren
+make check      # PHPStan (level max) + PHPUnit — this is what CI checks too
+make fixtures   # conformance suite against the in-memory core
+make shell      # shell in the container
+make sync       # update testsuite + schema from the knowledge base
 ```
 
-Postgres wird nur für den Datenbank-Konformitätslauf gebraucht:
+Postgres is only needed for the database conformance run:
 
 ```bash
 docker compose --profile db up -d postgres
@@ -21,58 +21,62 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
   php php runner/bin/run-fixtures.php --strict --subject=database
 ```
 
-## Was grün sein muss (= CI)
+## What must be green (= CI)
 
-- **PHPStan level max**, keine Fehler (`vendor/bin/phpstan analyse`).
-- **PHPUnit** (`vendor/bin/phpunit`).
-- **Konformitätssuite strict** gegen beide Subjects:
-  `php runner/bin/run-fixtures.php --strict` und `--strict --subject=database`
-  — alle Fixtures grün **und** Doppellauf byte-identisch.
+- **PHPStan level max**, no errors (`vendor/bin/phpstan analyse`).
+- **PHPUnit** (`vendor/bin/phpunit`), including the `ConformanceTest` over the
+  full suite, **plus the coverage gate**: core lines ≥ 88 %, enforced by
+  `runner/bin/coverage-gate.php` (pcov is in the image). `make test` runs all of
+  this.
+- **Conformance suite strict** against both subjects:
+  `php runner/bin/run-fixtures.php --strict` and `--strict --subject=database`
+  — all fixtures green **and** the double run byte-identical.
 
-Die `expected-green.txt` im `runner/` ist der Regressionsschutz: ohne
-`--strict` darf nichts, was dort gelistet ist, rot werden.
+The `expected-green.txt` in `runner/` is the regression guard: without
+`--strict`, nothing listed there may go red.
 
-## Konventionen
+## Conventions
 
-- **PSR-12**, PHP ≥ 8.3, `declare(strict_types=1)` überall.
-- **PHPStan level max** ist nicht verhandelbar — kein `@phpstan-ignore` ohne
-  Begründung im Kommentar.
-- **Kein `use Illuminate\…` in `packages/core`.** (Siehe architektur.md.)
-- **Namespace `Summae\…`** (Domäne), unabhängig vom Composer-Vendor.
-- **Geld nie als Float**, Daten nie als `DateTime` mit Zeit fürs Buchungsdatum
-  (zonenlose `CalendarDate`). Siehe konformitaet.md.
-- Deutschsprachige Kommentare/Doku, englische API-/Klassennamen (aus dem
-  Glossar der Wissensbasis).
+- **PSR-12**, PHP ≥ 8.3, `declare(strict_types=1)` everywhere.
+- **PHPStan level max** is non-negotiable — no `@phpstan-ignore` without a
+  justifying comment.
+- **No `use Illuminate\…` in `packages/core`.** (See architektur.md.)
+- **Namespace `Summae\…`** (domain), independent of the Composer vendor.
+- **Money never as float**, dates never as `DateTime` with time for the posting
+  date (zoneless `CalendarDate`). See konformitaet.md.
+- German-language comments/docs, English API/class names (from the glossary of
+  the knowledge base).
 
-## Branch- & Commit-Workflow
+## Branch & commit workflow
 
-- **Nie direkt auf `main`.** Pro Aufgabe ein Branch (`job/…`, `chore/…`, `fix/…`).
-- Ein Commit je abgeschlossener Einheit; Commit-Message nennt die Job-/Themen-ID
-  und was fachlich passiert ist (nicht nur „WIP").
-- Merge nach `main` per `--no-ff`, wenn die Einheit grün ist.
+- **Never directly on `main`.** One branch per task (`job/…`, `chore/…`, `fix/…`).
+- One commit per completed unit; the commit message names the job/topic ID and
+  what changed in domain terms (not just "WIP").
+- Merge to `main` with `--no-ff` once the unit is green.
 
-## Eine neue Operation / Projektion hinzufügen
+## Adding a new operation / projection
 
-1. **Modell-Doku in der Wissensbasis lesen** (`40-domaenenmodell/…`,
-   `50-spezifikation/…`) — frisch, die Spec lebt.
-2. Fachlogik in `packages/core` bauen (Aggregat/Service/Projektion), gegen
-   In-Memory-Port und mit Unit-Tests.
-3. Im Dispatcher `TenantOperations` verdrahten (eine Stelle für CLI + Runner).
-4. Falls neuer Datenbank-Persistenzbedarf: Port + In-Memory- **und**
-   Database-Adapter ergänzen, `SchemaInstaller` erweitern.
-5. `make check` + `make fixtures` (beide Subjects) grün.
+1. **Read the model docs in the knowledge base** (`40-domaenenmodell/…`,
+   `50-spezifikation/…`) — fresh, the spec is alive.
+2. Build the domain logic in `packages/core` (aggregate/service/projection),
+   against the in-memory port and with unit tests.
+3. Wire it into the `TenantOperations` dispatcher (one place for CLI + runner).
+4. If new database persistence is needed: add a port + in-memory **and**
+   database adapter, extend the `SchemaInstaller`.
+5. `make check` + `make fixtures` (both subjects) green.
 
-## Spec-Änderung kommt rein (Retrofit)
+## A spec change comes in (retrofit)
 
-1. `make sync` — neue/geänderte Fixtures + Schema holen.
-2. `make fixtures` — sehen, was rot wird (kontrolliertes Versagen, kein Crash).
-3. Spec-Dateien der Wissensbasis frisch lesen (nicht aus dem Gedächtnis).
-4. Anpassen bis grün; bei Widerspruch zwischen Spec/Fixture →
-   [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md), nicht die Fixture biegen.
+1. `make sync` — fetch new/changed fixtures + schema.
+2. `make fixtures` — see what goes red (controlled failure, no crash).
+3. Read the knowledge-base spec files fresh (not from memory).
+4. Adjust until green; on a contradiction between spec/fixture →
+   [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md), do not bend the fixture.
 
-## Determinismus-Hooks (wichtig fürs Testen)
+## Determinism hooks (important for testing)
 
-`Clock` und `IdGenerator` sind injizierbar. Der Konformitäts-Runner nutzt
-`FixedClock` + `DeterministicIdGenerator` (Zähler statt Zufall), damit der
-Doppellauf inkl. SHA-256-Strom-Hashes byte-identisch ist. Produktion nutzt
-`SystemClock` + `UuidV7IdGenerator`. Schreib Tests nie gegen `now()`/Zufall.
+`Clock` and `IdGenerator` are injectable. The conformance runner uses
+`FixedClock` + `DeterministicIdGenerator` (a counter instead of randomness), so
+the double run including SHA-256 stream hashes is byte-identical. Production
+uses `SystemClock` + `UuidV7IdGenerator`. Never write tests against
+`now()`/randomness.

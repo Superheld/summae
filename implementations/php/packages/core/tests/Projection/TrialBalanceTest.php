@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Summae\Core\Tests\Projection;
 
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Ledger\Voucher;
-use Summae\Core\Projection\AccountSheetProjection;
-use Summae\Core\Projection\TrialBalanceProjection;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\FiscalYear;
+use Summae\Core\Records\Voucher;
+use Summae\Core\Policies\Projection\AccountSheetProjection;
+use Summae\Core\Policies\Projection\TrialBalanceProjection;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Core\Tenant;
 
 final class TrialBalanceTest extends TestCase

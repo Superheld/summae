@@ -7,7 +7,7 @@ namespace Summae\Laravel\Repository;
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Partner\Partner;
 use Summae\Core\Port\PartnerRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabasePartnerRepository implements PartnerRepository

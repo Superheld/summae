@@ -50,7 +50,9 @@ pnpm fixtures      # Konformitäts-Runner (tsx); --strict = Doppellauf byte-iden
 ## Definition of Green (hier)
 
 `pnpm typecheck` + `pnpm lint` sauber (Pendant zu „PHPStan level max") · `pnpm test`
-grün · `pnpm fixtures --strict` (alle Fixtures grün + byte-identischer Doppellauf).
+grün **inkl. Coverage-Schwellen** (Kern, `vitest.config.ts`: lines 88 / branches 70 /
+funcs 90 / stmts 85 — fest im Lauf via `coverage.enabled`) · `pnpm fixtures --strict`
+(alle Fixtures grün + byte-identischer Doppellauf).
 
 ## Publish
 
@@ -68,6 +70,6 @@ Release-Ablauf: `RELEASING.md` (Repo-Root).
   Cross-Test (`make cross`), SPEC-FINDINGS-Eskalationsweg.
 - `SPEC-FINDINGS.md` — dokumentierte Widersprüche Spec/Fixture/Modell (`NF-…`).
 
-Die **sprachneutralen Bau-Patterns** (Ports/Factory/Dispatcher, „neue Operation = Service + ein
-`case` + Fixture", Pack = Daten nicht Code, 1:1-Spiegelung) stehen einmal im Root-`CLAUDE.md`
-(Sektion „Bau-Konventionen") — hier nur die Node-Idiome.
+Die **sprachneutralen Bau-Prinzipien** (Pack = primär Daten/Stecker, 1:1-Spiegelung, test-driven,
+framework-frei) stehen im Root-`CLAUDE.md`; Patterns-Liste in `docs/architektur.md`, das Rezept
+„neue Operation = Service + `case` + Fixture" in `docs/entwicklung.md` — hier nur die Node-Idiome.

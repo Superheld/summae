@@ -1,79 +1,81 @@
-# Entwicklung (Node)
+# Development (Node)
 
 ## Setup
 
-pnpm-Workspace, lokal — **kein Docker nötig** (Node ≥ 22).
+pnpm workspace, local — **no Docker needed** (Node ≥ 22).
 
 ```bash
 pnpm install
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
-pnpm test          # vitest (Unit + Konformität)
-pnpm fixtures      # Konformitäts-Runner (tsx); --strict = Doppellauf byte-identisch
-pnpm build         # tsup pro Paket (ESM + CJS + .d.ts)
+pnpm test          # vitest (unit + conformance), measures core coverage + enforces thresholds
+pnpm fixtures      # conformance runner (tsx); --strict = double run, byte-identical
+pnpm build         # tsup per package (ESM + CJS + .d.ts)
 ```
 
-`make sync` (Repo-Root) aktualisiert `testsuite/` + die `pack-library/` aus der Wissensbasis.
+`make sync` (repo root) updates `testsuite/` + the `pack-library/` from the knowledge base.
 
-## Was grün sein muss (= CI)
+## What must be green (= CI)
 
-- **`pnpm typecheck`** sauber (Pendant zu „PHPStan level max").
-- **`pnpm lint`** sauber.
-- **`pnpm test`** grün (vitest).
-- **Konformität strict** gegen beide Subjects — alle Fixtures grün **und** Doppellauf byte-identisch:
+- **`pnpm typecheck`** clean (counterpart to "PHPStan level max").
+- **`pnpm lint`** clean.
+- **`pnpm test`** green (vitest) **including core coverage thresholds** — the run measures core
+  coverage (vitest v8 via `coverage.enabled`) and enforces the thresholds in `vitest.config.ts`:
+  lines 88 / branches 70 / funcs 90 / stmts 85. Falling below a threshold fails the run.
+- **Conformance strict** against both subjects — all fixtures green **and** double run byte-identical:
 
   ```bash
-  pnpm fixtures --strict                     # In-Memory-Kern
-  pnpm fixtures --strict --subject=database  # Knex-Adapter (better-sqlite3, lokal)
+  pnpm fixtures --strict                     # in-memory core
+  pnpm fixtures --strict --subject=database  # Knex adapter (better-sqlite3, local)
   ```
 
-`runner/expected-green.txt` ist der Regressionsschutz: ohne `--strict` darf nichts dort Gelistetes
-rot werden. **Fixture-Stände nicht hier hartkodieren** — sie driften; der aktuelle Stand kommt aus
+`runner/expected-green.txt` is the regression guard: without `--strict`, nothing listed there may
+turn red. **Do not hardcode fixture counts here** — they drift; the current state comes from
 `pnpm fixtures`.
 
-## Konventionen
+## Conventions
 
-- **TypeScript `strict`** inkl. `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
-  `verbatimModuleSyntax` (`tsconfig.base.json`) — **nicht aufweichen.**
-- **ESM** (`"type": "module"`), Node ≥ 22, pnpm-Workspace.
-- **Geld nie als `number`** → `big.js` (`Money`), half-up von Null weg (kaufmännisch, *kein*
-  banker's). Siehe [konformitaet.md](konformitaet.md).
-- **Kern framework-frei:** kein Web-/DB-Import in `packages/core/**` — eslint `no-restricted-imports`
-  erzwingt es. Adapter sind eigene Pakete (`knex`, `cli`).
-- **Buchungsdatum zonenlos** (`CalendarDate`, keine Zeit/UTC-Shift).
-- Bewusst ungenutzte Bindungen mit `_`-Präfix.
-- Deutschsprachige Kommentare/Doku, englische API-/Klassennamen.
+- **TypeScript `strict`** incl. `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+  `verbatimModuleSyntax` (`tsconfig.base.json`) — **do not soften.**
+- **ESM** (`"type": "module"`), Node ≥ 22, pnpm workspace.
+- **Money never as `number`** → `big.js` (`Money`), half-up away from zero (commercial, *not*
+  banker's). See [konformitaet.md](konformitaet.md).
+- **Framework-free core:** no web/DB import in `packages/core/**` — eslint `no-restricted-imports`
+  enforces it. Adapters are their own packages (`knex`, `cli`).
+- **Booking date zoneless** (`CalendarDate`, no time/UTC shift).
+- Deliberately unused bindings prefixed with `_`.
+- German-language comments/docs, English API/class names.
 
-## Branch- & Commit-Workflow
+## Branch & commit workflow
 
-- **Nie direkt auf `main`/`develop`.** Pro Aufgabe ein Branch (`job/…`, `chore/…`, `fix/…`).
-- Ein Commit je abgeschlossener, grüner Einheit; Message nennt Job-/Themen-ID und was fachlich
-  passiert ist (nicht „WIP"). Merge per `--no-ff`, wenn grün.
+- **Never directly on `main`/`develop`.** One branch per task (`job/…`, `chore/…`, `fix/…`).
+- One commit per completed, green unit; the message names the job/topic ID and what happened
+  functionally (not "WIP"). Merge with `--no-ff` when green.
 
-## Eine neue Operation / Projektion hinzufügen
+## Adding a new operation / projection
 
-Das **Rezept** ist sprachneutral (Root-`CLAUDE.md`, „Bau-Konventionen"). In Node konkret:
+The **recipe** is language-neutral (root `CLAUDE.md`, "Bau-Konventionen"). Concretely in Node:
 
-1. **Modell-/Spec-Doku der Wissensbasis frisch lesen** (`40-domaenenmodell/…`, `50-spezifikation/…`).
-2. Fachlogik in `packages/core` bauen (Service/Aggregat/Projektion), gegen In-Memory-Port + vitest-Unit-Tests.
-3. Im Dispatcher `composition/tenant-operations.ts` einen `case` in `execute`/`project` ergänzen
-   (eine Stelle für CLI + Runner).
-4. Bei neuem Persistenzbedarf: Port (`port.ts`) + In-Memory- **und** Knex-Adapter, `schema-installer.ts` erweitern.
-5. **In PHP spiegeln** (gleicher `case`, gleiche Prüfreihenfolge) — Byte-Parität ist Vertrag.
-6. Grün: `pnpm typecheck`/`lint`/`test` + `pnpm fixtures --strict` (beide Subjects) **und**
-   `make cross` (SF-15, PHP↔Node byte-gleich).
+1. **Re-read the model/spec docs in the knowledge base fresh** (`40-domaenenmodell/…`, `50-spezifikation/…`).
+2. Build the domain logic in `packages/core` (service/aggregate/projection), against the in-memory port + vitest unit tests.
+3. Add a `case` to `execute`/`project` in the dispatcher `composition/tenant-operations.ts`
+   (one place for CLI + runner).
+4. For new persistence needs: port (`port.ts`) + in-memory **and** Knex adapter, extend `schema-installer.ts`.
+5. **Mirror in PHP** (same `case`, same check order) — byte parity is a contract.
+6. Green: `pnpm typecheck`/`lint`/`test` (incl. coverage thresholds) + `pnpm fixtures --strict`
+   (both subjects) **and** `make cross` (SF-15, PHP↔Node byte-identical).
 
-## Spec-Änderung kommt rein (Retrofit)
+## A spec change comes in (retrofit)
 
-1. `make sync` — neue/geänderte Fixtures + Schema + `pack-library/` holen.
-2. `pnpm fixtures` — sehen, was rot wird (kontrolliertes Versagen, kein Crash).
-3. Spec-Dateien der Wissensbasis frisch lesen (nicht aus dem Gedächtnis).
-4. Anpassen bis grün; bei Widerspruch Spec/Fixture → [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md),
-   **nicht die Fixture biegen**.
+1. `make sync` — fetch new/changed fixtures + schema + `pack-library/`.
+2. `pnpm fixtures` — see what turns red (controlled failure, no crash).
+3. Re-read the spec files in the knowledge base fresh (not from memory).
+4. Adjust until green; on a spec/fixture contradiction → [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md),
+   **do not bend the fixture**.
 
-## Determinismus-Hooks (wichtig fürs Testen)
+## Determinism hooks (important for testing)
 
-`Clock` und `IdGenerator` sind injizierbar (`packages/core/src/shared/`). Der Konformitäts-Runner
-nutzt `FixedClock` + `DeterministicIdGenerator` (Zähler statt Zufall), damit der Doppellauf
-byte-identisch ist. Produktion nutzt `SystemClock` + `UuidV7IdGenerator`. **Schreib Tests nie gegen
+`Clock` and `IdGenerator` are injectable (`packages/core/src/substrate/`). The conformance runner
+uses `FixedClock` + `DeterministicIdGenerator` (counter instead of random) so the double run is
+byte-identical. Production uses `SystemClock` + `UuidV7IdGenerator`. **Never write tests against
 `new Date()`/`Math.random()`.**

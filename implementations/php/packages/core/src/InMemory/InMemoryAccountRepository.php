@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\Account;
+use Summae\Core\Substrate\Account;
 use Summae\Core\Port\AccountRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Uuid;
 
 final class InMemoryAccountRepository implements AccountRepository
 {

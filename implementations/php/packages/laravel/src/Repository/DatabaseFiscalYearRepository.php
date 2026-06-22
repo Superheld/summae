@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Ledger\FiscalYearStatus;
-use Summae\Core\Ledger\Period;
-use Summae\Core\Ledger\PeriodStatus;
+use Summae\Core\Substrate\FiscalYear;
+use Summae\Core\Substrate\FiscalYearStatus;
+use Summae\Core\Substrate\Period;
+use Summae\Core\Substrate\PeriodStatus;
 use Summae\Core\Port\FiscalYearRepository;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseFiscalYearRepository implements FiscalYearRepository
