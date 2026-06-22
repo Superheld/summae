@@ -37,21 +37,15 @@ Echte Persistenz (`knex`/`laravel`) sind **eigene Pakete** außerhalb von `core`
 - **`partner/`** — Supporting-Subdomain (Stammdaten), **keine** Politiksorte
 - **`ports/` · `adapters/`** — Hexagon-Kante / -außen
 
-## Ziel- vs. Ist-Struktur (ehrlich — sonst driftet die Doku)
+## Struktur-Stand: umgesetzt (Scheiben 1–4)
 
-Die Ordner oben sind das **Ziel**. **Heute liegt der Code noch flach** — also: **Datei suchen,
-nicht den Zielordner annehmen.**
-
-| heute | ≈ Ziel |
-|---|---|
-| `shared/` | `substrate/` |
-| `ledger/` | **gemischt**: substrate + settle/reverse (→`policies/expansion/`) + period (→`policies/constraint/`) + voucher/open-item/audit (→`records/`) |
-| `tax/` `assets/` `costing/` | `policies/expansion/` |
-| `mapping/` `projection/` | `policies/projection/` |
-| `partner/` `composition/` | bleiben (gleicher Name) |
-
-Migration **in Scheiben**, Substrat zuerst; jeder Schritt grün (typecheck/lint/test +
-`fixtures --strict` + `make cross`), PHP + Node 1:1.
+Die Ordner oben **sind** die Struktur (nicht mehr nur Ziel): `shared→substrate`,
+`tax/assets/costing→policies/expansion`, `projection/mapping→policies/projection`; `ledger/`
+aufgeteilt auf `substrate/` (Primitive+Enums) · `records/` (voucher/open-item/audit) ·
+`policies/constraint/` (dimension-registry) · `policies/expansion/` (settlement) — `ledger.ts`
+blieb als **Orchestrator** in `ledger/`. Jede Scheibe grün (typecheck/lint/test + `fixtures --strict`
++ `make cross`), PHP + Node 1:1. `records/` darf das Substrat referenzieren (Daten-Schicht); die
+Substrat-Grenze (Lint/Arch-Test) verbietet `policies/` + obere Schichten.
 
 ## Gated — nicht mit Ordnern lösbar
 
@@ -59,7 +53,9 @@ Migration **in Scheiben**, Substrat zuerst; jeder Schritt grün (typecheck/lint/
   auf `reverse_charge`/`intra_community_supply`. Das zu trennen hängt an der offenen
   **closed/open**-Entscheidung (siehe „Zielmodell vs. Stand" unten). Der Ordner zeigt die
   Schicht, **nicht** die Naht darin.
-- **`ledger.ts` fusioniert post+settle+reverse** — Split ist Chirurgie, kommt zuletzt.
+- **`ledger.ts` (Orchestrator in `ledger/`) fusioniert intern** post (Substrat) + settle/reverse
+  (Expansion) + close (Constraint) in *einer* Klasse — die **Methoden**-Entflechtung ist die
+  closed/open-gated Chirurgie, separat vom (erledigten) Verzeichnis-Split.
 
 ## Engine-Bündel & Zielmodell vs. Stand
 

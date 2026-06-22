@@ -37,21 +37,15 @@ Echte Persistenz (`laravel`/`knex`) sind **eigene Pakete** außerhalb von `core`
 - **`Partner/`** — Supporting-Subdomain (Stammdaten), **keine** Politiksorte
 - **`Port/` · `InMemory/`** — Hexagon-Kante / -außen
 
-## Ziel- vs. Ist-Struktur (ehrlich — sonst driftet die Doku)
+## Struktur-Stand: umgesetzt (Scheiben 1–4)
 
-Die Ordner oben sind das **Ziel**. **Heute liegt der Code noch flach** — also: **Datei suchen,
-nicht den Zielordner annehmen.**
-
-| heute | ≈ Ziel |
-|---|---|
-| `Shared/` | `Substrate/` |
-| `Ledger/` | **gemischt**: Substrate + settle/reverse (→`Policies/Expansion/`) + period (→`Policies/Constraint/`) + Voucher/OpenItem/Audit (→`Records/`) |
-| `Tax/` `Assets/` `Costing/` | `Policies/Expansion/` |
-| `Mapping/` `Projection/` | `Policies/Projection/` |
-| `Partner/` `Composition/` | bleiben (gleicher Name) |
-
-Migration **in Scheiben**, Substrat zuerst; jeder Schritt grün (PHPStan/PHPUnit +
-`fixtures` + `make cross`), PHP + Node 1:1.
+Die Ordner oben **sind** die Struktur (nicht mehr nur Ziel): `Shared→Substrate`,
+`Tax/Assets/Costing→Policies/Expansion`, `Projection/Mapping→Policies/Projection`; `Ledger/`
+aufgeteilt auf `Substrate/` (Primitive+Enums) · `Records/` (Voucher/OpenItem/Audit) ·
+`Policies/Constraint/` (DimensionRegistry) · `Policies/Expansion/` (Settlement) — `Ledger.php`
+blieb als **Orchestrator** in `Ledger/`. Jede Scheibe grün (PHPStan/PHPUnit + `fixtures` +
+`make cross`), PHP + Node 1:1. `Records/` darf das Substrat referenzieren (Daten-Schicht); die
+Substrat-Grenze (Lint/Arch-Test) verbietet `Policies/` + obere Schichten.
 
 ## Gated — nicht mit Ordnern lösbar
 
@@ -59,7 +53,9 @@ Migration **in Scheiben**, Substrat zuerst; jeder Schritt grün (PHPStan/PHPUnit
   auf `reverse_charge`/`intra_community_supply`. Das zu trennen hängt an der offenen
   **closed/open**-Entscheidung (siehe „Zielmodell vs. Stand" unten). Der Ordner zeigt die
   Schicht, **nicht** die Naht darin.
-- **`Ledger.php` fusioniert post+settle+reverse** — Split ist Chirurgie, kommt zuletzt.
+- **`Ledger.php` (Orchestrator in `Ledger/`) fusioniert intern** post (Substrat) + settle/reverse
+  (Expansion) + close (Constraint) in *einer* Klasse — die **Methoden**-Entflechtung ist die
+  closed/open-gated Chirurgie, separat vom (erledigten) Verzeichnis-Split.
 
 ## Engine-Bündel & Zielmodell vs. Stand
 
