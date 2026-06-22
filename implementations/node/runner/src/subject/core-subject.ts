@@ -26,6 +26,7 @@ import {
   isAccountType,
 } from '@superheld/summae-core';
 import { type Subject, SubjectError } from '../subject.js';
+import { loadPackLibrary, type PackLibrary } from '../pack-library.js';
 
 // Feste Uhr: recordedAt/at-Zeitstempel sind über beide Suite-Läufe identisch.
 const FIXED_NOW = '2026-06-07T12:00:00+02:00';
@@ -79,6 +80,9 @@ export class CoreSubject implements Subject {
       taxProfile,
       mappings,
     ) => Tenant.inMemory(name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings),
+    // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
+    // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+    private readonly library: PackLibrary = loadPackLibrary(),
   ) {}
 
   setup(setup: Record<string, unknown>): void {
@@ -102,11 +106,16 @@ export class CoreSubject implements Subject {
           : pack
             ? asRecordList(pack.modules)
             : [];
-    this.packModules = moduleList as unknown as PackModule[];
+    // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+    this.packModules = [
+      ...(moduleList as unknown as PackModule[]),
+      ...this.library.modules,
+    ];
     this.packManifests = [
-      ...asRecordList(setup.manifests),
-      ...(pack && isRecord(pack.manifest) ? [pack.manifest] : []),
-    ] as unknown as PackManifest[];
+      ...(asRecordList(setup.manifests) as unknown as PackManifest[]),
+      ...(pack && isRecord(pack.manifest) ? [pack.manifest as unknown as PackManifest] : []),
+      ...this.library.manifests,
+    ];
 
     const tenantData = isRecord(setup.tenant) ? setup.tenant : null;
     if (tenantData === null) {

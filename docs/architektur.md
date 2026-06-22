@@ -78,6 +78,29 @@ Ein Pack ist **kein Monolith**, sondern selbst eine Komposition.
   kein Modul erzeugt?) und **scheitert laut** (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`)
   statt still falsch zu rechnen.
 
+### Modul → Politiksorte (eindeutig über `kind`)
+
+Ein **Modul ist keine eigene Schicht** — es ist die *Bau-Einheit der Pack-Schicht*. Jedes Modul
+**bedient genau eine Politiksorte**, eindeutig bestimmt durch sein `kind`:
+
+| `kind` | bedient |
+|---|---|
+| `tax` · `depreciation` · `assetAccounts` | **Expansion** (die *Stecker*) |
+| `mapping` | **Projektion** (die *Mappings*) |
+| `accounts` | **Substrat** (der Kontenrahmen) |
+| `policy` | **Parameter** (Rundung/Skala — querliegend) |
+| *(`constraint` — noch keine Modul-Sorte)* | **Constraint** (heute nur generisch im Kern) |
+
+So liest sich auch der Zensus rückwärts: *eine Jurisdiktion bauen = je Politiksorte das passende
+`kind`-Modul liefern.* Ein Pack „bedient sich" der generischen Politiksorten-Mechanik im Kern, indem es
+Daten in diese Steckplätze legt — es reimplementiert nichts.
+
+### Self-contained Packs (bauen nicht aufeinander auf)
+
+Jedes Pack hält **seine eigenen Module in seinem Ordner** (`pack-library/<pack>/`, z. B. `de-pack/`,
+`default-pack/`) — **kein geteiltes `modules/`**, eindeutige Modul-IDs je Pack. Packs erben nicht
+voneinander; freie À-la-carte-Komposition bleibt möglich, aber die ausgelieferten Packs sind abgeschlossen.
+
 ## Baustatus — ehrlich (wichtig!)
 
 Das meiste hiervon ist **Konzept festgehalten, Umsetzung nachfragegetrieben** — nicht

@@ -1,0 +1,32 @@
+{
+  "fixture": "de-bewirtung",
+  "description": "DE-Pack: Bewirtung 70/30-Split (§4 Abs. 7 EStG, getrennte Konten 6010 abziehbar / 6020 nicht abziehbar); voller Vorsteuerabzug 19 % auf das gesamte Netto (§15 Abs. 1a UStG). Netto 100 (70+30) → brutto 119.",
+  "covers": ["F-TAX-002", "SF-23"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Bewirtung GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-BEW", "voucherDate": "2026-05-12" },
+        "entryDate": "2026-05-12", "text": "Geschäftsessen",
+        "taxCode": "VSt19", "direction": "input",
+        "netLines": [
+          { "account": "6010", "money": { "amount": "70.00", "currency": "EUR" } },
+          { "account": "6020", "money": { "amount": "30.00", "currency": "EUR" } }
+        ],
+        "counterAccount": "1200"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "119.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "-119.00" },
+        { "account": "1500", "balance": "19.00" },
+        { "account": "6010", "balance": "70.00" },
+        { "account": "6020", "balance": "30.00" }
+      ] } }
+  ]
+}

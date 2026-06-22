@@ -175,16 +175,24 @@ einen zusätzlichen letzten Parameter `tenantId` (`?Uuid`, Default: frisch
 generiert) — damit lässt sich eine bestehende Mandanten-ID wieder aufnehmen.
 Voraussetzung: `php artisan migrate` wurde ausgeführt (s. § 4).
 
-### CLI-Arbeitsbereich (PHP)
+### CLI-Arbeitsbereich (PHP und Node)
+
+Beide CLIs (`summae`) legen `summae.json` (Mandanten-Meta + Regeln) und `summae.sqlite` (Buchungen)
+an. Zwei Wege, den Mandanten zu bestücken:
 
 ```bash
-# legt summae.json (Mandanten-Meta + Regeln) und summae.sqlite (Buchungen) an
+# (a) Ausgeliefertes Pack aus der Bibliothek wählen (empfohlen)
+summae init --name "Muster GmbH" --pack de --first-fiscal-year 2026 --dir ./buchhaltung
+
+# (b) Eigene Regeldatei (Konten, Geschäftsjahre, Steuerschlüssel, Mappings …)
 summae init --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
 ```
 
-`regeln.json` trägt die Regelmodul-Daten (Konten, Geschäftsjahre,
-Steuerschlüssel, Mappings …, siehe § 5). Jeder weitere Aufruf lädt den Mandanten
-aus dem Arbeitsbereich, führt aus, und die SQLite-Datei persistiert.
+`--pack de` (oder `--pack default`) lädt das Pack aus der **Pack-Bibliothek** (`pack-library/`; mit
+`--pack-library <dir>` übersteuerbar), löst es auf und legt Kontenrahmen, Steuerschlüssel, Mappings,
+AfA-Regeln und Policy in *einem* Schritt an — der Kontenrahmen kommt also als **Pack-Wahl**, nicht
+als inline gepflegte `regeln.json`. `regeln.json` (§ 5) bleibt der Weg für eigene/abweichende Regeln.
+Jeder weitere Aufruf lädt den Mandanten aus dem Arbeitsbereich, führt aus, die SQLite-Datei persistiert.
 
 ---
 
@@ -265,6 +273,43 @@ Stammdaten kommen über zwei kombinierbare Stile in den Mandanten:
   `TaxProfile`) an `inMemory`/`build`.
 
 Die folgenden Strukturen sind das maßgebliche Format (aus Code + Fixtures).
+
+### Ein eigenes Pack von Hand schreiben
+
+Ein **Pack** ist ein Ordner `pack-library/<name>-pack/` mit **Modul-Dateien** + einem **Manifest**.
+Ein **Modul** ist eine Daten-Datei, die *genau eine Politiksorte bedient* — die Sorte folgt eindeutig
+aus dem `kind`. Pro Politiksorte, die du bedienen willst, legst du ein Modul an:
+
+| willst du bedienen … | `kind` | `data` enthält |
+|---|---|---|
+| Kontenrahmen (Substrat) | `accounts` | `accounts[]` (`number/name/type/subtype?`) |
+| Steuer (Expansion) | `tax` | `taxCodes[]` (`code`, `versions[]` mit `rate/mechanism/taxAccount/reportingKey`) |
+| Bilanz/GuV/EÜR (Projektion) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
+| AfA (Expansion) | `depreciation` + `assetAccounts` | AfA-Tabellen bzw. die 5 Anlagen-Gegenkonten |
+| Rundung/Skala (Parameter) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
+
+Modul-Skelett (`pack-library/<name>-pack/<kind>/<id>.json`):
+```json
+{ "formatVersion": "0.6", "id": "de-ust", "kind": "tax", "version": "2026.1",
+  "contributes": ["taxCodes"], "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": { "taxCodes": [ { "code": "USt19", "versions": [
+    { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard",
+      "taxAccount": "3100", "reportingKey": "81" } ] } ] } }
+```
+
+Manifest (`pack-library/<name>-pack/<id>.json`) — listet die Module, trägt `packPolicy` + `defaults`:
+```json
+{ "formatVersion": "0.6", "id": "de", "version": "2026.1",
+  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.1" },
+               { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
+  "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
+  "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
+```
+
+Wählen mit `summae init --pack de`. Der **Resolver prüft Kohärenz** (zeigt ein Steuerkonto auf ein Konto,
+das der Kontenrahmen nicht hat? trifft ein Mapping keine Konten?) und **scheitert laut** (`E_PACK_UNRESOLVED_REF`
+/ `E_PACK_INCOHERENT`), statt still falsch zu rechnen. **Packs sind self-contained** — alle Module im eigenen
+Ordner, eindeutige IDs, kein geteiltes `modules/`. Vollständige Vorlage: `pack-library/de-pack/`.
 
 ### `profiles[]`
 

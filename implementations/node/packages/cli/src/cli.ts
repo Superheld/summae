@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { DomainError, TenantOperations } from '@superheld/summae-core';
 import { Command } from 'commander';
 import { exitCodeFor } from './exit-codes.js';
+import { defaultPackLibraryDir, packToRules } from './pack-library.js';
 import { Workspace } from './workspace.js';
 
 function parseJson(raw: string): Record<string, unknown> {
@@ -32,6 +33,9 @@ interface InitOptions extends CommonOptions {
   name: string;
   currency: string;
   rules?: string;
+  pack?: string;
+  packLibrary?: string;
+  firstFiscalYear?: string;
 }
 
 /** Baut die CLI (init/op/report) — Pendant zu PHPs Symfony-Console-App. */
@@ -44,10 +48,22 @@ export function buildProgram(): Command {
     .description('Arbeitsbereich anlegen (summae.json + SQLite-Datenbank)')
     .requiredOption('--name <name>', 'Mandantenname')
     .option('--currency <iso>', 'Basiswährung (ISO 4217)', 'EUR')
-    .option('--rules <file>', 'JSON-Datei mit Regelmodul-Daten')
+    .option('--rules <file>', 'JSON-Datei mit Regelmodul-Daten (Alternative zu --pack)')
+    .option('--pack <id>', 'Ausgeliefertes Pack aus der Bibliothek wählen (z. B. "de", "default")')
+    .option('--pack-library <dir>', 'Pfad zur Pack-Bibliothek', defaultPackLibraryDir)
+    .option('--first-fiscal-year <year>', 'Erstes Geschäftsjahr anlegen (z. B. 2026)')
     .option('--dir <dir>', 'Arbeitsverzeichnis', '.')
     .action((opts: InitOptions) => {
-      const rules = typeof opts.rules === 'string' ? parseJson(`@${opts.rules}`) : {};
+      let rules: Record<string, unknown>;
+      if (typeof opts.pack === 'string') {
+        rules = packToRules(opts.pack, opts.packLibrary ?? defaultPackLibraryDir);
+        if (typeof opts.firstFiscalYear === 'string') {
+          const y = String(Number(opts.firstFiscalYear)).padStart(4, '0');
+          rules.fiscalYears = [{ year: Number(opts.firstFiscalYear), start: `${y}-01-01`, end: `${y}-12-31` }];
+        }
+      } else {
+        rules = typeof opts.rules === 'string' ? parseJson(`@${opts.rules}`) : {};
+      }
       const workspace = Workspace.in(opts.dir);
       workspace.initialize(opts.name, opts.currency, rules);
 

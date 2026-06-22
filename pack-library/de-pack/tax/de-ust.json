@@ -1,0 +1,27 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-ust",
+  "kind": "tax",
+  "version": "2026.1",
+  "name": "Umsatzsteuer Deutschland (Regelsatz 19 %, ermäßigt 7 %, §13b, ig. Lieferung, Wertabgabe)",
+  "contributes": ["taxCodes"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "taxCodes": [
+      { "code": "USt19", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard", "taxAccount": "3100", "reportingKey": "81" } ] },
+      { "code": "USt7", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "mechanism": "standard", "taxAccount": "3110", "reportingKey": "86" } ] },
+      { "code": "VSt19", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard", "taxAccount": "1500", "reportingKey": "66" } ] },
+      { "code": "VSt7", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "mechanism": "standard", "taxAccount": "1510", "reportingKey": "66" } ] },
+      { "code": "RC13b", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "reverse_charge", "taxAccount": "3100", "reportingKey": "47", "inputTaxAccount": "1500", "inputReportingKey": "67", "baseReportingKey": "46" } ] },
+      { "code": "igL", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00", "mechanism": "intra_community_supply", "reportingKey": "41" } ] },
+      { "code": "USt19WA", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard", "taxAccount": "3100", "reportingKey": "81" } ] }
+    ]
+  }
+}

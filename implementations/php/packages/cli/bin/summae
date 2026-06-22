@@ -14,4 +14,4 @@ foreach ([
     }
 }
 
-exit(Rechnungswesen\Cli\Cli::application()->run());
+exit(Summae\Cli\Cli::application()->run());

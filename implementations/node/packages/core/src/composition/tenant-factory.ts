@@ -2,6 +2,7 @@ import { DomainError } from '../domain-error.js';
 import { Account } from '../ledger/account.js';
 import { FiscalYear } from '../ledger/fiscal-year.js';
 import { isAccountType } from '../ledger/types.js';
+import { MappingRegistry } from '../mapping/mapping-registry.js';
 import { AccountNumber } from '../shared/account-number.js';
 import { CalendarDate } from '../shared/calendar-date.js';
 import type { Clock } from '../shared/clock.js';
@@ -61,6 +62,12 @@ export class TenantFactory {
         ? packPolicy.taxRoundingGranularity
         : undefined;
 
+    // Mappings (Bilanz/GuV/EÜR) aus dem aufgelösten Pack in die Registry des Mandanten —
+    // sonst finden balanceSheet/incomeStatement die Mappings nicht (Pack-Pfad-Parität zum Inline-Pfad).
+    const mappings = MappingRegistry.fromRuleModules(
+      Array.isArray(this.ruleModules.mappings) ? this.ruleModules.mappings : [],
+    );
+
     const tenant = Tenant.inMemory(
       asString(input.name) ?? 'Tenant',
       Currency.of(asString(input.baseCurrency) ?? 'EUR', currencyScale),
@@ -69,7 +76,7 @@ export class TenantFactory {
       undefined,
       TaxCodeRegistry.fromData(taxCodeData),
       taxProfile,
-      undefined,
+      mappings,
       taxRoundingGranularity,
     );
 
@@ -98,6 +105,9 @@ export class TenantFactory {
         FiscalYear.create(tenant.ids.next(), year, CalendarDate.of(`${y}-01-01`), CalendarDate.of(`${y}-12-31`)),
       );
     }
+
+    // Asset-/AfA-Regeln aus dem Pack (assetAccounts, depreciation) — Parität zum Inline-Pfad.
+    tenant.assetService.setRuleModule(this.ruleModules);
 
     return {
       tenant,

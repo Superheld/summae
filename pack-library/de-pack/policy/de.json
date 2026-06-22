@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-policy",
+  "kind": "policy",
+  "version": "2026.1",
+  "name": "DE-Policy (EUR, half-up, USt-Rundung je Beleg)",
+  "contributes": ["policy"],
+  "dependsOn": [],
+  "data": {
+    "packPolicy": {
+      "roundingMode": "halfUpAwayFromZero",
+      "taxRoundingGranularity": "perVoucher",
+      "currencyScale": 2
+    }
+  }
+}

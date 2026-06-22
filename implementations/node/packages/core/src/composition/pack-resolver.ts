@@ -283,13 +283,19 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
 
 /** Wandelt einen ResolvedPack in das `ruleModules`-Bündel, das `TenantFactory` konsumiert. */
 export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unknown> {
+  // assetAccounts: Resolver-I3 validiert die `default`-Form ({default:{Konten}}); der AssetService
+  // liest die Konten flach → hier auf die flache Form auspacken (Pack-Pfad-Parität zum Inline-Pfad).
+  const aa = isRecord(pack.assetAccounts) ? pack.assetAccounts : null;
+  const assetAccounts = aa !== null && isRecord(aa.default) ? aa.default : (aa ?? {});
+  // depreciation-Daten (gwgThresholds, usefulLife) liest der AssetService top-level → spreaden.
+  const depreciation = isRecord(pack.depreciation) ? pack.depreciation : {};
   return {
     profiles: [pack.profile],
     chartsOfAccounts: [{ id: asString(pack.profile.chartOfAccounts) ?? '', accounts: pack.chartOfAccounts.accounts }],
     taxCodes: pack.taxCodes,
     mappings: pack.mappings,
-    assetAccounts: pack.assetAccounts ?? {},
-    depreciation: pack.depreciation ?? {},
+    assetAccounts,
+    ...depreciation,
     packPolicy: pack.packPolicy,
   };
 }

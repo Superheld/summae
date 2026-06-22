@@ -1,0 +1,28 @@
+{
+  "fixture": "de-eingangsrechnung",
+  "description": "DE-Pack: Eingangsrechnung mit Vorsteuer 19 % (taxCode VSt19 → 1500, Aufwand 6000, Verbindlichkeit 3000). Netto 500 → brutto 595.",
+  "covers": ["F-TAX-002", "SF-03"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Einkauf GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-007", "voucherDate": "2026-04-05" },
+        "entryDate": "2026-04-05", "text": "Bürobedarf mit Vorsteuer",
+        "taxCode": "VSt19", "direction": "input",
+        "netLines": [ { "account": "6000", "money": { "amount": "500.00", "currency": "EUR" } } ],
+        "counterAccount": "3000"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "595.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1500", "balance": "95.00" },
+        { "account": "3000", "balance": "-595.00" },
+        { "account": "6000", "balance": "500.00" }
+      ] } }
+  ]
+}
