@@ -11,11 +11,11 @@ interface Totals {
 }
 
 /**
- * Summen- und Saldenliste (SuSa) — Spalten verbindlich (api.md v0.4):
- * - openingBalance: kumulierter Saldo VOR dem GJ (0 bei Erfolgskonten)
- * - debitTotal/creditTotal: Verkehrszahlen des Zeitraums (GJ bis Periode)
- * - balance = openingBalance + debitTotal − creditTotal (Soll-Salden positiv)
- * Sortierung: Kontonummer nach Codepoints (determinismus.md §3).
+ * Trial balance (SuSa) — columns binding (api.md v0.4):
+ * - openingBalance: cumulative balance BEFORE the FY (0 for income accounts)
+ * - debitTotal/creditTotal: turnover figures of the period (FY up to period)
+ * - balance = openingBalance + debitTotal − creditTotal (debit balances positive)
+ * Sorting: account number by codepoints (determinismus.md §3).
  */
 export class TrialBalanceProjection {
   constructor(
@@ -43,7 +43,7 @@ export class TrialBalanceProjection {
       for (const line of entry.lines()) {
         const account = this.accounts.byId(line.accountId);
         if (account === null) continue;
-        // Erfolgskonten starten je Geschäftsjahr bei null (G1).
+        // Income accounts start at zero each fiscal year (G1).
         if (isPriorYear && !isBalanceCarrying(account.type)) continue;
 
         const key = account.number.value;

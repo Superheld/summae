@@ -10,10 +10,10 @@ import { isBalanceCarrying } from '../../substrate/types.js';
 type Section = 'assets' | 'liabilitiesAndEquity';
 
 /**
- * Bilanz als Projektion (SF-10): kumulativ zum Stichtag. Position mit
- * includesNetIncome enthält die kumulierten Jahresergebnisse + eigenen Saldo.
- * Seite (v0.5/F-007): `side` am Wurzelknoten; assets = Soll−Haben,
- * liabilitiesAndEquity = Haben−Soll. Default: assets.
+ * Balance sheet as a projection (SF-10): cumulative as of the reporting date. A position with
+ * includesNetIncome contains the cumulative net income + its own balance.
+ * Side (v0.5/F-007): `side` at the root node; assets = debit−credit,
+ * liabilitiesAndEquity = credit−debit. Default: assets.
  */
 export class BalanceSheetProjection {
   constructor(
@@ -29,7 +29,7 @@ export class BalanceSheetProjection {
 
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" ist nicht geladen`);
+      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" is not loaded`);
     }
 
     const zero = Money.zero(this.baseCurrency);

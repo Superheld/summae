@@ -7,18 +7,18 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Kanonisches JSON nach RFC 8785 (JCS) — Grundlage aller Hashes und
- * Determinismus-Vergleiche (datenformat.md Grundsatz 1, determinismus.md §5).
+ * Canonical JSON per RFC 8785 (JCS) — basis of all hashes and
+ * determinism comparisons (datenformat.md principle 1, determinismus.md §5).
  *
- * Abweichung vom vollen RFC, bewusst: Floats werden abgelehnt statt
- * ECMAScript-serialisiert — das Datenformat verbietet JSON-Number für
- * Beträge ohnehin (Float-Verbot), und Ganzzahlen (sequenceNumber, year)
- * sind exakt darstellbar. Schlüsselsortierung erfolgt RFC-konform nach
- * UTF-16-Code-Units, ohne mbstring-Abhängigkeit.
+ * Deliberate deviation from the full RFC: floats are rejected instead of
+ * ECMAScript-serialized — the data format forbids JSON Number for
+ * amounts anyway (float ban), and integers (sequenceNumber, year)
+ * are exactly representable. Key sorting follows the RFC by
+ * UTF-16 code units, without an mbstring dependency.
  *
- * Eingaben: Skalare, Listen, assoziative Arrays (= Objekte), stdClass,
- * JsonSerializable. Ein leeres PHP-Array gilt als leere Liste `[]`;
- * für ein leeres Objekt `{}` stdClass verwenden.
+ * Inputs: scalars, lists, associative arrays (= objects), stdClass,
+ * JsonSerializable. An empty PHP array counts as an empty list `[]`;
+ * for an empty object `{}` use stdClass.
  */
 final class CanonicalJson
 {
@@ -54,7 +54,7 @@ final class CanonicalJson
         if (is_int($value)) {
             if (abs($value) > self::MAX_SAFE_INTEGER) {
                 throw new InvalidValue(sprintf(
-                    'Ganzzahl außerhalb des sicheren Bereichs (|x| > 2^53-1): %d',
+                    'Integer outside the safe range (|x| > 2^53-1): %d',
                     $value,
                 ));
             }
@@ -64,7 +64,7 @@ final class CanonicalJson
 
         if (is_float($value)) {
             throw new InvalidValue(
-                'Floats sind im Datenformat verboten (Beträge als String-Dezimal, datenformat.md)',
+                'Floats are forbidden in the data format (amounts as string decimal, datenformat.md)',
             );
         }
 
@@ -80,7 +80,7 @@ final class CanonicalJson
             return self::encodeObject($value);
         }
 
-        throw new InvalidValue(sprintf('Nicht serialisierbarer Typ: %s', get_debug_type($value)));
+        throw new InvalidValue(sprintf('Non-serializable type: %s', get_debug_type($value)));
     }
 
     /**
@@ -110,14 +110,14 @@ final class CanonicalJson
     }
 
     /**
-     * JCS-Stringserialisierung (RFC 8785 §3.2.2.2): kurze Escapes für
-     * die üblichen Steuerzeichen, \u00xx (lowercase) für den Rest unter
-     * U+0020, alles andere als rohes UTF-8.
+     * JCS string serialization (RFC 8785 §3.2.2.2): short escapes for
+     * the usual control characters, \u00xx (lowercase) for the rest below
+     * U+0020, everything else as raw UTF-8.
      */
     private static function encodeString(string $value): string
     {
         if (preg_match('//u', $value) !== 1) {
-            throw new InvalidValue('String ist kein gültiges UTF-8');
+            throw new InvalidValue('String is not valid UTF-8');
         }
 
         $out = '"';
@@ -144,14 +144,14 @@ final class CanonicalJson
     }
 
     /**
-     * UTF-16BE-Bytefolge eines UTF-8-Strings: byteweiser Vergleich darauf
-     * entspricht exakt der von RFC 8785 geforderten Sortierung nach
-     * UTF-16-Code-Units (Surrogatpaare sortieren vor U+E000..U+FFFF).
+     * UTF-16BE byte sequence of a UTF-8 string: byte-wise comparison on it
+     * matches exactly the sorting required by RFC 8785 by
+     * UTF-16 code units (surrogate pairs sort before U+E000..U+FFFF).
      */
     private static function utf16SortKey(string $utf8): string
     {
         if (preg_match('//u', $utf8) !== 1) {
-            throw new InvalidValue('Schlüssel ist kein gültiges UTF-8');
+            throw new InvalidValue('Key is not valid UTF-8');
         }
 
         $units = '';

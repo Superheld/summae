@@ -94,7 +94,7 @@ abstract class LedgerTestCase extends TestCase
     {
         try {
             $action();
-            self::fail(sprintf('DomainError %s erwartet', $code));
+            self::fail(sprintf('DomainError %s expected', $code));
         } catch (DomainError $e) {
             self::assertSame($code, $e->errorCode);
         }

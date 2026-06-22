@@ -31,13 +31,13 @@ use Summae\Laravel\Repository\DatabasePartnerRepository;
 use Summae\Laravel\Repository\DatabaseVoucherRepository;
 
 /**
- * Baut einen Mandanten mit Datenbank-Persistenz — gleiche Services wie
- * Tenant::inMemory, nur die Ports zeigen auf die Datenbank. Der Kern
- * bleibt unberührt (Hexagonal, RUNTIME-LEITFADEN).
+ * Builds a tenant with database persistence — same services as
+ * Tenant::inMemory, only the ports point at the database. The core
+ * stays untouched (hexagonal, RUNTIME-LEITFADEN).
  *
- * Regelmodul-Daten (Steuerschlüssel, Profile, Mappings, Dimensionen)
- * sind versionierte Daten der App-Schicht und werden pro Instanz
- * übergeben, nicht in der Adapter-Datenbank verwaltet.
+ * Pack data (tax codes, profiles, mappings, dimensions) are
+ * versioned data of the app layer and are passed per instance,
+ * not managed in the adapter database.
  */
 final readonly class DatabaseTenantFactory
 {

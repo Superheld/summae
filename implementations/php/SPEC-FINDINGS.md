@@ -1,155 +1,148 @@
 # SPEC-FINDINGS
 
-Befunde aus der Implementierung: Stellen, an denen Spec, Fixtures und Modell
-sich widersprechen oder etwas fehlt. Regel aus dem Briefing: **nicht raten, nicht
-die Fixture ändern** — hier dokumentieren, mit dem nächstplausiblen Verhalten
-weiterbauen. Fließt zurück ins Entscheidungslog der Wissensbasis.
+Findings from the implementation: places where spec, fixtures and model
+contradict each other or where something is missing. Rule from the briefing: **do not
+guess, do not change the fixture** — document it here and keep building with the
+next most plausible behavior.
 
-> **Master ist die Wissensbasis** (`80-implementierung/SPEC-FINDINGS.md`) — sie ist
-> Obermenge und enthält zusätzlich die fachlichen Findings F-008…F-011 (USt/Storno,
-> aus der Fixture-Verifikation). Diese Datei ist der lokale Eskalationspunkt der
-> PHP-Implementierung; neue Befunde hier anlegen **und** in den Wissensbasis-Master
-> spiegeln. F-CROSS-001 (unten) ist dort bereits übernommen.
-
-> **✅ Alle Befunde F-001 bis F-007 in Spec v0.5 aufgelöst** (2026-06-08,
-> Entscheidungslog + `SPEC-UPDATE-v0.5.md`) und in JOB-V05 implementiert:
-> - F-001 → eigener Code `E_VOUCHER_UNKNOWN`
-> - F-002 → `E_ENTRY_NOT_FINALIZED` gestrichen, `reverse` statusunabhängig (mein Workaround war korrekt)
-> - F-003 → eigener Code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
-> - F-004 → Regelmodul-Block `assetAccounts` (Namens-Heuristik entfernt)
-> - F-005 → Manifest-Pflichtfelder `streams`/`hashAlgorithm`, `auditLog` immer, `formatVersion` aktuell
-> - F-006 → eigener Code `E_COSTING_RUN_UNKNOWN` (entsprach bereits meiner Wahl)
-> - F-007 → `side: assets|liabilitiesAndEquity` am Bilanz-Wurzelknoten
+> **✅ All findings F-001 to F-007 resolved in spec v0.5** (2026-06-08,
+> decision log + `SPEC-UPDATE-v0.5.md`) and implemented in JOB-V05:
+> - F-001 → dedicated code `E_VOUCHER_UNKNOWN`
+> - F-002 → `E_ENTRY_NOT_FINALIZED` removed, `reverse` status-independent (my workaround was correct)
+> - F-003 → dedicated code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
+> - F-004 → rule-module block `assetAccounts` (name heuristic removed)
+> - F-005 → manifest required fields `streams`/`hashAlgorithm`, `auditLog` always, `formatVersion` current
+> - F-006 → dedicated code `E_COSTING_RUN_UNKNOWN` (already matched my choice)
+> - F-007 → `side: assets|liabilitiesAndEquity` on the balance-sheet root node
 >
-> Die Detail-Einträge unten bleiben als Historie stehen.
+> The detail entries below remain as history.
 
-Format je Befund:
+Format per finding:
 
 ```
-## F-XXX: Kurztitel
+## F-XXX: short title
 - **Job:** JOB-NNN
-- **Was:** Beschreibung des Widerspruchs / der Lücke
-- **Wo:** Datei(en) + Abschnitt in Spec/Fixture/Modell
-- **Gewähltes Verhalten:** Was die Implementierung jetzt tut
-- **Vorschlag:** Empfehlung für Spec v0.3
+- **What:** description of the contradiction / gap
+- **Where:** file(s) + section in spec/fixture/model
+- **Chosen behavior:** what the implementation does now
+- **Proposal:** recommendation for spec v0.3
 ```
 
 ---
 
-## F-001: Kein Fehlercode für unbekannte voucherId
+## F-001: No error code for unknown voucherId
 
 - **Job:** JOB-003
-- **Was:** `E_ENTRY_NO_VOUCHER` ist definiert als „voucherId fehlt". Für eine
-  *gesetzte, aber unbekannte* voucherId existiert kein Code; keine Fixture
-  deckt den Fall ab.
-- **Wo:** fehlerkatalog.md (E_ENTRY), api.md (post)
-- **Gewähltes Verhalten:** Unbekannte voucherId wird ebenfalls als
-  `E_ENTRY_NO_VOUCHER` gemeldet (Referenz-Prüfschritt 2, vor Konten).
-- **Vorschlag:** Entweder explizit so festschreiben oder eigenen Code
-  `E_VOUCHER_UNKNOWN` einführen + Fixture.
+- **What:** `E_ENTRY_NO_VOUCHER` is defined as "voucherId missing". For a
+  *set but unknown* voucherId no code exists; no fixture covers the case.
+- **Where:** fehlerkatalog.md (E_ENTRY), api.md (post)
+- **Chosen behavior:** an unknown voucherId is also reported as
+  `E_ENTRY_NO_VOUCHER` (reference check step 2, before accounts).
+- **Proposal:** either pin it down explicitly that way or introduce a dedicated code
+  `E_VOUCHER_UNKNOWN` + fixture.
 
-## F-002: E_ENTRY_NOT_FINALIZED in api.md, aber nicht im Fehlerkatalog
+## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog
 
 - **Job:** JOB-003
-- **Was:** api.md listet `E_ENTRY_NOT_FINALIZED`* bei `reverse` (mit Fußnote
-  „Entscheidung offene Frage 5"); der Fehlerkatalog (29 Codes, alle mit
-  Fixture) kennt ihn nicht. Fixture finalize-reverse-period storniert eine
-  *nicht* festgeschriebene Stornobuchung erfolgreich.
-- **Wo:** api.md (Ledger-Tabelle) vs. fehlerkatalog.md vs. finalize-reverse-period.json (Step 9)
-- **Gewähltes Verhalten:** `reverse` ist unabhängig vom Status zulässig
-  (folgt Fixture + Katalog).
-- **Vorschlag:** Fußnote in api.md auflösen — Zeile aus der Fehlerspalte
-  streichen oder Verhalten für `entered` explizit definieren.
+- **What:** api.md lists `E_ENTRY_NOT_FINALIZED`* for `reverse` (with footnote
+  "decision open question 5"); the error catalog (29 codes, all with
+  fixtures) does not know it. Fixture finalize-reverse-period reverses a
+  *non*-finalized reversal posting successfully.
+- **Where:** api.md (ledger table) vs. fehlerkatalog.md vs. finalize-reverse-period.json (Step 9)
+- **Chosen behavior:** `reverse` is permitted independent of status (follows
+  fixture + catalog).
+- **Proposal:** resolve the footnote in api.md — remove the line from the error
+  column or define the behavior for `entered` explicitly.
 
-## F-004: Konten-Auflösung für Asset-Buchungen nicht spezifiziert
+## F-004: Account resolution for asset postings not specified
 
 - **Job:** JOB-009
-- **Was:** acquireAsset/runDepreciation erzeugen Buchungen, aber weder Spec
-  noch Regelmodul-Daten benennen Gegenkonto (Geldkonto), AfA-Aufwandskonto
-  oder GWG-Sofortabschreibungskonto. Die Fixtures erwarten 1200/4830/4855.
-- **Wo:** assets-modell.md, api.md (Assets), gwg-and-depreciation.json
-- **Gewähltes Verhalten:** Regelmodul-Schlüssel `acquisitionCounterAccount`/
-  `depreciationExpenseAccount`/`gwgExpenseAccount`; Fallback-Konvention:
-  einziges bank-Konto, Aufwandskonto per Namensteil ("AfA"/"GWG").
-- **Vorschlag:** Schlüssel in die Regelmodul-Spec aufnehmen; Fixtures
-  ergänzen.
+- **What:** acquireAsset/runDepreciation generate postings, but neither spec
+  nor rule-module data name the counter account (cash account), depreciation
+  expense account or low-value-asset immediate-write-off account. The fixtures
+  expect 1200/4830/4855.
+- **Where:** assets-modell.md, api.md (Assets), gwg-and-depreciation.json
+- **Chosen behavior:** rule-module keys `acquisitionCounterAccount`/
+  `depreciationExpenseAccount`/`gwgExpenseAccount`; fallback convention:
+  the single bank account, expense account by name part ("AfA"/"GWG").
+- **Proposal:** add the keys to the rule-module spec; add fixtures.
 
-## F-005: journal-export-z3 vs. audit-trail — Manifest-Streams widersprechen sich
+## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other
 
 - **Job:** JOB-011
-- **Was:** journal-export-z3 erwartet exakt [journal, accounts, vouchers]
-  (obwohl post/finalize Audit-Einträge erzeugen), audit-trail (v0.3) exakt
-  [..., auditLog]. Außerdem erwartet journal-export-z3 formatVersion "0.2"
-  (Spec ist v0.4), und das Schema-Manifest kennt `streams`/`hashAlgorithm`
-  nicht, die die Fixture verlangt.
-- **Wo:** journal-export-z3.json, audit-trail.json, schema/format.schema.json
-- **Gewähltes Verhalten:** auditLog-Strom nur bei echter Änderungshistorie
-  (Aktionen jenseits created/finalized); formatVersion fest "0.2";
-  Manifest-Validierung auf Schema-bekannte Felder begrenzt.
-- **Vorschlag:** journal-export-z3 als v0.4-Fixture neu schneiden
-  (auditLog immer, formatVersion aktuell), Schema-manifest um
-  streams/hashAlgorithm ergänzen.
+- **What:** journal-export-z3 expects exactly [journal, accounts, vouchers]
+  (even though post/finalize generate audit entries), audit-trail (v0.3) exactly
+  [..., auditLog]. In addition journal-export-z3 expects formatVersion "0.2"
+  (spec is v0.4), and the schema manifest does not know `streams`/`hashAlgorithm`,
+  which the fixture requires.
+- **Where:** journal-export-z3.json, audit-trail.json, schema/format.schema.json
+- **Chosen behavior:** auditLog stream only on a real change history
+  (actions beyond created/finalized); formatVersion fixed at "0.2";
+  manifest validation limited to schema-known fields.
+- **Proposal:** re-cut journal-export-z3 as a v0.4 fixture
+  (auditLog always, formatVersion current), extend the schema manifest with
+  streams/hashAlgorithm.
 
-## F-006: E_COSTING_RUN_UNKNOWN fehlt im Katalog
+## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog
 
 - **Job:** JOB-010
-- **Was:** releaseCosting/costAllocationSheet mit unbekannter runId hat
-  keinen definierten Fehlercode.
-- **Gewähltes Verhalten:** eigener Code `E_COSTING_RUN_UNKNOWN` (analog
+- **What:** releaseCosting/costAllocationSheet with an unknown runId has
+  no defined error code.
+- **Chosen behavior:** dedicated code `E_COSTING_RUN_UNKNOWN` (analogous to
   E_OPENITEM_UNKNOWN).
-- **Vorschlag:** in den Fehlerkatalog aufnehmen + Fixture.
+- **Proposal:** add it to the error catalog + fixture.
 
-## F-007: balanceSheet-Seitenzuordnung per Wurzelreihenfolge
+## F-007: balanceSheet side assignment by root order
 
 - **Job:** JOB-008
-- **Was:** Die Spec definiert nicht, welche Mapping-Wurzel Aktiva und
-  welche Passiva ist; die Fixtures nutzen durchgehend [Aktiva, Passiva].
-- **Gewähltes Verhalten:** erste Wurzelposition = Aktiva (Soll−Haben),
-  alle weiteren = Passiva (Haben−Soll).
-- **Vorschlag:** `side: assets|liabilitiesAndEquity` am Mapping-Wurzelknoten.
+- **What:** the spec does not define which mapping root is assets and
+  which is liabilities-and-equity; the fixtures consistently use [assets, liabilities].
+- **Chosen behavior:** first root position = assets (debit−credit),
+  all others = liabilities-and-equity (credit−debit).
+- **Proposal:** `side: assets|liabilitiesAndEquity` on the mapping root node.
 
-## F-003: Kein Fehlercode für „Jahresabschluss mit nicht festgeschriebenen Buchungen"
+## F-003: No error code for "fiscal-year close with non-finalized postings"
 
 - **Job:** JOB-003
-- **Was:** api.md verlangt für `closeFiscalYear` „alle Buchungen
-  festgeschrieben", definiert aber keinen Code für den Verstoß; keine Fixture.
-- **Wo:** api.md (Zeitraum-Semantik, closeFiscalYear)
-- **Gewähltes Verhalten:** `E_PERIOD_OUT_OF_ORDER` (derselbe Code wie bei
-  offenen Perioden — „Abschlussvoraussetzung verletzt").
-- **Vorschlag:** Eigenen Code `E_FISCALYEAR_UNFINALIZED_ENTRIES` erwägen
-  oder die Wiederverwendung dokumentieren.
+- **What:** api.md requires for `closeFiscalYear` that "all postings are
+  finalized", but defines no code for the violation; no fixture.
+- **Where:** api.md (period semantics, closeFiscalYear)
+- **Chosen behavior:** `E_PERIOD_OUT_OF_ORDER` (the same code as for
+  open periods — "close precondition violated").
+- **Proposal:** consider a dedicated code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
+  or document the reuse.
 
-## F-CROSS-001: Zeitstempel-Serialisierung nicht kanonisch über Implementierungen — ✅ GELÖST
+## F-CROSS-001: Timestamp serialization not canonical across implementations — ✅ RESOLVED
 
-> **Aufgelöst (2026-06-20):** Kanonisches Format eingeführt — UTC, RFC 3339 mit
-> fester Millisekunden-Stelle und `Z` (byte-identisch zu JS `toISOString`). PHP:
-> neuer Helper `Summae\Core\Shared\Timestamp::canonical()`, genutzt für `recordedAt`
-> (JournalEntry + DB-Spalte `recorded_at`), `at` (AuditRecord) und `exportedAt`
-> (journalExport). Node erzeugte das Format bereits. Der bidirektionale Cross-Test
-> vergleicht seither den **vollständigen** journalExport **byte-genau** (inkl.
-> contentHashes + exportedAt), ohne jede Ausnahme — 44/44 in beide Richtungen.
-> Kein Fixture pinnte die Zeitstempel, daher keine Konformitätsänderung. Spec-Notiz
-> für `determinismus.md` (Wissensbasis): kanonisches Zeitstempel-Format festschreiben.
+> **Resolved (2026-06-20):** canonical format introduced — UTC, RFC 3339 with
+> a fixed millisecond place and `Z` (byte-identical to JS `toISOString`). PHP:
+> new helper `Summae\Core\Substrate\Timestamp::canonical()`, used for `recordedAt`
+> (JournalEntry + DB column `recorded_at`), `at` (AuditRecord) and `exportedAt`
+> (journalExport). Node already produced the format. The bidirectional cross-test
+> has since compared the **full** journalExport **byte-exactly** (incl.
+> contentHashes + exportedAt), without any exception — 44/44 in both directions.
+> No fixture pinned the timestamps, hence no conformance change. Spec note
+> for `determinismus.md`: pin down the canonical timestamp format.
 
-- **Job:** Node-M4 (SF-15 Cross-Test, beide Richtungen)
-- **Was:** PHP und Node serialisieren die Zeitstempel `recordedAt` (Buchung) und
-  `at` (Audit) **unterschiedlich**: PHP als ATOM mit erhaltenem Offset und ohne
-  Millisekunden (`2026-06-07T12:00:00+02:00`), Node via `toISOString` als UTC mit
-  Millisekunden (`2026-06-07T10:00:00.000Z`). **Gleicher Moment, andere
-  Schreibweise.** Auffällig erst im bidirektionalen Cross-Test: in PHP→Node reicht
-  Node PHPs String wörtlich durch (passt), in Node→PHP reformatiert PHP beim Lesen
-  über `DateTimeImmutable` → die Inline-Felder *und* die abgeleiteten
-  `manifest.contentHashes` (sha256 über die Roh-Stream-Bytes) divergieren. Die
-  Konformitätssuite toleriert es (normalisierter Vergleich); strikte Cross-Impl-
-  Byte-Gleichheit nicht.
-- **Wo:** `determinismus.md` (Zeitstempel-Format nicht festgelegt); PHP
+- **Job:** Node-M4 (SF-15 cross-test, both directions)
+- **What:** PHP and Node serialize the timestamps `recordedAt` (posting) and
+  `at` (audit) **differently**: PHP as ATOM with the offset preserved and without
+  milliseconds (`2026-06-07T12:00:00+02:00`), Node via `toISOString` as UTC with
+  milliseconds (`2026-06-07T10:00:00.000Z`). **Same moment, different
+  notation.** Only noticeable in the bidirectional cross-test: in PHP→Node Node
+  passes PHP's string through verbatim (fits), in Node→PHP PHP reformats on read
+  via `DateTimeImmutable` → the inline fields *and* the derived
+  `manifest.contentHashes` (sha256 over the raw stream bytes) diverge. The
+  conformance suite tolerates it (normalized comparison); strict cross-impl
+  byte equality does not.
+- **Where:** `determinismus.md` (timestamp format not pinned); PHP
   `JournalEntry`/`AuditRecord` (ATOM via `DateTimeImmutable`), Node
-  `recordedAt`/`at` als roher String.
-- **Gewähltes Verhalten:** Der Cross-Test (`cross-read.ts`) vergleicht `at`/
-  `recordedAt` als **Instant** (auf UTC/ms normiert) und lässt die format-
-  abhängigen `contentHashes` + das volatile `exportedAt` außen vor; alle übrigen
-  Felder byte-genau. Beweist Datenparität, nicht Schreibweisen-Gleichheit.
-- **Vorschlag:** Ein **kanonisches Zeitstempel-Format** in `determinismus.md`
-  festlegen (z. B. RFC 3339, UTC `Z`, feste Millisekunden) und beide
-  Implementierungen darauf ziehen — dann matchen auch die `contentHashes`
-  byte-genau in beide Richtungen.
+  `recordedAt`/`at` as a raw string.
+- **Chosen behavior:** the cross-test (`cross-read.ts`) compares `at`/
+  `recordedAt` as an **instant** (normalized to UTC/ms) and leaves the format-
+  dependent `contentHashes` + the volatile `exportedAt` out; all remaining
+  fields byte-exact. Proves data parity, not notation equality.
+- **Proposal:** pin a **canonical timestamp format** in `determinismus.md`
+  (e.g. RFC 3339, UTC `Z`, fixed milliseconds) and pull both
+  implementations onto it — then the `contentHashes` also match
+  byte-exactly in both directions.

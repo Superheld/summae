@@ -8,8 +8,8 @@ use Summae\Core\Port\AuditTrail;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Änderungshistorie als Projektion (F-CORE-014, Review G3).
- * Reihenfolge = Erfassungsreihenfolge des Audit-Trails.
+ * Change history as a projection (F-CORE-014, Review G3).
+ * Order = recording order of the audit trail.
  */
 final readonly class AuditLogProjection
 {
@@ -19,7 +19,7 @@ final readonly class AuditLogProjection
     }
 
     /**
-     * @param array<string, mixed> $params from?, to? (ISO-Daten)
+     * @param array<string, mixed> $params from?, to? (ISO dates)
      *
      * @return array{records: list<array<string, mixed>>}
      */

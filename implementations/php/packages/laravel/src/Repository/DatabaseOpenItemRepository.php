@@ -98,7 +98,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
             $settlements[] = new Settlement(
                 Uuid::fromString(is_string($data['entryId'] ?? null) ? $data['entryId'] : ''),
                 Hydrator::money($money),
-                Hydrator::date($data['settledAt'] ?? null) ?? throw new \RuntimeException('settledAt fehlt'),
+                Hydrator::date($data['settledAt'] ?? null) ?? throw new \RuntimeException('settledAt missing'),
                 $differenceMoney === [] ? null : Hydrator::money($differenceMoney),
                 is_string($difference['kind'] ?? null) ? SettlementDifferenceKind::tryFrom($difference['kind']) : null,
             );
@@ -111,7 +111,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
             (int) $row->origin_line_index,
             Hydrator::money(['amount' => $row->amount, 'currency' => $row->currency]),
             Uuid::fromString($row->voucher_id),
-            Hydrator::date($row->opened_at) ?? throw new \RuntimeException('opened_at fehlt'),
+            Hydrator::date($row->opened_at) ?? throw new \RuntimeException('opened_at missing'),
             $row->partner_id === null ? null : Uuid::fromString($row->partner_id),
             $settlements,
         );

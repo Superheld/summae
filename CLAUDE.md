@@ -2,170 +2,170 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Aufbau dieser Doku.** Der Root hält, was für *alle* Implementierungen gilt. Je
-> tiefer man geht, desto sprachspezifischer: Befehle und Konventionen je Sprache in
-> `implementations/<sprache>/CLAUDE.md`, Detail-Doku in deren `docs/`. Verweise auf
-> tiefere Doku immer **annotiert** — kurz dazuschreiben, was dort steht.
+> **Structure of this documentation.** The root holds what applies to *all*
+> implementations. The deeper you go, the more language-specific: commands and
+> conventions per language in `implementations/<language>/CLAUDE.md`, detail docs in
+> their `docs/`. Always **annotate** references to deeper docs — briefly note what is there.
 
-## Was das ist
+## What this is
 
-**summae** ist eine einbettbare Rechnungswesen-Bibliothek (GoBD-Doppik, EÜR,
-Umsatzsteuer, Anlagen, KLR) — **keine Anwendung**. Mehrere Sprach-Implementierungen
-sollen *identische API und identisches Datenformat* haben; geprüft wird das über
-eine sprachneutrale Konformitäts-Suite (`testsuite/`).
+**summae** is an embeddable accounting library (GoBD double-entry, cash-basis
+accounting (EÜR), VAT, fixed assets, cost accounting (KLR)) — **not an application**.
+Multiple language implementations are meant to have an *identical API and identical
+data format*; this is verified via a language-neutral conformance suite (`testsuite/`).
 
-Repo-Layout:
-- `testsuite/` — der Kompatibilitätsvertrag: `fixtures/**.json` + `schema/`. Geteilt von allen Implementierungen.
-- `implementations/php/` — PHP-Referenz (Packages `core`, `laravel`, `cli` + `runner/`). Befehle/Konventionen: `implementations/php/CLAUDE.md`, Tiefe in `docs/`.
-- `implementations/node/` — Node/TypeScript (Packages `core`, `knex`, `cli` + `runner/`). Befehle/Konventionen: `implementations/node/CLAUDE.md`.
-- `pack-library/` — ausgelieferte **Pack-Bibliothek** (Produkt-Daten, *keine* Tests): **self-contained** Packs (`pack-library/<pack>/` mit Manifest + eigenen Modulen). Quelle Wissensbasis, via `make sync` gespiegelt (`rsync --delete`); **getrennt von `testsuite/`**. Pack bauen: `pack-library/CLAUDE.md`.
-- `Makefile`, `compose.yaml`, `docker/` — Docker-Toolchain (treibt aktuell die PHP-Seite).
+Repo layout:
+- `testsuite/` — the compatibility contract: `fixtures/**.json` + `schema/`. Shared by all implementations.
+- `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
+- `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
+- `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
+- `Makefile`, `compose.yaml`, `docker/` — Docker toolchain (currently drives the PHP side).
 
-## Scope: Fähigkeiten, nicht Workflows
+## Scope: capabilities, not workflows
 
-summae liefert **Fähigkeiten** (GoBD-konformes Buchen, Auswertungen, Exporte); rechtliche
-**Workflows** baut die einbettende App. Faustregel: „*die Daten müssen…*" = Package · „*der
-Anwender muss bis X…*" = App. Bibliothek, kein App: **kein UI, kein Server, keine erzwungene DB**
-(Persistenz hinter einer Schnittstelle), mandantenfähig auf Datenebene. Bewusst **außerhalb**
-(nicht „noch nicht gebaut" — nicht versehentlich anfangen): UI/Frontend · ELSTER-/Behörden-Übermittlung ·
-E-Rechnung erzeugen/parsen (XRechnung/ZUGFeRD) · Banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
-sind die Andockpunkte für *geparste* Umsätze) · Kassensysteme/TSE · Lohn*abrechnung* (nur die
-*Verbuchung* des Lohnbelegs ist drin) · Steuerermittlung über USt hinaus (ESt/KSt/GewSt).
-Master der Abgrenzung: `30-anforderungen/out-of-scope.md`.
+summae provides **capabilities** (GoBD-compliant posting, reports, exports); legal
+**workflows** are built by the embedding app. Rule of thumb: „*the data must…*" = package · „*the
+user must by X…*" = app. Library, not an app: **no UI, no server, no forced DB**
+(persistence behind an interface), multi-tenant at the data level. Deliberately **out of scope**
+(not „not yet built" — don't start it by accident): UI/frontend · ELSTER / authority submission ·
+e-invoice creation/parsing (XRechnung/ZUGFeRD) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
+*posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax).
 
-## Architektur (das große Bild)
+## Architecture (the big picture)
 
-Sprachneutral — die Begriffe gelten für jede Implementierung. Pfade und Details je
-Sprache in deren `docs/` (PHP: `implementations/php/docs/architektur.md` — Packages,
-Hexagonal, Schichten, Datenfluss einer Buchung).
+Language-neutral — the terms apply to every implementation. Paths and details per
+language in their `docs/` (PHP: `implementations/php/docs/architektur.md` — packages,
+hexagonal, layers, data flow of a posting).
 
-**Hexagonal.** Ein framework-freier Fachkern (`core`) trägt die gesamte
-Buchführungslogik. Persistenz und Terminal-Werkzeug sind dünne Adapter *außen* —
-**keine Fachlogik in Adaptern, kein Framework-Import im Kern.**
+**Hexagonal.** A framework-free domain core (`core`) carries the entire
+bookkeeping logic. Persistence and terminal tool are thin adapters *outside* —
+**no domain logic in adapters, no framework import in the core.**
 
-**Ports & Adapter.** Der Core definiert Interfaces (`AccountRepository`,
-`JournalRepository`, …). Adapter-Sätze: In-Memory (Tests/Konformität) und echte
-Persistenz (z. B. der PHP-`laravel`-Adapter via `illuminate/database`, persistiert Aggregate als JSON in `summae_*`-Tabellen —
-das geteilte Datenformat, siehe Qualitätsrichtlinie). Ein Mandant (`Tenant`) wird
-mit dem einen oder anderen Port-Satz gebaut.
+**Ports & adapters.** The core defines interfaces (`AccountRepository`,
+`JournalRepository`, …). Adapter sets: in-memory (tests/conformance) and real
+persistence (e.g. the PHP `laravel` adapter via `illuminate/database`, persists aggregates as JSON in `summae_*` tables —
+the shared data format, see quality policy). A tenant (`Tenant`) is built
+with one or the other port set.
 
-**Ein Einstiegspunkt für alle Operationen.** Ein Dispatcher (`TenantOperations`)
-führt *alle* Ops (`post`, `postVoucher`, `settle`, …) und Projektionen
-(`trialBalance`, `vatReturn`, `journalExport`, …) aus — Namen exakt nach API-Spec.
-CLI und Konformitäts-Runner nutzen denselben Dispatcher. Neue Operation → dort
-verdrahten.
+**One entry point for all operations.** A dispatcher (`TenantOperations`)
+runs *all* ops (`post`, `postVoucher`, `settle`, …) and projections
+(`trialBalance`, `vatReturn`, `journalExport`, …) — names exactly per the API spec.
+CLI and conformance runner use the same dispatcher. New operation → wire it
+there.
 
-**Lesen läuft nie über gespeicherte Salden.** Jede SuSa/Bilanz/EÜR/USt-Voranmeldung
-wird aus dem Journal neu berechnet.
+**Reads never go through stored balances.** Every trial balance / balance sheet / EÜR / VAT return
+is recomputed from the journal.
 
-**Jurisdiktionsfrei: Substrat → Politiksorten → Pack.** Das ist *wie summae gedacht
-ist*, sprachübergreifend — jeder Agent, der etwas baut, muss es kennen, nicht nur
-PHP. Der Kern ist ein **jurisdiktionsfreies Substrat** (Buchung, Konto, Journal,
-Saldo, Periode) — er kennt kein Gesetz und **wächst nicht pro Jurisdiktion**
-(abgeschlossen unter Komposition, abelsche Gruppe der Doppik). Alles darüber ist *genau eine* von drei **Politiksorten**: **Constraint**
-(muss gelten), **Projektion** (Journal → Sicht), **Expansion** (Absicht → ausbalancierte
-Buchungen). Jede Sorte ist **Sockel** (gesetzesfreier Mechanismus = ein Port *im* Kern)
-+ **Stecker** (Daten/Regeln aus dem **Pack**). Kern definiert den Sockel, Pack liefert den
-Stecker, die Komposition injiziert ihn (Dependency Inversion) — **der Kern importiert nie ein
-Pack** (Abhängigkeit nur Pack→Kern, mechanisch erzwungen, nicht per Review). Das Pack ist das
-versionierte Bündel einer Jurisdiktion
-(„tzdata fürs Rechnungswesen"; „Deutschland" ist das *erste* Pack, nicht die eingebaute
-Annahme). Ein Pack ist komponierbar (kuratiert nehmen / anpassen / selbst à la carte).
-**Lackmustest beim Bauen:** zitiert dein Code einen Paragraphen → falsche Schicht, das
-gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus: `docs/architektur.md`.
+**Jurisdiction-free: substrate → policy kinds → pack.** This is *how summae is
+conceived*, across languages — every agent that builds something must know it, not just
+PHP. The core is a **jurisdiction-free substrate** (posting, account, journal,
+balance, period) — it knows no law and **does not grow per jurisdiction**
+(closed under composition, the abelian group of double-entry). Everything above is *exactly one* of three **policy kinds**: **constraint**
+(must hold), **projection** (journal → view), **expansion** (intent → balanced
+postings). Each kind is **socket** (law-free mechanism = a port *in* the core)
++ **plug** (data/rules from the **pack**). Core defines the socket, pack provides the
+plug, composition injects it (dependency inversion) — **the core never imports a
+pack** (dependency only pack→core, mechanically enforced, not by review). The pack is the
+versioned bundle of a jurisdiction
+(„tzdata for accounting"; „Germany" is the *first* pack, not the built-in
+assumption). A pack is composable (take it curated / adapt it / build your own à la carte).
+**Litmus test when building:** does your code cite a statute → wrong layer, that
+belongs in the pack as data. Full picture + honest build status: `docs/architektur.md`.
 
-**Pack & Module (kurz).** Drei Schichten: **Substrat** → **Politiksorten** (Sockel im Kern) → **Pack** (oben).
-Ein **Modul** = ein Stecker für *genau eine* Politiksorte (meist eine Daten-Datei `kind`+`data`); ein **Pack**
-= self-contained Manifest, das Module bündelt (`pack-library/<pack>/`, bauen nicht aufeinander auf). Pack-Wahl
-einmalig beim Anlegen, gepinnt. Altwort „Regelmodul" = Pack (vermeiden); **base** = der Kern, kontenlos.
+**Pack & modules (brief).** Three layers: **substrate** → **policy kinds** (sockets in the core) → **pack** (on top).
+A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+`data`); a **pack**
+= self-contained manifest that bundles modules (`pack-library/<pack>/`, do not build on each other). Pack choice
+once at creation, pinned. Legacy term „rule module" = pack (avoid); **base** = the core, account-less.
 
-*Gebaut:* `PackResolver` (byte-gleich PHP↔Node), Loader, `createTenant(pack:"…")`, CLI `summae init --pack …`,
-Packs `default` + `de`.
+*Built:* `PackResolver` (byte-equal PHP↔Node), loader, `createTenant(pack:"…")`, CLI `summae init --pack …`,
+packs `default` + `de`.
 
-> **Tiefer (annotiert):** `kind`→Politiksorte + Modul-Regeln → `pack-library/CLAUDE.md` · Engine-Bündel
-> (`ruleModules`/`packPolicy`), Ziel-vs-Ist + offene *closed/open*-Frage → `core/src/CLAUDE.md` · volles Modell
+> **Deeper (annotated):** `kind`→policy kind + module rules → `pack-library/CLAUDE.md` · engine bundle
+> (`ruleModules`/`packPolicy`), target-vs-actual + open *closed/open* question → `core/src/CLAUDE.md` · full model
 > → `docs/architektur.md`.
 
-## Bau-Konventionen (Prinzipien — Patterns & Rezepte in den `docs/`)
+## Build conventions (principles — patterns & recipes in the `docs/`)
 
-Bewährte Patterns verwenden, **keine neuen Strukturen erfinden**:
+Use proven patterns, **invent no new structures**:
 
-- **Test-driven & Walking Skeleton (inside-out):** erst der Test, dann der Code; im **Kern** mit **Fakes**
-  (In-Memory-Ports) beginnen, dann nach außen. Roter Test gegen den In-Memory-Kern = Fachfehler, kein Persistenzfehler.
-- **Neue Pack-Fähigkeit = primär Daten (Stecker), nie Substrat-Code:** ein Modul/Manifest; ein neues *Paradigma*
-  (anderer Algorithmus) = komponierbares Modul **hinter dem Sockel**, nie ins Substrat. Per Name **referenzieren** statt inline kopieren.
-- **PHP und Node spiegeln sich 1:1.** Jede Kern-Änderung in *beiden* identisch — Byte-Parität (SF-15) ist Vertrag.
-- **Framework-frei im Kern** (Node: eslint `no-restricted-imports`; PHP: nur `brick/math`). Persistenz/CLI sind Adapter außen.
+- **Test-driven & walking skeleton (inside-out):** test first, then code; start in the **core** with **fakes**
+  (in-memory ports), then move outward. A red test against the in-memory core = domain error, not persistence error.
+- **New pack capability = primarily data (plug), never substrate code:** a module/manifest; a new *paradigm*
+  (different algorithm) = composable module **behind the socket**, never into the substrate. **Reference** by name instead of copying inline.
+- **PHP and Node mirror each other 1:1.** Every core change identical in *both* — byte parity (SF-15) is a contract.
+- **Framework-free in the core** (Node: eslint `no-restricted-imports`; PHP: only `brick/math`). Persistence/CLI are adapters outside.
 
-Patterns-Liste (Factory/Registry/Strategy/Dispatcher) → `docs/architektur.md`; „neue Operation = Service + `case` +
-Fixture in beiden Sprachen" + Spec-Retrofit → `implementations/<sprache>/docs/entwicklung.md`.
+Patterns list (Factory/Registry/Strategy/Dispatcher) → `docs/architektur.md`; „new operation = service + `case` +
+fixture in both languages" + spec retrofit → `implementations/<language>/docs/entwicklung.md`.
 
-## Eiserne Invarianten (nicht verletzen)
+## Iron invariants (do not violate)
 
-- **Journal append-only; Salden sind Projektionen.** Nie einen Saldo speichern.
-- **Geld nie als Float.** `Money` auf einer Dezimal-/BigDecimal-Bibliothek (PHP
-  `brick/math`, Node `big.js`), kaufmännisch half-up (von Null weg, *kein* banker's
-  rounding), `allocate` mit Largest-Remainder.
-- **Determinismus.** Gleiche Eingabe → byte-identisches Ergebnis (Rundung, Sortierung
-  nach Unicode-Codepoints, kanonisches JSON RFC 8785). `Clock`/`IdGenerator` sind
-  injizierbar — Tests **nie** gegen `now()`/Zufall; der Runner nutzt `FixedClock` +
+- **Journal append-only; balances are projections.** Never store a balance.
+- **Money never as float.** `Money` on a decimal/BigDecimal library (PHP
+  `brick/math`, Node `big.js`), commercial half-up (away from zero, *no* banker's
+  rounding), `allocate` with largest-remainder.
+- **Determinism.** Same input → byte-identical result (rounding, sorting
+  by Unicode code points, canonical JSON RFC 8785). `Clock`/`IdGenerator` are
+  injectable — tests **never** against `now()`/randomness; the runner uses `FixedClock` +
   `DeterministicIdGenerator`.
-- **Buchungsdatum zonenlos** (`CalendarDate`, keine Zeit/UTC-Shift).
+- **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
 
-## testsuite/ ist read-only
+## testsuite/ is read-only
 
-Fixtures sind die normative Quelle und leben in der **Wissensbasis** (Schwester-Repo
-„Rechnungswesen"). Sie werden per `make sync` hierher gespiegelt (`rsync --delete` —
-was hier liegt und nicht in der Quelle ist, wird gelöscht; **keine eigenen Dateien
-in `testsuite/` ablegen**) und **hier nie editiert**. Fixtures sind append-only:
-Verhaltensänderung = neue Fixture, nie stilles Editieren. Widerspruch zwischen
-Spec/Fixture/Modell → **nicht raten, nicht die Fixture biegen**, sondern im
-`SPEC-FINDINGS.md` der jeweiligen Implementierung dokumentieren und mit dem
-nächstplausiblen Verhalten weiterbauen.
+Fixtures are the normative source and live in the **knowledge base** (sister repo
+„Rechnungswesen"). They are mirrored here via `make sync` (`rsync --delete` —
+whatever is here and not in the source gets deleted; **do not put your own files
+in `testsuite/`**) and **never edited here**. Fixtures are append-only:
+behavior change = new fixture, never silent editing. Contradiction between
+spec/fixture/model → **do not guess, do not bend the fixture**, but document it in the
+`SPEC-FINDINGS.md` of the respective implementation and continue building with the
+next most plausible behavior.
 
-## Konventionen (sprachneutral)
+## Conventions (language-neutral)
 
-- **Produkt-Doku auf Englisch** (OSS-Reichweite): Nutzer-Handbuch `docs/handbuch/` und
-  Entwickler-Docs `implementations/*/docs/`. **CLAUDE-Dateien und Code-Kommentare bleiben
-  Deutsch** (interne Arbeitssprache); API-/Klassennamen englisch.
-- Doku-Verweise immer **annotiert**: kurz dazuschreiben, was dort zu finden ist.
-- Git: **nie direkt auf geteilte Branches** (`main`, `develop`) — pro Aufgabe ein
-  Branch (`job/…`, `chore/…`, `fix/…`); Merge per `--no-ff`, wenn grün.
+- **Everything in English** — the project goes international (OSS) with the us-pack: code comments,
+  docs, CHANGELOG/release notes, package descriptions (`package.json`/`composer.json`),
+  CLAUDE files. Only the **working language in chat** (human↔AI) stays German. *Legacy German is
+  translated to English on contact; the bulk was converted ahead of the us-pack.*
+- Doc references always **annotated**: briefly note what's found there.
+- Git: **never directly on shared branches** (`main`, `develop`) — one branch per task
+  (`job/…`, `chore/…`, `fix/…`); merge via `--no-ff` when green.
 
-Sprachspezifische Konventionen, Build- und Testbefehle: in
-`implementations/<sprache>/CLAUDE.md`.
+Language-specific conventions, build and test commands: in
+`implementations/<language>/CLAUDE.md`.
 
-## Oberste Qualitätsrichtlinie: sprachübergreifende Äquivalenz
+## Top quality policy: cross-language equivalence
 
-**Gleiche Eingabe → gleiches Ergebnis, egal mit welchem Package oder welcher
-Sprache.** Das ist die oberste Regel — über Fachkern, Persistenz, Export und
-jede künftige Jurisdiktion hinweg. Ein Test, der nur eine Implementierung prüft,
-verfehlt den Zweck von summae.
+**Same input → same result, regardless of which package or which
+language.** This is the top rule — across domain core, persistence, export, and
+every future jurisdiction. A test that checks only one implementation
+misses summae's purpose.
 
-Zwei Mechanismen, **ein** Prinzip:
+Two mechanisms, **one** principle:
 
-- Tests sind sprachneutral und laufen gegen **alle Implementierungen, die die
-  getestete Fähigkeit besitzen** (ein Persistenz-Cross-Test kann nicht gegen eine
-  Runtime ohne Persistenz laufen — „alle *anwendbaren* Packages").
-- **(a) Geteiltes Orakel** — die Fixtures pinnen *eine* kanonische Erwartung;
-  jede Implementierung wird dagegen geprüft. A == Erwartung und B == Erwartung ⇒
-  A == B: N-Sprachen-Äquivalenz ohne N²-Vergleiche. (Deckt die Rechen-Achse ab.)
-- **(b) Geteilte Daten** — wo eine Fähigkeit in ≥ 2 Implementierungen existiert,
-  wird derselbe Datenbestand von mehreren Packages getrieben und muss identisch
-  rauskommen (Cross-Test, SF-15). Beweist Format-Parität, die (a) allein nicht
-  zeigt. Ziel: *eine DB, mehrere Engines, eine Wahrheit.*
+- Tests are language-neutral and run against **all implementations that have the
+  tested capability** (a persistence cross-test cannot run against a
+  runtime without persistence — „all *applicable* packages").
+- **(a) Shared oracle** — the fixtures pin *one* canonical expectation;
+  each implementation is checked against it. A == expectation and B == expectation ⇒
+  A == B: N-language equivalence without N² comparisons. (Covers the computation axis.)
+- **(b) Shared data** — where a capability exists in ≥ 2 implementations,
+  the same data set is driven by multiple packages and must come out identical
+  (cross-test, SF-15). Proves format parity that (a) alone does not
+  show. Goal: *one DB, multiple engines, one truth.*
 
 ## Definition of Green
 
-Jede Implementierung ist grün nach **ihren** Regeln (Linter/Typecheck/Tests inkl.
-**Coverage-Floor** (Kern-Zeilen ≥ 88 %, fest im Testlauf — darf nur steigen) +
-Konformitätssuite `--strict` inkl. byte-identischem Doppellauf — Details in der
-jeweiligen `implementations/<sprache>/CLAUDE.md`). Sprachübergreifend zusätzlich:
-jede Fähigkeit, die in ≥ 2 Implementierungen existiert, besteht den Cross-Test —
-gleiches Ergebnis über alle anwendbaren Packages (siehe Qualitätsrichtlinie).
+Each implementation is green by **its** rules (linter/typecheck/tests incl.
+**coverage floor** (core lines ≥ 88 %, fixed in the test run — may only rise) +
+conformance suite `--strict` incl. byte-identical double run — details in the
+respective `implementations/<language>/CLAUDE.md`). Across languages additionally:
+every capability that exists in ≥ 2 implementations passes the cross-test —
+same result across all applicable packages (see quality policy).
 
-**Quality-Gate: jede Anforderung ist getestet.** `30-anforderungen/` (funktionale **F-…** und
-nicht-funktionale **NF-…**) ist die Soll-Liste. Jede Anforderung wird durch einen Test *bewiesen* —
-funktional über eine Fixture (verlinkt im `covers`-Feld), und wo Fixtures nicht reichen
-(Nebenläufigkeit NF-6, Performance NF-7) über einen **dedizierten** Test je Implementierung. Eine
-Anforderung **ohne** Test ist selbst ein Befund (gehört auf die Gate-Lücken-Liste), kein „erledigt".
+**Quality gate: every requirement is tested.** The requirements (functional **F-…** and
+non-functional **NF-…**) are the target list. Every requirement is *proven* by a test —
+functionally via a fixture (linked in the `covers` field), and where fixtures aren't enough
+(concurrency NF-6, performance NF-7) via a **dedicated** test per implementation. A
+requirement **without** a test is itself a finding (belongs on the gate-gap list), not „done".

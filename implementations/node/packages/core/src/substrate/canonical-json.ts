@@ -1,18 +1,18 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Kanonisches JSON nach RFC 8785 (JCS) — Grundlage aller Hashes und
- * Determinismus-Vergleiche (datenformat.md Grundsatz 1, determinismus.md §5).
+ * Canonical JSON per RFC 8785 (JCS) — basis of all hashes and
+ * determinism comparisons (datenformat.md principle 1, determinismus.md §5).
  *
- * Bewusste Abweichung vom vollen RFC: Floats werden abgelehnt statt
- * ECMAScript-serialisiert — das Datenformat verbietet JSON-Number für Beträge
- * (String-Dezimal), und Ganzzahlen (sequenceNumber, year) sind exakt darstellbar.
+ * Deliberate deviation from the full RFC: floats are rejected instead of
+ * ECMAScript-serialized — the data format forbids JSON Number for amounts
+ * (string decimal), and integers (sequenceNumber, year) are exactly representable.
  *
- * Schlüsselsortierung nach UTF-16-Code-Units: JS-Strings sind UTF-16, der
- * native `Array#sort` vergleicht genau danach — RFC-konform ohne Handarbeit
- * (Surrogatpaare sortieren vor U+E000..U+FFFF).
+ * Key sorting by UTF-16 code units: JS strings are UTF-16, the
+ * native `Array#sort` compares exactly by that — RFC-compliant without manual work
+ * (surrogate pairs sort before U+E000..U+FFFF).
  *
- * Objekte mit `toJSON()` werden entpackt (JS-Pendant zu PHPs JsonSerializable).
+ * Objects with `toJSON()` are unpacked (JS counterpart to PHP's JsonSerializable).
  */
 const MAX_SAFE_INTEGER = 9007199254740991; // 2^53 - 1
 
@@ -30,11 +30,11 @@ function encodeValue(value: unknown): string {
   if (typeof value === 'number') {
     if (!Number.isInteger(value)) {
       throw new InvalidValue(
-        'Floats sind im Datenformat verboten (Beträge als String-Dezimal, datenformat.md)',
+        'Floats are forbidden in the data format (amounts as string decimal, datenformat.md)',
       );
     }
     if (Math.abs(value) > MAX_SAFE_INTEGER) {
-      throw new InvalidValue(`Ganzzahl außerhalb des sicheren Bereichs (|x| > 2^53-1): ${value}`);
+      throw new InvalidValue(`Integer outside the safe range (|x| > 2^53-1): ${value}`);
     }
     return String(value);
   }
@@ -51,7 +51,7 @@ function encodeValue(value: unknown): string {
     }
     return encodeObject(value as Record<string, unknown>);
   }
-  throw new InvalidValue(`Nicht serialisierbarer Typ: ${typeof value}`);
+  throw new InvalidValue(`Non-serializable type: ${typeof value}`);
 }
 
 function encodeObject(object: Record<string, unknown>): string {
@@ -59,14 +59,14 @@ function encodeObject(object: Record<string, unknown>): string {
   if (keys.length === 0) {
     return '{}';
   }
-  // Native Sortierung = UTF-16-Code-Unit-Reihenfolge = RFC 8785.
+  // Native sort = UTF-16 code unit order = RFC 8785.
   keys.sort();
   return `{${keys.map((key) => `${encodeString(key)}:${encodeValue(object[key])}`).join(',')}}`;
 }
 
 /**
- * JCS-Stringserialisierung (RFC 8785 §3.2.2.2): kurze Escapes für die üblichen
- * Steuerzeichen, \u00xx (lowercase) für den Rest unter U+0020, alles andere roh.
+ * JCS string serialization (RFC 8785 §3.2.2.2): short escapes for the usual
+ * control characters, \u00xx (lowercase) for the rest below U+0020, everything else raw.
  */
 function encodeString(value: string): string {
   let out = '"';

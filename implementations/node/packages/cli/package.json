@@ -1,7 +1,7 @@
 {
   "name": "@superheld/summae-cli",
-  "version": "0.3.1",
-  "description": "CLI (Node) für summae — JSON-Ein/Ausgabe, persistenter SQLite-Arbeitsbereich über @superheld/summae-knex",
+  "version": "0.3.2",
+  "description": "CLI (Node) for summae — JSON input/output, persistent SQLite workspace via @superheld/summae-knex",
   "type": "module",
   "license": "MIT",
   "keywords": ["accounting", "rechnungswesen", "summae", "cli"],

@@ -7,9 +7,9 @@ namespace Summae\Core\Partner;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Geschäftspartner (datenformat.md v0.4) — bewusst schlank, kein CRM:
- * deckt OP-je-Partner, igL-Nachweis (USt-IdNr. GoBD-fest am Vorgang),
- * ZM-Grundlage und DATEV-Stammdaten-Export.
+ * Business partner (datenformat.md v0.4) — deliberately lean, no CRM:
+ * covers OP-per-partner, intra-community supply proof (VAT ID GoBD-fixed on the transaction),
+ * EC sales list basis and DATEV master-data export.
  */
 final class Partner implements \JsonSerializable
 {
@@ -41,7 +41,7 @@ final class Partner implements \JsonSerializable
     /**
      * @param array<string, mixed> $input
      *
-     * @return array<string, array{from: mixed, to: mixed}> Änderungs-Diff fürs Audit
+     * @return array<string, array{from: mixed, to: mixed}> change diff for the audit
      */
     public function update(array $input): array
     {

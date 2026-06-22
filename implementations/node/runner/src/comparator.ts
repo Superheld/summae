@@ -1,12 +1,12 @@
 import { PlaceholderBag } from './placeholder-bag.js';
 
 /**
- * Teilmengen-Vergleich nach Runner-Kontrakt (testsuite/README.md): nur in
- * expect angegebene Felder werden geprüft; Listen exakt in Länge und Reihenfolge;
- * Beträge exakt als Strings; "comment"-Schlüssel sind Doku und werden ignoriert;
- * Platzhalter binden beim ersten Auftreten und vergleichen danach.
+ * Subset comparison per runner contract (testsuite/README.md): only fields
+ * given in expect are checked; lists exact in length and order;
+ * amounts exact as strings; "comment" keys are documentation and are ignored;
+ * placeholders bind on first occurrence and compare thereafter.
  *
- * @returns Abweichungen, leer = Übereinstimmung.
+ * @returns deviations, empty = match.
  */
 export function diff(
   expected: unknown,
@@ -16,7 +16,7 @@ export function diff(
 ): string[] {
   if (PlaceholderBag.isPlaceholder(expected)) {
     if (typeof actual !== 'string') {
-      return [`${path}: Platzhalter ${expected} erwartet einen String, ist ${show(actual)}`];
+      return [`${path}: placeholder ${expected} expects a string, is ${show(actual)}`];
     }
     if (!bag.has(expected)) {
       bag.bind(expected, actual);
@@ -24,15 +24,15 @@ export function diff(
     }
     return bag.get(expected) === actual
       ? []
-      : [`${path}: Platzhalter ${expected} = "${bag.get(expected)}", ist "${actual}"`];
+      : [`${path}: placeholder ${expected} = "${bag.get(expected)}", is "${actual}"`];
   }
 
   if (Array.isArray(expected)) {
     if (!Array.isArray(actual)) {
-      return [`${path}: Liste erwartet, ist ${show(actual)}`];
+      return [`${path}: list expected, is ${show(actual)}`];
     }
     if (expected.length !== actual.length) {
-      return [`${path}: Listenlänge ${expected.length} erwartet, ist ${actual.length}`];
+      return [`${path}: list length ${expected.length} expected, is ${actual.length}`];
     }
     const diffs: string[] = [];
     expected.forEach((item, index) => {
@@ -43,16 +43,16 @@ export function diff(
 
   if (expected !== null && typeof expected === 'object') {
     if (actual === null || typeof actual !== 'object' || Array.isArray(actual)) {
-      return [`${path}: Objekt erwartet, ist ${show(actual)}`];
+      return [`${path}: object expected, is ${show(actual)}`];
     }
     const actualObject = actual as Record<string, unknown>;
     const diffs: string[] = [];
     for (const [key, value] of Object.entries(expected as Record<string, unknown>)) {
       if (key === 'comment') {
-        continue; // Doku in der Fixture, kein Vergleichsinhalt
+        continue; // documentation in the fixture, not comparison content
       }
       if (!Object.hasOwn(actualObject, key)) {
-        diffs.push(`${path}.${key}: Feld fehlt im Ergebnis`);
+        diffs.push(`${path}.${key}: field missing in result`);
         continue;
       }
       diffs.push(...diff(value, actualObject[key], bag, `${path}.${key}`));
@@ -60,7 +60,7 @@ export function diff(
     return diffs;
   }
 
-  return expected === actual ? [] : [`${path}: erwartet ${show(expected)}, ist ${show(actual)}`];
+  return expected === actual ? [] : [`${path}: expected ${show(expected)}, is ${show(actual)}`];
 }
 
 function show(value: unknown): string {

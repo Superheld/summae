@@ -13,14 +13,14 @@ use Summae\Core\Substrate\Exception\CurrencyMismatch;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Betrag = Dezimalwert + Währung, nie Float (Glossar `money`).
+ * Amount = decimal value + currency, never float (Glossary `money`).
  *
- * Determinismus-Regeln (determinismus.md):
- * - §2 Rundung: kaufmännisch half-up, von Null weg bei genau .5
- * - §2 allocate: Largest-Remainder, Gleichstand -> erster Teil in stabiler
- *   Reihenfolge; Invariante Σ Teile = Ausgangsbetrag, immer.
+ * Determinism rules (determinismus.md):
+ * - §2 rounding: commercial half-up, away from zero at exactly .5
+ * - §2 allocate: largest-remainder, tie -> first part in stable
+ *   order; invariant Σ parts = original amount, always.
  *
- * Der Betrag liegt intern immer exakt auf der Währungsskala.
+ * The amount internally always lies exactly on the currency scale.
  */
 final readonly class Money implements \JsonSerializable, \Stringable
 {
@@ -31,8 +31,8 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
-     * Exakter Betrag auf Währungsskala. Mehr Nachkommastellen als die
-     * Währung erlaubt sind ein Fehler — hier wird nie still gerundet.
+     * Exact amount on the currency scale. More decimal places than the
+     * currency allows is an error — nothing is ever silently rounded here.
      */
     public static function of(string $amount, Currency|string $currency): self
     {
@@ -43,7 +43,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
             $scaled = $decimal->toScale($currency->scale);
         } catch (MathException) {
             throw new InvalidValue(sprintf(
-                'Ungültiger Betrag "%s" für Währung %s (Skala %d)',
+                'Invalid amount "%s" for currency %s (scale %d)',
                 $amount,
                 $currency->code,
                 $currency->scale,
@@ -54,9 +54,9 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
-     * Ergebnis einer Rechnung auf Währungsskala bringen: half-up
+     * Bring the result of a calculation to the currency scale: half-up
      * (determinismus.md §2: 2.225 -> 2.23, -2.345 -> -2.35).
-     * Einziger Weg, auf dem Money rundet.
+     * The only path on which Money rounds.
      */
     public static function fromCalculation(BigNumber|string $value, Currency|string $currency): self
     {
@@ -65,7 +65,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
         try {
             $scaled = BigDecimal::of($value)->toScale($currency->scale, RoundingMode::HALF_UP);
         } catch (MathException) {
-            throw new InvalidValue(sprintf('Ungültiger Rechenwert für Währung %s', $currency->code));
+            throw new InvalidValue(sprintf('Invalid calculation value for currency %s', $currency->code));
         }
 
         return new self($scaled, $currency);
@@ -132,18 +132,18 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
-     * Verteilt den Betrag nach Gewichten (determinismus.md §2):
-     * Largest-Remainder, Gleichstand -> erster Teil. Σ Teile = Betrag, immer.
+     * Distributes the amount by weights (determinismus.md §2):
+     * largest-remainder, tie -> first part. Σ parts = amount, always.
      *
-     * Gewichte: nicht-negative Dezimalwerte (int oder String), Summe > 0.
-     * Negative Beträge werden als negiertes Spiegelbild verteilt.
+     * Weights: non-negative decimal values (int or string), sum > 0.
+     * Negative amounts are distributed as a negated mirror image.
      *
      * @return list<self>
      */
     public function allocate(int|string ...$weights): array
     {
         if ($weights === []) {
-            throw new InvalidValue('allocate braucht mindestens ein Gewicht');
+            throw new InvalidValue('allocate needs at least one weight');
         }
 
         if ($this->isNegative()) {
@@ -160,7 +160,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
         }
 
         if ($weightSum->isZero()) {
-            throw new InvalidValue('Gewichtssumme muss > 0 sein');
+            throw new InvalidValue('Weight sum must be > 0');
         }
 
         $scale = $this->currency->scale;
@@ -179,7 +179,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
             $assigned = $assigned->plus($quotient);
         }
 
-        // Restverteilung nach größtem Rest; Gleichstand -> kleinster Index.
+        // Remainder distribution by largest remainder; tie -> smallest index.
         $leftover = $totalMinor->minus($assigned)->toInt();
         $order = range(0, count($base) - 1);
         usort($order, static function (int $a, int $b) use ($remainders): int {
@@ -203,20 +203,20 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
-     * Verteilung in n gleiche Teile (Sammelposten-Fünftel, AfA-Monatsraten).
+     * Distribution into n equal parts (collective-item fifths, depreciation monthly rates).
      *
      * @return list<self>
      */
     public function allocateEvenly(int $parts): array
     {
         if ($parts < 1) {
-            throw new InvalidValue('allocateEvenly braucht mindestens einen Teil');
+            throw new InvalidValue('allocateEvenly needs at least one part');
         }
 
         return $this->allocate(...array_fill(0, $parts, 1));
     }
 
-    /** Betrag als String-Dezimal mit fester Skala, z. B. "1234.56" (datenformat.md). */
+    /** Amount as a string decimal with fixed scale, e.g. "1234.56" (datenformat.md). */
     public function amountAsString(): string
     {
         return (string) $this->amount;
@@ -240,7 +240,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
     {
         if (!$this->currency->equals($other->currency)) {
             throw new CurrencyMismatch(sprintf(
-                'Währungen mischen sich nicht: %s vs. %s',
+                'Currencies do not mix: %s vs. %s',
                 $this->currency->code,
                 $other->currency->code,
             ));
@@ -248,7 +248,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
-     * Dezimalgewichte verlustfrei auf ganzzahlige Gewichte gleicher Skala bringen.
+     * Bring decimal weights losslessly to integer weights of the same scale.
      *
      * @param list<int|string> $weights
      *
@@ -263,11 +263,11 @@ final readonly class Money implements \JsonSerializable, \Stringable
             try {
                 $decimal = BigDecimal::of($weight);
             } catch (MathException) {
-                throw new InvalidValue(sprintf('Ungültiges Gewicht "%s"', $weight));
+                throw new InvalidValue(sprintf('Invalid weight "%s"', $weight));
             }
 
             if ($decimal->isNegative()) {
-                throw new InvalidValue('Gewichte dürfen nicht negativ sein');
+                throw new InvalidValue('Weights must not be negative');
             }
 
             $decimals[] = $decimal;

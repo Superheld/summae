@@ -15,7 +15,7 @@ function emit(value: unknown): void {
   console.log(JSON.stringify(value));
 }
 
-/** DomainError → JSON-Fehler + Exit-Code; sonst neu werfen. */
+/** DomainError → JSON error + exit code; otherwise rethrow. */
 function reportDomainError(error: unknown): void {
   if (!(error instanceof DomainError)) throw error;
   emit({
@@ -38,21 +38,21 @@ interface InitOptions extends CommonOptions {
   firstFiscalYear?: string;
 }
 
-/** Baut die CLI (init/op/report) — Pendant zu PHPs Symfony-Console-App. */
+/** Builds the CLI (init/op/report) — counterpart to PHP's Symfony Console app. */
 export function buildProgram(): Command {
   const program = new Command();
-  program.name('summae').description('summae — Buchführung über JSON-Ein/Ausgabe').version('0.1.0');
+  program.name('summae').description('summae — accounting via JSON input/output').version('0.1.0');
 
   program
     .command('init')
-    .description('Arbeitsbereich anlegen (summae.json + SQLite-Datenbank)')
-    .requiredOption('--name <name>', 'Mandantenname')
-    .option('--currency <iso>', 'Basiswährung (ISO 4217)', 'EUR')
-    .option('--rules <file>', 'JSON-Datei mit Regelmodul-Daten (Alternative zu --pack)')
-    .option('--pack <id>', 'Ausgeliefertes Pack aus der Bibliothek wählen (z. B. "de", "default")')
-    .option('--pack-library <dir>', 'Pfad zur Pack-Bibliothek', defaultPackLibraryDir)
-    .option('--first-fiscal-year <year>', 'Erstes Geschäftsjahr anlegen (z. B. 2026)')
-    .option('--dir <dir>', 'Arbeitsverzeichnis', '.')
+    .description('Create workspace (summae.json + SQLite database)')
+    .requiredOption('--name <name>', 'Tenant name')
+    .option('--currency <iso>', 'Base currency (ISO 4217)', 'EUR')
+    .option('--rules <file>', 'JSON file with pack data (alternative to --pack)')
+    .option('--pack <id>', 'Select shipped pack from the library (e.g. "de", "default")')
+    .option('--pack-library <dir>', 'Path to the pack library', defaultPackLibraryDir)
+    .option('--first-fiscal-year <year>', 'Create first fiscal year (e.g. 2026)')
+    .option('--dir <dir>', 'Working directory', '.')
     .action((opts: InitOptions) => {
       let rules: Record<string, unknown>;
       if (typeof opts.pack === 'string') {
@@ -67,7 +67,7 @@ export function buildProgram(): Command {
       const workspace = Workspace.in(opts.dir);
       workspace.initialize(opts.name, opts.currency, rules);
 
-      // SF-01: Stammdaten aus der Regeldatei direkt anlegen — sofort buchbar.
+      // SF-01: create master data from the rules file directly — immediately postable.
       const ops = new TenantOperations(workspace.tenant());
       const created = { accounts: 0, fiscalYears: 0 };
       for (const account of Array.isArray(rules.accounts) ? rules.accounts : []) {
@@ -87,10 +87,10 @@ export function buildProgram(): Command {
 
   program
     .command('op')
-    .description('Schreiboperation ausführen (post, postVoucher, settle, …)')
-    .argument('<operation>', 'Operationsname laut api.md')
-    .option('--input <json>', 'Eingabe als JSON oder @datei', '{}')
-    .option('--dir <dir>', 'Arbeitsverzeichnis', '.')
+    .description('Run write operation (post, postVoucher, settle, …)')
+    .argument('<operation>', 'Operation name per api.md')
+    .option('--input <json>', 'Input as JSON or @file', '{}')
+    .option('--dir <dir>', 'Working directory', '.')
     .action((operation: string, opts: CommonOptions & { input: string }) => {
       try {
         const payload = parseJson(opts.input);
@@ -102,10 +102,10 @@ export function buildProgram(): Command {
 
   program
     .command('report')
-    .description('Projektion berechnen (trialBalance, cashBasisReport, vatReturn, …)')
-    .argument('<projection>', 'Projektionsname laut api.md')
-    .option('--params <json>', 'Parameter als JSON oder @datei', '{}')
-    .option('--dir <dir>', 'Arbeitsverzeichnis', '.')
+    .description('Compute projection (trialBalance, cashBasisReport, vatReturn, …)')
+    .argument('<projection>', 'Projection name per api.md')
+    .option('--params <json>', 'Parameters as JSON or @file', '{}')
+    .option('--dir <dir>', 'Working directory', '.')
     .action((projection: string, opts: CommonOptions & { params: string }) => {
       try {
         const params = parseJson(opts.params);

@@ -14,16 +14,16 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * Bilanz als Projektion (SF-10): kumulativ zum Stichtag.
+ * Balance sheet as a projection (SF-10): cumulative as of the reporting date.
  *
- * Position mit `includesNetIncome: true` enthält die kumulierten
- * Jahresergebnisse bis zum Stichtag PLUS den Saldo der eigenen Konten
- * (result_allocation, v0.4 G6) — das noch nicht verwendete Ergebnis.
- * Bilanzidentität by construction (api.md, Review G1).
+ * A position with `includesNetIncome: true` contains the cumulative
+ * net income up to the reporting date PLUS the balance of its own accounts
+ * (result_allocation, v0.4 G6) — the result not yet appropriated.
+ * Balance-sheet identity by construction (api.md, Review G1).
  *
- * Seitenzuordnung (v0.5/F-007): `side: assets|liabilitiesAndEquity` am
- * Mapping-Wurzelknoten; assets = Soll−Haben, liabilitiesAndEquity =
- * Haben−Soll. Default ohne side: assets.
+ * Side assignment (v0.5/F-007): `side: assets|liabilitiesAndEquity` at the
+ * mapping root node; assets = debit−credit, liabilitiesAndEquity =
+ * credit−debit. Default without side: assets.
  */
 final readonly class BalanceSheetProjection
 {
@@ -46,11 +46,11 @@ final readonly class BalanceSheetProjection
         $mappingId = is_string($params['mapping'] ?? null) ? $params['mapping'] : '';
 
         $mapping = $this->mappings->byId($mappingId)
-            ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" ist nicht geladen', $mappingId));
+            ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" is not loaded', $mappingId));
 
         $zero = Money::zero($this->baseCurrency);
 
-        /** @var array<string, Money> $debits Kontonummer -> Soll */
+        /** @var array<string, Money> $debits account number -> debit */
         $debits = [];
         /** @var array<string, Money> $credits */
         $credits = [];
@@ -70,7 +70,7 @@ final readonly class BalanceSheetProjection
                 }
 
                 if (!$account->type->isBalanceCarrying()) {
-                    // Kumulierte Jahresergebnisse (Haben − Soll über alle Jahre).
+                    // Cumulative net income (credit − debit over all years).
                     $netIncome = $line->side === Side::Credit
                         ? $netIncome->add($line->money)
                         : $netIncome->subtract($line->money);
@@ -92,7 +92,7 @@ final readonly class BalanceSheetProjection
         $totals = ['assets' => $zero, 'liabilitiesAndEquity' => $zero];
 
         foreach ($mapping->leaves as $leaf) {
-            // v0.5/F-007: Seite kommt aus `side` am Wurzelknoten, nicht aus der Reihenfolge.
+            // v0.5/F-007: side comes from `side` at the root node, not from the order.
             $section = $leaf['side'] === 'liabilitiesAndEquity' ? 'liabilitiesAndEquity' : 'assets';
 
             $amount = $zero;

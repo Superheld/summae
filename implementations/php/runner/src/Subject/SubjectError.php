@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Runner\Subject;
 
 /**
- * Fachlicher Fehler mit Katalog-Code (fehlerkatalog.md).
- * Der Runner vergleicht den Code exakt gegen expect.error.
+ * Domain error with catalog code (fehlerkatalog.md).
+ * The runner compares the code exactly against expect.error.
  */
 final class SubjectError extends \RuntimeException
 {

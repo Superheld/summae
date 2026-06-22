@@ -28,9 +28,9 @@ interface Threshold {
 }
 
 /**
- * Anlagen-Nebenbuch (assets-modell.md): GWG-Weiche beim Zugang, AfA-Lauf
- * idempotent je Lauf-Ziel, Buchungen über den Ledger (sofort festgeschrieben).
- * AfA-Verteilung: Monatswerte = allocate der AHK über die Laufzeit (flach).
+ * Asset subledger (assets-modell.md): low-value-asset switch at acquisition,
+ * depreciation run idempotent per run target, postings through the ledger (finalized immediately).
+ * Depreciation distribution: monthly values = allocate of the acquisition cost over the useful life (flat).
  */
 export class AssetService {
   private ruleModule: Record<string, unknown> = {};
@@ -55,7 +55,7 @@ export class AssetService {
     const cost = this.parseMoney(input.acquisitionCost);
     const acquiredOn = CalendarDate.of(asString(input.acquiredOn) ?? '');
     const voucherIdRaw = asString(input.voucherId);
-    if (voucherIdRaw === null) throw new InvalidValue('acquireAsset braucht voucherId');
+    if (voucherIdRaw === null) throw new InvalidValue('acquireAsset requires voucherId');
     const voucherId = Uuid.fromString(voucherIdRaw);
     const choice = asString(input.gwgChoice) ?? 'auto';
 
@@ -67,7 +67,7 @@ export class AssetService {
       usefulLifeMonths = this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
-      // Sammelposten § 6 Abs. 2a: starr 5 Jahre je 1/5.
+      // Pool § 6 Abs. 2a: fixed 5 years at 1/5 each.
       usefulLifeMonths = 60;
       for (const yearAmount of cost.allocateEvenly(5)) {
         schedule.push(...yearAmount.allocateEvenly(12));
@@ -89,7 +89,7 @@ export class AssetService {
     this.assets.add(asset);
 
     const targetAccount = route === 'immediate_expense' ? this.gwgExpenseAccount() : assetAccount.value;
-    this.postMachineEntry(acquiredOn, voucherId, `Anlagenzugang ${name}`, [
+    this.postMachineEntry(acquiredOn, voucherId, `Asset acquisition ${name}`, [
       { account: targetAccount, side: 'debit', money: cost.toJSON() },
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
     ]);
@@ -114,7 +114,7 @@ export class AssetService {
 
     if (proceeds !== null && proceedsAccount !== null) {
       const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
-      this.postMachineEntry(disposedOn, voucherId, `Anlagenabgang ${asset.name}`, [
+      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, [
         { account: bankAccount, side: 'debit', money: proceeds.toJSON() },
         { account: proceedsAccount, side: 'credit', money: proceeds.toJSON() },
       ]);
@@ -143,7 +143,7 @@ export class AssetService {
       const entry = this.postMachineEntry(
         bookingDate,
         this.depreciationVoucher(asset, fiscalYear, period),
-        `AfA ${asset.name} ${fiscalYear}${periodLabel}`,
+        `Depreciation ${asset.name} ${fiscalYear}${periodLabel}`,
         [
           { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
           { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
@@ -174,12 +174,12 @@ export class AssetService {
       }
     }
     if (asset === null) {
-      throw new DomainError('E_ASSET_UNKNOWN', `Anlagegut ${typeof assetId === 'string' ? assetId : '?'} existiert nicht`);
+      throw new DomainError('E_ASSET_UNKNOWN', `asset ${typeof assetId === 'string' ? assetId : '?'} does not exist`);
     }
     return asset;
   }
 
-  // ---- intern ----------------------------------------------------------
+  // ---- internal --------------------------------------------------------
 
   private yearTarget(asset: Asset, fiscalYear: number): [number[], Money] {
     const zero = Money.zero(this.baseCurrency);
@@ -220,7 +220,7 @@ export class AssetService {
     const zero = Money.zero(this.baseCurrency);
     const year = this.fiscalYears.byYear(fiscalYear);
     if (year === null) {
-      throw new DomainError('E_PERIOD_UNKNOWN', `Geschäftsjahr ${fiscalYear} ist nicht angelegt`);
+      throw new DomainError('E_PERIOD_UNKNOWN', `fiscal year ${fiscalYear} is not set up`);
     }
     const periodEntity = year.period(period);
     const life = asset.monthlySchedule.length;
@@ -255,7 +255,7 @@ export class AssetService {
     lines: Array<Record<string, unknown>>,
   ): Uuid {
     const result = this.ledger.post({ entryDate: date.iso, voucherId: voucherId.value, text, lines });
-    // Maschinell erzeugte Buchung: sofort festschreiben (GoBD).
+    // Machine-generated entry: finalize immediately (GoBD).
     this.ledger.finalize({ entryId: result.entry.id.value });
     return result.entry.id;
   }
@@ -318,7 +318,7 @@ export class AssetService {
     }
     throw new DomainError(
       'E_ASSET_UNKNOWN',
-      `Keine Nutzungsdauer für Anlagenklasse "${assetClass}" im Regelmodul (siehe SPEC-FINDINGS)`,
+      `No useful life for asset class "${assetClass}" in the rule module (see SPEC-FINDINGS)`,
     );
   }
 
@@ -336,12 +336,12 @@ export class AssetService {
     const block = isRecord(this.ruleModule.assetAccounts) ? this.ruleModule.assetAccounts : {};
     const value = block[key];
     if (typeof value === 'string' && value !== '') return value;
-    throw new DomainError('E_ACCOUNT_UNKNOWN', `assetAccounts.${key} ist im Regelmodul nicht gesetzt`, { key });
+    throw new DomainError('E_ACCOUNT_UNKNOWN', `assetAccounts.${key} is not set in the rule module`, { key });
   }
 
   private parseMoney(raw: unknown): Money {
     const amount = isRecord(raw) ? asString(raw.amount) : null;
-    if (amount === null) throw new InvalidValue('Betrag fehlt');
+    if (amount === null) throw new InvalidValue('amount missing');
     return Money.of(amount, this.baseCurrency);
   }
 }

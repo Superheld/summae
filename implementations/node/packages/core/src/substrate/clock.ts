@@ -1,19 +1,19 @@
 /**
- * Zeitquelle des Kerns (Determinismus-Hook). Bewusst eigenes Interface,
- * PSR-20-/Temporal-kompatibel im Geist: liefert einen Zeitpunkt.
+ * Time source of the core (determinism hook). Deliberately a dedicated interface,
+ * PSR-20-/Temporal-compatible in spirit: returns a point in time.
  */
 export interface Clock {
   now(): Date;
 }
 
-/** Echte Systemzeit (Produktion). */
+/** Real system time (production). */
 export class SystemClock implements Clock {
   now(): Date {
     return new Date();
   }
 }
 
-/** Feststehende Zeit für Tests und deterministische Läufe. */
+/** Fixed time for tests and deterministic runs. */
 export class FixedClock implements Clock {
   private current: Date;
 

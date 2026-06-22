@@ -4,8 +4,8 @@ import type { OpenItem } from '../../records/open-item.js';
 import { parseOpenItemKind } from '../../substrate/types.js';
 
 /**
- * OP-Liste: deterministisch, asOf-fähig (Zeitreise über settledAt). Sortierung:
- * voucherDate, dann sequenceNumber (determinismus.md §3).
+ * Open items list: deterministic, asOf-capable (time travel via settledAt). Sorting:
+ * voucherDate, then sequenceNumber (determinismus.md §3).
  */
 export class OpenItemsProjection {
   constructor(

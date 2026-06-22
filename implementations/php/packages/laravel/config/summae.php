@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 return [
     /*
-     * Datenbank-Connection für die Rechnungswesen-Tabellen.
-     * null = Default-Connection der App.
+     * Database connection for the accounting tables.
+     * null = the app's default connection.
      */
     'connection' => env('SUMMAE_DB_CONNECTION'),
 ];

@@ -18,14 +18,14 @@ use Summae\Core\Substrate\Timestamp;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * GoBD-Z3-Export (SF-14): Manifest mit SHA-256-Strom-Hashes über
- * RFC-8785-kanonisierte Zeilen, Feldkatalog (selbstbeschreibend,
- * datenformat.md Grundsatz 7), Journal vollständig in
- * sequenceNumber-Reihenfolge.
+ * GoBD-Z3 export (SF-14): manifest with SHA-256 stream hashes over
+ * RFC-8785-canonicalized rows, field catalog (self-describing,
+ * datenformat.md principle 7), journal complete in
+ * sequenceNumber order.
  *
- * auditLog-Strom: aufgenommen, sobald der Trail echte Änderungs-
- * historie enthält (Aktionen jenseits created/finalized) — die
- * Fixture-Lage ist hier widersprüchlich, siehe SPEC-FINDINGS.
+ * auditLog stream: included as soon as the trail contains real change
+ * history (actions beyond created/finalized) — the
+ * fixture situation here is contradictory, see SPEC-FINDINGS.
  */
 final readonly class JournalExportProjection
 {
@@ -74,8 +74,8 @@ final readonly class JournalExportProjection
             );
         }
 
-        // v0.5/F-005: auditLog ist IMMER Teil des Exports (Buchen/Festschreiben
-        // erzeugt bereits Einträge — der Trail überlebt Systemwechsel, SF-15).
+        // v0.5/F-005: auditLog is ALWAYS part of the export (posting/finalizing
+        // already creates entries — the trail survives system changes, SF-15).
         $streams['auditLog'] = array_map(
             static fn (AuditRecord $record): array => $record->jsonSerialize(),
             $this->audit->all(),
@@ -97,7 +97,7 @@ final readonly class JournalExportProjection
 
         return [
             'manifest' => [
-                // Schema-$id bleibt 0.4 (additive Felder); inhaltlich v0.5.
+                // Schema $id stays 0.4 (additive fields); content-wise v0.5.
                 'formatVersion' => self::FORMAT_VERSION,
                 'tenantId' => $this->tenantId->value,
                 'tenantName' => $this->tenantName,
@@ -119,8 +119,8 @@ final readonly class JournalExportProjection
     }
 
     /**
-     * Optionale Felder ohne Wert gehören nicht in den Austauschstrom
-     * (Schema: additionalProperties false, optionale Properties typisiert).
+     * Optional fields without a value do not belong in the exchange stream
+     * (schema: additionalProperties false, optional properties typed).
      *
      * @param array<string, mixed> $row
      *
@@ -132,9 +132,9 @@ final readonly class JournalExportProjection
     }
 
     /**
-     * Buchung in der reinen Published-Language-Form (format.schema.json,
-     * additionalProperties: false): Komfortfelder der Operationsergebnisse
-     * (z. B. Kontonummer an der Zeile) gehören nicht ins Austauschformat.
+     * Posting in the pure published-language form (format.schema.json,
+     * additionalProperties: false): convenience fields of the operation results
+     * (e.g. account number on the line) do not belong in the exchange format.
      *
      * @return array<string, mixed>
      */
@@ -156,7 +156,7 @@ final readonly class JournalExportProjection
     }
 
     /**
-     * Feldkatalog (GoBD Z3 Beschreibungsstandard): Name, Typ, Bedeutung.
+     * Field catalog (GoBD Z3 description standard): name, type, meaning.
      *
      * @return array<string, list<array{name: string, type: string, meaning: string}>>
      */

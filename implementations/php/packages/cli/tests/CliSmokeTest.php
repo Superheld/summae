@@ -11,8 +11,8 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 /**
- * JOB-013-Akzeptanz: Smoke-Tests; SF-02 (Beleg + Steuerexpansion +
- * Buchung) per CLI in einem Aufruf; Exit-Codes = Fehlercodes.
+ * JOB-013 acceptance: smoke tests; SF-02 (voucher + tax expansion +
+ * posting) via CLI in one call; exit codes = error codes.
  */
 final class CliSmokeTest extends TestCase
 {
@@ -26,7 +26,7 @@ final class CliSmokeTest extends TestCase
 
     public function testSf02InOneCall(): void
     {
-        // 1. Arbeitsbereich mit Regeln (Konten, GJ, Steuerschlüssel) anlegen
+        // 1. Create workspace with rules (accounts, fiscal year, tax codes)
         $rulesFile = $this->dir . '/regeln.json';
         file_put_contents($rulesFile, json_encode([
             'accounts' => [
@@ -55,7 +55,7 @@ final class CliSmokeTest extends TestCase
         self::assertIsArray($created);
         self::assertSame(3, $created['accounts'] ?? null);
 
-        // 2. SF-02: ein Aufruf — Beleg anlegen, Steuer expandieren, buchen
+        // 2. SF-02: one call — create voucher, expand tax, post
         $op = $this->runCli([
             'command' => 'op',
             'operation' => 'postVoucher',
@@ -78,7 +78,7 @@ final class CliSmokeTest extends TestCase
         self::assertIsArray($gross);
         self::assertSame('1190.00', $gross['amount'] ?? null);
 
-        // 3. Persistenz über Aufrufe hinweg: Report in neuem Prozesskontext
+        // 3. Persistence across calls: report in a new process context
         $report = $this->runCli([
             'command' => 'report',
             'projection' => 'trialBalance',
@@ -103,7 +103,7 @@ final class CliSmokeTest extends TestCase
 
     public function testInitPackDeBilanzBalanciert(): void
     {
-        // Frontend wählt das ausgelieferte de-Pack aus der Bibliothek — kein Inline.
+        // Frontend selects the shipped de pack from the library — no inline.
         $init = $this->runCli([
             'command' => 'init',
             '--name' => 'DE GmbH',
@@ -134,7 +134,7 @@ final class CliSmokeTest extends TestCase
         self::assertIsArray($gross);
         self::assertSame('1190.00', $gross['amount'] ?? null);
 
-        // Bilanz über die mitgelieferten Mappings: Aktiva == Passiva.
+        // Balance sheet via the bundled mappings: assets == liabilities.
         $bs = $this->runCli([
             'command' => 'report',
             'projection' => 'balanceSheet',

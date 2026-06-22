@@ -56,7 +56,7 @@ turn red. **Do not hardcode fixture counts here** — they drift; the current st
 
 The **recipe** is language-neutral (root `CLAUDE.md`, "Bau-Konventionen"). Concretely in Node:
 
-1. **Re-read the model/spec docs in the knowledge base fresh** (`40-domaenenmodell/…`, `50-spezifikation/…`).
+1. **Understand the target behavior from the fixtures (the executable spec) and the handbook** — the spec is alive.
 2. Build the domain logic in `packages/core` (service/aggregate/projection), against the in-memory port + vitest unit tests.
 3. Add a `case` to `execute`/`project` in the dispatcher `composition/tenant-operations.ts`
    (one place for CLI + runner).

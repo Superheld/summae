@@ -5,36 +5,36 @@ declare(strict_types=1);
 namespace Summae\Runner\Subject;
 
 /**
- * Das Prüfobjekt des Runners: eine Implementierung der Spezifikation.
- * Der Runner kennt nur dieses Interface — der Kern füllt es Job für Job.
+ * The runner's subject under test: an implementation of the specification.
+ * The runner knows only this interface — the core fills it job by job.
  *
- * Fachliche Fehler (Fehlerkatalog) werden als SubjectError mit exaktem
- * E_*-Code geworfen; alles andere gilt als Crash der Implementierung.
+ * Domain errors (error catalog) are thrown as SubjectError with the exact
+ * E_* code; everything else counts as a crash of the implementation.
  */
 interface Subject
 {
     /**
-     * Frischen In-Memory-Mandanten aus dem setup-Block der Fixture bauen.
-     * Platzhalter ($V1, …) sind zu diesem Zeitpunkt bereits durch
-     * konkrete UUIDs ersetzt.
+     * Build a fresh in-memory tenant from the fixture's setup block.
+     * Placeholders ($V1, …) have already been replaced by
+     * concrete UUIDs at this point.
      *
      * @param array<string, mixed> $setup
      */
     public function setup(array $setup): void;
 
     /**
-     * Eine Schreiboperation (steps[].op) ausführen.
+     * Execute a write operation (steps[].op).
      *
      * @param array<string, mixed> $input
      *
-     * @return array<string, mixed> Ergebnisdaten laut api.md
+     * @return array<string, mixed> result data per api.md
      *
      * @throws SubjectError
      */
     public function execute(string $op, array $input): array;
 
     /**
-     * Eine Projektion berechnen (lesend, deterministisch).
+     * Compute a projection (reading, deterministic).
      *
      * @param array<string, mixed> $params
      *

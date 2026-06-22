@@ -4,8 +4,8 @@ import type { PeriodRef } from '../../../substrate/period-ref.js';
 import type { Uuid } from '../../../substrate/uuid.js';
 
 /**
- * Abrechnungslauf (costing-modell.md Aggregat 1): je Periode + Version eindeutig;
- * Wiederholung erzeugt neue Version. draft → released.
+ * Costing run (costing-modell.md aggregate 1): unique per period + version;
+ * repetition creates a new version. draft → released.
  */
 export class CostingRun {
   private runStatus = 'draft';
@@ -27,7 +27,7 @@ export class CostingRun {
     if (this.runStatus === 'released') {
       throw new DomainError(
         'E_COSTING_RUN_RELEASED',
-        `Lauf ${this.id.value} ist bereits freigegeben — Änderungen erzeugen eine neue Version`,
+        `run ${this.id.value} is already released — changes create a new version`,
         { runId: this.id.value },
       );
     }

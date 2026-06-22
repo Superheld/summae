@@ -1,11 +1,11 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Währung nach ISO 4217 mit fester Nachkommastellen-Skala
- * (datenformat.md: "feste Nachkommastellen je Währung").
+ * Currency per ISO 4217 with a fixed decimal-places scale
+ * (datenformat.md: "fixed decimal places per currency").
  *
- * Skalen abweichend vom Default 2 — bewusst klein, v1 ist EUR-zentriert,
- * Fremdwährung kommt erst in v2.
+ * Scales deviating from the default 2 — deliberately small, v1 is EUR-centric,
+ * foreign currency comes only in v2.
  */
 const SCALES: Readonly<Record<string, number>> = {
   JPY: 0,
@@ -22,13 +22,13 @@ export class Currency {
   ) {}
 
   /**
-   * `scaleOverride` setzt die Nachkommastellen-Skala explizit (Pack-Parameter
-   * `packPolicy.currencyScale`) — überstimmt die globale Default-/ISO-Skala pro
-   * Mandant (jurisdiktionsfreies Substrat: Skala ist Pack-Sache, nicht global).
+   * `scaleOverride` sets the decimal-places scale explicitly (pack parameter
+   * `packPolicy.currencyScale`) — overrides the global default/ISO scale per
+   * tenant (jurisdiction-free substrate: scale is a pack matter, not global).
    */
   static of(code: string, scaleOverride?: number): Currency {
     if (!/^[A-Z]{3}$/.test(code)) {
-      throw new InvalidValue(`Ungültiger ISO-4217-Code: "${code}"`);
+      throw new InvalidValue(`Invalid ISO 4217 code: "${code}"`);
     }
     return new Currency(code, scaleOverride ?? SCALES[code] ?? 2);
   }

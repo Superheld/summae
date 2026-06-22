@@ -7,14 +7,14 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Währung nach ISO 4217 mit fester Nachkommastellen-Skala
- * (datenformat.md: "feste Nachkommastellen je Währung").
+ * Currency per ISO 4217 with a fixed decimal-places scale
+ * (datenformat.md: "fixed decimal places per currency").
  */
 final readonly class Currency implements \JsonSerializable, \Stringable
 {
     /**
-     * Skalen abweichend vom Default 2. Bewusst klein gehalten —
-     * v1 ist EUR-zentriert, Fremdwährung kommt erst in v2.
+     * Scales deviating from the default 2. Deliberately kept small —
+     * v1 is EUR-centric, foreign currency comes only in v2.
      */
     private const array SCALES = [
         'JPY' => 0,
@@ -31,14 +31,14 @@ final readonly class Currency implements \JsonSerializable, \Stringable
     }
 
     /**
-     * `$scaleOverride` setzt die Nachkommastellen-Skala explizit (Pack-Parameter
-     * `packPolicy.currencyScale`) — überstimmt die globale Default-/ISO-Skala pro
-     * Mandant (Skala ist Pack-Sache, nicht global).
+     * `$scaleOverride` sets the decimal-places scale explicitly (pack parameter
+     * `packPolicy.currencyScale`) — overrides the global default/ISO scale per
+     * tenant (scale is a pack matter, not global).
      */
     public static function of(string $code, ?int $scaleOverride = null): self
     {
         if (preg_match('/^[A-Z]{3}$/', $code) !== 1) {
-            throw new InvalidValue(sprintf('Ungültiger ISO-4217-Code: "%s"', $code));
+            throw new InvalidValue(sprintf('Invalid ISO 4217 code: "%s"', $code));
         }
 
         return new self($code, $scaleOverride ?? self::SCALES[$code] ?? 2);

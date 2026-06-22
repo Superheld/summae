@@ -7,17 +7,17 @@ namespace Summae\Core\Tests\Architecture;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Substrat-Grenze (Achse 2): das Substrat ist eingefroren und liegt zuunterst —
- * es darf nichts von den Schichten darüber importieren. Mechanischer Riegel,
- * Pendant zur eslint-Regel der Node-Seite (`core/src/CLAUDE.md`).
+ * Substrate boundary (axis 2): the substrate is frozen and sits at the bottom —
+ * it must not import anything from the layers above. Mechanical guard,
+ * counterpart to the Node side's eslint rule (`core/src/CLAUDE.md`).
  */
 final class SubstrateBoundaryTest extends TestCase
 {
     public function testSubstrateImportsNothingFromAbove(): void
     {
         $substrateDir = dirname(__DIR__, 2) . '/src/Substrate';
-        // Policies = die Politiksorten-Schicht (Recht/Mechanik). Records ist bewusst
-        // NICHT verboten: Daten-Records (z. B. OpenItem in PostResult) sind Substrat-nah.
+        // Policies = the policy-kinds layer (law/mechanics). Records is deliberately
+        // NOT forbidden: data records (e.g. OpenItem in PostResult) are substrate-near.
         $forbidden = [
             'Policies', 'Ledger', 'Composition', 'Partner', 'Port', 'InMemory',
         ];
@@ -37,7 +37,7 @@ final class SubstrateBoundaryTest extends TestCase
             }
             foreach ($forbidden as $layer) {
                 if (preg_match('/use\s+Summae\\\\Core\\\\' . $layer . '\\\\/', $contents) === 1) {
-                    $violations[] = $file->getFilename() . ' importiert Summae\\Core\\' . $layer;
+                    $violations[] = $file->getFilename() . ' imports Summae\\Core\\' . $layer;
                 }
             }
         }
@@ -45,7 +45,7 @@ final class SubstrateBoundaryTest extends TestCase
         self::assertSame(
             [],
             $violations,
-            "Substrat darf nichts von oben importieren:\n" . implode("\n", $violations),
+            "Substrate must not import anything from above:\n" . implode("\n", $violations),
         );
     }
 }

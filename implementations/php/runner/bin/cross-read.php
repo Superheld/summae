@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Cross-Test, PHP-Leseseite Node→PHP (SF-15, Gegenrichtung): öffnet die von Node
- * geschriebenen `*.node.sqlite` (`cross-write.ts`), berechnet `journalExport` aus
- * dem persistierten Bestand und schreibt das kanonische Ergebnis als
- * `*.php-actual.json`. Der Byte-Vergleich gegen Nodes Oracle passiert bewusst in
- * Node (`cross-read.ts`) — PHPs `json_decode(assoc)` verlöre die {}/[]-Form.
- * Lesen ist konfig-/placeholder-frei (journalExport dumpt nur das Journal).
+ * Cross-test, PHP read side Node→PHP (SF-15, reverse direction): opens the
+ * `*.node.sqlite` written by Node (`cross-write.ts`), computes `journalExport` from
+ * the persisted stock and writes the canonical result as
+ * `*.php-actual.json`. The byte comparison against Node's oracle deliberately happens in
+ * Node (`cross-read.ts`) — PHP's `json_decode(assoc)` would lose the {}/[] form.
+ * Reading is config-/placeholder-free (journalExport only dumps the journal).
  */
 
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -70,11 +70,11 @@ foreach ($files as $dbFile) {
         }
     }
     if ($tenantId === null) {
-        fwrite(STDERR, "{$name}: keine tenant_id in der DB\n");
+        fwrite(STDERR, "{$name}: no tenant_id in the DB\n");
         continue;
     }
 
-    // Gleiche fixe Uhr wie Nodes Oracle ⇒ auch das exportedAt-Instant stimmt überein.
+    // Same fixed clock as Node's oracle ⇒ the exportedAt instant also matches.
     $clock = FixedClock::at('2026-06-07T12:00:00+02:00');
     $tenant = (new DatabaseTenantFactory($connection))->build(
         is_string($tenantData['name'] ?? null) ? $tenantData['name'] : 'Cross',
@@ -93,4 +93,4 @@ foreach ($files as $dbFile) {
     $written++;
 }
 
-printf("Cross-Read (PHP): %d Ergebnisse geschrieben → %s\n", $written, $dir);
+printf("Cross-read (PHP): %d results written → %s\n", $written, $dir);

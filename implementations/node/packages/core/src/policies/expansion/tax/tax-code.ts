@@ -3,8 +3,8 @@ import type { CalendarDate } from '../../../substrate/calendar-date.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 
 /**
- * Steuerschlüssel (tax-modell.md Aggregat 1): gebündelter Steuersachverhalt als
- * Liste von Regelversionen. Versionswahl folgt dem Belegdatum.
+ * Tax code (tax-modell.md aggregate 1): bundled tax case as a list of rule
+ * versions. Version selection follows the voucher date.
  */
 export class TaxCode {
   constructor(
@@ -19,7 +19,7 @@ export class TaxCode {
     }
     throw new DomainError(
       'E_TAXCODE_NO_VALID_VERSION',
-      `Steuerschlüssel ${this.code} hat keine zum ${date.iso} gültige Regelversion`,
+      `tax code ${this.code} has no rule version valid for ${date.iso}`,
       { code: this.code, date: date.iso },
     );
   }

@@ -11,8 +11,8 @@ use Summae\Core\Substrate\Exception\InvalidValue;
 final class AccountNumberTest extends TestCase
 {
     /**
-     * determinismus.md §3 / Fixture-Pflichtfall 5: Codepoint-Sortierung,
-     * führende Nullen signifikant, keine Locale-Collation.
+     * determinismus.md §3 / mandatory fixture case 5: codepoint sorting,
+     * leading zeros significant, no locale collation.
      */
     public function testCodepointOrderingWithLeadingZeros(): void
     {
@@ -27,7 +27,7 @@ final class AccountNumberTest extends TestCase
 
     public function testStringComparisonNotNumeric(): void
     {
-        // "10" < "9" ist gewollt (String-Vergleich, determinismus.md §3)
+        // "10" < "9" is intended (string comparison, determinismus.md §3)
         self::assertSame(-1, AccountNumber::of('10')->compareTo(AccountNumber::of('9')));
     }
 
@@ -41,7 +41,7 @@ final class AccountNumberTest extends TestCase
         foreach (['', ' 420', "42\t0", str_repeat('9', 65)] as $invalid) {
             try {
                 AccountNumber::of($invalid);
-                self::fail(sprintf('InvalidValue erwartet für "%s"', $invalid));
+                self::fail(sprintf('InvalidValue expected for "%s"', $invalid));
             } catch (InvalidValue) {
                 $this->addToAssertionCount(1);
             }

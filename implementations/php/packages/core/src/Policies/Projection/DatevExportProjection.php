@@ -14,14 +14,14 @@ use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 
 /**
- * DATEV-Export (F-IO-005, v0.4 beidseitig): Buchungsstapel,
- * Kontenbeschriftungen, Geschäftspartner-Stammdaten.
+ * DATEV export (F-IO-005, v0.4 both directions): posting batch,
+ * account labels, business-partner master data.
  *
- * Stapelzeilen: Steuerzeilen entstehen DATEV-seitig aus dem BU-Schlüssel
- * (Alias-Spalte des Steuerschlüssel-Regelmoduls — eigene Codes bleiben
- * führend) und werden deshalb in die Basiszeile gefaltet; zusammengesetzte
- * Buchungen werden in Teilzeilen aufgelöst (Positionsreihenfolge).
- * Exaktes EXTF-Headerformat: gegen aktuelle DATEV-Doku zu verifizieren.
+ * Batch lines: tax lines arise on the DATEV side from the BU key
+ * (alias column of the tax-code module — own codes stay
+ * authoritative) and are therefore folded into the base line; composite
+ * postings are resolved into sub-lines (position order).
+ * Exact EXTF header format: to be verified against current DATEV docs.
  */
 final readonly class DatevExportProjection
 {
@@ -85,9 +85,9 @@ final readonly class DatevExportProjection
     }
 
     /**
-     * Zerlegt eine Buchung in DATEV-Stapelzeilen: Steuerzeilen werden
-     * der getaggten Basiszeile zugeschlagen (BU erzeugt sie DATEV-seitig);
-     * die erste ungetaggte Zeile ist das (Geld-)Konto der Zeile.
+     * Splits a posting into DATEV batch lines: tax lines are added
+     * to the tagged base line (BU generates them on the DATEV side);
+     * the first untagged line is the (money) account of the row.
      *
      * @return list<array<string, mixed>>
      */
@@ -124,7 +124,7 @@ final readonly class DatevExportProjection
         $rows = [];
 
         foreach ($contraLines as $contra) {
-            // Brutto der Teilzeile: Basis + zugehörige Steuer (gleicher Tag-Code).
+            // Gross of the sub-line: base + associated tax (same tag code).
             $gross = $contra->money;
             $buKey = null;
 

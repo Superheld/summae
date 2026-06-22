@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Kontotyp bestimmt die Saldenmechanik (ledger-modell.md):
- * Bestandskonten kumulieren über Jahre, Erfolgskonten je Geschäftsjahr
- * (api.md Zeitraum-Semantik, v0.3).
+ * Account type determines the balance mechanics (ledger-modell.md):
+ * balance-sheet accounts accumulate over years, income accounts per fiscal year
+ * (api.md period semantics, v0.3).
  */
 enum AccountType: string
 {
@@ -17,7 +17,7 @@ enum AccountType: string
     case Expense = 'expense';
     case Revenue = 'revenue';
 
-    /** Bestandskonto: Saldo trägt implizit vor (kein SBK/EBK). */
+    /** Balance-sheet account: balance carries forward implicitly (no closing/opening account). */
     public function isBalanceCarrying(): bool
     {
         return match ($this) {

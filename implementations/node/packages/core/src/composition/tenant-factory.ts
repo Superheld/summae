@@ -20,8 +20,8 @@ function asString(value: unknown): string | null {
 }
 
 /**
- * `createTenant` (SF-01): Mandant per Profil anlegen — sofort buchbar. Profile
- * sind versionierte Regelmodul-Daten; der Mandant pinnt die Version.
+ * `createTenant` (SF-01): create a tenant from a profile — immediately postable. Profiles
+ * are versioned rule-module data; the tenant pins the version.
  */
 export class TenantFactory {
   constructor(
@@ -34,13 +34,13 @@ export class TenantFactory {
     const profileId = asString(input.profile) ?? '';
     const profile = this.findById('profiles', profileId);
     if (profile === null) {
-      throw new DomainError('E_PROFILE_UNKNOWN', `Profil "${profileId}" ist nicht vorhanden`);
+      throw new DomainError('E_PROFILE_UNKNOWN', `Profile "${profileId}" does not exist`);
     }
 
     const coaId = asString(profile.chartOfAccounts) ?? '';
     const coa = this.findById('chartsOfAccounts', coaId);
     if (coa === null) {
-      throw new DomainError('E_PROFILE_UNKNOWN', `Kontenrahmen "${coaId}" des Profils fehlt`);
+      throw new DomainError('E_PROFILE_UNKNOWN', `Chart of accounts "${coaId}" of the profile is missing`);
     }
 
     const wantedCodes = Array.isArray(profile.taxCodes) ? profile.taxCodes : [];
@@ -52,8 +52,8 @@ export class TenantFactory {
     const defaults = isRecord(profile.defaults) ? profile.defaults : {};
     const taxProfile = TaxProfile.fromData(defaults);
 
-    // packPolicy.currencyScale ist ein Pack-Parameter: er bestimmt die Geld-Skala
-    // des Mandanten (jurisdiktionsfrei), nicht die globale ISO-Default-Skala.
+    // packPolicy.currencyScale is a pack parameter: it sets the tenant's money scale
+    // (jurisdiction-free), not the global ISO default scale.
     const packPolicy = isRecord(this.ruleModules.packPolicy) ? this.ruleModules.packPolicy : null;
     const currencyScale =
       packPolicy !== null && typeof packPolicy.currencyScale === 'number' ? packPolicy.currencyScale : undefined;
@@ -62,8 +62,8 @@ export class TenantFactory {
         ? packPolicy.taxRoundingGranularity
         : undefined;
 
-    // Mappings (Bilanz/GuV/EÜR) aus dem aufgelösten Pack in die Registry des Mandanten —
-    // sonst finden balanceSheet/incomeStatement die Mappings nicht (Pack-Pfad-Parität zum Inline-Pfad).
+    // Mappings (balance sheet/P&L/EÜR) from the resolved pack into the tenant's registry —
+    // otherwise balanceSheet/incomeStatement do not find the mappings (pack-path parity with the inline path).
     const mappings = MappingRegistry.fromRuleModules(
       Array.isArray(this.ruleModules.mappings) ? this.ruleModules.mappings : [],
     );
@@ -106,7 +106,7 @@ export class TenantFactory {
       );
     }
 
-    // Asset-/AfA-Regeln aus dem Pack (assetAccounts, depreciation) — Parität zum Inline-Pfad.
+    // Asset/depreciation rules from the pack (assetAccounts, depreciation) — parity with the inline path.
     tenant.assetService.setRuleModule(this.ruleModules);
 
     return {

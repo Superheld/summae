@@ -8,8 +8,8 @@ use Summae\Core\Substrate\Timestamp;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Audit-Eintrag (datenformat.md v0.3 `auditLog.jsonl`):
- * flacher Vorher/Nachher-Diff nur der geänderten Felder.
+ * Audit entry (datenformat.md v0.3 `auditLog.jsonl`):
+ * flat before/after diff of only the changed fields.
  */
 final readonly class AuditRecord implements \JsonSerializable
 {

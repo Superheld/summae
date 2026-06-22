@@ -9,17 +9,17 @@ use Summae\Runner\Subject\CoreSubjectFactory;
 use Summae\Runner\SuiteRunner;
 
 /**
- * Volle Konformitäts-Suite unter PHPUnit (Pendant zu Node `conformance.test.ts`):
- * jede erwartet-grüne Fixture muss grün sein, der Doppellauf deterministisch. Damit
- * zählt die Konformität in die Coverage-Messung (sonst nur Unit-Tests). Die
- * autoritative Gate-Form (strict-Doppellauf + Reporting) bleibt `make fixtures`.
+ * Full conformance suite under PHPUnit (counterpart to Node `conformance.test.ts`):
+ * every expected-green fixture must be green, the double run deterministic. This way
+ * conformance counts into the coverage measurement (otherwise only unit tests). The
+ * authoritative gate form (strict double run + reporting) remains `make fixtures`.
  */
 final class ConformanceTest extends TestCase
 {
     public function testExpectedGreenFixturesArePassing(): void
     {
         $implRoot = dirname(__DIR__, 2);   // implementations/php
-        $repoRoot = dirname(__DIR__, 4);   // Repo-Root (geteilte testsuite/)
+        $repoRoot = dirname(__DIR__, 4);   // repo root (shared testsuite/)
 
         $suite = (new SuiteRunner(new CoreSubjectFactory()))
             ->run($repoRoot . '/testsuite/fixtures', null);

@@ -12,9 +12,9 @@ export interface PeriodDefinition {
 }
 
 /**
- * Geschäftsjahr mit Perioden (ledger-modell.md Aggregat 3). Invarianten:
- * Perioden lückenlos und überlappungsfrei; Schließen nur in Reihenfolge;
- * Wiedereröffnen nur vor Jahresabschluss. `year` = Kalenderjahr des GJ-Endes.
+ * Fiscal year with periods (ledger-modell.md aggregate 3). Invariants:
+ * periods gapless and non-overlapping; closing only in order;
+ * reopening only before year-end closing. `year` = calendar year of the fiscal year end.
  */
 export class FiscalYear {
   private fiscalStatus: FiscalYearStatus;
@@ -38,7 +38,7 @@ export class FiscalYear {
     explicitPeriods: PeriodDefinition[] | null = null,
   ): FiscalYear {
     if (!start.isBefore(end)) {
-      throw new InvalidValue('Geschäftsjahr: start muss vor end liegen');
+      throw new InvalidValue('Fiscal year: start must be before end');
     }
     const periods =
       explicitPeriods === null
@@ -48,8 +48,8 @@ export class FiscalYear {
   }
 
   /**
-   * Aus Persistenz wiederherstellen: Status und Perioden explizit übernehmen
-   * (kein Neuaufbau, keine Validierung) — Pendant zu PHPs `FiscalYear::restore`.
+   * Restore from persistence: take over status and periods explicitly
+   * (no rebuild, no validation) — counterpart to PHP's `FiscalYear::restore`.
    */
   static restore(
     id: Uuid,
@@ -93,7 +93,7 @@ export class FiscalYear {
     if (found === undefined) {
       throw new DomainError(
         'E_PERIOD_UNKNOWN',
-        `Periode ${number} existiert nicht im Geschäftsjahr ${this.year}`,
+        `Period ${number} does not exist in fiscal year ${this.year}`,
         { fiscalYear: this.year, period: number },
       );
     }
@@ -109,7 +109,7 @@ export class FiscalYear {
     if (found === undefined) {
       throw new DomainError(
         'E_PERIOD_UNKNOWN',
-        `Kein Periodenzeitraum für ${date.iso} im Geschäftsjahr ${this.year}`,
+        `No period range for ${date.iso} in fiscal year ${this.year}`,
         { date: date.iso, fiscalYear: this.year },
       );
     }
@@ -123,7 +123,7 @@ export class FiscalYear {
       if (period.number < number && period.isOpen()) {
         throw new DomainError(
           'E_PERIOD_OUT_OF_ORDER',
-          `Periode ${number} kann nicht geschlossen werden: Periode ${period.number} ist noch offen`,
+          `Period ${number} cannot be closed: period ${period.number} is still open`,
           { fiscalYear: this.year, period: number, openPeriod: period.number },
         );
       }
@@ -139,13 +139,13 @@ export class FiscalYear {
     return target;
   }
 
-  /** Reiner Statuswechsel — keine fachliche Buchungswirkung (api.md v0.3). */
+  /** Pure status change — no business posting effect (api.md v0.3). */
   close(): void {
     for (const period of this.periodList) {
       if (period.isOpen()) {
         throw new DomainError(
           'E_PERIOD_OUT_OF_ORDER',
-          `Jahresabschluss ${this.year}: Periode ${period.number} ist noch offen`,
+          `Year-end closing ${this.year}: period ${period.number} is still open`,
           { fiscalYear: this.year, openPeriod: period.number },
         );
       }
@@ -155,7 +155,7 @@ export class FiscalYear {
 
   private assertNotClosed(): void {
     if (this.isClosed()) {
-      throw new DomainError('E_FISCALYEAR_CLOSED', `Geschäftsjahr ${this.year} ist abgeschlossen`, {
+      throw new DomainError('E_FISCALYEAR_CLOSED', `Fiscal year ${this.year} is closed`, {
         fiscalYear: this.year,
       });
     }

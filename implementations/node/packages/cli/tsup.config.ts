@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
-// index = Bibliotheks-API, summae = ausführbares Bin (Shebang). core/knex/commander
-// + better-sqlite3 bleiben extern.
+// index = library API, summae = executable bin (shebang). core/knex/commander
+// + better-sqlite3 stay external.
 export default defineConfig({
   entry: ['src/index.ts', 'src/summae.ts'],
   format: ['esm', 'cjs'],

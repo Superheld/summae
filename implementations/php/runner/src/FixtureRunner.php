@@ -10,20 +10,20 @@ use Summae\Runner\Subject\Subject;
 use Summae\Runner\Subject\SubjectError;
 
 /**
- * Führt eine Fixture gegen ein frisches Subject aus (Runner-Kontrakt,
+ * Runs a fixture against a fresh subject (runner contract,
  * testsuite/README.md): setup -> steps -> projections.
  *
- * Fachliche Fehler des Subjects (SubjectError) sind erwartbare Ergebnisse;
- * jede andere Exception ist ein Crash der Implementierung.
+ * Domain errors of the subject (SubjectError) are expected results;
+ * any other exception is a crash of the implementation.
  */
 final class FixtureRunner
 {
     public function run(Fixture $fixture, Subject $subject): FixtureResult
     {
         $bag = new PlaceholderBag();
-        // Deterministische Platzhalter-IDs: der Doppellauf muss byte-identische
-        // Spuren liefern (Strom-Hashes enthalten IDs). Eigener Zeitanteil,
-        // damit Subject-interne IDs nie kollidieren.
+        // Deterministic placeholder IDs: the double run must yield byte-identical
+        // traces (stream hashes contain IDs). Own time component,
+        // so that subject-internal IDs never collide.
         $ids = new DeterministicIdGenerator(FixedClock::at('2026-06-07T00:00:00+00:00'));
         $freshId = static fn (string $name): string => $ids->next()->value;
         $diffs = [];
@@ -42,7 +42,7 @@ final class FixtureRunner
         foreach ($fixture->steps as $index => $step) {
             $op = $step['op'] ?? null;
             if (!is_string($op)) {
-                return FixtureResult::crash($fixture->name, sprintf('steps[%d]: op fehlt', $index), $trace);
+                return FixtureResult::crash($fixture->name, sprintf('steps[%d]: op missing', $index), $trace);
             }
 
             $label = sprintf('steps[%d] %s', $index, $op);
@@ -68,7 +68,7 @@ final class FixtureRunner
         foreach ($fixture->projections as $index => $projection) {
             $name = $projection['name'] ?? null;
             if (!is_string($name)) {
-                return FixtureResult::crash($fixture->name, sprintf('projections[%d]: name fehlt', $index), $trace);
+                return FixtureResult::crash($fixture->name, sprintf('projections[%d]: name missing', $index), $trace);
             }
 
             $label = sprintf('projections[%d] %s', $index, $name);
@@ -95,9 +95,9 @@ final class FixtureRunner
     }
 
     /**
-     * Vergleicht ein Step-/Projektions-Ergebnis gegen expect.
-     * Steps tragen expect.result, Projektionen ihr expect direkt;
-     * beide können expect.error tragen (v0.3: auch Projektionen).
+     * Compares a step/projection result against expect.
+     * Steps carry expect.result, projections their expect directly;
+     * both can carry expect.error (v0.3: projections too).
      *
      * @param array<string, mixed> $definition
      * @param array{ok: bool, result?: mixed, error?: string} $outcome
@@ -108,25 +108,25 @@ final class FixtureRunner
     {
         $expect = $definition['expect'] ?? [];
         if (!is_array($expect)) {
-            return [sprintf('%s: expect hat unerwartete Struktur', $label)];
+            return [sprintf('%s: expect has unexpected structure', $label)];
         }
 
         $expectedError = $expect['error'] ?? null;
 
         if (is_string($expectedError)) {
             if ($outcome['ok']) {
-                return [sprintf('%s: Fehler %s erwartet, Operation war erfolgreich', $label, $expectedError)];
+                return [sprintf('%s: error %s expected, operation succeeded', $label, $expectedError)];
             }
 
             $actualError = $outcome['error'] ?? '?';
 
             return $actualError === $expectedError
                 ? []
-                : [sprintf('%s: Fehler %s erwartet, ist %s', $label, $expectedError, $actualError)];
+                : [sprintf('%s: error %s expected, is %s', $label, $expectedError, $actualError)];
         }
 
         if (!$outcome['ok']) {
-            return [sprintf('%s: Erfolg erwartet, Fehler %s', $label, $outcome['error'] ?? '?')];
+            return [sprintf('%s: success expected, error %s', $label, $outcome['error'] ?? '?')];
         }
 
         $expected = array_key_exists('result', $expect)

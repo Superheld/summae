@@ -1,9 +1,9 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Zonenloses Kalenderdatum (determinismus.md §4): Beleg- und Buchungsdatum
- * kennen keine Zeitzone — kein UTC-Shift-Risiko. ISO-Format sortiert
- * lexikographisch korrekt (= chronologisch).
+ * Zoneless calendar date (determinismus.md §4): voucher and posting date
+ * know no time zone — no UTC shift risk. ISO format sorts
+ * lexicographically correctly (= chronologically).
  */
 function toIso(year: number, monthIndex: number, day: number): string {
   const date = new Date(Date.UTC(year, monthIndex, day));
@@ -18,14 +18,14 @@ export class CalendarDate {
 
   static of(iso: string): CalendarDate {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-      throw new InvalidValue(`Kein gültiges Kalenderdatum: "${iso}"`);
+      throw new InvalidValue(`Not a valid calendar date: "${iso}"`);
     }
     const year = Number(iso.slice(0, 4));
     const month = Number(iso.slice(5, 7));
     const day = Number(iso.slice(8, 10));
-    // Round-trip-Prüfung fängt 2026-13-01, 2026-02-30 etc.
+    // Round-trip check catches 2026-13-01, 2026-02-30 etc.
     if (toIso(year, month - 1, day) !== iso) {
-      throw new InvalidValue(`Kein gültiges Kalenderdatum: "${iso}"`);
+      throw new InvalidValue(`Not a valid calendar date: "${iso}"`);
     }
     return new CalendarDate(iso);
   }
@@ -59,7 +59,7 @@ export class CalendarDate {
   }
 
   lastDayOfMonth(): CalendarDate {
-    // Tag 0 des Folgemonats = letzter Tag dieses Monats.
+    // Day 0 of the next month = last day of this month.
     return new CalendarDate(toIso(this.year(), this.month(), 0));
   }
 

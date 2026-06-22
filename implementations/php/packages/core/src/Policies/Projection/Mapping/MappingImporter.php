@@ -9,12 +9,12 @@ use Summae\Core\Substrate\Account;
 use Summae\Core\Port\AccountRepository;
 
 /**
- * Mapping-Import (api.md): Überlappung (ein Konto in mehreren
- * Positionen) -> E_MAPPING_OVERLAP; Lücken sind kein Fehler, sondern
- * gapWarnings[] mit Auffangposition `_unassigned`.
+ * Mapping import (api.md): overlap (one account in multiple
+ * positions) -> E_MAPPING_OVERLAP; gaps are not an error but
+ * gapWarnings[] with the catch-all position `_unassigned`.
  *
- * Geprüft wird gegen die real existierenden Konten des Mandanten,
- * je Mapping-Art gegen die fachlich relevante Kontomenge.
+ * Checked against the actually existing accounts of the tenant,
+ * per mapping kind against the domain-relevant set of accounts.
  */
 final readonly class MappingImporter
 {
@@ -47,7 +47,7 @@ final readonly class MappingImporter
 
             if (count($matches) > 1) {
                 throw new DomainError('E_MAPPING_OVERLAP', sprintf(
-                    'Konto %s fällt in mehrere Positionen: %s',
+                    'Account %s falls into multiple positions: %s',
                     $account->number->value,
                     implode(', ', $matches),
                 ), ['account' => $account->number->value, 'positions' => $matches]);
@@ -78,7 +78,7 @@ final readonly class MappingImporter
             static fn (Account $account): bool => match ($kind) {
                 'balance-sheet' => $account->type->isBalanceCarrying(),
                 'income-statement' => !$account->type->isBalanceCarrying(),
-                default => false, // z. B. cash-basis-categories: bewusst partiell
+                default => false, // e.g. cash-basis-categories: deliberately partial
             },
         ));
     }

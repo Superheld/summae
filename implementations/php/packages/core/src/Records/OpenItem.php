@@ -13,10 +13,10 @@ use Summae\Core\Substrate\OpenItemStatus;
 use Summae\Core\Policies\Expansion\Settlement;
 
 /**
- * Offener Posten (ledger-modell.md Aggregat 5): entsteht aus einer
- * Buchung auf ein AR/AP-Konto, referenziert Ursprungsbuchung + Position.
- * Invariante: Σ Ausgleiche ≤ Betrag; Teilausgleiche erlaubt.
- * Trägt die OP-Verknüpfung für die EÜR-Projektion (F-CORE-009).
+ * Open item (ledger-modell.md aggregate 5): arises from a
+ * posting to an AR/AP account, references the origin posting + line.
+ * Invariant: Σ settlements ≤ amount; partial settlements allowed.
+ * Carries the OP link for the EÜR projection (F-CORE-009).
  */
 final class OpenItem implements \JsonSerializable
 {
@@ -36,7 +36,7 @@ final class OpenItem implements \JsonSerializable
     }
 
     /**
-     * Rehydrierung aus Persistenz (Adapter).
+     * Rehydration from persistence (adapter).
      *
      * @param list<Settlement> $settlements
      */
@@ -68,7 +68,7 @@ final class OpenItem implements \JsonSerializable
         return $this->remainingAt(null);
     }
 
-    /** Restbetrag zum Stichtag (null = heute/alles). */
+    /** Remaining amount as of a cutoff date (null = today/all). */
     public function remainingAt(?CalendarDate $asOf): Money
     {
         $remaining = $this->money;
@@ -104,7 +104,7 @@ final class OpenItem implements \JsonSerializable
     {
         if ($settlement->money->compareTo($this->remaining()) > 0) {
             throw new DomainError('E_SETTLEMENT_EXCEEDS_ITEM', sprintf(
-                'Zuordnung %s übersteigt Restbetrag %s des Postens %s',
+                'Allocation %s exceeds remaining amount %s of item %s',
                 $settlement->money->amountAsString(),
                 $this->remaining()->amountAsString(),
                 $this->id->value,

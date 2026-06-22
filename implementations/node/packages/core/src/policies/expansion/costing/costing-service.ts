@@ -22,9 +22,9 @@ interface Step {
 }
 
 /**
- * KLR-Abrechnung (costing-modell.md): eigener Rechnungskreis — das Fibu-Journal
- * bleibt unberührt. Primärkostenübernahme über costCenter-Dimension, Umlage per
- * Stufenleiter (zyklenfrei, E_COSTING_CYCLE), Verteilung per Money.allocate.
+ * Cost accounting (costing-modell.md): own accounting circle — the financial-accounting
+ * journal stays untouched. Primary-cost intake via the costCenter dimension, allocation by
+ * step ladder (acyclic, E_COSTING_CYCLE), distribution by Money.allocate.
  */
 export class CostingService {
   private schemeSteps: Step[] = [];
@@ -45,7 +45,7 @@ export class CostingService {
 
     for (const rawStep of Array.isArray(input.steps) ? input.steps : []) {
       if (!isRecord(rawStep) || typeof rawStep.sender !== 'string') {
-        throw new InvalidValue('Umlageschritt braucht sender');
+        throw new InvalidValue('allocation step requires sender');
       }
       const sender = rawStep.sender;
       const receivers: Receiver[] = [];
@@ -143,7 +143,7 @@ export class CostingService {
       }
     }
     if (run === null) {
-      throw new DomainError('E_COSTING_RUN_UNKNOWN', `Abrechnungslauf ${typeof runId === 'string' ? runId : '?'} existiert nicht`);
+      throw new DomainError('E_COSTING_RUN_UNKNOWN', `costing run ${typeof runId === 'string' ? runId : '?'} does not exist`);
     }
     return run;
   }
@@ -157,7 +157,7 @@ export class CostingService {
       if (visiting.has(node)) {
         throw new DomainError(
           'E_COSTING_CYCLE',
-          `Umlagezyklus über Kostenstelle "${node}" — Stufenleiter verlangt Zyklenfreiheit`,
+          `allocation cycle via cost center "${node}" — step ladder requires acyclicity`,
           { costCenter: node },
         );
       }

@@ -9,13 +9,13 @@ use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Laravel-Einstiegspunkt: `composer require superheld/summae-laravel`
- * — der framework-freie Kern kommt als Abhängigkeit mit, der Nutzer
- * richtet genau ein Package ein.
+ * Laravel entry point: `composer require superheld/summae-laravel`
+ * — the framework-free core comes along as a dependency, the user
+ * sets up exactly one package.
  *
- * Bereitgestellt wird die DatabaseTenantFactory (Mandanten mit
- * DB-Persistenz) auf der konfigurierten Connection; Migrationen und
- * Config sind publizierbar.
+ * Provides the DatabaseTenantFactory (tenants with DB persistence)
+ * on the configured connection; migrations and config are
+ * publishable.
  */
 final class SummaeServiceProvider extends ServiceProvider
 {

@@ -4,7 +4,7 @@ import { SuiteRunner } from '../src/suite-runner.js';
 import type { Fixture } from '../src/fixture-loader.js';
 import { type Subject, type SubjectFactory, SubjectError } from '../src/subject.js';
 
-/** Minimal-Subject: bucht Konten in eine Map, projiziert eine Saldenliste. */
+/** Minimal subject: posts accounts into a map, projects a balance list. */
 class FakeSubject implements Subject {
   private readonly balances = new Map<string, number>();
   private failNext: string | null = null;
@@ -17,7 +17,7 @@ class FakeSubject implements Subject {
 
   execute(op: string, input: Record<string, unknown>): Record<string, unknown> {
     if (op === 'boom') {
-      throw new Error('unerwarteter Absturz');
+      throw new Error('unexpected crash');
     }
     if (op === 'reject') {
       throw new SubjectError(typeof input.code === 'string' ? input.code : 'E_X');
@@ -55,7 +55,7 @@ const fixture = (over: Partial<Fixture>): Fixture => ({
 describe('FixtureRunner', () => {
   const runner = new FixtureRunner();
 
-  it('läuft setup → steps → projections und prüft expect (Teilmenge)', () => {
+  it('runs setup → steps → projections and checks expect (subset)', () => {
     const result = runner.run(
       fixture({
         steps: [
@@ -71,7 +71,7 @@ describe('FixtureRunner', () => {
     expect(result.diffs).toEqual([]);
   });
 
-  it('akzeptiert erwartete Fehler (expect.error)', () => {
+  it('accepts expected errors (expect.error)', () => {
     const result = runner.run(
       fixture({ steps: [{ op: 'reject', input: { code: 'E_ENTRY_UNBALANCED' }, expect: { error: 'E_ENTRY_UNBALANCED' } }] }),
       new FakeSubject(),
@@ -79,7 +79,7 @@ describe('FixtureRunner', () => {
     expect(result.status).toBe('pass');
   });
 
-  it('meldet falschen Fehlercode als Diff', () => {
+  it('reports wrong error code as diff', () => {
     const result = runner.run(
       fixture({ steps: [{ op: 'reject', input: { code: 'E_OTHER' }, expect: { error: 'E_ENTRY_UNBALANCED' } }] }),
       new FakeSubject(),
@@ -88,7 +88,7 @@ describe('FixtureRunner', () => {
     expect(result.diffs).toHaveLength(1);
   });
 
-  it('behandelt unerwartete Exceptions als Crash', () => {
+  it('treats unexpected exceptions as crash', () => {
     const result = runner.run(
       fixture({ steps: [{ op: 'boom', input: {}, expect: { result: {} } }] }),
       new FakeSubject(),
@@ -97,7 +97,7 @@ describe('FixtureRunner', () => {
     expect(result.crashReason).toContain('boom');
   });
 
-  it('meldet Diff, wenn Erfolg erwartet, aber Fehler kam', () => {
+  it('reports diff when success expected but error came', () => {
     const result = runner.run(
       fixture({ steps: [{ op: 'reject', input: { code: 'E_X' }, expect: { result: { account: '1200' } } }] }),
       new FakeSubject(),
@@ -106,10 +106,10 @@ describe('FixtureRunner', () => {
   });
 });
 
-describe('SuiteRunner — Doppellauf-Determinismus', () => {
+describe('SuiteRunner — double-run determinism', () => {
   const factory: SubjectFactory = { create: () => new FakeSubject() };
 
-  it('läuft die Fixtures und meldet keine Determinismus-Brüche bei stabilem Subject', () => {
+  it('runs the fixtures and reports no determinism breaks with a stable subject', () => {
     const fixtures = [
       fixture({
         name: 'a',
@@ -127,7 +127,7 @@ describe('SuiteRunner — Doppellauf-Determinismus', () => {
     expect(suite.determinismBreaks).toEqual([]);
   });
 
-  it('filtert nach Namensteil', () => {
+  it('filters by name part', () => {
     const fixtures = [fixture({ name: 'alpha' }), fixture({ name: 'beta' })];
     const suite = new SuiteRunner(factory).run(fixtures, 'alph');
     expect(suite.results).toHaveLength(1);

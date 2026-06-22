@@ -7,10 +7,10 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * UUIDv7 (RFC 9562): 48 Bit Unix-Millisekunden + Zufall — zeitlich
- * sortierbar als String, implementierungsunabhängig erzeugbar
- * (datenformat.md Grundsatz 3). Fixtures vergleichen nie ID-Werte,
- * nur Platzhalter-Gleichheit (determinismus.md §5).
+ * UUIDv7 (RFC 9562): 48 bit Unix milliseconds + random — time-sortable
+ * as a string, generatable independent of implementation
+ * (datenformat.md principle 3). Fixtures never compare ID values,
+ * only placeholder equality (determinismus.md §5).
  */
 final readonly class Uuid implements \JsonSerializable, \Stringable
 {
@@ -26,7 +26,7 @@ final readonly class Uuid implements \JsonSerializable, \Stringable
         $normalized = strtolower($value);
 
         if (preg_match(self::PATTERN, $normalized) !== 1) {
-            throw new InvalidValue(sprintf('Keine gültige UUID: "%s"', $value));
+            throw new InvalidValue(sprintf('Not a valid UUID: "%s"', $value));
         }
 
         return new self($normalized);
@@ -36,9 +36,9 @@ final readonly class Uuid implements \JsonSerializable, \Stringable
     {
         $milliseconds = (int) $clock->now()->format('Uv');
         $time = str_pad(dechex($milliseconds), 12, '0', STR_PAD_LEFT);
-        $random = bin2hex(random_bytes(10)); // 20 Hex-Zeichen Entropie
+        $random = bin2hex(random_bytes(10)); // 20 hex chars of entropy
 
-        // Variantennibble: oberste zwei Bits = 10 -> 8, 9, a oder b.
+        // Variant nibble: top two bits = 10 -> 8, 9, a or b.
         $variant = dechex((hexdec($random[3]) & 0x3) | 0x8);
 
         return new self(sprintf(
@@ -57,7 +57,7 @@ final readonly class Uuid implements \JsonSerializable, \Stringable
         return $this->value === $other->value;
     }
 
-    /** Byteweise = zeitliche Ordnung bei v7. */
+    /** Byte-wise = chronological order for v7. */
     public function compareTo(self $other): int
     {
         return strcmp($this->value, $other->value) <=> 0;

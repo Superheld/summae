@@ -4,7 +4,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** Geladene Mappings eines Mandanten (mutierbar über importMapping). */
+/** Loaded mappings of a tenant (mutable via importMapping). */
 export class MappingRegistry {
   private readonly byIdMap = new Map<string, Mapping>();
 

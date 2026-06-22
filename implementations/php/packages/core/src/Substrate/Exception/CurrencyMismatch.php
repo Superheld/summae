@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate\Exception;
 
 /**
- * Rechnen über Währungsgrenzen ist ein Programmierfehler, kein Fachfehler:
- * v1 kennt genau eine Mandantenwährung (Fremdwährung ist v2, Felder reserviert).
+ * Calculating across currency boundaries is a programming error, not a business error:
+ * v1 knows exactly one tenant currency (foreign currency is v2, fields reserved).
  */
 final class CurrencyMismatch extends \LogicException
 {

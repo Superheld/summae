@@ -22,7 +22,7 @@ import {
 import type { SyncDb } from './sync-db.js';
 
 export interface DatabaseTenantOptions {
-  /** Mandanten-ID vorgeben (sonst aus dem IdGenerator). */
+  /** Provide tenant ID (otherwise from the IdGenerator). */
   tenantId?: Uuid;
   dimensions?: DimensionRegistry;
   taxCodes?: TaxCodeRegistry;
@@ -31,9 +31,9 @@ export interface DatabaseTenantOptions {
 }
 
 /**
- * Baut einen `Tenant` mit DB-gestützten Ports — Pendant zu PHPs
- * `DatabaseTenantFactory::build`. Gleiche Services wie `Tenant.inMemory`, nur
- * persistente Ports. Das Schema muss vorher installiert sein (`installSchema`).
+ * Builds a `Tenant` with DB-backed ports — counterpart to PHP's
+ * `DatabaseTenantFactory::build`. Same services as `Tenant.inMemory`, only
+ * persistent ports. The schema must be installed beforehand (`installSchema`).
  */
 export class DatabaseTenantFactory {
   static build(

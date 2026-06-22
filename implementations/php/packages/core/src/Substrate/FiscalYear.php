@@ -10,10 +10,10 @@ use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Geschäftsjahr mit Perioden (ledger-modell.md Aggregat 3).
- * Invarianten: Perioden lückenlos und überlappungsfrei; Schließen nur
- * in Reihenfolge; Wiedereröffnen nur vor Jahresabschluss.
- * `year` = Kalenderjahr des GJ-Endes (§ 4a EStG, datenformat.md v0.3).
+ * Fiscal year with periods (ledger-modell.md aggregate 3).
+ * Invariants: periods gapless and non-overlapping; closing only
+ * in order; reopening only before year-end closing.
+ * `year` = calendar year of the fiscal year end (§ 4a EStG, datenformat.md v0.3).
  */
 final class FiscalYear
 {
@@ -41,7 +41,7 @@ final class FiscalYear
         ?array $explicitPeriods = null,
     ): self {
         if (!$start->isBefore($end)) {
-            throw new InvalidValue('Geschäftsjahr: start muss vor end liegen');
+            throw new InvalidValue('Fiscal year: start must be before end');
         }
 
         $periods = $explicitPeriods === null
@@ -59,7 +59,7 @@ final class FiscalYear
     }
 
     /**
-     * Rehydrierung aus Persistenz (Adapter): Status bleibt erhalten.
+     * Rehydration from persistence (adapter): status is preserved.
      *
      * @param list<Period> $periods
      */
@@ -117,7 +117,7 @@ final class FiscalYear
         }
 
         throw new DomainError('E_PERIOD_UNKNOWN', sprintf(
-            'Periode %d existiert nicht im Geschäftsjahr %d',
+            'Period %d does not exist in fiscal year %d',
             $number,
             $this->year,
         ), ['fiscalYear' => $this->year, 'period' => $number]);
@@ -137,7 +137,7 @@ final class FiscalYear
         }
 
         throw new DomainError('E_PERIOD_UNKNOWN', sprintf(
-            'Kein Periodenzeitraum für %s im Geschäftsjahr %d',
+            'No period range for %s in fiscal year %d',
             $date->iso,
             $this->year,
         ), ['date' => $date->iso, 'fiscalYear' => $this->year]);
@@ -151,7 +151,7 @@ final class FiscalYear
         foreach ($this->periods as $period) {
             if ($period->number < $number && $period->isOpen()) {
                 throw new DomainError('E_PERIOD_OUT_OF_ORDER', sprintf(
-                    'Periode %d kann nicht geschlossen werden: Periode %d ist noch offen',
+                    'Period %d cannot be closed: period %d is still open',
                     $number,
                     $period->number,
                 ), ['fiscalYear' => $this->year, 'period' => $number, 'openPeriod' => $period->number]);
@@ -172,13 +172,13 @@ final class FiscalYear
         return $target;
     }
 
-    /** Reiner Statuswechsel — keine fachliche Buchungswirkung (api.md v0.3). */
+    /** Pure status change — no business posting effect (api.md v0.3). */
     public function close(): void
     {
         foreach ($this->periods as $period) {
             if ($period->isOpen()) {
                 throw new DomainError('E_PERIOD_OUT_OF_ORDER', sprintf(
-                    'Jahresabschluss %d: Periode %d ist noch offen',
+                    'Year-end closing %d: period %d is still open',
                     $this->year,
                     $period->number,
                 ), ['fiscalYear' => $this->year, 'openPeriod' => $period->number]);
@@ -192,7 +192,7 @@ final class FiscalYear
     {
         if ($this->isClosed()) {
             throw new DomainError('E_FISCALYEAR_CLOSED', sprintf(
-                'Geschäftsjahr %d ist abgeschlossen',
+                'Fiscal year %d is closed',
                 $this->year,
             ), ['fiscalYear' => $this->year]);
         }

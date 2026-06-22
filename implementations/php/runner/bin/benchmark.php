@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * NF-7-Messung (JOB-014): Einzelbuchung inkl. Tax-Expansion (NF-7.1),
- * trialBalance über ein Geschäftsjahr mit 100.000 Buchungen (NF-7.2),
- * In-Memory-Port (ohne Adapter-I/O, wie NF-7.1 es definiert).
+ * NF-7 measurement (JOB-014): single posting incl. tax expansion (NF-7.1),
+ * trialBalance over a fiscal year with 100,000 postings (NF-7.2),
+ * in-memory port (without adapter I/O, as NF-7.1 defines it).
  */
 
 use Summae\Core\Composition\TenantOperations;
@@ -45,7 +45,7 @@ $ops->execute('importChartOfAccounts', ['format' => 'datev-csv', 'rows' => [
 
 $count = isset($argv[1]) && is_numeric($argv[1]) ? (int) $argv[1] : 100_000;
 
-// NF-7.1: Einzelbuchung über die volle Komposition (postVoucher).
+// NF-7.1: single posting over the full composition (postVoucher).
 $start = hrtime(true);
 $ops->execute('postVoucher', [
     'voucher' => ['voucherNumber' => 'BENCH-0', 'voucherDate' => '2026-01-15'],
@@ -58,8 +58,8 @@ $ops->execute('postVoucher', [
 ]);
 $singleMs = (hrtime(true) - $start) / 1e6;
 
-// Massendaten: direkte post-Aufrufe (Tax vorab expandiert wäre realistisch;
-// hier konservativ mit voller Prüfreihenfolge je Buchung).
+// Bulk data: direct post calls (tax pre-expanded would be realistic;
+// here conservatively with the full check order per posting).
 $voucherResult = $ops->execute('postVoucher', [
     'voucher' => ['voucherNumber' => 'BENCH-V', 'voucherDate' => '2026-01-02'],
     'entryDate' => '2026-01-02',
@@ -87,12 +87,12 @@ for ($i = 0; $i < $count; $i++) {
 }
 $postSeconds = (hrtime(true) - $start) / 1e9;
 
-// NF-7.2: SuSa über das volle Jahr.
+// NF-7.2: trial balance over the full year.
 $start = hrtime(true);
 $result = $ops->project('trialBalance', ['fiscalYear' => 2026, 'throughPeriod' => 12]);
 $trialBalanceSeconds = (hrtime(true) - $start) / 1e9;
 
-// EÜR-Projektion über denselben Bestand.
+// EÜR projection over the same stock.
 $start = hrtime(true);
 $ops->project('cashBasisReport', ['year' => 2026, 'asOf' => '2026-12-31']);
 $cashBasisSeconds = (hrtime(true) - $start) / 1e9;

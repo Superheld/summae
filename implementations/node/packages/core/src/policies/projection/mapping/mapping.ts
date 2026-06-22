@@ -16,7 +16,7 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
-/** Trifft ein Blatt eine Kontonummer? (Einzelnummern oder Codepoint-Bereiche.) */
+/** Does a leaf match an account number? (Individual numbers or codepoint ranges.) */
 export function leafMatches(leaf: MappingLeaf, accountNumber: string): boolean {
   if (leaf.numbers.includes(accountNumber)) return true;
   for (const range of leaf.ranges) {
@@ -26,8 +26,8 @@ export function leafMatches(leaf: MappingLeaf, accountNumber: string): boolean {
 }
 
 /**
- * Gliederungs-Mapping (datenformat.md v0.2): ordnet Konten Positionen zu —
- * gleiche Struktur für Bilanz, GuV, EÜR-Zeilen und VA-Kennzahlen.
+ * Structure mapping (datenformat.md v0.2): assigns accounts to positions —
+ * same structure for balance sheet, income statement, cash-basis lines and VAT-return reporting keys.
  */
 export class Mapping {
   constructor(
@@ -52,7 +52,7 @@ export class Mapping {
     for (const position of positions) {
       if (!isRecord(position)) continue;
       const key = asString(position.key) ?? '';
-      // side wird am Wurzelknoten gesetzt und an die Blätter vererbt (v0.5/F-007).
+      // side is set at the root node and inherited by the leaves (v0.5/F-007).
       const nodeSide = asString(position.side) ?? side;
       const children = Array.isArray(position.children) ? position.children : [];
 

@@ -3,13 +3,13 @@ import { join } from 'node:path';
 import type { PackManifest, PackModule } from '@superheld/summae-core';
 import { repoRoot } from './fixture-loader.js';
 
-/** Heimat der ausgelieferten Pack-Bibliothek im Repo (gespiegelt aus der WB). */
+/** Home of the shipped pack library in the repo (mirrored from the knowledge base). */
 export const packLibraryDir = join(repoRoot, 'pack-library');
 
 export interface PackLibrary {
-  /** Wiederverwendbare Bausteine aus `modules/<kind>/<id>.json`. */
+  /** Reusable building blocks from `modules/<kind>/<id>.json`. */
   readonly modules: PackModule[];
-  /** Wählbare Packs aus `packs/<id>.json`. */
+  /** Selectable packs from `packs/<id>.json`. */
   readonly manifests: PackManifest[];
 }
 
@@ -32,15 +32,15 @@ function readJsonFilesRecursive(dir: string): unknown[] {
 let cached: PackLibrary | null = null;
 
 /**
- * Lädt die ausgelieferte Pack-Bibliothek von der Platte: Module (rekursiv unter
- * `modules/`) und Manifeste (unter `packs/`). Das ist der Loader, der den
- * reinen Resolver mit echten Produkt-Daten füttert — Pendant zu „Pack bei
- * Installation/Anlegen wählen". Ergebnis wird gecacht (read-only Daten).
+ * Loads the shipped pack library from disk: modules (recursively under
+ * `modules/`) and manifests (under `packs/`). This is the loader that feeds the
+ * pure resolver with real product data — counterpart to "choose a pack at
+ * installation/creation". Result is cached (read-only data).
  */
 export function loadPackLibrary(dir: string = packLibraryDir): PackLibrary {
   if (dir === packLibraryDir && cached !== null) return cached;
-  // Inhaltsbasierte Klassifikation: Ordnerstruktur egal — `modules/`+`packs/` ODER ein
-  // gesammelter Pack-Ordner (z. B. `de-pack/`). Manifest = hat `modules[]`; Modul = hat `kind`.
+  // Content-based classification: folder structure irrelevant — `modules/`+`packs/` OR a
+  // collected pack folder (e.g. `de-pack/`). Manifest = has `modules[]`; module = has `kind`.
   const modules: PackModule[] = [];
   const manifests: PackManifest[] = [];
   for (const json of readJsonFilesRecursive(dir)) {

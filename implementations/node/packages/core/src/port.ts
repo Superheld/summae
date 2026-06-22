@@ -10,13 +10,13 @@ import type { JournalEntry } from './substrate/journal-entry.js';
 import type { OpenItem } from './records/open-item.js';
 import type { Voucher } from './records/voucher.js';
 
-/** Kontonummern je Mandant eindeutig — der Adapter MUSS das zusichern. */
+/** Account numbers unique per tenant — the adapter MUST guarantee that. */
 export interface AccountRepository {
   add(account: Account): void;
   save(account: Account): void;
   byNumber(number: AccountNumber): Account | null;
   byId(id: Uuid): Account | null;
-  /** sortiert nach Kontonummer (Codepoints) */
+  /** sorted by account number (codepoints) */
   all(): Account[];
 }
 
@@ -25,29 +25,29 @@ export interface FiscalYearRepository {
   save(fiscalYear: FiscalYear): void;
   byYear(year: number): FiscalYear | null;
   forDate(date: CalendarDate): FiscalYear | null;
-  /** sortiert nach Jahr */
+  /** sorted by year */
   all(): FiscalYear[];
 }
 
 /**
- * Journal: append-only, lückenlose sequenceNumber je Geschäftsjahr. `save`
- * persistiert Statuswechsel; der Eintrag selbst wird nie gelöscht.
+ * Journal: append-only, gapless sequenceNumber per fiscal year. `save`
+ * persists status changes; the entry itself is never deleted.
  */
 export interface JournalRepository {
   append(entry: JournalEntry): void;
   save(entry: JournalEntry): void;
   byId(id: Uuid): JournalEntry | null;
   nextSequenceNumber(fiscalYear: number): number;
-  /** sortiert nach (fiscalYear, sequenceNumber) */
+  /** sorted by (fiscalYear, sequenceNumber) */
   all(): JournalEntry[];
-  /** sortiert nach sequenceNumber */
+  /** sorted by sequenceNumber */
   forFiscalYear(fiscalYear: number): JournalEntry[];
 }
 
 export interface VoucherRepository {
   add(voucher: Voucher): void;
   byId(id: Uuid): Voucher | null;
-  /** sortiert nach ID */
+  /** sorted by ID */
   all(): Voucher[];
 }
 
@@ -55,16 +55,16 @@ export interface OpenItemRepository {
   add(item: OpenItem): void;
   save(item: OpenItem): void;
   byId(id: Uuid): OpenItem | null;
-  /** Posten, die aus dieser Buchung entstanden */
+  /** items that arose from this posting */
   byOriginEntry(entryId: Uuid): OpenItem[];
-  /** in Entstehungsreihenfolge */
+  /** in creation order */
   all(): OpenItem[];
 }
 
-/** Audit-Trail ist Formatbestandteil (datenformat.md v0.3): append-only. */
+/** The audit trail is part of the format (datenformat.md v0.3): append-only. */
 export interface AuditTrail {
   append(record: AuditRecord): void;
-  /** in Erfassungsreihenfolge */
+  /** in capture order */
   all(): AuditRecord[];
 }
 
@@ -72,7 +72,7 @@ export interface AssetRepository {
   add(asset: Asset): void;
   save(asset: Asset): void;
   byId(id: Uuid): Asset | null;
-  /** in Zugangsreihenfolge */
+  /** in acquisition order */
   all(): Asset[];
 }
 
@@ -80,6 +80,6 @@ export interface PartnerRepository {
   add(partner: Partner): void;
   save(partner: Partner): void;
   byId(id: Uuid): Partner | null;
-  /** sortiert nach Name, dann ID */
+  /** sorted by name, then ID */
   all(): Partner[];
 }

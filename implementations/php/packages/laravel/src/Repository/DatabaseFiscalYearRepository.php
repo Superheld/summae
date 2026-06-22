@@ -96,8 +96,8 @@ final readonly class DatabaseFiscalYearRepository implements FiscalYearRepositor
         foreach (Hydrator::decodeList($row->periods) as $periodData) {
             $periods[] = new Period(
                 is_numeric($periodData['period'] ?? null) ? (int) $periodData['period'] : 0,
-                Hydrator::date($periodData['start'] ?? null) ?? throw new \RuntimeException('Periodenstart fehlt'),
-                Hydrator::date($periodData['end'] ?? null) ?? throw new \RuntimeException('Periodenende fehlt'),
+                Hydrator::date($periodData['start'] ?? null) ?? throw new \RuntimeException('period start missing'),
+                Hydrator::date($periodData['end'] ?? null) ?? throw new \RuntimeException('period end missing'),
                 PeriodStatus::from(is_string($periodData['status'] ?? null) ? $periodData['status'] : 'open'),
             );
         }
@@ -105,8 +105,8 @@ final readonly class DatabaseFiscalYearRepository implements FiscalYearRepositor
         return FiscalYear::restore(
             Uuid::fromString($row->id),
             (int) $row->year,
-            Hydrator::date($row->start) ?? throw new \RuntimeException('start fehlt'),
-            Hydrator::date($row->end) ?? throw new \RuntimeException('end fehlt'),
+            Hydrator::date($row->start) ?? throw new \RuntimeException('start missing'),
+            Hydrator::date($row->end) ?? throw new \RuntimeException('end missing'),
             FiscalYearStatus::from($row->status),
             $periods,
         );

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection\Mapping;
 
 /**
- * Geladene Mappings eines Mandanten. Import-Validierung
- * (Überlappung/Lücken) kommt mit `importMapping` (JOB-008).
+ * Loaded mappings of a tenant. Import validation
+ * (overlap/gaps) comes with `importMapping` (JOB-008).
  */
 final class MappingRegistry
 {
@@ -19,7 +19,7 @@ final class MappingRegistry
     }
 
     /**
-     * @param list<mixed> $raw Regelmodul-Daten (ruleModules.mappings)
+     * @param list<mixed> $raw rule module data (ruleModules.mappings)
      */
     public static function fromRuleModules(array $raw): self
     {

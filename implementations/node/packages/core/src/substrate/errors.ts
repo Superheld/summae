@@ -1,4 +1,4 @@
-/** Fachlich ungültiger Wert (Betrag, Gewicht, Code, UUID …). */
+/** Business-invalid value (amount, weight, code, UUID …). */
 export class InvalidValue extends Error {
   constructor(message: string) {
     super(message);
@@ -6,7 +6,7 @@ export class InvalidValue extends Error {
   }
 }
 
-/** Verschiedene Währungen lassen sich nicht verrechnen. */
+/** Different currencies cannot be offset against each other. */
 export class CurrencyMismatch extends Error {
   constructor(message: string) {
     super(message);

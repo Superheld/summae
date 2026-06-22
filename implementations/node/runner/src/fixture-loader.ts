@@ -4,21 +4,21 @@ import { dirname, join, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// runner/src → Repo-Root. Node liest dieselbe **geteilte** testsuite/ wie der
-// PHP-Runner (kein Per-Impl-Drift); gepflegt einbahnig via bin/sync-testsuite.sh.
+// runner/src → repo root. Node reads the same **shared** testsuite/ as the
+// PHP runner (no per-impl drift); maintained one-way via bin/sync-testsuite.sh.
 export const repoRoot = resolve(here, '../../../..');
 export const fixturesDir = join(repoRoot, 'testsuite', 'fixtures');
 
 export interface Fixture {
-  /** Name aus dem `fixture`-Feld; Fallback Dateiname. */
+  /** Name from the `fixture` field; fallback file name. */
   readonly name: string;
-  /** Absoluter Pfad der Quelldatei. */
+  /** Absolute path of the source file. */
   readonly file: string;
-  /** setup-Block (Mandant, Konten, Wirtschaftsjahre, Belege …). */
+  /** setup block (tenant, accounts, fiscal years, vouchers …). */
   readonly setup: Record<string, unknown>;
-  /** steps[] — Schreiboperationen mit expect. */
+  /** steps[] — write operations with expect. */
   readonly steps: Array<Record<string, unknown>>;
-  /** projections[] — lesende Projektionen mit expect. */
+  /** projections[] — reading projections with expect. */
   readonly projections: Array<Record<string, unknown>>;
 }
 
@@ -34,8 +34,8 @@ function asRecordList(value: unknown): Array<Record<string, unknown>> {
 
 function fixtureFromFile(file: string): Fixture | null {
   const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-  // Modul-/Pack-Datendateien (pack/**/{modules,packs}/) tragen keinen "fixture"-
-  // Schlüssel — sie sind Resolver-Eingaben, keine Fixtures, und werden übersprungen.
+  // Module/pack data files (pack/**/{modules,packs}/) carry no "fixture"
+  // key — they are resolver inputs, not fixtures, and are skipped.
   if (typeof data.fixture !== 'string') return null;
   return {
     name: data.fixture,
@@ -47,10 +47,10 @@ function fixtureFromFile(file: string): Fixture | null {
 }
 
 /**
- * Lädt alle Fixtures der geteilten Suite rekursiv (`<kategorie>/<name>.json` und
- * tiefer, z. B. `pack/<gruppe>/<name>.json`). Dateien ohne "fixture"-Schlüssel
- * (Modul-/Pack-Daten) werden übersprungen. Sortiert nach Fixture-Name in
- * Codepoint-Reihenfolge (deterministisch, führende Nullen signifikant).
+ * Loads all fixtures of the shared suite recursively (`<category>/<name>.json` and
+ * deeper, e.g. `pack/<group>/<name>.json`). Files without a "fixture" key
+ * (module/pack data) are skipped. Sorted by fixture name in
+ * codepoint order (deterministic, leading zeros significant).
  */
 export function loadFixtures(dir: string = fixturesDir): Fixture[] {
   const fixtures: Fixture[] = [];

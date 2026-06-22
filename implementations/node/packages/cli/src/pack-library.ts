@@ -10,7 +10,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** Default-Heimat der ausgelieferten Pack-Bibliothek (Repo-Wurzel; via --pack-library übersteuerbar). */
+/** Default home of the shipped pack library (repo root; overridable via --pack-library). */
 export const defaultPackLibraryDir = resolve(here, '../../../../../pack-library');
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -31,7 +31,7 @@ function readJsonRecursive(dir: string): unknown[] {
   return out;
 }
 
-/** Pack-Bibliothek laden, inhaltsbasiert klassifiziert (Manifest=hat `modules[]`, Modul=hat `kind`). */
+/** Load pack library, classified by content (manifest=has `modules[]`, module=has `kind`). */
 export function loadPackLibrary(dir: string): { modules: PackModule[]; manifests: PackManifest[] } {
   const modules: PackModule[] = [];
   const manifests: PackManifest[] = [];
@@ -44,15 +44,15 @@ export function loadPackLibrary(dir: string): { modules: PackModule[]; manifests
 }
 
 /**
- * Pack `<id>` aus der Bibliothek auflösen → CLI-`rules`-Struktur, die `Workspace`/`init`
- * konsumieren (ruleModules-Bündel + Konten + taxCodes + taxProfile). So wählt die CLI
- * ein ausgeliefertes Pack, statt Regeln inline in `summae.json` zu pflegen.
+ * Resolve pack `<id>` from the library → CLI `rules` structure that `Workspace`/`init`
+ * consume (ruleModules bundle + accounts + taxCodes + taxProfile). This way the CLI selects
+ * a shipped pack instead of maintaining rules inline in `summae.json`.
  */
 export function packToRules(packId: string, libDir: string): Record<string, unknown> {
   const lib = loadPackLibrary(libDir);
   const manifest = lib.manifests.find((m) => m.id === packId);
   if (manifest === undefined) {
-    throw new Error(`Pack "${packId}" nicht in der Bibliothek gefunden (${libDir})`);
+    throw new Error(`Pack "${packId}" not found in the library (${libDir})`);
   }
   const rm = ruleModulesFromResolved(resolvePack(manifest, lib.modules));
   const coa = Array.isArray(rm.chartsOfAccounts) && isRecord(rm.chartsOfAccounts[0]) ? rm.chartsOfAccounts[0] : {};

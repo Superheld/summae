@@ -5,8 +5,8 @@ import type { Uuid } from './uuid.js';
 import type { Side } from './types.js';
 
 /**
- * Buchungsposition — Value Object innerhalb der Buchung (keine eigene Identität;
- * Referenz = Buchungs-ID + Positionsindex).
+ * Posting line — value object within the posting (no own identity;
+ * reference = posting ID + line index).
  */
 export class EntryLine {
   constructor(

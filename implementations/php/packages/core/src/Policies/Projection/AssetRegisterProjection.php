@@ -10,8 +10,8 @@ use Summae\Core\Port\AssetRepository;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Anlageverzeichnis (Pflicht auch bei EÜR, § 4 Abs. 3 S. 5 EStG).
- * Sortierung: Zugangsdatum, dann ID (deterministisch).
+ * Asset register (mandatory even under cash-basis accounting, § 4 Abs. 3 S. 5 EStG).
+ * Sorting: acquisition date, then ID (deterministic).
  */
 final readonly class AssetRegisterProjection
 {

@@ -6,9 +6,9 @@ import type { Settlement } from '../policies/expansion/settlement.js';
 import type { OpenItemKind, OpenItemStatus } from '../substrate/types.js';
 
 /**
- * Offener Posten (ledger-modell.md Aggregat 5): entsteht aus einer Buchung auf
- * ein AR/AP-Konto, referenziert Ursprungsbuchung + Position. Invariante:
- * Σ Ausgleiche ≤ Betrag; Teilausgleiche erlaubt.
+ * Open item (ledger-modell.md aggregate 5): arises from a posting to
+ * an AR/AP account, references the origin posting + line. Invariant:
+ * Σ settlements ≤ amount; partial settlements allowed.
  */
 export class OpenItem {
   private readonly settlementList: Settlement[] = [];
@@ -25,8 +25,8 @@ export class OpenItem {
   ) {}
 
   /**
-   * Aus Persistenz wiederherstellen: bereits validierte Ausgleiche direkt setzen
-   * (keine erneute Prüfung) — Pendant zu PHPs `OpenItem::restore`.
+   * Restore from persistence: set already-validated settlements directly
+   * (no re-check) — counterpart to PHP's `OpenItem::restore`.
    */
   static restore(
     id: Uuid,
@@ -52,7 +52,7 @@ export class OpenItem {
     return this.remainingAt(null);
   }
 
-  /** Restbetrag zum Stichtag (null = heute/alles). */
+  /** Remaining amount as of a cutoff date (null = today/all). */
   remainingAt(asOf: CalendarDate | null): Money {
     let remaining = this.money;
     for (const settlement of this.settlementList) {
@@ -76,7 +76,7 @@ export class OpenItem {
     if (settlement.money.compareTo(this.remaining()) > 0) {
       throw new DomainError(
         'E_SETTLEMENT_EXCEEDS_ITEM',
-        `Zuordnung ${settlement.money.amountAsString()} übersteigt Restbetrag ${this.remaining().amountAsString()} des Postens ${this.id.value}`,
+        `Allocation ${settlement.money.amountAsString()} exceeds remaining amount ${this.remaining().amountAsString()} of item ${this.id.value}`,
         {
           openItemId: this.id.value,
           remaining: this.remaining().amountAsString(),

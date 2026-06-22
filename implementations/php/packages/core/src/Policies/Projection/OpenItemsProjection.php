@@ -12,8 +12,8 @@ use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * OP-Liste: deterministisch, asOf-fähig (Zeitreise über settledAt).
- * Sortierung: voucherDate, dann sequenceNumber (determinismus.md §3).
+ * Open items list: deterministic, asOf-capable (time travel via settledAt).
+ * Sorting: voucherDate, then sequenceNumber (determinismus.md §3).
  */
 final readonly class OpenItemsProjection
 {
@@ -25,7 +25,7 @@ final readonly class OpenItemsProjection
     }
 
     /**
-     * @param array<string, mixed> $params asOf (ISO-Datum), kind?
+     * @param array<string, mixed> $params asOf (ISO date), kind?
      *
      * @return array{items: list<array<string, mixed>>}
      */

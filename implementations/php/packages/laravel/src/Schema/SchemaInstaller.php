@@ -8,11 +8,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 
 /**
- * Tabellenlayout des Adapters — eine Quelle für Migration und Tests.
+ * Table layout of the adapter — one source for migration and tests.
  *
- * Journal append-only: Buchungszeilen, Perioden, Settlements und
- * AfA-Lebensläufe liegen als JSON-Dokumente am Aggregat (die Published
- * Language ist JSON; Projektionen rechnet der Kern, nie die Datenbank).
+ * Journal append-only: posting lines, periods, settlements and
+ * depreciation life cycles live as JSON documents on the aggregate (the
+ * published language is JSON; projections are computed by the core, never the database).
  */
 final class SchemaInstaller
 {

@@ -40,16 +40,16 @@ use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
 
 /**
- * Domain Service `post` und Verwandte (ledger-modell.md):
- * berührt JournalEntry + FiscalYear + Journalnummer — deshalb Service.
+ * Domain Service `post` and relatives (ledger-modell.md):
+ * touches JournalEntry + FiscalYear + journal number — hence a Service.
  *
- * Prüfreihenfolge beim Buchen ist Vertragsbestandteil (api.md):
- * 1. Struktur (E_ENTRY_TOO_FEW_LINES, E_ENTRY_INVALID_AMOUNT)
- * 2. Referenzen (E_ENTRY_NO_VOUCHER, E_ACCOUNT_UNKNOWN, E_ACCOUNT_LOCKED,
+ * Check order when posting is part of the contract (api.md):
+ * 1. Structure (E_ENTRY_TOO_FEW_LINES, E_ENTRY_INVALID_AMOUNT)
+ * 2. References (E_ENTRY_NO_VOUCHER, E_ACCOUNT_UNKNOWN, E_ACCOUNT_LOCKED,
  *    E_DIMENSION_INVALID)
- * 3. Bilanzgleichung (E_ENTRY_UNBALANCED)
- * 4. Zeitlicher Kontext (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
- * Nur der erste Fehler wird gemeldet.
+ * 3. Balance equation (E_ENTRY_UNBALANCED)
+ * 4. Temporal context (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
+ * Only the first error is reported.
  */
 final readonly class Ledger
 {
@@ -74,30 +74,30 @@ final readonly class Ledger
     {
         $actor = $this->actor($input);
 
-        // 1. Struktur
+        // 1. Structure
         $rawLines = $input['lines'] ?? null;
         if (!is_array($rawLines) || count($rawLines) < 2) {
-            throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
+            throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'A posting needs at least two lines');
         }
 
         /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
         $parsed = [];
         foreach (array_values($rawLines) as $index => $rawLine) {
             if (!is_array($rawLine)) {
-                throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Position %d ist keine Struktur', $index));
+                throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Line %d is not a structure', $index));
             }
 
             $parsed[] = $this->parseLine($rawLine, $index);
         }
 
-        // 2. Referenzen
+        // 2. References
         $voucher = $this->requireVoucher($input['voucherId'] ?? null);
         $lines = $this->resolveLines($parsed);
 
-        // 3. Bilanzgleichung
+        // 3. Balance equation
         $this->assertBalanced($lines);
 
-        // 4. Zeitlicher Kontext
+        // 4. Temporal context
         $entryDate = $this->parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
@@ -122,9 +122,9 @@ final readonly class Ledger
     }
 
     /**
-     * AR/AP-Automatik: Soll auf Forderungskonto -> receivable,
-     * Haben auf Verbindlichkeitskonto -> payable (natürliche Saldoseite).
-     * Stornobuchungen erzeugen keine neuen Posten.
+     * AR/AP automation: debit on a receivable account -> receivable,
+     * credit on a payable account -> payable (natural balance side).
+     * Reversal postings create no new items.
      *
      * @return list<OpenItem>
      */
@@ -168,13 +168,13 @@ final readonly class Ledger
     }
 
     /**
-     * Ausgleich: Zuordnung Zahlung -> offene(r) Posten, auch teilweise;
-     * immer explizit, kein FIFO-Automatismus (determinismus.md §3).
-     * Differenzen (Skonto/Ausfall/Kleindifferenz) nach api.md G2 (v0.3).
+     * Settlement: allocation payment -> open item(s), also partial;
+     * always explicit, no FIFO automation (determinismus.md §3).
+     * Differences (cash discount/write-off/small difference) per api.md G2 (v0.3).
      *
      * @param array<string, mixed> $input
      *
-     * @return list<OpenItem> die betroffenen Posten
+     * @return list<OpenItem> the affected items
      */
     public function settle(array $input): array
     {
@@ -183,17 +183,17 @@ final readonly class Ledger
 
         $allocations = is_array($input['allocations'] ?? null) ? array_values($input['allocations']) : [];
         if ($allocations === []) {
-            throw new DomainError('E_OPENITEM_UNKNOWN', 'settle ohne Zuordnungen');
+            throw new DomainError('E_OPENITEM_UNKNOWN', 'settle without allocations');
         }
 
         /** @var list<array{item: OpenItem, settlement: Settlement}> $plan */
         $plan = [];
-        /** @var array<string, Money> $planned bereits verplante Beträge je Posten */
+        /** @var array<string, Money> $planned amounts already allocated per item */
         $planned = [];
 
         foreach ($allocations as $allocation) {
             if (!is_array($allocation)) {
-                throw new DomainError('E_OPENITEM_UNKNOWN', 'Zuordnung ist keine Struktur');
+                throw new DomainError('E_OPENITEM_UNKNOWN', 'Allocation is not a structure');
             }
 
             $openItemId = $allocation['openItemId'] ?? null;
@@ -208,19 +208,19 @@ final readonly class Ledger
 
             if ($item === null) {
                 throw new DomainError('E_OPENITEM_UNKNOWN', sprintf(
-                    'Offener Posten %s existiert nicht',
+                    'Open item %s does not exist',
                     is_string($openItemId) ? $openItemId : '?',
                 ));
             }
 
-            $money = $this->parseSettlementMoney($allocation['money'] ?? null, 'Zuordnungsbetrag');
+            $money = $this->parseSettlementMoney($allocation['money'] ?? null, 'Allocation amount');
             [$differenceMoney, $differenceKind] = $this->parseDifference($allocation['difference'] ?? null, $item);
 
-            // Erst vollständig validieren, dann anwenden — kein Teilzustand.
+            // Validate fully first, then apply — no partial state.
             $alreadyPlanned = $planned[$item->id->value] ?? Money::zero($this->baseCurrency);
             if ($money->add($alreadyPlanned)->compareTo($item->remaining()) > 0) {
                 throw new DomainError('E_SETTLEMENT_EXCEEDS_ITEM', sprintf(
-                    'Zuordnung %s übersteigt Restbetrag %s des Postens %s',
+                    'Allocation %s exceeds remaining amount %s of item %s',
                     $money->amountAsString(),
                     $item->remaining()->subtract($alreadyPlanned)->amountAsString(),
                     $item->id->value,
@@ -255,13 +255,13 @@ final readonly class Ledger
         $currency = is_array($raw) && is_string($raw['currency'] ?? null) ? $raw['currency'] : null;
 
         if ($amount === null || $currency !== $this->baseCurrency->code) {
-            throw new InvalidValue(sprintf('%s fehlt oder falsche Währung', $label));
+            throw new InvalidValue(sprintf('%s missing or wrong currency', $label));
         }
 
         $money = Money::of($amount, $this->baseCurrency);
 
         if (!$money->isPositive()) {
-            throw new InvalidValue(sprintf('%s muss > 0 sein', $label));
+            throw new InvalidValue(sprintf('%s must be > 0', $label));
         }
 
         return $money;
@@ -277,26 +277,26 @@ final readonly class Ledger
         }
 
         if (!is_array($raw)) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference ist keine Struktur');
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference is not a structure');
         }
 
         $kind = SettlementDifferenceKind::tryFrom(is_string($raw['kind'] ?? null) ? $raw['kind'] : '');
         if ($kind === null) {
             throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
-                'Unbekannte Differenzart "%s"',
+                'Unknown difference kind "%s"',
                 is_string($raw['kind'] ?? null) ? $raw['kind'] : '?',
             ));
         }
 
         try {
-            $money = $this->parseSettlementMoney($raw['money'] ?? null, 'Differenzbetrag');
+            $money = $this->parseSettlementMoney($raw['money'] ?? null, 'Difference amount');
         } catch (InvalidValue) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Differenzbetrag ungültig (≤ 0 oder Format)');
+            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Difference amount invalid (≤ 0 or format)');
         }
 
         if ($money->compareTo($item->remaining()) > 0) {
             throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
-                'Differenz %s übersteigt Restbetrag %s',
+                'Difference %s exceeds remaining amount %s',
                 $money->amountAsString(),
                 $item->remaining()->amountAsString(),
             ));
@@ -306,8 +306,8 @@ final readonly class Ledger
     }
 
     /**
-     * Korrektur nur im Status `entered`, mit Audit-Trail — kein Löschen
-     * (Entscheidung 2026-06-07, GoBD-konservativ).
+     * Correction only in status `entered`, with audit trail — no deletion
+     * (decision 2026-06-07, GoBD-conservative).
      *
      * @param array<string, mixed> $input
      */
@@ -327,12 +327,12 @@ final readonly class Ledger
             /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
             $parsed = [];
             if (count($input['lines']) < 2) {
-                throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
+                throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'A posting needs at least two lines');
             }
 
             foreach (array_values($input['lines']) as $index => $rawLine) {
                 if (!is_array($rawLine)) {
-                    throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Position %d ist keine Struktur', $index));
+                    throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Line %d is not a structure', $index));
                 }
 
                 $parsed[] = $this->parseLine($rawLine, $index);
@@ -352,7 +352,7 @@ final readonly class Ledger
             $this->journal->save($entry);
             $this->recordAudit($actor, 'journalEntry', $entry->id, 'corrected', $changes);
         } else {
-            // Statusprüfung auch ohne effektive Änderung (E_ENTRY_FINALIZED)
+            // Status check even without an effective change (E_ENTRY_FINALIZED)
             $entry->changeText($entry->text());
         }
 
@@ -360,12 +360,12 @@ final readonly class Ledger
     }
 
     /**
-     * Festschreiben einzeln (`entryId`) oder als Massenauslöser
-     * (`finalizeUntil`: alle erfassten Buchungen bis einschließlich Datum).
+     * Finalize individually (`entryId`) or as a bulk trigger
+     * (`finalizeUntil`: all entered postings up to and including the date).
      *
      * @param array<string, mixed> $input
      *
-     * @return int Anzahl festgeschriebener Buchungen
+     * @return int number of finalized postings
      */
     public function finalize(array $input): int
     {
@@ -389,7 +389,7 @@ final readonly class Ledger
 
         $until = $input['finalizeUntil'] ?? null;
         if (!is_string($until)) {
-            throw new DomainError('E_ENTRY_UNKNOWN', 'finalize braucht entryId oder finalizeUntil');
+            throw new DomainError('E_ENTRY_UNKNOWN', 'finalize needs entryId or finalizeUntil');
         }
 
         $untilDate = $this->parseEntryDate($until);
@@ -412,9 +412,9 @@ final readonly class Ledger
     }
 
     /**
-     * Storno = neue Buchung mit Rückverweis, Generalumkehr (v0.3/M4):
-     * gleiche Konten, gleiche Seiten, negierte Beträge — Verkehrszahlen
-     * bleiben unaufgebläht. Storno eines Stornos ist zulässig (api.md).
+     * Reversal = new posting with back-reference, general reversal (v0.3/M4):
+     * same accounts, same sides, negated amounts — turnover figures
+     * stay un-inflated. Reversing a reversal is allowed (api.md).
      *
      * @param array<string, mixed> $input
      */
@@ -425,7 +425,7 @@ final readonly class Ledger
 
         if ($original->reversedBy() !== null) {
             throw new DomainError('E_ENTRY_ALREADY_REVERSED', sprintf(
-                'Buchung %s ist bereits storniert',
+                'Posting %s is already reversed',
                 $original->id->value,
             ), ['entryId' => $original->id->value]);
         }
@@ -433,7 +433,7 @@ final readonly class Ledger
         $entryDate = $this->parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
-        $text = is_string($input['text'] ?? null) ? $input['text'] : sprintf('Storno %d', $original->sequenceNumber);
+        $text = is_string($input['text'] ?? null) ? $input['text'] : sprintf('Reversal %d', $original->sequenceNumber);
 
         $reversal = new JournalEntry(
             $this->ids->next(),
@@ -481,8 +481,8 @@ final readonly class Ledger
     }
 
     /**
-     * Reiner Statuswechsel mit Voraussetzungen: alle Perioden geschlossen,
-     * alle Buchungen festgeschrieben (api.md v0.3) — KEINE Abschlussbuchungen.
+     * Pure status change with preconditions: all periods closed,
+     * all postings finalized (api.md v0.3) — NO closing entries.
      *
      * @param array<string, mixed> $input
      */
@@ -493,7 +493,7 @@ final readonly class Ledger
         foreach ($this->journal->forFiscalYear($fiscalYear->year) as $entry) {
             if (!$entry->isFinalized()) {
                 throw new DomainError('E_FISCALYEAR_UNFINALIZED_ENTRIES', sprintf(
-                    'Jahresabschluss %d: Buchung %d ist nicht festgeschrieben',
+                    'Year-end close %d: posting %d is not finalized',
                     $fiscalYear->year,
                     $entry->sequenceNumber,
                 ), ['fiscalYear' => $fiscalYear->year, 'sequenceNumber' => $entry->sequenceNumber]);
@@ -507,9 +507,9 @@ final readonly class Ledger
     }
 
     /**
-     * Geschäftsjahr anlegen (v0.4): Überschneidung mit bestehenden Jahren
-     * wird abgewiesen (E_FISCALYEAR_OVERLAP); Lücken sind erlaubt.
-     * Ohne explizite Perioden: 12 Monatsperioden.
+     * Create fiscal year (v0.4): overlap with existing years
+     * is rejected (E_FISCALYEAR_OVERLAP); gaps are allowed.
+     * Without explicit periods: 12 monthly periods.
      *
      * @param array<string, mixed> $input
      */
@@ -524,7 +524,7 @@ final readonly class Ledger
 
             if ($overlaps || $existing->year === $year) {
                 throw new DomainError('E_FISCALYEAR_OVERLAP', sprintf(
-                    'Geschäftsjahr %d (%s bis %s) überschneidet sich mit %d',
+                    'Fiscal year %d (%s to %s) overlaps with %d',
                     $year,
                     $start->iso,
                     $end->iso,
@@ -547,7 +547,7 @@ final readonly class Ledger
 
         if ($this->accounts->byNumber($account->number) !== null) {
             throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', sprintf(
-                'Kontonummer %s ist bereits vergeben',
+                'Account number %s is already taken',
                 $account->number->value,
             ), ['number' => $account->number->value]);
         }
@@ -566,7 +566,7 @@ final readonly class Ledger
         $account = $this->accounts->byNumber(AccountNumber::of($number));
 
         if ($account === null) {
-            throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Konto %s existiert nicht', $number), ['number' => $number]);
+            throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Account %s does not exist', $number), ['number' => $number]);
         }
 
         $before = $account->status()->value;
@@ -580,12 +580,12 @@ final readonly class Ledger
     }
 
     /**
-     * Kontenrahmen-Import (DATEV-kompatible Zeilen): atomar — erst alles
-     * validieren, dann anlegen.
+     * Chart-of-accounts import (DATEV-compatible rows): atomic — validate
+     * everything first, then create.
      *
      * @param array<string, mixed> $input
      *
-     * @return int Anzahl importierter Konten
+     * @return int number of imported accounts
      */
     public function importChartOfAccounts(array $input): int
     {
@@ -593,7 +593,7 @@ final readonly class Ledger
         $rows = $input['rows'] ?? null;
 
         if (!is_array($rows) || $rows === []) {
-            throw new DomainError('E_COA_FORMAT_INVALID', 'Import ohne Zeilen');
+            throw new DomainError('E_COA_FORMAT_INVALID', 'Import without rows');
         }
 
         $accounts = [];
@@ -601,18 +601,18 @@ final readonly class Ledger
 
         foreach (array_values($rows) as $index => $row) {
             if (!is_array($row)) {
-                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Zeile %d ist keine Struktur', $index));
+                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Row %d is not a structure', $index));
             }
 
             try {
                 $account = $this->buildAccount($row);
             } catch (DomainError) {
-                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Zeile %d ist nicht parsebar', $index), ['row' => $index]);
+                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Row %d is not parsable', $index), ['row' => $index]);
             }
 
             if (isset($numbers[$account->number->value]) || $this->accounts->byNumber($account->number) !== null) {
                 throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', sprintf(
-                    'Kontonummer %s ist bereits vergeben',
+                    'Account number %s is already taken',
                     $account->number->value,
                 ), ['number' => $account->number->value]);
             }
@@ -629,7 +629,7 @@ final readonly class Ledger
         return count($accounts);
     }
 
-    // ---- intern ----------------------------------------------------------
+    // ---- internal --------------------------------------------------------
 
     /** @param array<string, mixed> $input */
     private function actor(array $input): string
@@ -649,12 +649,12 @@ final readonly class Ledger
         $currency = is_array($money) && is_string($money['currency'] ?? null) ? $money['currency'] : null;
 
         if ($amount === null || $currency === null) {
-            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Position %d: money fehlt oder unvollständig', $index));
+            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Line %d: money missing or incomplete', $index));
         }
 
         if ($currency !== $this->baseCurrency->code) {
             throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf(
-                'Position %d: Fremdwährung %s — v1 bucht nur Mandantenwährung %s',
+                'Line %d: foreign currency %s — v1 posts only the tenant currency %s',
                 $index,
                 $currency,
                 $this->baseCurrency->code,
@@ -665,7 +665,7 @@ final readonly class Ledger
             $parsedMoney = Money::of($amount, $this->baseCurrency);
         } catch (InvalidValue) {
             throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf(
-                'Position %d: Betrag "%s" ist kein gültiger %s-Betrag',
+                'Line %d: amount "%s" is not a valid %s amount',
                 $index,
                 $amount,
                 $this->baseCurrency->code,
@@ -674,19 +674,19 @@ final readonly class Ledger
 
         if (!$parsedMoney->isPositive()) {
             throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf(
-                'Position %d: Betrag muss > 0 sein (negative Beträge nur bei Storno)',
+                'Line %d: amount must be > 0 (negative amounts only on reversal)',
                 $index,
             ), ['amount' => $amount]);
         }
 
         $side = Side::tryFrom(is_string($rawLine['side'] ?? null) ? $rawLine['side'] : '');
         if ($side === null) {
-            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Position %d: side muss debit oder credit sein', $index));
+            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Line %d: side must be debit or credit', $index));
         }
 
         $account = $rawLine['account'] ?? null;
         if (!is_string($account) || $account === '') {
-            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Position %d: account fehlt', $index));
+            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Line %d: account missing', $index));
         }
 
         $dimensions = [];
@@ -696,7 +696,7 @@ final readonly class Ledger
                 || !is_string($rawDimension['type'] ?? null)
                 || !is_string($rawDimension['code'] ?? null)
             ) {
-                throw new DomainError('E_DIMENSION_INVALID', sprintf('Position %d: Dimension unvollständig', $index));
+                throw new DomainError('E_DIMENSION_INVALID', sprintf('Line %d: dimension incomplete', $index));
             }
 
             $dimensions[] = DimensionValue::of($rawDimension['type'], $rawDimension['code']);
@@ -717,7 +717,7 @@ final readonly class Ledger
     private function requireVoucher(mixed $voucherId): Voucher
     {
         if (!is_string($voucherId) || $voucherId === '') {
-            throw new DomainError('E_ENTRY_NO_VOUCHER', 'Keine Buchung ohne Beleg (F-CORE-003)');
+            throw new DomainError('E_ENTRY_NO_VOUCHER', 'No posting without a voucher (F-CORE-003)');
         }
 
         try {
@@ -727,10 +727,10 @@ final readonly class Ledger
         }
 
         if ($voucher === null) {
-            // v0.5/F-001: gesetzte, aber unbekannte voucherId hat einen
-            // eigenen Code (Referenzschritt, nach „voucherId fehlt").
+            // v0.5/F-001: a set but unknown voucherId has its own
+            // code (reference step, after "voucherId missing").
             throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
-                'Beleg %s existiert nicht',
+                'Voucher %s does not exist',
                 $voucherId,
             ), ['voucherId' => $voucherId]);
         }
@@ -753,14 +753,14 @@ final readonly class Ledger
 
             if ($account === null) {
                 throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf(
-                    'Konto %s existiert nicht',
+                    'Account %s does not exist',
                     $number->value,
                 ), ['number' => $number->value]);
             }
 
             if ($account->isLocked()) {
                 throw new DomainError('E_ACCOUNT_LOCKED', sprintf(
-                    'Konto %s ist gesperrt',
+                    'Account %s is locked',
                     $number->value,
                 ), ['number' => $number->value]);
             }
@@ -791,7 +791,7 @@ final readonly class Ledger
 
         if (!$debit->equals($credit)) {
             throw new DomainError('E_ENTRY_UNBALANCED', sprintf(
-                'Σ Soll (%s) ≠ Σ Haben (%s)',
+                'Σ debit (%s) ≠ Σ credit (%s)',
                 $debit->amountAsString(),
                 $credit->amountAsString(),
             ), ['debit' => $debit->amountAsString(), 'credit' => $credit->amountAsString()]);
@@ -801,13 +801,13 @@ final readonly class Ledger
     private function parseEntryDate(mixed $entryDate): CalendarDate
     {
         if (!is_string($entryDate)) {
-            throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate fehlt');
+            throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate missing');
         }
 
         try {
             return CalendarDate::of($entryDate);
         } catch (InvalidValue) {
-            throw new DomainError('E_PERIOD_UNKNOWN', sprintf('Ungültiges Buchungsdatum "%s"', $entryDate));
+            throw new DomainError('E_PERIOD_UNKNOWN', sprintf('Invalid posting date "%s"', $entryDate));
         }
     }
 
@@ -820,7 +820,7 @@ final readonly class Ledger
 
         if ($fiscalYear === null) {
             throw new DomainError('E_PERIOD_UNKNOWN', sprintf(
-                'Buchungsdatum %s liegt außerhalb angelegter Geschäftsjahre',
+                'Posting date %s lies outside any created fiscal year',
                 $entryDate->iso,
             ), ['date' => $entryDate->iso]);
         }
@@ -829,7 +829,7 @@ final readonly class Ledger
 
         if ($fiscalYear->isClosed() || !$period->isOpen()) {
             throw new DomainError('E_PERIOD_CLOSED', sprintf(
-                'Periode %d/%d ist geschlossen',
+                'Period %d/%d is closed',
                 $fiscalYear->year,
                 $period->number,
             ), ['fiscalYear' => $fiscalYear->year, 'period' => $period->number]);
@@ -851,7 +851,7 @@ final readonly class Ledger
         }
 
         return $entry ?? throw new DomainError('E_ENTRY_UNKNOWN', sprintf(
-            'Buchung %s existiert nicht',
+            'Posting %s does not exist',
             is_string($entryId) ? $entryId : '?',
         ));
     }
@@ -861,7 +861,7 @@ final readonly class Ledger
         $fiscalYear = is_int($year) ? $this->fiscalYears->byYear($year) : null;
 
         return $fiscalYear ?? throw new DomainError('E_PERIOD_UNKNOWN', sprintf(
-            'Geschäftsjahr %s ist nicht angelegt',
+            'Fiscal year %s is not created',
             is_int($year) ? (string) $year : '?',
         ));
     }
@@ -872,7 +872,7 @@ final readonly class Ledger
         $period = $input['period'] ?? null;
 
         if (!is_int($period)) {
-            throw new DomainError('E_PERIOD_UNKNOWN', 'Periodennummer fehlt');
+            throw new DomainError('E_PERIOD_UNKNOWN', 'Period number missing');
         }
 
         return $period;
@@ -886,7 +886,7 @@ final readonly class Ledger
         $type = AccountType::tryFrom(is_string($input['type'] ?? null) ? $input['type'] : '');
 
         if (!is_string($number) || $number === '' || !is_string($name) || $name === '' || $type === null) {
-            throw new DomainError('E_COA_FORMAT_INVALID', 'Konto braucht number, name und gültigen type');
+            throw new DomainError('E_COA_FORMAT_INVALID', 'Account needs number, name and a valid type');
         }
 
         $subtype = is_string($input['subtype'] ?? null) ? $input['subtype'] : null;

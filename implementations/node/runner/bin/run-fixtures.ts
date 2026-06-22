@@ -36,11 +36,11 @@ for (const result of suite.results) {
   }
 }
 
-console.log(`\n${suite.results.length} Fixtures: ${green} grün, ${red} rot, ${crash} Crashes`);
+console.log(`\n${suite.results.length} fixtures: ${green} green, ${red} red, ${crash} crashes`);
 console.log(
   suite.determinismBreaks.length > 0
-    ? `Determinismus-Bruch: ${suite.determinismBreaks.join(', ')}`
-    : 'Doppellauf deterministisch.',
+    ? `Determinism break: ${suite.determinismBreaks.join(', ')}`
+    : 'Double run deterministic.',
 );
 
 const ok = red === 0 && crash === 0 && (!strict || suite.determinismBreaks.length === 0);

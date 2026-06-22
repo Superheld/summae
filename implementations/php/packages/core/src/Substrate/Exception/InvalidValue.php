@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate\Exception;
 
 /**
- * Ungültiger Wert für ein Value Object des Shared Kernel.
- * Programmierfehler-Ebene — fachliche Fehlercodes (E_*) entstehen
- * erst an den Operationen des Ledgers (fehlerkatalog.md).
+ * Invalid value for a value object of the shared kernel.
+ * Programming-error level — business error codes (E_*) arise
+ * only at the operations of the ledger (fehlerkatalog.md).
  */
 final class InvalidValue extends \InvalidArgumentException
 {

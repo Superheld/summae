@@ -8,30 +8,30 @@ import {
 } from '../src/index.js';
 
 describe('Currency', () => {
-  it('hat feste Skala je Währung', () => {
+  it('has a fixed scale per currency', () => {
     expect(Currency.of('EUR').scale).toBe(2);
     expect(Currency.of('JPY').scale).toBe(0);
     expect(Currency.of('KWD').scale).toBe(3);
   });
 
-  it('lehnt ungültige Codes ab', () => {
+  it('rejects invalid codes', () => {
     expect(() => Currency.of('eur')).toThrow(InvalidValue);
     expect(() => Currency.of('EURO')).toThrow(InvalidValue);
   });
 });
 
 describe('Uuid', () => {
-  it('akzeptiert gültige UUIDs und normalisiert auf lowercase', () => {
+  it('accepts valid UUIDs and normalizes to lowercase', () => {
     expect(Uuid.fromString('0192F0C1-0000-7000-8000-000000000001').value).toBe(
       '0192f0c1-0000-7000-8000-000000000001',
     );
   });
 
-  it('lehnt ungültige UUIDs ab', () => {
+  it('rejects invalid UUIDs', () => {
     expect(() => Uuid.fromString('nicht-uuid')).toThrow(InvalidValue);
   });
 
-  it('ordnet byteweise (= zeitlich bei v7)', () => {
+  it('orders byte-wise (= chronologically for v7)', () => {
     const a = Uuid.fromString('00000000-0000-7000-8000-000000000001');
     const b = Uuid.fromString('00000000-0000-7000-8000-000000000002');
     expect(a.compareTo(b)).toBe(-1);
@@ -41,7 +41,7 @@ describe('Uuid', () => {
 });
 
 describe('DeterministicIdGenerator', () => {
-  it('ist deterministisch (gleiche Uhr + Zähler → gleiche Sequenz)', () => {
+  it('is deterministic (same clock + counter → same sequence)', () => {
     const seq = () => {
       const gen = new DeterministicIdGenerator(FixedClock.at('2026-01-01T00:00:00.000Z'));
       return [gen.next().value, gen.next().value, gen.next().value];
@@ -49,15 +49,15 @@ describe('DeterministicIdGenerator', () => {
     expect(seq()).toEqual(seq());
   });
 
-  it('trägt UUID-Version 7 und zählt den Sequenzteil hoch', () => {
+  it('carries UUID version 7 and increments the sequence part', () => {
     const gen = new DeterministicIdGenerator(FixedClock.at('2026-01-01T00:00:00.000Z'));
     const first = gen.next().value;
     const second = gen.next().value;
 
-    // Version-Nibble (1. Zeichen der 3. Gruppe) ist 7.
+    // Version nibble (1st char of the 3rd group) is 7.
     expect(first.split('-')[2]!.startsWith('7')).toBe(true);
     expect(first).not.toBe(second);
-    // Zähler steckt im Schwanz: …001 vor …002.
+    // Counter sits in the tail: …001 before …002.
     expect(first < second).toBe(true);
   });
 });

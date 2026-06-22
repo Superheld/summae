@@ -7,9 +7,9 @@ namespace Summae\Core\Policies\Expansion\Tax;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Steuerliches Mandantenprofil (tax-modell.md Aggregat 2):
- * Versteuerungsart, Kleinunternehmer-Status mit Gültigkeitszeitraum
- * (unterjähriger Wechsel, SF-11), Voranmeldungszeitraum.
+ * Tenant tax profile (tax-modell.md aggregate 2): taxation method,
+ * small-business status with validity period (mid-year change, SF-11),
+ * VAT filing period.
  */
 final class TaxProfile implements \JsonSerializable
 {
@@ -89,7 +89,7 @@ final class TaxProfile implements \JsonSerializable
         return $value;
     }
 
-    /** Stichtagswechsel; die Rückwirkungsprüfung macht der TaxService. */
+    /** Cutoff-date change; the retroactivity check is done by the TaxService. */
     public function setSmallBusiness(CalendarDate $validFrom, bool $value): void
     {
         $segments = array_values(array_filter(

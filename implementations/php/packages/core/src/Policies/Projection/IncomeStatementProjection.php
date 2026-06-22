@@ -13,12 +13,12 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * GuV als Projektion über ein Mapping (SF-09). Genau ein Geschäftsjahr;
- * v0.4: fromPeriod/throughPeriod grenzen ab (Monats-GuV als
- * BWA-Grundlage), Jahressicht bleibt Default.
+ * Income statement as a projection over a mapping (SF-09). Exactly one fiscal year;
+ * v0.4: fromPeriod/throughPeriod restrict the range (monthly income statement as
+ * BWA basis), the yearly view stays the default.
  *
- * Vorzeichen: Haben − Soll (Erträge positiv, Aufwand negativ);
- * netIncome = Summe der Positionen.
+ * Sign: credit − debit (revenue positive, expense negative);
+ * netIncome = sum of the positions.
  */
 final readonly class IncomeStatementProjection
 {
@@ -43,10 +43,10 @@ final readonly class IncomeStatementProjection
         $mappingId = is_string($params['mapping'] ?? null) ? $params['mapping'] : '';
 
         $mapping = $this->mappings->byId($mappingId)
-            ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" ist nicht geladen', $mappingId));
+            ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" is not loaded', $mappingId));
 
         $zero = Money::zero($this->baseCurrency);
-        /** @var array<string, Money> $amounts key -> Betrag */
+        /** @var array<string, Money> $amounts key -> amount */
         $amounts = [];
         /** @var array<string, true> $touched */
         $touched = [];

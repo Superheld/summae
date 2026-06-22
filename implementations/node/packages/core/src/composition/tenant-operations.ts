@@ -16,15 +16,15 @@ import { VatReturnProjection } from '../policies/projection/vat-return.js';
 import { PostVoucherService } from './post-voucher-service.js';
 import type { Tenant } from './tenant.js';
 
-/** Plain-JSON-Serialisierung über toJSON() (wie PHPs json_encode/decode). */
+/** Plain-JSON serialization via toJSON() (like PHP's json_encode/decode). */
 function serialize(value: unknown): Record<string, unknown> {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
 /**
- * Generischer Einstieg in alle Operationen und Projektionen eines Mandanten —
- * die Schnittstelle für CLI und Konformitäts-Runner. Namen exakt nach api.md.
- * Wächst mit den Slices; Unimplementiertes meldet E_NOT_IMPLEMENTED.
+ * Generic entry into all operations and projections of a tenant —
+ * the interface for CLI and conformance runner. Names exactly per api.md.
+ * Grows with the slices; the unimplemented reports E_NOT_IMPLEMENTED.
  */
 export class TenantOperations {
   constructor(private readonly tenant: Tenant) {}
@@ -85,8 +85,8 @@ export class TenantOperations {
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
       case 'allocate': {
-        // Largest-Remainder-Verteilung (Money.allocate), Skala aus Mandanten-Währung
-        // (Pack-Parameter currencyScale). Reine Berechnung, kein Journal-Effekt.
+        // Largest-remainder distribution (Money.allocate), scale from the tenant currency
+        // (pack parameter currencyScale). Pure computation, no journal effect.
         const totalRaw = input.total;
         const amount =
           totalRaw !== null && typeof totalRaw === 'object' && !Array.isArray(totalRaw)
@@ -108,7 +108,7 @@ export class TenantOperations {
         return { runId: released.id.value, status: released.status() };
       }
       default:
-        throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" ist nicht definiert`);
+        throw new DomainError('E_NOT_IMPLEMENTED', `Operation "${op}" is not defined`);
     }
   }
 
@@ -191,7 +191,7 @@ export class TenantOperations {
           tenant.tax.registryHandle(),
         ).compute(params);
       default:
-        throw new DomainError('E_NOT_IMPLEMENTED', `Projektion "${name}" ist nicht definiert`);
+        throw new DomainError('E_NOT_IMPLEMENTED', `Projection "${name}" is not defined`);
     }
   }
 }

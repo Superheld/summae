@@ -11,14 +11,14 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * Summen- und Saldenliste (SuSa) — Spalten verbindlich (api.md v0.4):
- * - openingBalance: kumulierter Saldo VOR dem Geschäftsjahr
- *   (Saldovortrag implizit; 0 bei Erfolgskonten — Review G1)
- * - debitTotal/creditTotal: Verkehrszahlen DES Zeitraums (GJ bis Periode)
+ * Trial balance (SuSa) — columns binding (api.md v0.4):
+ * - openingBalance: cumulative balance BEFORE the fiscal year
+ *   (balance carryforward implicit; 0 for income accounts — Review G1)
+ * - debitTotal/creditTotal: turnover figures OF the period (FY up to period)
  * - balance = openingBalance + debitTotal − creditTotal
  *
- * Saldo-Konvention: Soll minus Haben (Soll-Salden positiv).
- * Sortierung: Kontonummer nach Codepoints (determinismus.md §3).
+ * Balance convention: debit minus credit (debit balances positive).
+ * Sorting: account number by codepoints (determinismus.md §3).
  */
 final readonly class TrialBalanceProjection
 {
@@ -62,7 +62,7 @@ final readonly class TrialBalanceProjection
                     continue;
                 }
 
-                // Erfolgskonten starten je Geschäftsjahr bei null (G1).
+                // Income accounts start at zero each fiscal year (G1).
                 if ($isPriorYear && !$account->type->isBalanceCarrying()) {
                     continue;
                 }
@@ -98,7 +98,7 @@ final readonly class TrialBalanceProjection
             }
         }
 
-        // PHP macht numerische String-Keys zu Ints — Kontonummern sind Strings!
+        // PHP turns numeric string keys into ints — account numbers are strings!
         $numbers = array_map(strval(...), array_keys($totals));
         usort($numbers, static fn (string $a, string $b): int => strcmp($a, $b));
 

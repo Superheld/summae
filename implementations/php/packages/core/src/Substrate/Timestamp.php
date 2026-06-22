@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Kanonische Zeitstempel-Serialisierung (F-CROSS-001): RFC 3339 in **UTC** mit
- * fester Millisekunden-Stelle und `Z` — byte-identisch zu JavaScripts
- * `Date.toISOString()`. Damit `recordedAt`/`at`/`exportedAt` über alle
- * Implementierungen gleich aussehen (Determinismus, geteilte DB).
+ * Canonical timestamp serialization (F-CROSS-001): RFC 3339 in **UTC** with
+ * fixed millisecond place and `Z` — byte-identical to JavaScript's
+ * `Date.toISOString()`. So that `recordedAt`/`at`/`exportedAt` look the same
+ * across all implementations (determinism, shared DB).
  */
 final class Timestamp
 {
