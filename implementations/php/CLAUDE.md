@@ -69,6 +69,6 @@ PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` 
   die häufigsten Cross-Impl-Fallen, der SPEC-FINDINGS-Eskalationsweg.
 - `SPEC-FINDINGS.md` — dokumentierte Widersprüche zwischen Spec/Fixture/Modell.
 
-Die **sprachneutralen Bau-Patterns** (Ports/Factory/Dispatcher, „neue Operation = Service + ein
-`case` + Fixture", Pack = Daten nicht Code, 1:1-Spiegelung) stehen einmal im Root-`CLAUDE.md`
-(Sektion „Bau-Konventionen") — hier nur die PHP-Idiome.
+Die **sprachneutralen Bau-Prinzipien** (Pack = primär Daten/Stecker, 1:1-Spiegelung, test-driven,
+framework-frei) stehen im Root-`CLAUDE.md`; Patterns-Liste in `docs/architektur.md`, das Rezept
+„neue Operation = Service + `case` + Fixture" in `docs/entwicklung.md` — hier nur die PHP-Idiome.

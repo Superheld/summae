@@ -18,7 +18,7 @@ Repo-Layout:
 - `testsuite/` — der Kompatibilitätsvertrag: `fixtures/**.json` + `schema/`. Geteilt von allen Implementierungen.
 - `implementations/php/` — PHP-Referenz (Packages `core`, `laravel`, `cli` + `runner/`). Befehle/Konventionen: `implementations/php/CLAUDE.md`, Tiefe in `docs/`.
 - `implementations/node/` — Node/TypeScript (Packages `core`, `knex`, `cli` + `runner/`). Befehle/Konventionen: `implementations/node/CLAUDE.md`.
-- `pack-library/` — ausgelieferte **Pack-Bibliothek** (Produkt-Daten, *keine* Tests): wählbare Packs (`packs/<id>.json`) + wiederverwendbare Module (`modules/<kind>/<id>.json`). Quelle Wissensbasis, via `make sync` gespiegelt; **getrennt von `testsuite/`**.
+- `pack-library/` — ausgelieferte **Pack-Bibliothek** (Produkt-Daten, *keine* Tests): **self-contained** Packs (`pack-library/<pack>/` mit Manifest + eigenen Modulen). Quelle Wissensbasis, via `make sync` gespiegelt (`rsync --delete`); **getrennt von `testsuite/`**. Pack bauen: `pack-library/CLAUDE.md`.
 - `Makefile`, `compose.yaml`, `docker/` — Docker-Toolchain (treibt aktuell die PHP-Seite).
 
 ## Scope: Fähigkeiten, nicht Workflows
@@ -61,64 +61,44 @@ wird aus dem Journal neu berechnet.
 **Jurisdiktionsfrei: Substrat → Politiksorten → Pack.** Das ist *wie summae gedacht
 ist*, sprachübergreifend — jeder Agent, der etwas baut, muss es kennen, nicht nur
 PHP. Der Kern ist ein **jurisdiktionsfreies Substrat** (Buchung, Konto, Journal,
-Saldo, Periode + die Mechanik von `post`/`settle`/`reverse`/`allocate`) — er kennt
-kein Gesetz. Alles darüber ist *genau eine* von drei **Politiksorten**: **Constraint**
+Saldo, Periode) — er kennt kein Gesetz und **wächst nicht pro Jurisdiktion**
+(abgeschlossen unter Komposition, abelsche Gruppe der Doppik). Alles darüber ist *genau eine* von drei **Politiksorten**: **Constraint**
 (muss gelten), **Projektion** (Journal → Sicht), **Expansion** (Absicht → ausbalancierte
-Buchungen). Die *Mechanik* der drei steckt im Kern; die *Inhalte* (Werte, Regeln,
-Mappings) kommen aus einem **Pack** — dem versionierten Bündel einer Jurisdiktion
+Buchungen). Jede Sorte ist **Sockel** (gesetzesfreier Mechanismus = ein Port *im* Kern)
++ **Stecker** (Daten/Regeln aus dem **Pack**). Kern definiert den Sockel, Pack liefert den
+Stecker, die Komposition injiziert ihn (Dependency Inversion) — **der Kern importiert nie ein
+Pack** (Abhängigkeit nur Pack→Kern, mechanisch erzwungen, nicht per Review). Das Pack ist das
+versionierte Bündel einer Jurisdiktion
 („tzdata fürs Rechnungswesen"; „Deutschland" ist das *erste* Pack, nicht die eingebaute
 Annahme). Ein Pack ist komponierbar (kuratiert nehmen / anpassen / selbst à la carte).
 **Lackmustest beim Bauen:** zitiert dein Code einen Paragraphen → falsche Schicht, das
 gehört als Daten ins Pack. Vollständiges Bild + ehrlicher Baustatus: `docs/architektur.md`.
 
-**Packs konkret (Vokabular, Modell, Stand).** Drei Schichten: **Kern/Substrat** (reine Mechanik) →
-**Politiksorten** (Constraint · Projektion · Expansion; Mechanik im Kern) → **Pack** (oben). **„Modul" ist
-keine vierte Schicht**, sondern die *Bau-Einheit der Pack-Schicht*: ein **Modul** = eine Daten-Datei
-(`kind` + `data`, ein kohärenter Regelsatz), die **genau eine Politiksorte bedient**. Ein **Pack** =
-Manifest, das Module auflistet. (Altwort „Regelmodul" = Pack — vermeiden. **base** = der Kern, kontenlos.)
-Eindeutige Modul→Politiksorte-Zuordnung über `kind`:
+**Pack & Module (kurz).** Drei Schichten: **Substrat** → **Politiksorten** (Sockel im Kern) → **Pack** (oben).
+Ein **Modul** = ein Stecker für *genau eine* Politiksorte (meist eine Daten-Datei `kind`+`data`); ein **Pack**
+= self-contained Manifest, das Module bündelt (`pack-library/<pack>/`, bauen nicht aufeinander auf). Pack-Wahl
+einmalig beim Anlegen, gepinnt. Altwort „Regelmodul" = Pack (vermeiden); **base** = der Kern, kontenlos.
 
-| `kind` | bedient |
-|---|---|
-| `tax` · `depreciation` · `assetAccounts` | **Expansion** (Stecker) |
-| `mapping` | **Projektion** (Mappings) |
-| `accounts` | **Substrat** (Kontenrahmen) |
-| `policy` | **Parameter** (Rundung/Skala) |
-| *(`constraint` — fehlt noch)* | Constraint (heute nur generisch im Kern) |
+*Gebaut:* `PackResolver` (byte-gleich PHP↔Node), Loader, `createTenant(pack:"…")`, CLI `summae init --pack …`,
+Packs `default` + `de`.
 
-**Packs sind self-contained — sie bauen nicht aufeinander auf:** jedes Pack hält seine eigenen Module in
-`pack-library/<pack>/` (z. B. `de-pack/`, `default-pack/`), **kein geteiltes `modules/`**, eindeutige IDs je
-Pack. Der Kontenrahmen ist Pack-Inhalt und kommt als **Pack-Wahl, einmalig beim Anlegen, gepinnt — kein
-Override**. *Gebaut:* `PackResolver` (byte-gleich PHP↔Node), Loader (`pack-library/`), `createTenant(pack:"…")`,
-CLI `summae init --pack …`, Packs `default` + `de`. *Noch Konzept:* weitere Jurisdiktionen, `constraint`-Sorte.
+> **Tiefer (annotiert):** `kind`→Politiksorte + Modul-Regeln → `pack-library/CLAUDE.md` · Engine-Bündel
+> (`ruleModules`/`packPolicy`), Ziel-vs-Ist + offene *closed/open*-Frage → `core/src/CLAUDE.md` · volles Modell
+> → `docs/architektur.md`.
 
-Die Engine isst *ein* aufgelöstes Bündel (`ruleModules`: `profiles/chartsOfAccounts/taxCodes/mappings/
-assetAccounts/depreciation/packPolicy`); dahin führen **inline** (Bündel direkt) **oder komponiert** (Manifest
-→ `PackResolver`). `packPolicy` parametrisiert jurisdiktionsfrei (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
+## Bau-Konventionen (Prinzipien — Patterns & Rezepte in den `docs/`)
 
-## Bau-Konventionen (Patterns & Rezepte — damit es konsistent bleibt)
+Bewährte Patterns verwenden, **keine neuen Strukturen erfinden**:
 
-Bewährte Patterns verwenden, **keine neuen Strukturen erfinden** — der Code wird über die Zeit
-von vielen Perspektiven (menschlich wie maschinell) getragen:
+- **Test-driven & Walking Skeleton (inside-out):** erst der Test, dann der Code; im **Kern** mit **Fakes**
+  (In-Memory-Ports) beginnen, dann nach außen. Roter Test gegen den In-Memory-Kern = Fachfehler, kein Persistenzfehler.
+- **Neue Pack-Fähigkeit = primär Daten (Stecker), nie Substrat-Code:** ein Modul/Manifest; ein neues *Paradigma*
+  (anderer Algorithmus) = komponierbares Modul **hinter dem Sockel**, nie ins Substrat. Per Name **referenzieren** statt inline kopieren.
+- **PHP und Node spiegeln sich 1:1.** Jede Kern-Änderung in *beiden* identisch — Byte-Parität (SF-15) ist Vertrag.
+- **Framework-frei im Kern** (Node: eslint `no-restricted-imports`; PHP: nur `brick/math`). Persistenz/CLI sind Adapter außen.
 
-- **Test-driven & Walking Skeleton (inside-out):** Erst der Test, dann der Code. Im **Kern**
-  mit Tests + **Fakes** (In-Memory-Ports) beginnen; dann nach außen arbeiten und die Fakes
-  schrittweise durch echte Interfaces/Adapter (DB/CLI) ersetzen. Ein roter Test gegen den
-  In-Memory-Kern ist eindeutig ein Fachfehler, kein Persistenzfehler.
-- **Verwendete Patterns:** Ports & Adapter (Repository-Interfaces + In-Memory/DB-Adapter) ·
-  Factory (`TenantFactory`) · Value Object (`Money`/`Currency`/`CalendarDate` — unveränderlich,
-  kein Float) · Registry (`TaxCodeRegistry`/`MappingRegistry`/`DimensionRegistry`) ·
-  Dispatcher/Command (`TenantOperations`) · Strategy (z. B. `AssetRoute`).
-- **Neue Operation/Projektion:** Fachlogik in einen Service (oder `Ledger`) + **einen `case`** in
-  `TenantOperations.execute`/`.project` — **in beiden Sprachen** — + eine Fixture. Sonst nichts.
-- **Neue Pack-Fähigkeit = Daten, nicht Code:** ein Modul/Manifest; die Engine bleibt unverändert.
-  Konsumenten **referenzieren** das Pack per Name, statt Konten/Regeln **inline** zu kopieren.
-- **PHP und Node spiegeln sich 1:1.** Jede Kern-Änderung landet in *beiden* identisch — Byte-Parität
-  (SF-15) ist Vertrag, kein Nice-to-have.
-- **Framework-frei im Kern** (Node: eslint `no-restricted-imports`; PHP: nur `brick/math`).
-  Persistenz/CLI sind Adapter außen.
-
-Schritt-für-Schritt-Tiefe (Operation anbauen, Spec-Retrofit): `implementations/php/docs/entwicklung.md`.
+Patterns-Liste (Factory/Registry/Strategy/Dispatcher) → `docs/architektur.md`; „neue Operation = Service + `case` +
+Fixture in beiden Sprachen" + Spec-Retrofit → `implementations/<sprache>/docs/entwicklung.md`.
 
 ## Eiserne Invarianten (nicht verletzen)
 
