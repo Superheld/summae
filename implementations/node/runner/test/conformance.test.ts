@@ -15,15 +15,15 @@ const expectedGreen = readFileSync(join(here, '..', 'expected-green.txt'), 'utf8
 const suite = new SuiteRunner(new CoreSubjectFactory()).run(loadFixtures());
 const byName = new Map(suite.results.map((result) => [result.fixture, result]));
 
-describe('Konformität — erwartete grüne Fixtures gegen den Core', () => {
-  it.each(expectedGreen)('%s ist grün', (name) => {
+describe('Conformance — expected green fixtures against the core', () => {
+  it.each(expectedGreen)('%s is green', (name) => {
     const result = byName.get(name);
-    expect(result, `Fixture ${name} nicht gefunden`).toBeDefined();
+    expect(result, `Fixture ${name} not found`).toBeDefined();
     expect(result?.diffs.join('\n')).toBe('');
     expect(result?.status).toBe('pass');
   });
 
-  it('Doppellauf ist deterministisch (gesamte Suite)', () => {
+  it('double run is deterministic (entire suite)', () => {
     expect(suite.determinismBreaks).toEqual([]);
   });
 });

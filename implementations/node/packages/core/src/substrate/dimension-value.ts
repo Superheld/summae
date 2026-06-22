@@ -1,9 +1,9 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Zusatzzuordnung einer Buchungsposition: Dimensionstyp + Wert-Code
- * (datenformat.md). Gültigkeitsprüfung gegen Stammdaten passiert an der
- * Operation (E_DIMENSION_INVALID), nicht hier.
+ * Additional allocation of a posting line: dimension type + value code
+ * (datenformat.md). The validity check against master data happens at the
+ * operation (E_DIMENSION_INVALID), not here.
  */
 export class DimensionValue {
   private constructor(
@@ -13,7 +13,7 @@ export class DimensionValue {
 
   static of(type: string, code: string): DimensionValue {
     if (type === '' || code === '') {
-      throw new InvalidValue('Dimensionstyp und -code dürfen nicht leer sein');
+      throw new InvalidValue('Dimension type and code must not be empty');
     }
     return new DimensionValue(type, code);
   }

@@ -53,7 +53,7 @@ function int(row: Row, key: string): number {
   return 0;
 }
 
-/** Konten — flache Spalten (datenformat.md). Eindeutig je Mandant über (tenant, number). */
+/** Accounts — flat columns (datenformat.md). Unique per tenant via (tenant, number). */
 export class DatabaseAccountRepository implements AccountRepository {
   constructor(
     private readonly db: SyncDb,
@@ -114,7 +114,7 @@ export class DatabaseAccountRepository implements AccountRepository {
   }
 }
 
-/** Geschäftsjahre — flache Spalten + Perioden als JSON. */
+/** Fiscal years — flat columns + periods as JSON. */
 export class DatabaseFiscalYearRepository implements FiscalYearRepository {
   constructor(
     private readonly db: SyncDb,
@@ -178,8 +178,8 @@ export class DatabaseFiscalYearRepository implements FiscalYearRepository {
       (p) =>
         new Period(
           int(p, 'period'),
-          H.requireDate(p.start, 'Periodenstart'),
-          H.requireDate(p.end, 'Periodenende'),
+          H.requireDate(p.start, 'period start'),
+          H.requireDate(p.end, 'period end'),
           str(p, 'status') as PeriodStatus,
         ),
     );
@@ -198,7 +198,7 @@ export class DatabaseFiscalYearRepository implements FiscalYearRepository {
   }
 }
 
-/** Journal — append-only; `save` ändert nur Status/Text/Zeilen/Storno-Verweis. */
+/** Journal — append-only; `save` changes only status/text/lines/reversal reference. */
 export class DatabaseJournalRepository implements JournalRepository {
   constructor(
     private readonly db: SyncDb,
@@ -296,7 +296,7 @@ export class DatabaseJournalRepository implements JournalRepository {
   }
 }
 
-/** Belege — Payload als JSON. */
+/** Vouchers — payload as JSON. */
 export class DatabaseVoucherRepository implements VoucherRepository {
   constructor(
     private readonly db: SyncDb,
@@ -346,7 +346,7 @@ export class DatabaseVoucherRepository implements VoucherRepository {
   }
 }
 
-/** Offene Posten — flache Spalten + Ausgleiche als JSON. */
+/** Open items — flat columns + settlements as JSON. */
 export class DatabaseOpenItemRepository implements OpenItemRepository {
   constructor(
     private readonly db: SyncDb,
@@ -428,7 +428,7 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
   }
 }
 
-/** Geschäftspartner — Payload als JSON. */
+/** Business partners — payload as JSON. */
 export class DatabasePartnerRepository implements PartnerRepository {
   constructor(
     private readonly db: SyncDb,
@@ -482,7 +482,7 @@ export class DatabasePartnerRepository implements PartnerRepository {
   }
 }
 
-/** Anlagegüter — Stammdaten (payload) + AfA-Lebenslauf/Abgang (state) als JSON. */
+/** Fixed assets — master data (payload) + depreciation life cycle/disposal (state) as JSON. */
 export class DatabaseAssetRepository implements AssetRepository {
   constructor(
     private readonly db: SyncDb,
@@ -536,7 +536,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       .filter(H.isRecord)
       .map((booking) => ({
         planMonth: int(booking, 'planMonth'),
-        date: H.requireDate(booking.date, 'AfA-Datum'),
+        date: H.requireDate(booking.date, 'depreciation date'),
         amount: H.money(H.isRecord(booking.amount) ? booking.amount : {}),
         entryId: Uuid.fromString(str(booking, 'entryId')),
       }));
@@ -562,7 +562,7 @@ export class DatabaseAssetRepository implements AssetRepository {
   }
 }
 
-/** Audit-Trail — append-only, Payload als JSON, Reihenfolge über `seq`. */
+/** Audit trail — append-only, payload as JSON, order via `seq`. */
 export class DatabaseAuditTrail implements AuditTrail {
   constructor(
     private readonly db: SyncDb,

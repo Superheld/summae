@@ -8,10 +8,10 @@ use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Journal: append-only, lückenlose sequenceNumber je Geschäftsjahr
- * (Entscheidung 2026-06-07, DATEV-Praxis). `save` persistiert
- * Statuswechsel (correct/finalize/reversedBy) — der Eintrag selbst
- * wird nie gelöscht.
+ * Journal: append-only, gapless sequenceNumber per fiscal year
+ * (decision 2026-06-07, DATEV practice). `save` persists
+ * status changes (correct/finalize/reversedBy) — the entry itself
+ * is never deleted.
  */
 interface JournalRepository
 {
@@ -21,12 +21,12 @@ interface JournalRepository
 
     public function byId(Uuid $id): ?JournalEntry;
 
-    /** Nächste lückenlose Journalnummer im Geschäftsjahr. */
+    /** Next gapless journal number in the fiscal year. */
     public function nextSequenceNumber(int $fiscalYear): int;
 
-    /** @return list<JournalEntry> sortiert nach (fiscalYear, sequenceNumber) */
+    /** @return list<JournalEntry> sorted by (fiscalYear, sequenceNumber) */
     public function all(): array;
 
-    /** @return list<JournalEntry> sortiert nach sequenceNumber */
+    /** @return list<JournalEntry> sorted by sequenceNumber */
     public function forFiscalYear(int $fiscalYear): array;
 }

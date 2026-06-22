@@ -11,7 +11,7 @@ use Summae\Core\Substrate\Uuid;
 
 final class InMemoryAccountRepository implements AccountRepository
 {
-    /** @var array<string, Account> Kontonummer -> Account */
+    /** @var array<string, Account> account number -> Account */
     private array $byNumber = [];
 
     /** @var array<string, Account> id -> Account */
@@ -21,7 +21,7 @@ final class InMemoryAccountRepository implements AccountRepository
     {
         if (isset($this->byNumber[$account->number->value])) {
             throw new \LogicException(sprintf(
-                'Repository-Kontrakt verletzt: Kontonummer %s doppelt',
+                'Repository contract violated: account number %s duplicated',
                 $account->number->value,
             ));
         }
@@ -32,7 +32,7 @@ final class InMemoryAccountRepository implements AccountRepository
 
     public function save(Account $account): void
     {
-        // In-Memory: Objektidentität genügt.
+        // In-memory: object identity suffices.
     }
 
     public function byNumber(AccountNumber $number): ?Account

@@ -57,7 +57,7 @@ final readonly class DatabaseVoucherRepository implements VoucherRepository
         return new Voucher(
             Uuid::fromString($row->id),
             is_string($data['voucherNumber'] ?? null) ? $data['voucherNumber'] : '',
-            Hydrator::date($data['voucherDate'] ?? null) ?? throw new \RuntimeException('voucherDate fehlt'),
+            Hydrator::date($data['voucherDate'] ?? null) ?? throw new \RuntimeException('voucherDate missing'),
             Hydrator::date($data['due'] ?? null),
             (bool) ($data['recurring'] ?? false),
             is_int($data['economicYear'] ?? null) ? $data['economicYear'] : null,

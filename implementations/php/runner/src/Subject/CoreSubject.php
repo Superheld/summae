@@ -27,23 +27,23 @@ use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Tenant;
 
 /**
- * Subject über summae-core mit In-Memory-Ports.
+ * Subject over summae-core with in-memory ports.
  *
- * Feste Uhr: recordedAt-Zeitstempel sind damit über beide Suite-Läufe
- * identisch — der Doppellauf-Determinismus-Check vergleicht Spuren
- * nach UUID-Normalisierung, Zeitstempel müssen selbst stabil sein.
+ * Fixed clock: recordedAt timestamps are thus identical across both suite
+ * runs — the double-run determinism check compares traces after UUID
+ * normalization, timestamps must be stable themselves.
  *
- * Stand JOB-003: Ledger-Operationen. Tax/Assets/Costing/Projektionen
- * folgen mit ihren Jobs und melden bis dahin E_NOT_IMPLEMENTED.
+ * As of JOB-003: ledger operations. Tax/assets/costing/projections
+ * follow with their jobs and report E_NOT_IMPLEMENTED until then.
  */
 final class CoreSubject implements Subject
 {
     private const string FIXED_NOW = '2026-06-07T12:00:00+02:00';
 
-    /** @var \Closure(string, mixed...): Tenant|null Adapter-Hook: baut den Mandanten (Default: In-Memory) */
+    /** @var \Closure(string, mixed...): Tenant|null adapter hook: builds the tenant (default: in-memory) */
     private readonly ?\Closure $tenantBuilder;
 
-    /** @var array{modules: list<array<mixed>>, manifests: list<array<mixed>>} ausgelieferte Pack-Bibliothek */
+    /** @var array{modules: list<array<mixed>>, manifests: list<array<mixed>>} shipped pack library */
     private readonly array $library;
 
     /**
@@ -52,23 +52,23 @@ final class CoreSubject implements Subject
     public function __construct(?\Closure $tenantBuilder = null, ?array $library = null)
     {
         $this->tenantBuilder = $tenantBuilder;
-        // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
-        // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+        // Shipped pack library as an additional module/manifest source.
+        // Inline setup takes precedence; if absent, the loader applies (createTenant(pack:"default")).
         $this->library = $library ?? PackLibrary::load();
     }
 
     private ?Tenant $tenant = null;
 
-    /** @var array<string, Tenant> per createTenant angelegte Mandanten */
+    /** @var array<string, Tenant> tenants created via createTenant */
     private array $tenants = [];
 
-    /** @var array<string, mixed> Regelmodul-Daten für createTenant */
+    /** @var array<string, mixed> rule-module data for createTenant */
     private array $ruleModules = [];
 
-    /** @var list<array<mixed>> Modulbestand für den Pack-Resolver */
+    /** @var list<array<mixed>> module stock for the pack resolver */
     private array $packModules = [];
 
-    /** @var list<array<mixed>> Manifeste für den Pack-Resolver */
+    /** @var list<array<mixed>> manifests for the pack resolver */
     private array $packManifests = [];
 
     public function setup(array $setup): void
@@ -83,15 +83,15 @@ final class CoreSubject implements Subject
 
         /** @var array<string, mixed> $ruleModules */
         $ruleModules = is_array($setup['ruleModules'] ?? null) ? $setup['ruleModules'] : [];
-        // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
+        // Some fixtures use the singular key `ruleModule`.
         if (is_array($setup['ruleModule'] ?? null)) {
             /** @var array<string, mixed> $ruleModules */
             $ruleModules = [...$ruleModules, ...$setup['ruleModule']];
         }
         $this->ruleModules = $ruleModules;
 
-        // Pack-Quelle (Resolver): Module unter setup.modules | setup.moduleSource | setup.pack.modules;
-        // Manifeste unter setup.manifests + setup.pack.manifest.
+        // Pack source (resolver): modules under setup.modules | setup.moduleSource | setup.pack.modules;
+        // manifests under setup.manifests + setup.pack.manifest.
         $pack = is_array($setup['pack'] ?? null) ? $setup['pack'] : null;
         $moduleSource = $setup['moduleSource'] ?? null;
         if (is_array($setup['modules'] ?? null) && $setup['modules'] !== []) {
@@ -105,7 +105,7 @@ final class CoreSubject implements Subject
         } else {
             $moduleList = [];
         }
-        // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+        // Inline modules/manifests first (precedence in findManifest), then the library.
         $this->packModules = [
             ...array_values(array_filter($moduleList, is_array(...))),
             ...$this->library['modules'],
@@ -121,14 +121,14 @@ final class CoreSubject implements Subject
         ];
 
         if (!is_array($setup['tenant'] ?? null)) {
-            // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule
-            // halten; Mandanten entstehen über die Operation.
+            // No setup tenant (createTenant fixtures): only keep rule
+            // modules; tenants arise via the operation.
             $this->tenant = null;
 
             return;
         }
 
-        // taxCodes: top-level oder als Regelmodul; taxProfile: top-level oder am Tenant
+        // taxCodes: top-level or as a rule module; taxProfile: top-level or on the tenant
         /** @var list<array<mixed>> $taxCodeData */
         $taxCodeData = array_values(array_filter(
             is_array($setup['taxCodes'] ?? null)
@@ -149,7 +149,7 @@ final class CoreSubject implements Subject
         $dimensionRules = is_array($ruleModules['dimensionRules'] ?? null) ? array_values($ruleModules['dimensionRules']) : [];
 
         $builder = $this->tenantBuilder ?? static function (string $n, mixed ...$args): Tenant {
-            /** @phpstan-ignore-next-line Builder-Vertrag: Argumente entsprechen Tenant::inMemory */
+            /** @phpstan-ignore-next-line builder contract: arguments correspond to Tenant::inMemory */
             return Tenant::inMemory($n, ...$args);
         };
         /** @var Tenant $tenant */
@@ -197,7 +197,7 @@ final class CoreSubject implements Subject
 
     public function execute(string $op, array $input): array
     {
-        // createTenant braucht keinen bestehenden Mandanten.
+        // createTenant needs no existing tenant.
         if ($op === 'createTenant') {
             try {
                 return $this->createTenant($input);
@@ -237,8 +237,8 @@ final class CoreSubject implements Subject
     }
 
     /**
-     * Mandanten-Routing: explizite tenant-Referenz (createTenant-Fixtures)
-     * oder der Setup-Mandant; existiert keiner, der zuletzt angelegte.
+     * Tenant routing: explicit tenant reference (createTenant fixtures)
+     * or the setup tenant; if none exists, the last one created.
      *
      * @param array<string, mixed> $input
      */
@@ -256,7 +256,7 @@ final class CoreSubject implements Subject
 
         $last = end($this->tenants);
 
-        return $last !== false ? $last : throw new \LogicException('Kein Mandant vorhanden');
+        return $last !== false ? $last : throw new \LogicException('No tenant present');
     }
 
     /**
@@ -268,8 +268,8 @@ final class CoreSubject implements Subject
     {
         $clock = FixedClock::at(self::FIXED_NOW);
 
-        // Pack-Pfad: Manifest auflösen -> ruleModules -> unveränderte Factory; im Ergebnis
-        // tauscht `profile` gegen `pack` (Mandant pinnt das Manifest, api.additions A.1).
+        // Pack path: resolve manifest -> ruleModules -> unchanged factory; in the result
+        // `profile` is swapped for `pack` (tenant pins the manifest, api.additions A.1).
         $packRef = $input['pack'] ?? null;
         if (is_string($packRef) || is_array($packRef)) {
             $manifest = $this->findManifest(['manifest' => $packRef]);
@@ -331,7 +331,7 @@ final class CoreSubject implements Subject
     }
 
     /**
-     * Manifest-Referenz auflösen: `manifest` als String-id (+ `version`) oder als `{id, version}`.
+     * Resolve manifest reference: `manifest` as string id (+ `version`) or as `{id, version}`.
      *
      * @param array<string, mixed> $ref
      *
@@ -354,7 +354,7 @@ final class CoreSubject implements Subject
             }
         }
 
-        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest nicht gefunden: ' . ($id ?? ''));
+        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest not found: ' . ($id ?? ''));
     }
 
     /**
@@ -404,7 +404,7 @@ final class CoreSubject implements Subject
      */
     private function buildVoucher(array $data): Voucher
     {
-        // Platzhalter-IDs hat der Runner bereits durch UUIDs ersetzt.
+        // The runner has already replaced placeholder IDs with UUIDs.
         $id = Uuid::fromString(is_string($data['id'] ?? null) ? $data['id'] : Uuid::v7()->value);
 
         $servicePeriod = is_array($data['servicePeriod'] ?? null) ? $data['servicePeriod'] : [];

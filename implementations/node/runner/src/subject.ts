@@ -1,21 +1,21 @@
 /**
- * Das Prüfobjekt des Runners: eine Implementierung der Spezifikation. Der Runner
- * kennt nur dieses Interface — der Kern füllt es Slice für Slice.
+ * The runner's subject under test: an implementation of the specification. The runner
+ * knows only this interface — the core fills it slice by slice.
  *
- * Fachliche Fehler (Fehlerkatalog) werden als SubjectError mit exaktem E_*-Code
- * geworfen; alles andere gilt als Crash der Implementierung.
+ * Domain errors (error catalog) are thrown as SubjectError with the exact E_*
+ * code; everything else counts as a crash of the implementation.
  */
 export interface Subject {
   /**
-   * Frischen In-Memory-Mandanten aus dem setup-Block bauen. Platzhalter ($V1, …)
-   * sind zu diesem Zeitpunkt bereits durch konkrete UUIDs ersetzt.
+   * Build a fresh in-memory tenant from the setup block. Placeholders ($V1, …)
+   * have already been replaced by concrete UUIDs at this point.
    */
   setup(setup: Record<string, unknown>): void;
 
-  /** Eine Schreiboperation (steps[].op) ausführen; Ergebnis laut api.md. */
+  /** Execute a write operation (steps[].op); result per api.md. */
   execute(op: string, input: Record<string, unknown>): Record<string, unknown>;
 
-  /** Eine Projektion berechnen (lesend, deterministisch). */
+  /** Compute a projection (reading, deterministic). */
   project(name: string, params: Record<string, unknown>): Record<string, unknown>;
 }
 
@@ -24,8 +24,8 @@ export interface SubjectFactory {
 }
 
 /**
- * Fachlicher Fehler mit Katalog-Code (fehlerkatalog.md). Der Runner vergleicht
- * den Code exakt gegen expect.error.
+ * Domain error with catalog code (fehlerkatalog.md). The runner compares
+ * the code exactly against expect.error.
  */
 export class SubjectError extends Error {
   constructor(

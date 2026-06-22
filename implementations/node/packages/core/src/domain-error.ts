@@ -1,7 +1,7 @@
 /**
- * Fachlicher Fehler mit Katalog-Code (fehlerkatalog.md). Vertragsteil: gleicher
- * Verstoß → gleicher Code in allen Implementierungen. `message` ist frei,
- * `details` trägt beteiligte IDs/Werte.
+ * Domain error with catalog code (fehlerkatalog.md). Contract part: same
+ * violation → same code in all implementations. `message` is free-form,
+ * `details` carries the IDs/values involved.
  */
 export class DomainError extends Error {
   constructor(

@@ -56,8 +56,8 @@ The `expected-green.txt` in `runner/` is the regression guard: without
 
 ## Adding a new operation / projection
 
-1. **Read the model docs in the knowledge base** (`40-domaenenmodell/…`,
-   `50-spezifikation/…`) — fresh, the spec is alive.
+1. **Understand the target behavior from the fixtures (the executable spec) and the
+   handbook** — the spec is alive.
 2. Build the domain logic in `packages/core` (aggregate/service/projection),
    against the in-memory port and with unit tests.
 3. Wire it into the `TenantOperations` dispatcher (one place for CLI + runner).

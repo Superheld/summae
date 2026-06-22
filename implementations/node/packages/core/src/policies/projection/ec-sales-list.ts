@@ -4,8 +4,8 @@ import type { Currency } from '../../substrate/currency.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 
 /**
- * ZM-Grundlage (v0.4, SF-21): innergemeinschaftliche Umsätze je USt-IdNr. und
- * Zeitraum — aus Kennzahl-Tags der igL-Schlüssel, Partner über den Beleg.
+ * EC sales list basis (v0.4, SF-21): intra-community supplies per VAT ID and
+ * period — from reporting-key tags of the igL codes, partner via the voucher.
  */
 export class EcSalesListProjection {
   constructor(

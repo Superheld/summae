@@ -1,29 +1,29 @@
 # superheld/summae-laravel
 
-Laravel-Integration von summae: ServiceProvider, Datenbank-Persistenz
-(`summae_*`-Tabellen), Migrationen. Der framework-freie Kern
-(`superheld/summae-core`) kommt automatisch als Abhängigkeit mit — du
-installierst **ein** Package.
+Laravel integration of summae: ServiceProvider, database persistence
+(`summae_*` tables), migrations. The framework-free core
+(`superheld/summae-core`) comes along automatically as a dependency — you
+install **one** package.
 
 ```bash
 composer require superheld/summae-laravel
 php artisan migrate
 ```
 
-Der ServiceProvider wird per Package-Discovery automatisch registriert. Ohne
-weitere Konfiguration nutzt das Package die Default-DB-Connection deiner App.
+The ServiceProvider is registered automatically via package discovery. Without
+further configuration the package uses your app's default DB connection.
 
 ```php
-use Summae\Core\Shared\Currency;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Laravel\DatabaseTenantFactory;
 
-$tenant = app(DatabaseTenantFactory::class)->build('Muster GmbH', Currency::of('EUR'));
+$tenant = app(DatabaseTenantFactory::class)->build('Example Ltd', Currency::of('EUR'));
 $ops    = new TenantOperations($tenant);
 ```
 
-**📖 Vollständige Dokumentation** — Konfiguration (eigene DB-Connection,
-`SUMMAE_DB_CONNECTION`, Migration), Initialisierung, komplette API-Referenz,
-Fehlerkatalog: **[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
+**📖 Full documentation** — configuration (custom DB connection,
+`SUMMAE_DB_CONNECTION`, migration), initialization, complete API reference,
+error catalog: **[summae handbook](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
-Lizenz: MIT — siehe [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).
+License: MIT — see [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).

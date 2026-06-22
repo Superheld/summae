@@ -13,14 +13,14 @@ use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\Money;
 
 /**
- * Steuerexpansion (tax-modell.md): side-effect-free — reine Funktion.
+ * Tax expansion (tax-modell.md): side-effect-free — pure function.
  *
- * Determinismus (determinismus.md §2): USt-Berechnung pro Beleg je
- * Steuersatz — Netto-Summe je Schlüssel bilden, Steuer berechnen,
- * EINMAL half-up runden. Versionswahl nach Belegdatum.
+ * Determinism (determinismus.md §2): VAT computed per voucher per tax
+ * rate — sum net per code, compute tax, round half-up ONCE. Version
+ * selection by voucher date.
  *
- * Kleinunternehmer (§ 19 UStG, SF-11): zum Belegdatum aktiv -> keine
- * Steuerpositionen, Brutto = Netto.
+ * Small business (§ 19 UStG, SF-11): active at voucher date -> no tax
+ * lines, gross = net.
  */
 final readonly class TaxService
 {
@@ -29,7 +29,7 @@ final readonly class TaxService
         private TaxCodeRegistry $registry,
         private TaxProfile $profile,
         private JournalRepository $journal,
-        // Pack-Parameter: 'perVoucher' (Steuer einmal je Schlüssel) | 'perLine' (je Position).
+        // Pack parameter: 'perVoucher' (tax once per code) | 'perLine' (per line).
         private string $taxRoundingGranularity = 'perVoucher',
     ) {
     }
@@ -47,11 +47,11 @@ final readonly class TaxService
     /**
      * @param array<string, mixed> $input date, taxCode?, direction, netLines[]
      *
-     * @return array<string, mixed> netLines (getaggt), taxLines, grossTotal
+     * @return array<string, mixed> netLines (tagged), taxLines, grossTotal
      */
     public function expand(array $input): array
     {
-        // v0.4 (§ 27 UStG): Regelversion folgt dem Leistungsdatum, Fallback Belegdatum.
+        // v0.4 (§ 27 UStG): rule version follows the service date, fallback voucher date.
         $date = is_string($input['serviceDate'] ?? null)
             ? $this->parseDate($input['serviceDate'])
             : $this->parseDate($input['date'] ?? null);
@@ -60,19 +60,19 @@ final readonly class TaxService
 
         $rawLines = is_array($input['netLines'] ?? null) ? array_values($input['netLines']) : [];
         if ($rawLines === []) {
-            throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'expandTax ohne Netto-Positionen');
+            throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'expandTax without net lines');
         }
 
         /** @var list<array{account: string, money: Money, code: string}> $netLines */
         $netLines = [];
         foreach ($rawLines as $rawLine) {
             if (!is_array($rawLine)) {
-                throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'Netto-Position ist keine Struktur');
+                throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'net line is not a structure');
             }
 
             $code = is_string($rawLine['taxCode'] ?? null) ? $rawLine['taxCode'] : $defaultCode;
             if ($code === null) {
-                throw new DomainError('E_TAXCODE_UNKNOWN', 'Position ohne Steuerschlüssel (kein Default gesetzt)');
+                throw new DomainError('E_TAXCODE_UNKNOWN', 'line without tax code (no default set)');
             }
 
             $netLines[] = [
@@ -82,8 +82,8 @@ final readonly class TaxService
             ];
         }
 
-        // Referenzprüfung vollständig vor Berechnung: unbekannter Schlüssel
-        // schlägt vor fehlender Version fehl, unabhängig von der Zeilenreihenfolge.
+        // Reference check fully before computation: an unknown code fails
+        // before a missing version, independent of line order.
         foreach ($netLines as $line) {
             $this->registry->get($line['code']);
         }
@@ -102,7 +102,7 @@ final readonly class TaxService
             $netTotal = $netTotal->add($line['money']);
         }
 
-        // Kleinunternehmer: keine Steuer, keine Tags.
+        // Small business: no tax, no tags.
         if ($this->profile->smallBusinessAt($date)) {
             return [
                 'netLines' => array_map(static fn (array $line): array => [
@@ -118,8 +118,8 @@ final readonly class TaxService
 
         $sideFor = $direction === 'output' ? 'credit' : 'debit';
 
-        // perLine (Pack-Parameter): Steuer je Position runden, eine Steuerzeile je
-        // Position. Nur Standard-Mechanismus (perLine nicht mit RC/IC kombiniert).
+        // perLine (pack parameter): round tax per line, one tax line per
+        // line. Standard mechanism only (perLine not combined with RC/IC).
         if ($this->taxRoundingGranularity === 'perLine') {
             $taxLines = [];
             $grossTotal = $netTotal;
@@ -155,7 +155,7 @@ final readonly class TaxService
             ];
         }
 
-        // Gruppen deterministisch nach Steuerkonto sortieren (Codepoints).
+        // Sort groups deterministically by tax account (codepoints).
         $codes = array_map(strval(...), array_keys($bases));
         usort($codes, static fn (string $a, string $b): int =>
             strcmp($versions[$a]->taxAccount, $versions[$b]->taxAccount));
@@ -163,14 +163,14 @@ final readonly class TaxService
         $taxLines = [];
         $taxTotal = Money::zero($this->baseCurrency);
         $grossTotal = $netTotal;
-        /** @var array<string, array<string, mixed>> $baseTags Tag je Code für die Netto-Positionen */
+        /** @var array<string, array<string, mixed>> $baseTags tag per code for the net lines */
         $baseTags = [];
 
         foreach ($codes as $code) {
             $version = $versions[$code];
             $base = $bases[$code];
 
-            // Pro Beleg je Steuersatz: einmal rechnen, einmal runden (half-up).
+            // Per voucher per tax rate: compute once, round once (half-up).
             $tax = Money::fromCalculation(
                 BigDecimal::of($base->amountAsString())
                     ->multipliedBy(BigDecimal::of($version->rate))
@@ -181,14 +181,14 @@ final readonly class TaxService
             $mainSide = $direction === 'output' ? 'credit' : 'debit';
 
             if ($version->mechanism === 'intra_community_supply') {
-                // igL (§ 4 Nr. 1b): steuerfrei — keine Steuerzeile, aber
-                // Kennzahl-Tag an der Basis (ZM-Grundlage, v0.4).
+                // intra-community supply (§ 4 Nr. 1b): tax-free — no tax line, but
+                // reporting-key tag on the base (recapitulative-statement basis, v0.4).
                 $baseTags[$code] = $this->tag($code, $version, $version->reportingKey, $base);
                 continue;
             }
 
             if ($version->mechanism === 'reverse_charge') {
-                // § 13b: USt und VSt gleichzeitig, je eigene Kennzahl; Zahlbetrag = Netto.
+                // § 13b: VAT and input tax at once, each its own reporting key; payable = net.
                 $taxLines[] = [
                     'account' => $version->taxAccount,
                     'side' => 'credit',
@@ -228,8 +228,8 @@ final readonly class TaxService
     }
 
     /**
-     * Profiländerung zum Stichtag — nie rückwirkend in festgeschriebene
-     * Zeiträume (E_PROFILE_RETROACTIVE_CONFLICT).
+     * Profile change at cutoff date — never retroactive into finalized
+     * periods (E_PROFILE_RETROACTIVE_CONFLICT).
      *
      * @param array<string, mixed> $input
      */
@@ -237,7 +237,7 @@ final readonly class TaxService
     {
         $smallBusiness = $input['smallBusiness'] ?? null;
         if (!is_array($smallBusiness) || !is_string($smallBusiness['validFrom'] ?? null)) {
-            throw new DomainError('E_PROFILE_RETROACTIVE_CONFLICT', 'setTaxProfile braucht smallBusiness.validFrom');
+            throw new DomainError('E_PROFILE_RETROACTIVE_CONFLICT', 'setTaxProfile requires smallBusiness.validFrom');
         }
 
         $validFrom = $this->parseDate($smallBusiness['validFrom']);
@@ -245,7 +245,7 @@ final readonly class TaxService
         foreach ($this->journal->all() as $entry) {
             if ($entry->isFinalized() && !$entry->entryDate->isBefore($validFrom)) {
                 throw new DomainError('E_PROFILE_RETROACTIVE_CONFLICT', sprintf(
-                    'Zeitraum ab %s enthält festgeschriebene Buchungen (z. B. Nr. %d)',
+                    'period from %s contains finalized entries (e.g. no. %d)',
                     $validFrom->iso,
                     $entry->sequenceNumber,
                 ), ['validFrom' => $validFrom->iso, 'sequenceNumber' => $entry->sequenceNumber]);
@@ -275,7 +275,7 @@ final readonly class TaxService
         try {
             return CalendarDate::of(is_string($date) ? $date : '');
         } catch (InvalidValue) {
-            throw new DomainError('E_TAXCODE_NO_VALID_VERSION', 'Belegdatum fehlt oder ungültig');
+            throw new DomainError('E_TAXCODE_NO_VALID_VERSION', 'voucher date missing or invalid');
         }
     }
 
@@ -284,13 +284,13 @@ final readonly class TaxService
         $amount = is_array($raw) && is_string($raw['amount'] ?? null) ? $raw['amount'] : null;
 
         if ($amount === null) {
-            throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'Netto-Position ohne Betrag');
+            throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'net line without amount');
         }
 
         try {
             return Money::of($amount, $this->baseCurrency);
         } catch (InvalidValue) {
-            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('Ungültiger Betrag "%s"', $amount));
+            throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('invalid amount "%s"', $amount));
         }
     }
 }

@@ -13,13 +13,13 @@ function asString(value: unknown): string | null {
 }
 
 /**
- * Anwendungsschicht-Komposition `postVoucher` (api.md, Teil der Spec): SF-02/03
- * in einem Aufruf — Beleg anlegen, expandTax, post, OP-Anlage.
+ * Application-layer composition `postVoucher` (api.md, part of the spec): SF-02/03
+ * in one call — create voucher, expandTax, post, OP creation.
  */
 export class PostVoucherService {
   constructor(private readonly tenant: Tenant) {}
 
-  /** Beleg aus `input.voucher` bauen + ablegen — geteilt von postVoucher und createVoucher. */
+  /** Build + store voucher from `input.voucher` — shared by postVoucher and createVoucher. */
   private buildAndAddVoucher(input: Record<string, unknown>): Voucher {
     const voucherData = isRecord(input.voucher) ? input.voucher : {};
 
@@ -28,12 +28,12 @@ export class PostVoucherService {
       voucherDate = CalendarDate.of(asString(voucherData.voucherDate) ?? '');
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_ENTRY_NO_VOUCHER', 'Beleg braucht voucher.voucherDate');
+        throw new DomainError('E_ENTRY_NO_VOUCHER', 'Voucher needs voucher.voucherDate');
       }
       throw error;
     }
 
-    // v0.4: Partner muss existieren, bevor irgendetwas entsteht.
+    // v0.4: partner must exist before anything is created.
     let partnerId: Uuid | null = null;
     if (voucherData.partnerId !== undefined && voucherData.partnerId !== null) {
       partnerId = this.tenant.partnerService.require(voucherData.partnerId).id;
@@ -61,7 +61,7 @@ export class PostVoucherService {
     return voucher;
   }
 
-  /** createVoucher: Beleg anlegen, ohne zu buchen — macht Pack-Modus-Fixtures vollwertig (post/acquireAsset). */
+  /** createVoucher: create a voucher without posting — makes pack-mode fixtures complete (post/acquireAsset). */
   createVoucher(input: Record<string, unknown>): Record<string, unknown> {
     const voucher = this.buildAndAddVoucher(input);
     return { id: voucher.id.value, voucherNumber: voucher.voucherNumber };
@@ -71,8 +71,8 @@ export class PostVoucherService {
     const voucher = this.buildAndAddVoucher(input);
     const voucherDate = voucher.voucherDate;
 
-    // Direkter Brutto-Modus: explizite `lines` werden ohne Steuerexpansion gebucht
-    // (z. B. Zahlungen). Der Beleg umhüllt eine gewöhnliche Buchung.
+    // Direct gross mode: explicit `lines` are posted without tax expansion
+    // (e.g. payments). The voucher wraps an ordinary posting.
     if (Array.isArray(input.lines)) {
       const directResult = this.tenant.ledger.post({
         actor: input.actor ?? null,

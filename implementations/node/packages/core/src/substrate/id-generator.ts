@@ -2,14 +2,14 @@ import { type Clock, SystemClock } from './clock.js';
 import { Uuid } from './uuid.js';
 
 /**
- * ID-Quelle des Kerns — Port, damit Tests und Determinismus-Läufe die Erzeugung
- * kontrollieren können. Produktion: UUIDv7.
+ * ID source of the core — port, so that tests and determinism runs can control
+ * generation. Production: UUIDv7.
  */
 export interface IdGenerator {
   next(): Uuid;
 }
 
-/** Produktions-Generator: echte UUIDv7 aus Zeit + Zufall. */
+/** Production generator: real UUIDv7 from time + random. */
 export class UuidV7IdGenerator implements IdGenerator {
   constructor(private readonly clock: Clock = new SystemClock()) {}
 
@@ -19,9 +19,9 @@ export class UuidV7IdGenerator implements IdGenerator {
 }
 
 /**
- * UUIDv7-förmige IDs aus fester Uhr + Zähler statt Zufall — für Tests und den
- * Doppellauf-Determinismus-Check der Konformitätssuite (Strom-Hashes enthalten
- * IDs; zwei Läufe müssen byte-identisch sein).
+ * UUIDv7-shaped IDs from a fixed clock + counter instead of random — for tests and the
+ * double-run determinism check of the conformance suite (stream hashes contain
+ * IDs; two runs must be byte-identical).
  */
 export class DeterministicIdGenerator implements IdGenerator {
   private counter = 0;

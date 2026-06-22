@@ -7,10 +7,10 @@ import { FixtureRunner } from '../src/fixture-runner.js';
 import { CoreSubject } from '../src/subject/core-subject.js';
 
 /**
- * Cross-Test, Schreib-Seite Node→PHP (SF-15, Gegenrichtung): fährt jede Fixture
- * mit setup.tenant gegen eine SQLite-DATEI (Knex-Adapter) und legt den
- * kanonischen journalExport als Oracle ab. Die PHP-Seite (`cross-read.php`) öffnet
- * dieselbe Datei und muss byte-identisch herauskommen.
+ * Cross-test, write side Node→PHP (SF-15, reverse direction): runs every fixture
+ * with setup.tenant against a SQLite FILE (Knex adapter) and stores the
+ * canonical journalExport as oracle. The PHP side (`cross-read.php`) opens
+ * the same file and must come out byte-identical.
  */
 
 const dirArg = process.argv.slice(2).find((a) => a.startsWith('--dir='));
@@ -37,7 +37,7 @@ for (const fixture of loadFixtures()) {
 
   new FixtureRunner().run(fixture, subject);
 
-  // Oracle roh schreiben (voller journalExport); die Leseseite normiert beim Vergleich.
+  // Write oracle raw (full journalExport); the read side normalizes at comparison.
   writeFileSync(
     join(dir, `${fixture.name}.node.expected.json`),
     canonicalJson(subject.project('journalExport', { format: 'gobd-z3' })),
@@ -45,4 +45,4 @@ for (const fixture of loadFixtures()) {
   written++;
 }
 
-console.log(`Cross-Write (Node): ${written} Fixtures geschrieben, ${skipped} übersprungen (kein setup.tenant) → ${dir}`);
+console.log(`Cross-write (Node): ${written} fixtures written, ${skipped} skipped (no setup.tenant) → ${dir}`);

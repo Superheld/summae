@@ -20,9 +20,9 @@ function withoutNulls(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
- * GoBD-Z3-Export (SF-14): Manifest mit SHA-256-Strom-Hashes über RFC-8785-
- * kanonisierte Zeilen, Feldkatalog, Journal vollständig in sequenceNumber-
- * Reihenfolge. auditLog ist immer Teil des Exports (v0.5/F-005).
+ * GoBD-Z3 export (SF-14): manifest with SHA-256 stream hashes over RFC-8785-
+ * canonicalized rows, field catalog, journal complete in sequenceNumber
+ * order. auditLog is always part of the export (v0.5/F-005).
  */
 export class JournalExportProjection {
   constructor(

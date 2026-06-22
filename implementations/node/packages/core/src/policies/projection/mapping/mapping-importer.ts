@@ -9,9 +9,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Mapping-Import (api.md): Überlappung → E_MAPPING_OVERLAP; Lücken sind kein
- * Fehler, sondern gapWarnings[] mit Auffangposition `_unassigned`. Geprüft gegen
- * die real existierenden Konten je Mapping-Art.
+ * Mapping import (api.md): overlap → E_MAPPING_OVERLAP; gaps are not an
+ * error but gapWarnings[] with the catch-all position `_unassigned`. Checked against
+ * the actually existing accounts per mapping kind.
  */
 export class MappingImporter {
   constructor(
@@ -32,7 +32,7 @@ export class MappingImporter {
       if (matches.length > 1) {
         throw new DomainError(
           'E_MAPPING_OVERLAP',
-          `Konto ${account.number.value} fällt in mehrere Positionen: ${matches.join(', ')}`,
+          `Account ${account.number.value} falls into multiple positions: ${matches.join(', ')}`,
           { account: account.number.value, positions: matches },
         );
       }
@@ -50,7 +50,7 @@ export class MappingImporter {
     return this.accounts.all().filter((account) => {
       if (kind === 'balance-sheet') return isBalanceCarrying(account.type);
       if (kind === 'income-statement') return !isBalanceCarrying(account.type);
-      return false; // z. B. cash-basis-categories: bewusst partiell
+      return false; // e.g. cash-basis-categories: deliberately partial
     });
   }
 }

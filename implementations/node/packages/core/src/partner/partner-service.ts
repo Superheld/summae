@@ -11,7 +11,7 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
-/** Partner-Operationen (api.md v0.4): createPartner / updatePartner mit Audit. */
+/** Partner operations (api.md v0.4): createPartner / updatePartner with audit. */
 export class PartnerService {
   constructor(
     private readonly partners: PartnerRepository,
@@ -64,7 +64,7 @@ export class PartnerService {
       }
     }
     if (partner === null) {
-      throw new DomainError('E_PARTNER_UNKNOWN', `Geschäftspartner ${typeof partnerId === 'string' ? partnerId : '?'} existiert nicht`);
+      throw new DomainError('E_PARTNER_UNKNOWN', `Business partner ${typeof partnerId === 'string' ? partnerId : '?'} does not exist`);
     }
     return partner;
   }

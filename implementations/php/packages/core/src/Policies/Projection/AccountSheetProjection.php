@@ -13,10 +13,10 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * Kontoblatt: alle Bewegungen eines Kontos im Geschäftsjahr mit
- * laufendem Saldo. Anfangsbestand = kumulierte Vorjahre für
- * Bestandskonten, null für Erfolgskonten (api.md Zeitraum-Semantik).
- * Ordnung: sequenceNumber — die einzige autoritative (determinismus.md §3).
+ * Account sheet: all movements of an account in the fiscal year with a
+ * running balance. Opening balance = cumulative prior years for
+ * balance-carrying accounts, null for income accounts (api.md period semantics).
+ * Order: sequenceNumber — the only authoritative one (determinismus.md §3).
  */
 final readonly class AccountSheetProjection
 {
@@ -40,7 +40,7 @@ final readonly class AccountSheetProjection
 
         $account = $this->accounts->byNumber(AccountNumber::of($number));
         if ($account === null) {
-            throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Konto %s existiert nicht', $number));
+            throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Account %s does not exist', $number));
         }
 
         $opening = Money::zero($this->baseCurrency);

@@ -12,9 +12,9 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 
 /**
- * ZM-Grundlage (v0.4, SF-21): innergemeinschaftliche Umsätze je
- * USt-IdNr. und Zeitraum — aus Kennzahl-Tags der igL-Schlüssel,
- * Partner-Zuordnung über den Beleg.
+ * EC sales list basis (v0.4, SF-21): intra-community supplies per
+ * VAT ID and period — from reporting-key tags of the igL codes,
+ * partner assignment via the voucher.
  */
 final readonly class EcSalesListProjection
 {

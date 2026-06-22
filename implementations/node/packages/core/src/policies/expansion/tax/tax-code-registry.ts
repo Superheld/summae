@@ -7,7 +7,7 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
-/** Geladene, validierte Form der Steuerschlüssel-Regelmodul-Daten. */
+/** Loaded, validated form of the tax-code rule-module data. */
 export class TaxCodeRegistry {
   private constructor(private readonly codes: ReadonlyMap<string, TaxCode>) {}
 
@@ -60,7 +60,7 @@ export class TaxCodeRegistry {
   get(code: string): TaxCode {
     const found = this.codes.get(code);
     if (found === undefined) {
-      throw new DomainError('E_TAXCODE_UNKNOWN', `Steuerschlüssel "${code}" ist nicht definiert`, { code });
+      throw new DomainError('E_TAXCODE_UNKNOWN', `tax code "${code}" is not defined`, { code });
     }
     return found;
   }

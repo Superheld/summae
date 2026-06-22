@@ -33,9 +33,9 @@ import { type IdGenerator, UuidV7IdGenerator } from '../substrate/id-generator.j
 import type { Uuid } from '../substrate/uuid.js';
 
 /**
- * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`). Bündelt
- * Ports + Services einer Instanz. Wächst mit den Slices (Tax/Partner/Asset/
- * Costing folgen); der Adapter ersetzt nur die Ports.
+ * Tenant: bookkeeping unit, top-most data boundary (glossary `tenant`). Bundles
+ * ports + services of one instance. Grows with the slices (Tax/Partner/Asset/
+ * Costing follow); the adapter replaces only the ports.
  */
 export class Tenant {
   constructor(
@@ -73,7 +73,7 @@ export class Tenant {
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     return Tenant.fromPorts(
-      idGen.next(), // Mandanten-ID = erste generierte ID (Determinismus)
+      idGen.next(), // tenant ID = first generated ID (determinism)
       name,
       baseCurrency,
       {
@@ -97,10 +97,10 @@ export class Tenant {
   }
 
   /**
-   * Mandant aus beliebigen Ports bauen (Service-Verdrahtung bleibt hier im Kern).
-   * `inMemory` nutzt das mit In-Memory-Ports; der Persistenz-Adapter
-   * (`@superheld/summae-knex`) reicht DB-gestützte Ports herein — derselbe
-   * `Tenant`, nur andere Ports.
+   * Build a tenant from arbitrary ports (service wiring stays here in the core).
+   * `inMemory` uses this with in-memory ports; the persistence adapter
+   * (`@superheld/summae-knex`) passes in DB-backed ports — the same
+   * `Tenant`, only different ports.
    */
   static fromPorts(
     tenantId: Uuid,

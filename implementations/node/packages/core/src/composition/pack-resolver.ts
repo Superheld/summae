@@ -1,20 +1,20 @@
 import { DomainError } from '../domain-error.js';
 
 /**
- * Pack-Resolver (`resolvePack`) — reine, seiteneffektfreie Auflösung eines
- * Manifests gegen einen Modulbestand zu einem `ResolvedPack`. Design:
- * `_bauflow-pack-gate01/design/module-manifest-resolver.md` (§ 3 Resolver-Semantik,
- * § 4 ResolvedPack == ruleModules-Bündel der TenantFactory).
+ * Pack resolver (`resolvePack`) — pure, side-effect-free resolution of a
+ * manifest against a module store into a `ResolvedPack`. Design:
+ * `_bauflow-pack-gate01/design/module-manifest-resolver.md` (§ 3 resolver semantics,
+ * § 4 ResolvedPack == TenantFactory's ruleModules bundle).
  *
- * Leitprinzip: keine neue Engine-Fähigkeit. Der Resolver erfindet nichts; er wählt,
- * prüft und faltet vorhandene Modul-Daten zu genau der Struktur, die `TenantFactory`
- * heute hand-gereicht konsumiert. Scheitert **laut** (genau ein `E_PACK_*`/`E_POLICY_*`)
- * statt still falsch zu rechnen.
+ * Guiding principle: no new engine capability. The resolver invents nothing; it selects,
+ * checks and folds existing module data into exactly the structure that `TenantFactory`
+ * today consumes hand-fed. Fails **loudly** (exactly one `E_PACK_*`/`E_POLICY_*`)
+ * instead of silently computing wrong.
  *
- * Fehlerklassen (§ 3.2): `E_PACK_UNRESOLVED_REF` = eine Referenz zeigt ins Nichts;
- * `E_PACK_INCOHERENT` = Referenzen existieren, aber das Bündel ist widersprüchlich;
- * `E_POLICY_INVALID` = Policy-Wert/-Kopie falsch. Referenz-Existenz (Schritt 2/3) hat
- * Vorrang vor Kohärenz/Integrität (4/5).
+ * Error classes (§ 3.2): `E_PACK_UNRESOLVED_REF` = a reference points to nothing;
+ * `E_PACK_INCOHERENT` = references exist, but the bundle is contradictory;
+ * `E_POLICY_INVALID` = policy value/copy wrong. Reference existence (step 2/3) takes
+ * precedence over coherence/integrity (4/5).
  */
 
 const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts'] as const;
@@ -81,70 +81,70 @@ function recordList(value: unknown): Record<string, unknown>[] {
 function refKey(kind: string, id: string): string {
   return `${kind}|${id}`;
 }
-/** Stabiler Vergleich nach Unicode-Codepoints (Determinismus-Sortierregel). */
+/** Stable comparison by Unicode codepoints (determinism sort rule). */
 function byCodepoint(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**
- * Löst ein Manifest gegen einen Modulbestand auf. Wirft `DomainError` mit dem
- * passenden `E_PACK_*`/`E_POLICY_*`-Code; liefert sonst einen vollständig integren
+ * Resolves a manifest against a module store. Throws `DomainError` with the
+ * matching `E_PACK_*`/`E_POLICY_*` code; otherwise returns a fully sound
  * `ResolvedPack`.
  */
 export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]): ResolvedPack {
-  // 1. Effektive Modulliste: overrides (remove/replace) in Array-Reihenfolge anwenden.
+  // 1. Effective module list: apply overrides (remove/replace) in array order.
   const effective: ModuleRef[] = manifest.modules.map((m) => ({ ...m }));
   for (const ov of manifest.overrides ?? []) {
     const idx = effective.findIndex((m) => m.kind === ov.ref.kind && m.id === ov.ref.id);
     if (idx < 0) {
-      // Override greift ins Leere (auch: zweites remove/replace auf dieselbe ref).
-      throw new DomainError('E_PACK_INCOHERENT', `Override greift nicht: ${refKey(ov.ref.kind, ov.ref.id)}`);
+      // Override targets nothing (also: a second remove/replace on the same ref).
+      throw new DomainError('E_PACK_INCOHERENT', `Override does not match: ${refKey(ov.ref.kind, ov.ref.id)}`);
     }
     if (ov.op === 'remove') {
       effective.splice(idx, 1);
     } else if (ov.op === 'replace') {
-      if (!ov.with) throw new DomainError('E_PACK_INCOHERENT', 'replace-Override ohne "with"');
+      if (!ov.with) throw new DomainError('E_PACK_INCOHERENT', 'replace override without "with"');
       effective[idx] = { ...ov.with };
     } else {
-      throw new DomainError('E_PACK_INCOHERENT', `Unbekannte Override-Operation: ${ov.op}`);
+      throw new DomainError('E_PACK_INCOHERENT', `Unknown override operation: ${ov.op}`);
     }
   }
 
-  // 2. Modul-Referenzen gegen den Bestand auflösen (version fehlt → höchste per Codepoint).
+  // 2. Resolve module references against the store (version missing → highest per codepoint).
   const resolved: PackModule[] = [];
   for (const ref of effective) {
     const candidates = moduleSource.filter(
       (m) => m.kind === ref.kind && m.id === ref.id && (ref.version === undefined || m.version === ref.version),
     );
     if (candidates.length === 0) {
-      throw new DomainError('E_PACK_UNRESOLVED_REF', `Modul nicht gefunden: ${refKey(ref.kind, ref.id)}`);
+      throw new DomainError('E_PACK_UNRESOLVED_REF', `Module not found: ${refKey(ref.kind, ref.id)}`);
     }
     candidates.sort((a, b) => byCodepoint(a.version, b.version));
     resolved.push(candidates[candidates.length - 1]!);
   }
 
-  // unbekanntes kind → INCOHERENT
+  // unknown kind → INCOHERENT
   for (const m of resolved) {
     if (!MODULE_KINDS.includes(m.kind as (typeof MODULE_KINDS)[number])) {
-      throw new DomainError('E_PACK_INCOHERENT', `Unbekanntes Modul-kind: ${m.kind}`);
+      throw new DomainError('E_PACK_INCOHERENT', `Unknown module kind: ${m.kind}`);
     }
   }
 
-  // 3. Abhängigkeits-DAG: fehlende dependsOn-Referenz → UNRESOLVED_REF (vor Zyklus-Check).
+  // 3. Dependency DAG: missing dependsOn reference → UNRESOLVED_REF (before cycle check).
   const present = new Set(resolved.map((m) => refKey(m.kind, m.id)));
   for (const m of resolved) {
     for (const dep of m.dependsOn ?? []) {
       if (!present.has(refKey(dep.kind, dep.id))) {
         throw new DomainError(
           'E_PACK_UNRESOLVED_REF',
-          `dependsOn zeigt auf nicht gelistetes Modul: ${refKey(dep.kind, dep.id)}`,
+          `dependsOn points to an unlisted module: ${refKey(dep.kind, dep.id)}`,
         );
       }
     }
   }
   const sorted = topoSort(resolved, present);
 
-  // 4. Falten (topologisch). Kollidierende Beiträge → INCOHERENT (kein stilles Überschreiben).
+  // 4. Fold (topological). Colliding contributions → INCOHERENT (no silent overwrite).
   const accounts: Record<string, unknown>[] = [];
   const accountNumbers = new Set<string>();
   const taxCodes: Record<string, unknown>[] = [];
@@ -161,7 +161,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         for (const account of recordList(m.data.accounts)) {
           const number = asString(account.number) ?? '';
           if (accountNumbers.has(number)) {
-            throw new DomainError('E_PACK_INCOHERENT', `Konto-Nummer doppelt: ${number}`);
+            throw new DomainError('E_PACK_INCOHERENT', `Duplicate account number: ${number}`);
           }
           accountNumbers.add(number);
           accounts.push(account);
@@ -171,7 +171,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         for (const taxCode of recordList(m.data.taxCodes)) {
           const code = asString(taxCode.code) ?? '';
           if (taxCodeCodes.has(code)) {
-            throw new DomainError('E_PACK_INCOHERENT', `taxCode.code doppelt: ${code}`);
+            throw new DomainError('E_PACK_INCOHERENT', `Duplicate taxCode.code: ${code}`);
           }
           taxCodeCodes.add(code);
           taxCodes.push(taxCode);
@@ -182,7 +182,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         if (mapping === null) break;
         const id = asString(mapping.id) ?? '';
         if (mappingIds.has(id)) {
-          throw new DomainError('E_PACK_INCOHERENT', `mapping.id doppelt: ${id}`);
+          throw new DomainError('E_PACK_INCOHERENT', `Duplicate mapping.id: ${id}`);
         }
         mappingIds.add(id);
         mappings.push(mapping);
@@ -196,36 +196,36 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'policy':
         if (packPolicyModule !== null) {
-          throw new DomainError('E_PACK_INCOHERENT', 'Mehr als ein policy-Modul');
+          throw new DomainError('E_PACK_INCOHERENT', 'More than one policy module');
         }
         packPolicyModule = isRecord(m.data.packPolicy) ? m.data.packPolicy : {};
         break;
     }
   }
 
-  // 5. Referentielle Integrität.
-  // I1: taxAccount (+ inputTaxAccount bei reverse_charge) existiert im Kontenrahmen.
+  // 5. Referential integrity.
+  // I1: taxAccount (+ inputTaxAccount on reverse_charge) exists in the chart of accounts.
   for (const taxCode of taxCodes) {
     for (const version of recordList(taxCode.versions)) {
       const taxAccount = asString(version.taxAccount);
       if (taxAccount !== null && !accountNumbers.has(taxAccount)) {
-        throw new DomainError('E_PACK_UNRESOLVED_REF', `taxAccount ohne Konto: ${taxAccount} (I1)`);
+        throw new DomainError('E_PACK_UNRESOLVED_REF', `taxAccount without account: ${taxAccount} (I1)`);
       }
       if (asString(version.mechanism) === 'reverse_charge') {
         const inputTaxAccount = asString(version.inputTaxAccount);
         if (inputTaxAccount !== null && !accountNumbers.has(inputTaxAccount)) {
-          throw new DomainError('E_PACK_UNRESOLVED_REF', `inputTaxAccount ohne Konto: ${inputTaxAccount} (I1)`);
+          throw new DomainError('E_PACK_UNRESOLVED_REF', `inputTaxAccount without account: ${inputTaxAccount} (I1)`);
         }
       }
     }
   }
-  // I3: alle fünf assetAccounts.*Account (+ perClass) existieren.
+  // I3: all five assetAccounts.*Account (+ perClass) exist.
   if (assetAccounts !== null) {
     const def = isRecord(assetAccounts.default) ? assetAccounts.default : {};
     for (const key of ASSET_ACCOUNT_KEYS) {
       const number = asString(def[key]);
       if (number === null || !accountNumbers.has(number)) {
-        throw new DomainError('E_PACK_UNRESOLVED_REF', `assetAccounts.${key} ohne Konto (I3)`);
+        throw new DomainError('E_PACK_UNRESOLVED_REF', `assetAccounts.${key} without account (I3)`);
       }
     }
     const perClass = isRecord(assetAccounts.perClass) ? assetAccounts.perClass : {};
@@ -234,27 +234,27 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       for (const value of Object.values(cls)) {
         const number = asString(value);
         if (number !== null && !accountNumbers.has(number)) {
-          throw new DomainError('E_PACK_UNRESOLVED_REF', `assetAccounts.perClass ohne Konto: ${number} (I3)`);
+          throw new DomainError('E_PACK_UNRESOLVED_REF', `assetAccounts.perClass without account: ${number} (I3)`);
         }
       }
     }
   }
-  // I2: jeder Mapping-Selektor trifft >= 1 Konto; feuert nur bei vollständig leerem Selektor.
+  // I2: every mapping selector hits >= 1 account; fires only on a fully empty selector.
   for (const mapping of mappings) {
     checkMappingSelectors(mapping, accountNumbers);
   }
-  // I4: jeder vom Manifest referenzierte taxCode wird von einem tax-Modul bereitgestellt.
+  // I4: every taxCode referenced by the manifest is provided by a tax module.
   for (const code of manifest.taxCodes ?? []) {
     if (typeof code === 'string' && !taxCodeCodes.has(code)) {
-      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest-taxCode ohne tax-Modul: ${code} (I4)`);
+      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest taxCode without tax module: ${code} (I4)`);
     }
   }
 
-  // 6. packPolicy: Manifest-Kopie == aufgelöstes policy-Modul + Wertebereiche.
+  // 6. packPolicy: manifest copy == resolved policy module + value ranges.
   const effectivePolicy = packPolicyModule ?? manifest.packPolicy;
   validatePolicyValues(effectivePolicy);
   if (packPolicyModule !== null && !samePolicy(manifest.packPolicy, packPolicyModule)) {
-    throw new DomainError('E_POLICY_INVALID', 'Manifest-packPolicy weicht vom policy-Modul ab');
+    throw new DomainError('E_POLICY_INVALID', 'Manifest packPolicy deviates from the policy module');
   }
 
   const synthCoaId = `${manifest.id}-coa`;
@@ -281,13 +281,13 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   };
 }
 
-/** Wandelt einen ResolvedPack in das `ruleModules`-Bündel, das `TenantFactory` konsumiert. */
+/** Converts a ResolvedPack into the `ruleModules` bundle that `TenantFactory` consumes. */
 export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unknown> {
-  // assetAccounts: Resolver-I3 validiert die `default`-Form ({default:{Konten}}); der AssetService
-  // liest die Konten flach → hier auf die flache Form auspacken (Pack-Pfad-Parität zum Inline-Pfad).
+  // assetAccounts: resolver I3 validates the `default` form ({default:{accounts}}); the AssetService
+  // reads the accounts flat → unpack to the flat form here (pack-path parity with the inline path).
   const aa = isRecord(pack.assetAccounts) ? pack.assetAccounts : null;
   const assetAccounts = aa !== null && isRecord(aa.default) ? aa.default : (aa ?? {});
-  // depreciation-Daten (gwgThresholds, usefulLife) liest der AssetService top-level → spreaden.
+  // depreciation data (gwgThresholds, usefulLife) the AssetService reads top-level → spread.
   const depreciation = isRecord(pack.depreciation) ? pack.depreciation : {};
   return {
     profiles: [pack.profile],
@@ -300,7 +300,7 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
   };
 }
 
-/** Kahn-artige topologische Sortierung; stabiler Tie-Break per (kind|id)-Codepoint. Zyklus → INCOHERENT. */
+/** Kahn-style topological sort; stable tie-break per (kind|id) codepoint. Cycle → INCOHERENT. */
 function topoSort(modules: PackModule[], present: Set<string>): PackModule[] {
   const out: PackModule[] = [];
   const done = new Set<string>();
@@ -312,7 +312,7 @@ function topoSort(modules: PackModule[], present: Set<string>): PackModule[] {
         .every((dep) => done.has(refKey(dep.kind, dep.id))),
     );
     if (ready.length === 0) {
-      throw new DomainError('E_PACK_INCOHERENT', 'Abhängigkeits-Zyklus');
+      throw new DomainError('E_PACK_INCOHERENT', 'Dependency cycle');
     }
     ready.sort((a, b) => byCodepoint(refKey(a.kind, a.id), refKey(b.kind, b.id)));
     const next = ready[0]!;
@@ -338,7 +338,7 @@ function checkMappingSelectors(mapping: Record<string, unknown>, accountNumbers:
         }
       }
       if (hits === 0) {
-        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping-Selektor trifft kein Konto (I2)');
+        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping selector hits no account (I2)');
       }
     }
     for (const child of recordList(position.children)) {
@@ -353,15 +353,15 @@ function checkMappingSelectors(mapping: Record<string, unknown>, accountNumbers:
 function validatePolicyValues(policy: Record<string, unknown>): void {
   const roundingMode = asString(policy.roundingMode);
   if (roundingMode === null || !ROUNDING_MODES.includes(roundingMode)) {
-    throw new DomainError('E_POLICY_INVALID', `Ungültiger roundingMode: ${String(policy.roundingMode)}`);
+    throw new DomainError('E_POLICY_INVALID', `Invalid roundingMode: ${String(policy.roundingMode)}`);
   }
   const granularity = asString(policy.taxRoundingGranularity);
   if (granularity === null || !TAX_GRANULARITIES.includes(granularity)) {
-    throw new DomainError('E_POLICY_INVALID', `Ungültige taxRoundingGranularity: ${String(policy.taxRoundingGranularity)}`);
+    throw new DomainError('E_POLICY_INVALID', `Invalid taxRoundingGranularity: ${String(policy.taxRoundingGranularity)}`);
   }
   const scale = policy.currencyScale;
   if (typeof scale !== 'number' || !Number.isInteger(scale) || scale < 0 || scale > 4) {
-    throw new DomainError('E_POLICY_INVALID', `currencyScale außerhalb 0–4: ${String(scale)}`);
+    throw new DomainError('E_POLICY_INVALID', `currencyScale outside 0–4: ${String(scale)}`);
   }
 }
 

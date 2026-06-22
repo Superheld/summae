@@ -11,10 +11,10 @@ use Summae\Core\Substrate\Timestamp;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Buchung — das wichtigste Aggregat (ledger-modell.md).
- * Entsteht vollständig und gültig (Validierung im Ledger-Service mit
- * spezifizierter Prüfreihenfolge); Lebenszyklus entered -> finalized;
- * danach nur Storno (neue Buchung mit Rückverweis, Generalumkehr).
+ * Posting — the most important aggregate (ledger-modell.md).
+ * Created complete and valid (validation in the ledger service with
+ * specified check order); lifecycle entered -> finalized;
+ * afterwards only reversal (new posting with back-reference, full reversal).
  */
 final class JournalEntry implements \JsonSerializable
 {
@@ -85,7 +85,7 @@ final class JournalEntry implements \JsonSerializable
     {
         if ($this->reversedBy !== null) {
             throw new DomainError('E_ENTRY_ALREADY_REVERSED', sprintf(
-                'Buchung %s ist bereits storniert (durch %s)',
+                'Posting %s is already reversed (by %s)',
                 $this->id->value,
                 $this->reversedBy->value,
             ), ['entryId' => $this->id->value, 'reversedBy' => $this->reversedBy->value]);
@@ -98,7 +98,7 @@ final class JournalEntry implements \JsonSerializable
     {
         if ($this->status !== EntryStatus::Entered) {
             throw new DomainError('E_ENTRY_FINALIZED', sprintf(
-                'Buchung %s ist festgeschrieben — Korrektur nicht möglich, nur Storno',
+                'Posting %s is finalized — correction not possible, only reversal',
                 $this->id->value,
             ), ['entryId' => $this->id->value]);
         }

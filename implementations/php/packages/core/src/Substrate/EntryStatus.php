@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * GoBD-Lebenszyklus: erfasst (korrigierbar mit Audit) -> festgeschrieben
- * (unveränderlich, danach nur Storno).
+ * GoBD lifecycle: entered (correctable with audit) -> finalized
+ * (immutable, afterwards only reversal).
  */
 enum EntryStatus: string
 {

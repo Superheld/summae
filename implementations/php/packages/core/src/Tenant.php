@@ -37,9 +37,9 @@ use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Policies\Expansion\Tax\TaxService;
 
 /**
- * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`).
- * Bündelt Ports + Services einer Instanz. Der Laravel-Adapter ersetzt
- * die In-Memory-Ports durch die Database-Ports — der Rest bleibt gleich.
+ * Tenant: bookkeeping unit, top-most data boundary (glossary `tenant`).
+ * Bundles ports + services of one instance. The Laravel adapter replaces
+ * the in-memory ports with the database ports — the rest stays the same.
  */
 final readonly class Tenant
 {

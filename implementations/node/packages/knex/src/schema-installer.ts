@@ -1,13 +1,13 @@
 import type { SyncDb } from './sync-db.js';
 
-/** Wie PHPs `SchemaInstaller::PREFIX`. */
+/** Like PHP's `SchemaInstaller::PREFIX`. */
 export const TABLE_PREFIX = 'summae_';
 
 /**
- * Erzeugt die 8 `summae_*`-Tabellen — exakt das Layout der PHP-Referenz
- * (`packages/laravel/src/Schema/SchemaInstaller.php`), damit beide Sprachen
- * auf demselben Datenbestand arbeiten können. Journal append-only; Salden sind
- * Projektionen — die Datenbank rechnet nie, sie hält JSON-Dokumente am Aggregat.
+ * Creates the 8 `summae_*` tables — exactly the layout of the PHP reference
+ * (`packages/laravel/src/Schema/SchemaInstaller.php`), so that both languages
+ * can work on the same data set. Journal append-only; balances are
+ * projections — the database never computes, it holds JSON documents on the aggregate.
  */
 export function installSchema(db: SyncDb): void {
   db.schema((schema) =>

@@ -1,41 +1,41 @@
-# CLAUDE.md — PHP-Implementierung
+# CLAUDE.md — PHP implementation
 
-Sprachspezifische Regeln und Befehle für `implementations/php/`. Projektweite Regeln
-(Eiserne Invarianten, Qualitätsrichtlinie, `testsuite/` read-only, Git) stehen im
-Root-`CLAUDE.md`.
+Language-specific rules and commands for `implementations/php/`. Project-wide rules
+(iron invariants, quality policy, `testsuite/` read-only, Git) are in the
+root `CLAUDE.md`.
 
-## Befehle
+## Commands
 
-Alles läuft in Docker — **lokal ist kein PHP nötig.** Make-Targets (im Repo-Root)
-sind die Orchestrierung:
+Everything runs in Docker — **no local PHP needed.** Make targets (in the repo root)
+are the orchestration:
 
 ```bash
-make build      # PHP-8.3-Image bauen (einmalig)
+make build      # build PHP 8.3 image (once)
 make install    # composer install
-make check      # PHPStan (level max) + PHPUnit — exakt das, was CI prüft
-make fixtures   # Konformitätssuite gegen den In-Memory-Kern
-make test       # nur PHPUnit
-make stan       # nur PHPStan level max
-make sync       # testsuite/ aus der Wissensbasis spiegeln (Einbahnstraße)
-make shell      # Shell im PHP-Container
+make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
+make fixtures   # conformance suite against the in-memory core
+make test       # PHPUnit only
+make stan       # PHPStan level max only
+make sync       # mirror testsuite/ from the knowledge base (one-way)
+make shell      # shell in the PHP container
 ```
 
-Hinter `make` steht `docker compose run --rm php …`. Direktere Kontrolle
-(Working-Dir `/app/implementations/php`):
+Behind `make` sits `docker compose run --rm php …`. More direct control
+(working dir `/app/implementations/php`):
 
 ```bash
-# Einzelner Test / eine Suite (Suites: core, laravel, cli, runner)
+# Single test / one suite (suites: core, laravel, cli, runner)
 docker compose run --rm php vendor/bin/phpunit --testsuite core
 docker compose run --rm php vendor/bin/phpunit --filter MoneyTest
 
-# Konformitäts-Runner
+# Conformance runner
 docker compose run --rm php php runner/bin/run-fixtures.php \
-  --strict --subject=core|database --filter=<name> --expected=<datei>
+  --strict --subject=core|database --filter=<name> --expected=<file>
 ```
 
-`--strict` = alle Fixtures grün **und** Suite-Doppellauf byte-identisch.
-`runner/expected-green.txt` = Regressionsschutz (ohne `--strict` darf nichts dort
-Gelistetes rot werden). Das Database-Subject braucht Postgres:
+`--strict` = all fixtures green **and** suite double run byte-identical.
+`runner/expected-green.txt` = regression guard (without `--strict` nothing listed
+there may go red). The database subject needs Postgres:
 
 ```bash
 docker compose --profile db up -d postgres
@@ -43,34 +43,34 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
   php php runner/bin/run-fixtures.php --strict --subject=database
 ```
 
-## Konventionen
+## Conventions
 
-- PHP ≥ 8.3, PSR-12, `declare(strict_types=1)` überall.
-- PHPStan **level max** ist nicht verhandelbar (kein `@phpstan-ignore` ohne
-  begründenden Kommentar).
-- PHP-Namespace `Summae\…` (z. B. `Summae\Core\Ledger`), unabhängig vom
-  Composer-Vendor `superheld/`.
-- **Pack-Komposition:** Resolver `packages/core/src/Composition/PackResolver.php`; Loader (liest die
-  ausgelieferte `pack-library/`) `runner/src/PackLibrary.php`. Module/Manifeste **referenzieren**,
-  nicht inline duplizieren.
+- PHP ≥ 8.3, PSR-12, `declare(strict_types=1)` everywhere.
+- PHPStan **level max** is non-negotiable (no `@phpstan-ignore` without a
+  justifying comment).
+- PHP namespace `Summae\…` (e.g. `Summae\Core\Ledger`), independent of the
+  Composer vendor `superheld/`.
+- **Pack composition:** resolver `packages/core/src/Composition/PackResolver.php`; loader (reads the
+  shipped `pack-library/`) `runner/src/PackLibrary.php`. **Reference** modules/manifests,
+  do not duplicate them inline.
 
-## Definition of Green (hier)
+## Definition of Green (here)
 
-PHPStan level max ohne Fehler · `make test` grün (**PHPUnit inkl. `ConformanceTest`**
-über die volle Suite **+ Coverage-Gate** Kern-Zeilen ≥ 88 % via `coverage-gate.php`) ·
-Konformitätssuite `--strict` gegen **beide** Subjects (`core` und `database`) inkl.
-byte-identischem Doppellauf.
+PHPStan level max without errors · `make test` green (**PHPUnit incl. `ConformanceTest`**
+over the full suite **+ coverage gate** core lines ≥ 88 % via `coverage-gate.php`) ·
+conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
+byte-identical double run.
 
-## Tiefer: `docs/`
+## Deeper: `docs/`
 
-- `docs/architektur.md` — drei Packages, framework-freier Kern, Hexagonal/Ports,
-  fachliche Schichten, `TenantOperations` als Einstiegspunkt, Datenfluss einer Buchung.
-- `docs/entwicklung.md` — Setup, was CI prüft, Konventionen, Branch-/Commit-Workflow,
-  „eine neue Operation/Projektion hinzufügen", Spec-Retrofit, Determinismus-Hooks.
-- `docs/konformitaet.md` — der Kompatibilitätsvertrag, wie der Runner arbeitet,
-  die häufigsten Cross-Impl-Fallen, der SPEC-FINDINGS-Eskalationsweg.
-- `SPEC-FINDINGS.md` — dokumentierte Widersprüche zwischen Spec/Fixture/Modell.
+- `docs/architektur.md` — three packages, framework-free core, hexagonal/ports,
+  domain layers, `TenantOperations` as the entry point, data flow of a posting.
+- `docs/entwicklung.md` — setup, what CI checks, conventions, branch/commit workflow,
+  „adding a new operation/projection", spec retrofit, determinism hooks.
+- `docs/konformitaet.md` — the compatibility contract, how the runner works,
+  the most common cross-impl pitfalls, the SPEC-FINDINGS escalation path.
+- `SPEC-FINDINGS.md` — documented contradictions between spec/fixture/model.
 
-Die **sprachneutralen Bau-Prinzipien** (Pack = primär Daten/Stecker, 1:1-Spiegelung, test-driven,
-framework-frei) stehen im Root-`CLAUDE.md`; Patterns-Liste in `docs/architektur.md`, das Rezept
-„neue Operation = Service + `case` + Fixture" in `docs/entwicklung.md` — hier nur die PHP-Idiome.
+The **language-neutral build principles** (pack = primarily data/plug, 1:1 mirroring, test-driven,
+framework-free) are in the root `CLAUDE.md`; patterns list in `docs/architektur.md`, the recipe
+„new operation = service + `case` + fixture" in `docs/entwicklung.md` — here only the PHP idioms.

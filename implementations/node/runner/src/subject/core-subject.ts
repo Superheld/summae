@@ -28,7 +28,7 @@ import {
 import { type Subject, SubjectError } from '../subject.js';
 import { loadPackLibrary, type PackLibrary } from '../pack-library.js';
 
-// Feste Uhr: recordedAt/at-Zeitstempel sind über beide Suite-Läufe identisch.
+// Fixed clock: recordedAt/at timestamps are identical across both suite runs.
 const FIXED_NOW = '2026-06-07T12:00:00+02:00';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -42,14 +42,14 @@ function asRecordList(value: unknown): Record<string, unknown>[] {
 }
 
 /**
- * Subject über @superheld/summae-core mit In-Memory-Ports. Baut den Mandanten aus dem
- * setup-Block und routet execute/project über TenantOperations; DomainError
- * wird in SubjectError (Katalog-Code) übersetzt.
+ * Subject over @superheld/summae-core with in-memory ports. Builds the tenant from the
+ * setup block and routes execute/project via TenantOperations; DomainError
+ * is translated into SubjectError (catalog code).
  */
 /**
- * Adapter-Hook: baut den Mandanten aus dem setup-Block. Default = In-Memory;
- * der Database-Subject reicht einen Builder herein, der DB-gestützte Ports
- * verdrahtet (Signatur = `Tenant.inMemory`).
+ * Adapter hook: builds the tenant from the setup block. Default = in-memory;
+ * the database subject passes in a builder that wires up DB-backed ports
+ * (signature = `Tenant.inMemory`).
  */
 export type TenantBuilder = (
   name: string,
@@ -80,21 +80,21 @@ export class CoreSubject implements Subject {
       taxProfile,
       mappings,
     ) => Tenant.inMemory(name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings),
-    // Ausgelieferte Pack-Bibliothek als zusätzliche Modul-/Manifest-Quelle.
-    // Inline-Setup hat Vorrang; fehlt es, greift der Loader (createTenant(pack:"default")).
+    // Shipped pack library as an additional module/manifest source.
+    // Inline setup takes precedence; if absent, the loader applies (createTenant(pack:"default")).
     private readonly library: PackLibrary = loadPackLibrary(),
   ) {}
 
   setup(setup: Record<string, unknown>): void {
-    // Manche Fixtures nutzen den Singular-Schlüssel `ruleModule`.
+    // Some fixtures use the singular key `ruleModule`.
     const ruleModules: Record<string, unknown> = {
       ...(isRecord(setup.ruleModules) ? setup.ruleModules : {}),
       ...(isRecord(setup.ruleModule) ? setup.ruleModule : {}),
     };
     this.ruleModules = ruleModules;
 
-    // Pack-Quelle (Resolver): Module unter setup.modules | setup.moduleSource | setup.pack.modules;
-    // Manifeste unter setup.manifests + setup.pack.manifest (Singular).
+    // Pack source (resolver): modules under setup.modules | setup.moduleSource | setup.pack.modules;
+    // manifests under setup.manifests + setup.pack.manifest (singular).
     const pack = isRecord(setup.pack) ? setup.pack : null;
     const moduleSource = setup.moduleSource;
     const moduleList = asRecordList(setup.modules).length
@@ -106,7 +106,7 @@ export class CoreSubject implements Subject {
           : pack
             ? asRecordList(pack.modules)
             : [];
-    // Inline-Module/-Manifeste zuerst (Vorrang in findManifest), dann die Bibliothek.
+    // Inline modules/manifests first (precedence in findManifest), then the library.
     this.packModules = [
       ...(moduleList as unknown as PackModule[]),
       ...this.library.modules,
@@ -119,7 +119,7 @@ export class CoreSubject implements Subject {
 
     const tenantData = isRecord(setup.tenant) ? setup.tenant : null;
     if (tenantData === null) {
-      // Kein Setup-Mandant (createTenant-Fixtures): nur Regelmodule halten.
+      // No setup tenant (createTenant fixtures): only keep rule modules.
       this.tenant = null;
       return;
     }
@@ -145,7 +145,7 @@ export class CoreSubject implements Subject {
         ? DimensionRegistry.fromData(dimensionTypes, dimensionValues, dimensionRules)
         : DimensionRegistry.empty();
 
-    // taxCodes: top-level oder als Regelmodul; taxProfile: top-level oder am Tenant.
+    // taxCodes: top-level or as a rule module; taxProfile: top-level or on the tenant.
     const taxCodeData = asRecordList(
       Array.isArray(setup.taxCodes) ? setup.taxCodes : ruleModules.taxCodes,
     );
@@ -213,8 +213,8 @@ export class CoreSubject implements Subject {
 
   private createTenant(input: Record<string, unknown>): Record<string, unknown> {
     const clock = FixedClock.at(FIXED_NOW);
-    // Pack-Pfad: Manifest auflösen -> ruleModules -> unveränderte Factory; im Ergebnis
-    // tauscht `profile` gegen `pack` (Mandant pinnt das Manifest, api.additions A.1).
+    // Pack path: resolve manifest -> ruleModules -> unchanged factory; in the result
+    // `profile` is swapped for `pack` (tenant pins the manifest, api.additions A.1).
     if (typeof input.pack === 'string' || isRecord(input.pack)) {
       const manifest = this.findManifest({ manifest: input.pack });
       const resolved = resolvePack(manifest, this.packModules);
@@ -250,7 +250,7 @@ export class CoreSubject implements Subject {
     };
   }
 
-  /** Manifest-Referenz auflösen: `manifest` als String-id (+ `version`) oder als `{id, version}`. */
+  /** Resolve manifest reference: `manifest` as string id (+ `version`) or as `{id, version}`. */
   private findManifest(ref: Record<string, unknown>): PackManifest {
     const raw = ref.manifest;
     const id = isRecord(raw) ? asString(raw.id) : asString(raw);
@@ -259,18 +259,18 @@ export class CoreSubject implements Subject {
       (m) => m.id === id && (version === null || m.version === version),
     );
     if (found === undefined) {
-      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest nicht gefunden: ${String(id)}`);
+      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest not found: ${String(id)}`);
     }
     return found;
   }
 
-  /** Routing: explizite tenant-Referenz, sonst Setup-Mandant, sonst zuletzt angelegter. */
+  /** Routing: explicit tenant reference, otherwise setup tenant, otherwise last created. */
   private resolveTenant(input: Record<string, unknown>): Tenant {
     const ref = input.tenant;
     if (typeof ref === 'string' && this.tenants.has(ref)) return this.tenants.get(ref)!;
     if (this.tenant !== null) return this.tenant;
     const last = [...this.tenants.values()].at(-1);
-    if (last === undefined) throw new SubjectError('E_NOT_IMPLEMENTED', 'Kein Mandant vorhanden');
+    if (last === undefined) throw new SubjectError('E_NOT_IMPLEMENTED', 'No tenant present');
     return last;
   }
 
@@ -289,7 +289,7 @@ export class CoreSubject implements Subject {
     const name = asString(data.name) ?? '';
     const type = data.type;
     if (!isAccountType(type)) {
-      throw new SubjectError('E_COA_FORMAT_INVALID', `Ungültiger Kontotyp im Setup: ${String(type)}`);
+      throw new SubjectError('E_COA_FORMAT_INVALID', `Invalid account type in setup: ${String(type)}`);
     }
     const subtype = asString(data.subtype);
     const status = data.status === 'locked' ? 'locked' : 'active';

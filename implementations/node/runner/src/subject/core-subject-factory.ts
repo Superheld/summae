@@ -1,7 +1,7 @@
 import type { Subject, SubjectFactory } from '../subject.js';
 import { CoreSubject } from './core-subject.js';
 
-/** Liefert je Lauf ein frisches In-Memory-Subject (Determinismus-Doppellauf). */
+/** Provides a fresh in-memory subject per run (determinism double run). */
 export class CoreSubjectFactory implements SubjectFactory {
   create(): Subject {
     return new CoreSubject();

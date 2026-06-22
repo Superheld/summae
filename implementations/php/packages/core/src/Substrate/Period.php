@@ -7,8 +7,8 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Periode — Entity innerhalb des FiscalYear-Aggregats
- * (lückenlos, überlappungsfrei; Statuswechsel nur über das Aggregat).
+ * Period — entity within the FiscalYear aggregate
+ * (gapless, non-overlapping; status change only via the aggregate).
  */
 final class Period
 {
@@ -35,13 +35,13 @@ final class Period
         return $date->isBetween($this->start, $this->end);
     }
 
-    /** Nur über FiscalYear aufrufen (Reihenfolgeprüfung dort). */
+    /** Call only via FiscalYear (order check there). */
     public function close(): void
     {
         $this->status = PeriodStatus::Closed;
     }
 
-    /** Nur über FiscalYear aufrufen (Jahresstatusprüfung dort). */
+    /** Call only via FiscalYear (year status check there). */
     public function reopen(): void
     {
         $this->status = PeriodStatus::Open;

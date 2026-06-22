@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Zeitquelle des Kerns. Bewusst eigenes Interface statt psr/clock:
- * der Kern hat genau eine Abhängigkeit (brick/math, RUNTIME-LEITFADEN).
- * Signatur ist PSR-20-kompatibel, ein Adapter ist trivial.
+ * Time source of the core. Deliberately a dedicated interface instead of psr/clock:
+ * the core has exactly one dependency (brick/math, RUNTIME-LEITFADEN).
+ * The signature is PSR-20-compatible, an adapter is trivial.
  */
 interface Clock
 {

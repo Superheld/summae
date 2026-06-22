@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Assets;
 
 /**
- * GWG-Weiche (SF-05): drei Pfade als Kern-Mechanik,
- * die Grenzen sind Regelmodul-Daten mit Gültigkeit.
+ * Low-value-asset switch (SF-05): three routes as core mechanics,
+ * the thresholds are rule-module data with validity.
  */
 enum AssetRoute: string
 {

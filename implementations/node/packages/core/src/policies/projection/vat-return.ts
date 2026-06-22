@@ -26,9 +26,9 @@ interface Share {
 }
 
 /**
- * USt-VA-Kennzahlen über taxTags (SF-09). Soll: Buchungs-/Leistungsdatum; Ist:
- * folgt OP-Ausgleichen (anteilig half-up, Schlussrest exakt). Bemessungsgrund-
- * lagen je Kennzahl auf volle Euro abgerundet, Steuer centgenau (api.md v0.3).
+ * VAT return reporting keys via taxTags (SF-09). Accrual: posting/supply date; cash:
+ * follows OP settlements (proportional half-up, final remainder exact). Tax bases
+ * per reporting key rounded down to full euros, tax to the cent (api.md v0.3).
  */
 export class VatReturnProjection {
   constructor(
@@ -79,7 +79,7 @@ export class VatReturnProjection {
       for (const entry of this.journal.all()) {
         let taxDate: CalendarDate;
         if (entry.reverses !== null) {
-          // F-011: § 17-Korrektur zählt nach eigenem Buchungsdatum.
+          // F-011: § 17 correction counts by its own posting date.
           taxDate = entry.entryDate;
         } else {
           const voucher = this.vouchers.byId(entry.voucherId);
@@ -99,7 +99,7 @@ export class VatReturnProjection {
 
     for (const key of sortedKeys) {
       const amounts = keys.get(key)!;
-      // Amtliche VA-Konvention: Basis auf volle Euro abrunden.
+      // Official VAT-return convention: round base down to full euros.
       const flooredBase = Money.fromCalculation(
         new Big(amounts.base.amountAsString()).round(0, Big.roundDown),
         this.baseCurrency,

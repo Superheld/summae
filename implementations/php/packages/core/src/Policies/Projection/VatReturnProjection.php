@@ -21,16 +21,16 @@ use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 
 /**
- * USt-VA-Kennzahlen über taxTags (SF-09).
+ * VAT return reporting keys via taxTags (SF-09).
  *
- * - Soll-Versteuerung: Buchungsdatum zählt.
- * - Ist-Versteuerung: die VA folgt den OP-Ausgleichen (settledAt);
- *   Teilzahlung anteilig (half-up), Schlusszahlung erhält den Rest —
- *   Σ Anteile = Gesamtsteuer, exakt (determinismus.md v0.3).
- *   Getaggte Buchungen ohne eigenen OP (Barumsatz, Wertabgaben,
- *   Anzahlungen, Differenzen) zählen direkt mit dem Buchungsdatum.
- * - Darstellung: Bemessungsgrundlagen je Kennzahl auf volle Euro
- *   ABGERUNDET (Kennzahlen-Summe), Steuer centgenau (api.md v0.3).
+ * - Accrual taxation: the posting date counts.
+ * - Cash taxation: the VAT return follows the open-item settlements (settledAt);
+ *   partial payment proportional (half-up), final payment gets the remainder —
+ *   Σ shares = total tax, exact (determinismus.md v0.3).
+ *   Tagged postings without their own open item (cash sale, deemed supplies,
+ *   prepayments, differences) count directly by the posting date.
+ * - Presentation: tax bases per reporting key rounded DOWN to full euros
+ *   (reporting-key sum), tax to the cent (api.md v0.3).
  */
 final readonly class VatReturnProjection
 {
@@ -69,7 +69,7 @@ final readonly class VatReturnProjection
         };
 
         if ($this->profile->isCashBasis()) {
-            // Ausgleiche: anteilig je Zahlung, Schlussrest exakt.
+            // Settlements: proportional per payment, final remainder exact.
             foreach ($this->openItems->all() as $item) {
                 $origin = $this->journal->byId($item->originEntryId);
                 if ($origin === null || ($asOf !== null && $origin->entryDate->isAfter($asOf))) {
@@ -92,7 +92,7 @@ final readonly class VatReturnProjection
                 }
             }
 
-            // Getaggte Buchungen ohne eigenen OP zählen direkt.
+            // Tagged postings without their own open item count directly.
             foreach ($this->journal->all() as $entry) {
                 if (!$this->inQuarter($entry->entryDate, $year, $quarter)) {
                     continue;
@@ -112,12 +112,12 @@ final readonly class VatReturnProjection
             }
         } else {
             foreach ($this->journal->all() as $entry) {
-                // v0.4: Soll-Zuordnung folgt dem Leistungsdatum (Fallback Belegdatum).
-                // F-011: Ausnahme Generalumkehr/§17-Korrektur. Eine reversierende
-                // Buchung erbt den Beleg des Originals (reverse() kopiert voucherId)
-                // und damit dessen Leistungsdatum — gehört aber in den VA-Zeitraum,
-                // in dem die Korrektur gebucht wird (§ 17 Abs. 1 S. 7 UStG), nicht
-                // rückwirkend in die Original-Periode. Daher: nach eigenem Buchungsdatum.
+                // v0.4: accrual assignment follows the supply date (fallback voucher date).
+                // F-011: exception reversal/§17 correction. A reversing
+                // posting inherits the original's voucher (reverse() copies voucherId)
+                // and thus its supply date — but belongs in the VAT-return period
+                // in which the correction is posted (§ 17 Abs. 1 S. 7 UStG), not
+                // retroactively in the original period. Hence: by its own posting date.
                 if ($entry->reverses !== null) {
                     $taxDate = $entry->entryDate;
                 } else {
@@ -144,10 +144,10 @@ final readonly class VatReturnProjection
         $result = [];
         $payload = $zero;
 
-        // Berührte Kennzahlen erscheinen auch bei 0.00 (Neutralisierung
-        // sichtbar, § 17-Fälle); nie berührte fehlen.
+        // Touched reporting keys appear even at 0.00 (neutralization
+        // visible, § 17 cases); never-touched ones are absent.
         foreach ($keys as $key => $amounts) {
-            // Amtliche VA-Konvention: Basis auf volle Euro abrunden (Kennzahlen-Summe).
+            // Official VAT-return convention: round base down to full euros (reporting-key sum).
             $flooredBase = Money::fromCalculation(
                 BigDecimal::of($amounts['base']->amountAsString())->toScale(0, RoundingMode::DOWN),
                 $this->baseCurrency,
@@ -171,7 +171,7 @@ final readonly class VatReturnProjection
     }
 
     /**
-     * Kennzahl -> Richtung aus dem Regelmodul (Steuerkonto-Subtyp).
+     * Reporting key -> direction from the rule module (tax account subtype).
      *
      * @return array<string, string> reportingKey -> 'output'|'input'
      */
@@ -189,7 +189,7 @@ final readonly class VatReturnProjection
             }
 
             if ($version->baseReportingKey !== null) {
-                // Basis-Kennzahl folgt der Leistungsrichtung der Hauptposition.
+                // Base reporting key follows the supply direction of the main position.
                 $directions[$version->baseReportingKey] = $version->mechanism === 'reverse_charge'
                     ? 'input'
                     : $this->accountDirection($version->taxAccount);
@@ -202,7 +202,7 @@ final readonly class VatReturnProjection
     private function accountDirection(string $accountNumber): string
     {
         if ($accountNumber === '') {
-            return 'output'; // steuerfreie Kennzahlen (igL) ohne Steuerkonto
+            return 'output'; // tax-exempt reporting keys (igL) without a tax account
         }
 
         $account = $this->accounts->byNumber(AccountNumber::of($accountNumber));
@@ -211,12 +211,12 @@ final readonly class VatReturnProjection
     }
 
     /**
-     * Beiträge einer Buchung je Kennzahl. Steuerzeilen liefern die Steuer
-     * (vorzeichenrichtig nach Seite) und die Bemessungsgrundlage aus dem
-     * taxTag.baseMoney (signiert — Korrekturen tragen negative Basis,
-     * z. B. Skonto/Forderungsausfall § 17). Nur wenn KEINE Steuerzeile
-     * eine Basis liefert (z. B. Basis-Kennzahl bei Reverse Charge),
-     * kommt die Basis aus den getaggten Nicht-Steuer-Zeilen.
+     * Contributions of a posting per reporting key. Tax lines provide the tax
+     * (sign-correct by side) and the tax base from the
+     * taxTag.baseMoney (signed — corrections carry a negative base,
+     * e.g. cash discount/bad debt § 17). Only when NO tax line
+     * provides a base (e.g. base reporting key under reverse charge),
+     * the base comes from the tagged non-tax lines.
      *
      * @param array<string, string> $directions
      *
@@ -256,7 +256,7 @@ final readonly class VatReturnProjection
 
                 $baseMoney = $this->tagBaseMoney($tag);
                 if ($baseMoney !== null) {
-                    // Generalumkehr: negierte Steuerzeile negiert auch die Basis.
+                    // Reversal: a negated tax line also negates the base.
                     if ($line->money->isNegative()) {
                         $baseMoney = $baseMoney->negate();
                     }
@@ -298,8 +298,8 @@ final readonly class VatReturnProjection
     }
 
     /**
-     * Verteilt die Kennzahl-Beträge eines OP-Ursprungs auf seine
-     * Ausgleiche: anteilig half-up, Schlusszahlung erhält den Rest.
+     * Distributes the reporting-key amounts of an open-item origin across its
+     * settlements: proportional half-up, the final payment gets the remainder.
      *
      * @param array<string, array{base: Money, tax: Money}> $contributions
      *

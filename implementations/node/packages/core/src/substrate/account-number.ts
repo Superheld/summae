@@ -1,20 +1,20 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Kontonummer als String — führende Nullen signifikant (datenformat.md).
- * Vergleich nach Unicode-Codepoints, keine Locale-Collation: "10" < "9",
- * "0420" < "1200" < "8400" (determinismus.md §3). JS-`<` auf Strings
- * vergleicht UTF-16-Code-Units = Codepoints im BMP.
+ * Account number as a string — leading zeros significant (datenformat.md).
+ * Comparison by Unicode code points, no locale collation: "10" < "9",
+ * "0420" < "1200" < "8400" (determinismus.md §3). JS `<` on strings
+ * compares UTF-16 code units = code points in the BMP.
  */
 export class AccountNumber {
   private constructor(readonly value: string) {}
 
   static of(value: string): AccountNumber {
     if (value === '' || value.length > 64) {
-      throw new InvalidValue('Kontonummer muss 1-64 Zeichen lang sein');
+      throw new InvalidValue('Account number must be 1-64 characters long');
     }
     if (!/^[^\s\p{C}]+$/u.test(value)) {
-      throw new InvalidValue(`Kontonummer enthält Whitespace oder Steuerzeichen: "${value}"`);
+      throw new InvalidValue(`Account number contains whitespace or control characters: "${value}"`);
     }
     return new AccountNumber(value);
   }

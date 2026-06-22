@@ -61,7 +61,7 @@ final class TrialBalanceTest extends TestCase
         $this->voucherId = $this->tenant->ids->next();
         $this->tenant->vouchers->add(new Voucher($this->voucherId, 'V-1', CalendarDate::of('2025-06-01')));
 
-        // 2025: Erlös 1000; 2026: Aufwand 300 (two-year-carryover-Szenario)
+        // 2025: revenue 1000; 2026: expense 300 (two-year-carryover scenario)
         $this->post('2025-06-01', [['1200', 'debit', '1000.00'], ['8400', 'credit', '1000.00']]);
         $this->post('2026-02-01', [['4930', 'debit', '300.00'], ['1200', 'credit', '300.00']]);
     }
@@ -90,7 +90,7 @@ final class TrialBalanceTest extends TestCase
     {
         $rows = $this->projection()->compute(['fiscalYear' => 2026, 'throughPeriod' => 1])['rows'];
 
-        // 1200: Vortrag 1000, Verkehrszahlen nur 2026; 8400 fehlt (Erfolgskonto ohne Bewegung 2026)
+        // 1200: opening 1000, turnover only 2026; 8400 absent (income account with no movement 2026)
         self::assertSame([
             ['account' => '1200', 'openingBalance' => '1000.00', 'debitTotal' => '0.00', 'creditTotal' => '300.00', 'balance' => '700.00'],
             ['account' => '4930', 'openingBalance' => '0.00', 'debitTotal' => '300.00', 'creditTotal' => '0.00', 'balance' => '300.00'],

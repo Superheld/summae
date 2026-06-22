@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection\Mapping;
 
 /**
- * Gliederungs-Mapping (datenformat.md v0.2): ordnet Konten Positionen zu —
- * gleiche Struktur für Bilanz, GuV, EÜR-Zeilen und VA-Kennzahlen.
- * Selektoren: Nummernbereiche (Codepoint-Vergleich) und Einzelkonten.
+ * Structure mapping (datenformat.md v0.2): assigns accounts to positions —
+ * same structure for balance sheet, income statement, cash-basis lines and VAT-return reporting keys.
+ * Selectors: number ranges (codepoint comparison) and individual accounts.
  */
 final readonly class Mapping
 {
     /**
-     * Blattpositionen, flach (Hierarchie über parentKeys rekonstruierbar).
+     * Leaf positions, flat (hierarchy reconstructable via parentKeys).
      *
      * @param list<array{key: string, label: string, side: ?string, ranges: list<array{from: string, to: string}>, numbers: list<string>, includeNonCash: bool, includesNetIncome: bool, parents: list<string>}> $leaves
      */
@@ -25,7 +25,7 @@ final readonly class Mapping
     }
 
     /**
-     * @param array<mixed> $data Rohdaten (Regelmodul)
+     * @param array<mixed> $data raw data (rule module)
      */
     public static function fromData(array $data): self
     {
@@ -57,7 +57,7 @@ final readonly class Mapping
             }
 
             $key = is_string($position['key'] ?? null) ? $position['key'] : '';
-            // side wird am Wurzelknoten gesetzt und an die Blätter vererbt (v0.5/F-007).
+            // side is set at the root node and inherited by the leaves (v0.5/F-007).
             $nodeSide = is_string($position['side'] ?? null) ? $position['side'] : $side;
             $children = is_array($position['children'] ?? null) ? array_values($position['children']) : [];
 

@@ -7,21 +7,21 @@ namespace Summae\Cli;
 use Summae\Core\Composition\PackResolver;
 
 /**
- * Lädt die ausgelieferte Pack-Bibliothek für die CLI und löst ein Pack zur
- * `rules`-Struktur auf, die Workspace/init konsumieren. So wählt die CLI ein
- * Pack, statt Regeln inline in `summae.json` zu pflegen. Pendant zu
+ * Loads the shipped pack library for the CLI and resolves a pack to the
+ * `rules` structure that workspace/init consume. This way the CLI selects a
+ * pack instead of maintaining rules inline in `summae.json`. Counterpart to
  * Node `packages/cli/src/pack-library.ts`.
  */
 final class PackLibrary
 {
-    /** Default-Heimat der Bibliothek (Repo-Wurzel; via --pack-library übersteuerbar). */
+    /** Default home of the library (repo root; overridable via --pack-library). */
     public static function defaultDir(): string
     {
         return dirname(__DIR__, 5) . '/pack-library';
     }
 
     /**
-     * Pack `<id>` auflösen → CLI-`rules`-Struktur (ruleModules + Konten + taxCodes + taxProfile).
+     * Resolve pack `<id>` → CLI `rules` structure (ruleModules + accounts + taxCodes + taxProfile).
      *
      * @return array<string, mixed>
      */
@@ -37,7 +37,7 @@ final class PackLibrary
             }
         }
         if ($manifest === null) {
-            throw new \RuntimeException(sprintf('Pack "%s" nicht in der Bibliothek gefunden (%s)', $packId, $libDir));
+            throw new \RuntimeException(sprintf('Pack "%s" not found in the library (%s)', $packId, $libDir));
         }
 
         $rm = PackResolver::ruleModulesFromResolved(PackResolver::resolve($manifest, $modules));
@@ -56,7 +56,7 @@ final class PackLibrary
     }
 
     /**
-     * Bibliothek laden, inhaltsbasiert klassifiziert (Manifest=hat `modules[]`, Modul=hat `kind`).
+     * Load library, classified by content (manifest=has `modules[]`, module=has `kind`).
      *
      * @return array{0: list<array<mixed>>, 1: list<array<mixed>>}
      */

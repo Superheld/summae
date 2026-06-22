@@ -31,7 +31,7 @@ final class ComparatorTest extends TestCase
 
     public function testScalarMismatchIsStrict(): void
     {
-        // "1" (String) ist nicht 1 (int) — Beträge sind Strings, exakt.
+        // "1" (string) is not 1 (int) — amounts are strings, exact.
         $diffs = Comparator::diff(['n' => '1'], ['n' => 1], new PlaceholderBag());
 
         self::assertCount(1, $diffs);
@@ -60,11 +60,11 @@ final class ComparatorTest extends TestCase
     {
         $bag = new PlaceholderBag();
 
-        // Erstes Auftreten: bindet an Ist-Wert.
+        // First occurrence: binds to the actual value.
         self::assertSame([], Comparator::diff(['id' => '$E1'], ['id' => 'uuid-a'], $bag));
-        // Gleicher Wert: ok.
+        // Same value: ok.
         self::assertSame([], Comparator::diff(['entryId' => '$E1'], ['entryId' => 'uuid-a'], $bag));
-        // Anderer Wert: Abweichung.
+        // Different value: deviation.
         self::assertCount(1, Comparator::diff(['entryId' => '$E1'], ['entryId' => 'uuid-b'], $bag));
     }
 }

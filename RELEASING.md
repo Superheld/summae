@@ -1,79 +1,76 @@
-# Veröffentlichung (Maintainer)
+# Releasing (maintainer)
 
-Wie die Pakete in die Registries kommen. Nutzer-Doku liegt im
-[Handbuch](docs/handbuch/README.md); dies hier ist nur für Maintainer.
+How the packages get into the registries. User docs are in the
+[handbook](docs/handbuch/README.md); this is for maintainers only.
 
-> **Modell-Entscheidung** (Weg A, eine SemVer-Linie, verworfene Alternativen B/C)
-> liegt in der Wissensbasis: `00-projekt/entscheidungen.md` (2026-06-20) und
-> `oss-governance.md`. Dieses Dokument hält nur die **operativen Schritte**.
+> This document holds the **operative steps** only.
 
-## Versionsschema
+## Version scheme
 
-Ein Git-Tag `vX.Y.Z` markiert ein Release. Vor dem Tag:
+A git tag `vX.Y.Z` marks a release. Before tagging:
 
-- **Node:** `implementations/node/packages/core/package.json` → `version` auf `X.Y.Z`.
-- **PHP:** keine `version`-Felder (Composer leitet aus dem Tag ab; `branch-alias`
-  ist gesetzt).
+- **Node:** `implementations/node/packages/core/package.json` → set `version` to `X.Y.Z`.
+- **PHP:** no `version` fields (Composer derives them from the tag; `branch-alias`
+  is set).
 
 ## npm — `@superheld/summae-core`
 
-Veröffentlichung läuft über GitHub Actions
+Publishing runs through GitHub Actions
 ([`.github/workflows/release-npm.yml`](.github/workflows/release-npm.yml)),
-turnkey nach einer einmaligen Einrichtung:
+turnkey after a one-time setup:
 
-1. **Einmalig:** npm-Automation-Token mit Publish-Recht für den `@superheld`-Scope
-   erzeugen (npmjs.com → Access Tokens → „Automation"). Als Repository-Secret
-   `NPM_TOKEN` hinterlegen:
+1. **One-time:** create an npm automation token with publish rights for the `@superheld`
+   scope (npmjs.com → Access Tokens → „Automation"). Store it as the repository secret
+   `NPM_TOKEN`:
    ```bash
    gh secret set NPM_TOKEN --repo Superheld/summae
    ```
-2. **Pro Release:** `version` bumpen, committen, Tag `vX.Y.Z` pushen → der Workflow
-   baut (`pnpm build`) und publiziert. Trockenlauf jederzeit über „Run workflow"
-   (Eingabe `dry_run = true`).
+2. **Per release:** bump `version`, commit, push tag `vX.Y.Z` → the workflow
+   builds (`pnpm build`) and publishes. Dry run anytime via „Run workflow"
+   (input `dry_run = true`).
 
-Manuelle Alternative (lokal, einmaliger Login):
+Manual alternative (local, one-time login):
 ```bash
 cd implementations/node && pnpm install && pnpm build
-npm login   # bzw. `! npm login` in der Session
+npm login   # or `! npm login` in the session
 pnpm --filter @superheld/summae-core publish --no-git-checks
 ```
 
 ## Composer — `superheld/summae-{core,laravel,cli}`
 
-**Stolperstein:** Packagist liest genau **eine** `composer.json` im Repo-Root.
-Dieses Monorepo hat die Pakete in Unterordnern — Packagist kann sie so nicht
-direkt einlesen. Es gibt drei Wege; die Wahl ist eine Footprint-Entscheidung:
+**Gotcha:** Packagist reads exactly **one** `composer.json` at the repo root.
+This monorepo has the packages in subfolders — Packagist can't read them
+directly. There are three ways; the choice is a footprint decision:
 
-| Weg | `composer require superheld/summae-core` | Footprint | Trennung core/laravel/cli |
+| Way | `composer require superheld/summae-core` | Footprint | Separation core/laravel/cli |
 |---|---|---|---|
-| **A — Subtree-Split-Repos + Packagist** (Symfony/Laravel-Muster) | ✅ direkt | 3 zusätzliche read-only Repos + Split-Workflow + Packagist-Submit | ✅ sauber getrennt |
-| **B — nur VCS** | ⚠ Consumer braucht `repositories`-Eintrag je Split-Repo | 3 Split-Repos, kein Packagist | ✅ |
-| **C — ein Sammelpaket `superheld/summae`** | nur `require superheld/summae` (alles zusammen) | 0 extra Repos | ❌ zieht illuminate/* auch für Core-Nutzer |
+| **A — subtree split repos + Packagist** (Symfony/Laravel pattern) | ✅ direct | 3 extra read-only repos + split workflow + Packagist submit | ✅ cleanly separated |
+| **B — VCS only** | ⚠ consumer needs a `repositories` entry per split repo | 3 split repos, no Packagist | ✅ |
+| **C — one umbrella package `superheld/summae`** | just `require superheld/summae` (everything together) | 0 extra repos | ❌ pulls illuminate/* even for core users |
 
-**Gewählt: Weg A.** Eingerichtet:
+**Chosen: way A.** Set up:
 
-- Read-only Split-Repos: `Superheld/summae-core`, `Superheld/summae-laravel`,
-  `Superheld/summae-cli` (Inhalt + Tag `v0.1.0` initial manuell gespiegelt).
-- Split-Workflow [`.github/workflows/split-packages.yml`](.github/workflows/split-packages.yml):
-  spiegelt bei jedem `v*`-Tag automatisch.
+- Read-only split repos: `Superheld/summae-core`, `Superheld/summae-laravel`,
+  `Superheld/summae-cli` (content + tag `v0.1.0` initially mirrored manually).
+- Split workflow [`.github/workflows/split-packages.yml`](.github/workflows/split-packages.yml):
+  mirrors automatically on every `v*` tag.
 
-Pro Release (nach der Einrichtung): Tag `vX.Y.Z` pushen → Split-Workflow
-aktualisiert die drei Repos inkl. Tag → Packagist zieht via Webhook nach.
+Per release (after setup): push tag `vX.Y.Z` → the split workflow updates the
+three repos incl. tag → Packagist follows via webhook.
 
-**Einmalige Maintainer-Schritte (deine Accounts):**
+**One-time maintainer steps (your accounts):**
 
-1. **PAT für den Split-Workflow:** Personal Access Token mit `repo`-Schreibrecht
-   auf die Split-Repos erzeugen, als Secret hinterlegen:
+1. **PAT for the split workflow:** create a personal access token with `repo` write
+   access to the split repos, store it as a secret:
    ```bash
    gh secret set SPLIT_TOKEN --repo Superheld/summae
    ```
-   (Seit 0.2.0 läuft der Split turnkey über den Workflow; das Secret ist gesetzt.
-   Der initiale 0.1.0-Split lief noch manuell über die lokale SSH-Anmeldung.)
-2. **Packagist-Anmeldung:** auf packagist.org mit GitHub einloggen und die drei
-   Split-Repos einreichen (Submit → Repo-URL). Beim Submit installiert Packagist
-   den GitHub-Webhook für Auto-Updates. Reihenfolge: erst `summae-core`, dann
-   `summae-laravel` / `summae-cli` (deren `*`-Abhängigkeit auf core wird dann
-   von Packagist aufgelöst).
+   (Since 0.2.0 the split runs turnkey via the workflow; the secret is set.
+   The initial 0.1.0 split still ran manually via local SSH login.)
+2. **Packagist sign-up:** log in on packagist.org with GitHub and submit the three
+   split repos (Submit → repo URL). On submit, Packagist installs the GitHub webhook
+   for auto-updates. Order: first `summae-core`, then `summae-laravel` / `summae-cli`
+   (their `*` dependency on core is then resolved by Packagist).
 
-Danach funktioniert `composer require superheld/summae-core` (bzw. -laravel/-cli)
-direkt.
+After that, `composer require superheld/summae-core` (or -laravel/-cli) works
+directly.

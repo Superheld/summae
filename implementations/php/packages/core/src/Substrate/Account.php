@@ -8,8 +8,8 @@ use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Konto (ledger-modell.md Aggregat 2). Kein Saldo im Aggregat —
- * Salden sind Projektionen des Journals, immer.
+ * Account (ledger-modell.md aggregate 2). No balance in the aggregate —
+ * balances are projections of the journal, always.
  */
 final class Account implements \JsonSerializable
 {

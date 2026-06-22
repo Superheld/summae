@@ -16,7 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * `summae report trialBalance --params '{"fiscalYear": 2026, "throughPeriod": 12}'`
- * — alle Projektionen, deterministisch, asOf-fähig.
+ * — all projections, deterministic, asOf-capable.
  */
 final class ReportCommand extends Command
 {
@@ -28,10 +28,10 @@ final class ReportCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Projektion berechnen (trialBalance, cashBasisReport, vatReturn, …)')
-            ->addArgument('projection', InputArgument::REQUIRED, 'Projektionsname laut api.md')
-            ->addOption('params', null, InputOption::VALUE_REQUIRED, 'Parameter als JSON oder @datei', '{}')
-            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Arbeitsverzeichnis', '.');
+            ->setDescription('Compute projection (trialBalance, cashBasisReport, vatReturn, …)')
+            ->addArgument('projection', InputArgument::REQUIRED, 'Projection name per api.md')
+            ->addOption('params', null, InputOption::VALUE_REQUIRED, 'Parameters as JSON or @file', '{}')
+            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Working directory', '.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

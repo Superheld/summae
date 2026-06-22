@@ -1,6 +1,6 @@
 export type FixtureStatus = 'pass' | 'fail' | 'crash';
 
-/** Ergebnis eines Schritts/einer Projektion in der Spur (für den Doppellauf). */
+/** Result of a step/projection in the trace (for the double run). */
 export interface TraceEntry {
   readonly step?: string;
   readonly projection?: string;
@@ -10,17 +10,17 @@ export interface TraceEntry {
 export interface FixtureResult {
   readonly fixture: string;
   readonly status: FixtureStatus;
-  /** Abweichungen (status 'fail'). */
+  /** Deviations (status 'fail'). */
   readonly diffs: string[];
-  /** Absturzgrund (status 'crash'). */
+  /** Crash reason (status 'crash'). */
   readonly crashReason?: string;
-  /** Spur der Ausführung — Grundlage des Determinismus-Doppellaufs. */
+  /** Execution trace — basis of the determinism double run. */
   readonly trace: TraceEntry[];
 }
 
 export interface SuiteResult {
   readonly results: FixtureResult[];
-  /** Fixtures, deren zweiter Lauf eine andere Spur lieferte. */
+  /** Fixtures whose second run yielded a different trace. */
   readonly determinismBreaks: string[];
 }
 

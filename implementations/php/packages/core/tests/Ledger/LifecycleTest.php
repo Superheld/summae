@@ -58,7 +58,7 @@ final class LifecycleTest extends LedgerTestCase
         self::assertTrue($reversal->reverses?->equals($entry->id) ?? false);
         self::assertTrue($entry->reversedBy()?->equals($reversal->id) ?? false);
 
-        // Generalumkehr: gleiche Konten, gleiche Seiten, negierte Beträge.
+        // General reversal: same accounts, same sides, negated amounts.
         $lines = $reversal->lines();
         self::assertSame('4930', $lines[0]->account->value);
         self::assertSame(Side::Debit, $lines[0]->side);
@@ -70,7 +70,7 @@ final class LifecycleTest extends LedgerTestCase
             'entryDate' => '2026-02-04',
         ]));
 
-        // Storno des Stornos ist zulässig (api.md).
+        // Reversal of the reversal is allowed (api.md).
         $reReversal = $ledger->reverse([
             'entryId' => $reversal->id->value,
             'entryDate' => '2026-02-05',

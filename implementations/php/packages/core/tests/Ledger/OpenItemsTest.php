@@ -78,7 +78,7 @@ final class OpenItemsTest extends LedgerTestCase
             ['1400', 'credit', '690.00'],
         ], entryDate: '2026-03-01'))->entry;
 
-        // Überzahlung abgewiesen — Posten unverändert.
+        // Overpayment rejected — item unchanged.
         $this->expectDomainError('E_SETTLEMENT_EXCEEDS_ITEM', static fn () => $ledger->settle([
             'entryId' => $rest->id->value,
             'allocations' => [['openItemId' => $item->id->value, 'money' => ['amount' => '700.00', 'currency' => 'EUR']]],
@@ -90,7 +90,7 @@ final class OpenItemsTest extends LedgerTestCase
         ]]);
         self::assertSame(OpenItemStatus::Settled, $item->status());
 
-        // Zeitreise: remainingAt Mitte Februar = nach Teilzahlung.
+        // Time travel: remainingAt mid-February = after partial payment.
         self::assertSame('690.00', $item->remainingAt(CalendarDate::of('2026-02-20'))->amountAsString());
 
         $projection = new OpenItemsProjection($this->tenant->openItems, $this->tenant->vouchers, $this->tenant->journal);
@@ -114,7 +114,7 @@ final class OpenItemsTest extends LedgerTestCase
             ['1400', 'credit', '1166.20'],
         ], entryDate: '2026-04-09'))->entry;
 
-        // Unbekannte Differenzart.
+        // Unknown difference kind.
         $this->expectDomainError('E_SETTLEMENT_DIFFERENCE_INVALID', static fn () => $ledger->settle([
             'entryId' => $payment->id->value,
             'allocations' => [[
@@ -124,7 +124,7 @@ final class OpenItemsTest extends LedgerTestCase
             ]],
         ]));
 
-        // Differenz > Restbetrag.
+        // Difference > remaining amount.
         $this->expectDomainError('E_SETTLEMENT_DIFFERENCE_INVALID', static fn () => $ledger->settle([
             'entryId' => $payment->id->value,
             'allocations' => [[
@@ -134,7 +134,7 @@ final class OpenItemsTest extends LedgerTestCase
             ]],
         ]));
 
-        // Gültiger Skonto-Ausgleich: voll ausgeglichen.
+        // Valid discount settlement: fully settled.
         $affected = $ledger->settle([
             'entryId' => $payment->id->value,
             'allocations' => [[

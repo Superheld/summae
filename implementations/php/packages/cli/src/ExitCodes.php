@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Cli;
 
 /**
- * Exit-Codes = Fehlercodes (api.md F-IO-003): stabile numerische
- * Abbildung des Fehlerkatalogs. 0 = Erfolg, 1 = unbekannter Fehler.
- * Reihenfolge ist append-only — Umsortieren wäre ein Breaking Change.
+ * Exit codes = error codes (api.md F-IO-003): stable numeric
+ * mapping of the error catalog. 0 = success, 1 = unknown error.
+ * Order is append-only — reordering would be a breaking change.
  */
 final class ExitCodes
 {

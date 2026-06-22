@@ -1,19 +1,19 @@
 # @superheld/summae-cli
 
-Terminal-Werkzeug (Node) für [summae](../core) — JSON rein, JSON raus, mit
-persistentem SQLite-Arbeitsbereich (über [`@superheld/summae-knex`](../knex)).
-Pendant zur PHP-CLI; gleiche Operationen, gleiches Datenformat.
+Terminal tool (Node) for [summae](../core) — JSON in, JSON out, with a
+persistent SQLite workspace (via [`@superheld/summae-knex`](../knex)).
+Counterpart to the PHP CLI; same operations, same data format.
 
 ```bash
 npm install -g @superheld/summae-cli
 
-summae init --name "Muster GmbH" --rules regeln.json   # summae.json + summae.sqlite
-summae op postVoucher --input @beleg.json               # Schreiboperation (oder --input '{…}')
+summae init --name "Example Ltd" --rules rules.json    # summae.json + summae.sqlite
+summae op postVoucher --input @voucher.json             # write operation (or --input '{…}')
 summae report trialBalance --params '{"fiscalYear":2026}'
 ```
 
-`summae.json` trägt Mandanten-Meta + Regelmodul-Daten (App-Schicht); `summae.sqlite`
-die Buchungsdaten. Jeder Aufruf lädt den Mandanten, führt aus, die DB persistiert.
-Exit-Codes bilden den Fehlerkatalog ab (0 = Erfolg).
+`summae.json` carries tenant meta + pack data (app layer); `summae.sqlite`
+the posting data. Each call loads the tenant, runs, and the DB persists.
+Exit codes map the error catalog (0 = success).
 
-Vollständige API + Datenformat: **[zentrales Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
+Full API + data format: **[central handbook](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.

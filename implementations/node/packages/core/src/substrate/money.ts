@@ -2,23 +2,23 @@ import Big from 'big.js';
 import { Currency } from './currency.js';
 import { CurrencyMismatch, InvalidValue } from './errors.js';
 
-// Determinismus-Anhang §2: kaufmännisch HALF_UP, von Null weg bei genau .5
-// (NICHT banker's). big.js `roundHalfUp` (=1) rundet away-from-zero.
+// Determinism appendix §2: commercial HALF_UP, away from zero at exactly .5
+// (NOT banker's). big.js `roundHalfUp` (=1) rounds away-from-zero.
 const HALF_UP = Big.roundHalfUp;
 
-/** Nachkommastellen eines Big-Werts (big.js hält Koeffizient `c` + Exponent `e`). */
+/** Decimal places of a Big value (big.js holds coefficient `c` + exponent `e`). */
 function decimalPlaces(value: Big): number {
   return Math.max(0, value.c.length - value.e - 1);
 }
 
 /**
- * Betrag = Dezimalwert + Währung, nie Float (Glossar `money`).
+ * Amount = decimal value + currency, never float (Glossary `money`).
  *
- * Determinismus-Regeln (determinismus.md §2):
- * - Rundung: kaufmännisch half-up, von Null weg bei genau .5.
- * - allocate: Largest-Remainder, Gleichstand → erster Teil; Σ Teile = Betrag, immer.
+ * Determinism rules (determinismus.md §2):
+ * - rounding: commercial half-up, away from zero at exactly .5.
+ * - allocate: largest-remainder, tie → first part; Σ parts = amount, always.
  *
- * Der Betrag liegt intern immer exakt auf der Währungsskala.
+ * The amount internally always lies exactly on the currency scale.
  */
 export class Money {
   private constructor(
@@ -31,8 +31,8 @@ export class Money {
   }
 
   /**
-   * Exakter Betrag auf Währungsskala. Mehr Nachkommastellen als die Währung
-   * erlaubt sind ein Fehler — hier wird nie still gerundet.
+   * Exact amount on the currency scale. More decimal places than the currency
+   * allows is an error — nothing is ever silently rounded here.
    */
   static of(amount: string, currency: Currency | string): Money {
     const cur = Money.currencyOf(currency);
@@ -40,18 +40,18 @@ export class Money {
     try {
       value = new Big(amount);
     } catch {
-      throw new InvalidValue(`Ungültiger Betrag "${amount}" für Währung ${cur.code} (Skala ${cur.scale})`);
+      throw new InvalidValue(`Invalid amount "${amount}" for currency ${cur.code} (scale ${cur.scale})`);
     }
     const scaled = value.round(cur.scale, HALF_UP);
     if (!scaled.eq(value)) {
-      throw new InvalidValue(`Ungültiger Betrag "${amount}" für Währung ${cur.code} (Skala ${cur.scale})`);
+      throw new InvalidValue(`Invalid amount "${amount}" for currency ${cur.code} (scale ${cur.scale})`);
     }
     return new Money(scaled, cur);
   }
 
   /**
-   * Ergebnis einer Rechnung auf Währungsskala bringen: half-up
-   * (2.225 → 2.23, -2.345 → -2.35). Einziger Weg, auf dem Money rundet.
+   * Bring the result of a calculation to the currency scale: half-up
+   * (2.225 → 2.23, -2.345 → -2.35). The only path on which Money rounds.
    */
   static fromCalculation(value: Big | string, currency: Currency | string): Money {
     const cur = Money.currencyOf(currency);
@@ -59,7 +59,7 @@ export class Money {
     try {
       big = value instanceof Big ? value : new Big(value);
     } catch {
-      throw new InvalidValue(`Ungültiger Rechenwert für Währung ${cur.code}`);
+      throw new InvalidValue(`Invalid calculation value for currency ${cur.code}`);
     }
     return new Money(big.round(cur.scale, HALF_UP), cur);
   }
@@ -109,15 +109,15 @@ export class Money {
   }
 
   /**
-   * Verteilt den Betrag nach Gewichten (determinismus.md §2): Largest-Remainder,
-   * Gleichstand → erster Teil. Σ Teile = Betrag, immer.
+   * Distributes the amount by weights (determinismus.md §2): largest-remainder,
+   * tie → first part. Σ parts = amount, always.
    *
-   * Gewichte: nicht-negative Dezimalwerte (Zahl oder String), Summe > 0.
-   * Negative Beträge werden als negiertes Spiegelbild verteilt.
+   * Weights: non-negative decimal values (number or string), sum > 0.
+   * Negative amounts are distributed as a negated mirror image.
    */
   allocate(...weights: Array<number | string>): Money[] {
     if (weights.length === 0) {
-      throw new InvalidValue('allocate braucht mindestens ein Gewicht');
+      throw new InvalidValue('allocate needs at least one weight');
     }
 
     if (this.isNegative()) {
@@ -134,7 +134,7 @@ export class Money {
       weightSum += weight;
     }
     if (weightSum === 0n) {
-      throw new InvalidValue('Gewichtssumme muss > 0 sein');
+      throw new InvalidValue('Weight sum must be > 0');
     }
 
     const factor = new Big(10).pow(scale);
@@ -150,7 +150,7 @@ export class Money {
       assigned += part.base;
     }
 
-    // Restverteilung nach größtem Rest; Gleichstand → kleinster Index.
+    // Remainder distribution by largest remainder; tie → smallest index.
     const leftover = Number(totalMinor - assigned);
     const order = parts.map((part, index) => ({ remainder: part.remainder, index }));
     order.sort((a, b) =>
@@ -163,15 +163,15 @@ export class Money {
     return parts.map((part) => Money.fromMinor(part.base, scale, this.currency));
   }
 
-  /** Verteilung in n gleiche Teile (Sammelposten-Fünftel, AfA-Monatsraten). */
+  /** Distribution into n equal parts (collective-item fifths, depreciation monthly rates). */
   allocateEvenly(parts: number): Money[] {
     if (parts < 1) {
-      throw new InvalidValue('allocateEvenly braucht mindestens einen Teil');
+      throw new InvalidValue('allocateEvenly needs at least one part');
     }
     return this.allocate(...new Array<number>(parts).fill(1));
   }
 
-  /** Betrag als String-Dezimal mit fester Skala, z. B. "1234.56" (datenformat.md). */
+  /** Amount as a string decimal with fixed scale, e.g. "1234.56" (datenformat.md). */
   amountAsString(): string {
     return this.amount.toFixed(this.currency.scale);
   }
@@ -189,7 +189,7 @@ export class Money {
     return new Money(value.round(scale, HALF_UP), currency);
   }
 
-  /** Dezimalgewichte verlustfrei auf ganzzahlige Gewichte gleicher Skala bringen. */
+  /** Bring decimal weights losslessly to integer weights of the same scale. */
   private static normalizeWeights(weights: Array<number | string>): bigint[] {
     const decimals: Big[] = [];
     let maxScale = 0;
@@ -199,10 +199,10 @@ export class Money {
       try {
         decimal = new Big(weight);
       } catch {
-        throw new InvalidValue(`Ungültiges Gewicht "${weight}"`);
+        throw new InvalidValue(`Invalid weight "${weight}"`);
       }
       if (decimal.lt(0)) {
-        throw new InvalidValue('Gewichte dürfen nicht negativ sein');
+        throw new InvalidValue('Weights must not be negative');
       }
       decimals.push(decimal);
       maxScale = Math.max(maxScale, decimalPlaces(decimal));
@@ -215,7 +215,7 @@ export class Money {
   private assertSameCurrency(other: Money): void {
     if (!this.currency.equals(other.currency)) {
       throw new CurrencyMismatch(
-        `Währungen mischen sich nicht: ${this.currency.code} vs. ${other.currency.code}`,
+        `Currencies do not mix: ${this.currency.code} vs. ${other.currency.code}`,
       );
     }
   }

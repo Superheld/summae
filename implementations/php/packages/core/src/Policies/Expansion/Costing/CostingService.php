@@ -17,11 +17,11 @@ use Summae\Core\Substrate\PeriodRef;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * KLR-Abrechnung (costing-modell.md): eigener Rechnungskreis — das
- * Fibu-Journal bleibt unberührt. Primärkostenübernahme über die
- * costCenter-Dimension, Umlage per Stufenleiter (zyklenfrei,
- * E_COSTING_CYCLE), Verteilung per Money::allocate (largest remainder,
- * Gleichstand -> erster Empfänger in stabiler Reihenfolge).
+ * Cost accounting (costing-modell.md): own accounting circle — the
+ * financial-accounting journal stays untouched. Primary-cost intake via the
+ * costCenter dimension, allocation by step ladder (acyclic,
+ * E_COSTING_CYCLE), distribution by Money::allocate (largest remainder,
+ * tie -> first receiver in stable order).
  */
 final class CostingService
 {
@@ -31,7 +31,7 @@ final class CostingService
     /** @var array<string, CostingRun> */
     private array $runs = [];
 
-    /** @var array<string, int> "year-period" -> letzte Version */
+    /** @var array<string, int> "year-period" -> latest version */
     private array $versions = [];
 
     public function __construct(
@@ -43,8 +43,8 @@ final class CostingService
     }
 
     /**
-     * Stufenleiter verlangt Zyklenfreiheit (E_COSTING_CYCLE);
-     * das Gleichungsverfahren wäre die zyklenfähige Ausbaustufe.
+     * The step ladder requires acyclicity (E_COSTING_CYCLE);
+     * the simultaneous-equation method would be the cycle-capable extension.
      *
      * @param array<string, mixed> $input
      *
@@ -61,7 +61,7 @@ final class CostingService
 
         foreach (is_array($input['steps'] ?? null) ? array_values($input['steps']) : [] as $rawStep) {
             if (!is_array($rawStep) || !is_string($rawStep['sender'] ?? null)) {
-                throw new InvalidValue('Umlageschritt braucht sender');
+                throw new InvalidValue('allocation step requires sender');
             }
 
             $receivers = [];
@@ -98,7 +98,7 @@ final class CostingService
         $period = is_int($input['period'] ?? null) ? $input['period'] : 0;
         $periodRef = new PeriodRef($fiscalYear, $period);
 
-        // Primärkostenübernahme: Aufwandszeilen mit costCenter-Dimension.
+        // Primary-cost intake: expense lines with costCenter dimension.
         $zero = Money::zero($this->baseCurrency);
         /** @var array<string, Money> $primary */
         $primary = [];
@@ -125,7 +125,7 @@ final class CostingService
             }
         }
 
-        // Umlage (Stufenleiter, in Schrittreihenfolge): verteilen, nie erzeugen.
+        // Allocation (step ladder, in step order): distribute, never create.
         $after = $primary;
 
         foreach ($this->schemeSteps as $step) {
@@ -170,7 +170,7 @@ final class CostingService
     }
 
     /**
-     * BAB: Matrix-Summen eines Laufs (costing-modell.md Projektionen).
+     * Cost allocation sheet: matrix totals of a run (costing-modell.md projections).
      *
      * @param array<string, mixed> $params
      *
@@ -221,7 +221,7 @@ final class CostingService
         }
 
         return $run ?? throw new DomainError('E_COSTING_RUN_UNKNOWN', sprintf(
-            'Abrechnungslauf %s existiert nicht',
+            'costing run %s does not exist',
             is_string($runId) ? $runId : '?',
         ));
     }
@@ -241,7 +241,7 @@ final class CostingService
 
             if (isset($visiting[$node])) {
                 throw new DomainError('E_COSTING_CYCLE', sprintf(
-                    'Umlagezyklus über Kostenstelle "%s" — Stufenleiter verlangt Zyklenfreiheit',
+                    'allocation cycle via cost center "%s" — step ladder requires acyclicity',
                     $node,
                 ), ['costCenter' => $node]);
             }

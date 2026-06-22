@@ -7,8 +7,8 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Verweis auf eine Periode: Geschäftsjahr + Periodennummer
- * (datenformat.md `periodRef`). `fiscalYear` = Kalenderjahr des GJ-Endes.
+ * Reference to a period: fiscal year + period number
+ * (datenformat.md `periodRef`). `fiscalYear` = calendar year of the fiscal year end.
  */
 final readonly class PeriodRef implements \JsonSerializable
 {
@@ -17,15 +17,15 @@ final readonly class PeriodRef implements \JsonSerializable
         public int $period,
     ) {
         if ($fiscalYear < 1 || $fiscalYear > 9999) {
-            throw new InvalidValue(sprintf('Ungültiges Geschäftsjahr: %d', $fiscalYear));
+            throw new InvalidValue(sprintf('Invalid fiscal year: %d', $fiscalYear));
         }
 
         if ($period < 1 || $period > 999) {
-            throw new InvalidValue(sprintf('Ungültige Periodennummer: %d', $period));
+            throw new InvalidValue(sprintf('Invalid period number: %d', $period));
         }
     }
 
-    /** Chronologisch: erst Jahr, dann Periode. */
+    /** Chronological: year first, then period. */
     public function compareTo(self $other): int
     {
         return [$this->fiscalYear, $this->period] <=> [$other->fiscalYear, $other->period];

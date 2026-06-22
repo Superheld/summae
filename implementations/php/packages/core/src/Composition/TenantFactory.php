@@ -20,9 +20,9 @@ use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Tenant;
 
 /**
- * `createTenant` (SF-01): Mandant per Profil anlegen — sofort buchbar.
- * Profile sind versionierte Regelmodul-Daten; der Mandant pinnt die
- * Version, kopiert nicht (datenformat.md).
+ * `createTenant` (SF-01): create a tenant from a profile — immediately postable.
+ * Profiles are versioned rule-module data; the tenant pins the
+ * version, does not copy (datenformat.md).
  */
 final readonly class TenantFactory
 {
@@ -45,11 +45,11 @@ final readonly class TenantFactory
     {
         $profileId = is_string($input['profile'] ?? null) ? $input['profile'] : '';
         $profile = $this->findById('profiles', $profileId)
-            ?? throw new DomainError('E_PROFILE_UNKNOWN', sprintf('Profil "%s" ist nicht vorhanden', $profileId));
+            ?? throw new DomainError('E_PROFILE_UNKNOWN', sprintf('Profile "%s" does not exist', $profileId));
 
         $coaId = is_string($profile['chartOfAccounts'] ?? null) ? $profile['chartOfAccounts'] : '';
         $coa = $this->findById('chartsOfAccounts', $coaId)
-            ?? throw new DomainError('E_PROFILE_UNKNOWN', sprintf('Kontenrahmen "%s" des Profils fehlt', $coaId));
+            ?? throw new DomainError('E_PROFILE_UNKNOWN', sprintf('Chart of accounts "%s" of the profile is missing', $coaId));
 
         /** @var list<string> $wantedCodes */
         $wantedCodes = is_array($profile['taxCodes'] ?? null) ? array_values($profile['taxCodes']) : [];
@@ -63,15 +63,15 @@ final readonly class TenantFactory
         $defaults = is_array($profile['defaults'] ?? null) ? $profile['defaults'] : [];
         $taxProfile = TaxProfile::fromData($defaults);
 
-        // packPolicy ist Pack-Parameter (Geld-Skala + Steuer-Granularität), nicht global.
+        // packPolicy is a pack parameter (money scale + tax granularity), not global.
         $packPolicy = is_array($this->ruleModules['packPolicy'] ?? null) ? $this->ruleModules['packPolicy'] : null;
         $currencyScale = is_int($packPolicy['currencyScale'] ?? null) ? $packPolicy['currencyScale'] : null;
         $granularity = is_string($packPolicy['taxRoundingGranularity'] ?? null)
             ? $packPolicy['taxRoundingGranularity']
             : 'perVoucher';
 
-        // Mappings (Bilanz/GuV/EÜR) aus dem aufgelösten Pack in die Registry des Mandanten —
-        // sonst finden balanceSheet/incomeStatement die Mappings nicht (Pack-Pfad-Parität zum Inline-Pfad).
+        // Mappings (balance sheet/P&L/EÜR) from the resolved pack into the tenant's registry —
+        // otherwise balanceSheet/incomeStatement do not find the mappings (pack-path parity with the inline path).
         $mappings = MappingRegistry::fromRuleModules(
             is_array($this->ruleModules['mappings'] ?? null) ? array_values($this->ruleModules['mappings']) : [],
         );
@@ -115,7 +115,7 @@ final readonly class TenantFactory
             ));
         }
 
-        // Asset-/AfA-Regeln aus dem Pack (assetAccounts, depreciation) — Parität zum Inline-Pfad.
+        // Asset/depreciation rules from the pack (assetAccounts, depreciation) — parity with the inline path.
         $tenant->assetService->setRuleModule($this->ruleModules);
 
         return [

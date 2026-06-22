@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-laravel",
-    "description": "Laravel-Adapter für summae-core: ServiceProvider, Datenbank-Persistenz, Migrationen",
+    "description": "Laravel adapter for summae-core: service provider, database persistence, migrations",
     "type": "library",
     "license": "MIT",
     "homepage": "https://github.com/superheld/summae",

@@ -10,9 +10,9 @@ use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * Zweiter Runner-Lauf (JOB-012): dieselbe Konformitätssuite gegen den
- * Database-Adapter. Je Fixture eine frische Datenbank — SQLite
- * in-memory per Default, Postgres über SUMMAE_DB_DRIVER=pgsql
+ * Second runner run (JOB-012): the same conformance suite against the
+ * database adapter. A fresh database per fixture — SQLite
+ * in-memory by default, Postgres via SUMMAE_DB_DRIVER=pgsql
  * (SUMMAE_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD).
  */
 final class DatabaseSubjectFactory implements SubjectFactory
@@ -74,7 +74,7 @@ final class DatabaseSubjectFactory implements SubjectFactory
         $connection = $capsule->getConnection();
         $schema = $connection->getSchemaBuilder();
 
-        // Frischer Zustand je Fixture (Postgres: Tabellen neu aufbauen).
+        // Fresh state per fixture (Postgres: rebuild tables).
         SchemaInstaller::drop($schema);
         SchemaInstaller::create($schema);
 

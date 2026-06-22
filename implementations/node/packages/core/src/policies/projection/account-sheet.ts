@@ -6,9 +6,9 @@ import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
 
 /**
- * Kontoblatt: alle Bewegungen eines Kontos im Geschäftsjahr mit laufendem Saldo.
- * Anfangsbestand = kumulierte Vorjahre für Bestandskonten, null für Erfolgskonten.
- * Ordnung: sequenceNumber (determinismus.md §3).
+ * Account sheet: all movements of an account in the fiscal year with a running balance.
+ * Opening balance = cumulative prior years for balance-carrying accounts, null for income accounts.
+ * Order: sequenceNumber (determinismus.md §3).
  */
 export class AccountSheetProjection {
   constructor(
@@ -25,7 +25,7 @@ export class AccountSheetProjection {
 
     const account = this.accounts.byNumber(AccountNumber.of(number));
     if (account === null) {
-      throw new DomainError('E_ACCOUNT_UNKNOWN', `Konto ${number} existiert nicht`);
+      throw new DomainError('E_ACCOUNT_UNKNOWN', `Account ${number} does not exist`);
     }
 
     let opening = Money.zero(this.baseCurrency);

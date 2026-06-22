@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Ausgleich mit Differenz (api.md v0.3, Review G2): Skonto,
- * Forderungsausfall, Kleindifferenz — die Differenz selbst MUSS als
- * Buchungszeile(n) in der ausgleichenden Buchung sichtbar sein (§ 17 UStG).
+ * Settlement with difference (api.md v0.3, Review G2): cash discount,
+ * bad debt, minor difference — the difference itself MUST be visible as
+ * posting line(s) in the settling posting (§ 17 UStG).
  */
 enum SettlementDifferenceKind: string
 {

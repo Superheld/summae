@@ -4,9 +4,8 @@ How summae is **conceived**, independent of the language. Applies to every
 implementation (PHP, Node, …) and to anyone building a pack or an operation.
 Language-specific paths/packages live in `implementations/<language>/docs/`.
 
-> Normative depth lives in the knowledge base (`40-domaenenmodell/jurisdiction-profil.md`,
-> `context-map.md`). That is **not** shipped — which is why this document carries
-> the model self-contained in the repo.
+> Deeper normative rationale is maintained internally and is **not** shipped — which is
+> why this document carries the model self-contained in the repo.
 
 ## Two axes
 

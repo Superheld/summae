@@ -27,10 +27,10 @@ function recordList(v: unknown): Record<string, unknown>[] {
 }
 
 /**
- * CLI-Arbeitsbereich: `summae.json` (Mandanten-Meta + Regelmodul-Daten,
- * App-Schicht) + `summae.sqlite` (Persistenz via @superheld/summae-knex).
- * Jeder Aufruf lädt den Mandanten, führt aus, die Datenbank persistiert.
- * Pendant zu PHPs `Summae\Cli\Workspace`.
+ * CLI workspace: `summae.json` (tenant meta + pack data,
+ * app layer) + `summae.sqlite` (persistence via @superheld/summae-knex).
+ * Each invocation loads the tenant, runs, the database persists.
+ * Counterpart to PHP's `Summae\Cli\Workspace`.
  */
 export class Workspace {
   private constructor(private readonly directory: string) {}
@@ -46,7 +46,7 @@ export class Workspace {
   /** @param ruleData accounts, taxCodes, taxProfile, dimensionTypes/-Values, ruleModules */
   initialize(name: string, currency: string, ruleData: Record<string, unknown>): void {
     if (this.exists()) {
-      throw new Error(`Arbeitsbereich existiert bereits: ${this.configPath()}`);
+      throw new Error(`Workspace already exists: ${this.configPath()}`);
     }
     const config = { name, baseCurrency: currency, tenantId: Uuid.v7().value, rules: ruleData };
     writeFileSync(this.configPath(), `${JSON.stringify(config, null, 2)}\n`);
@@ -58,7 +58,7 @@ export class Workspace {
 
   tenant(): Tenant {
     if (!this.exists()) {
-      throw new Error(`Kein Arbeitsbereich in ${this.directory} — zuerst \`summae init\` ausführen`);
+      throw new Error(`No workspace in ${this.directory} — run \`summae init\` first`);
     }
     const config = JSON.parse(readFileSync(this.configPath(), 'utf8')) as Record<string, unknown>;
     const rules = isRecord(config.rules) ? config.rules : {};

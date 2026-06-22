@@ -24,10 +24,10 @@ use Summae\Core\Policies\Projection\VatReturnProjection;
 use Summae\Core\Tenant;
 
 /**
- * Generischer Einstieg in alle Operationen und Projektionen eines
- * Mandanten — die Schnittstelle für CLI (JOB-013, LLM-Operator) und
- * Konformitäts-Runner. Namen exakt nach api.md; Apps nutzen daneben
- * die typisierten Services direkt.
+ * Generic entry into all operations and projections of a
+ * tenant — the interface for CLI (JOB-013, LLM operator) and
+ * conformance runner. Names exactly per api.md; apps additionally use
+ * the typed services directly.
  */
 final readonly class TenantOperations
 {
@@ -89,7 +89,7 @@ final readonly class TenantOperations
             'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
             'importMapping' => (new MappingImporter($tenant->accounts, $tenant->mappings))->import($input),
             default => throw new DomainError('E_NOT_IMPLEMENTED', sprintf(
-                'Operation "%s" ist nicht definiert',
+                'Operation "%s" is not defined',
                 $op,
             )),
         };
@@ -169,15 +169,15 @@ final readonly class TenantOperations
                 $tenant->mappings,
             ))->compute($params),
             default => throw new DomainError('E_NOT_IMPLEMENTED', sprintf(
-                'Projektion "%s" ist nicht definiert',
+                'Projection "%s" is not defined',
                 $name,
             )),
         };
     }
 
     /**
-     * Largest-Remainder-Verteilung (Money::allocate), Skala aus Mandanten-Währung
-     * (Pack-Parameter currencyScale). Reine Berechnung, kein Journal-Effekt.
+     * Largest-remainder distribution (Money::allocate), scale from the tenant currency
+     * (pack parameter currencyScale). Pure computation, no journal effect.
      *
      * @param array<string, mixed> $input
      *

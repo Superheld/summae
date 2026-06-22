@@ -7,14 +7,14 @@ namespace Summae\Core\Port;
 use Summae\Core\Records\AuditRecord;
 
 /**
- * Audit-Trail ist Formatbestandteil (datenformat.md v0.3, Review G3):
- * der ursprüngliche Inhalt bleibt über die Aufbewahrungsdauer
- * feststellbar — append-only, wird bei Migration vollständig übernommen.
+ * The audit trail is part of the format (datenformat.md v0.3, review G3):
+ * the original content stays determinable over the retention period
+ * — append-only, fully carried over on migration.
  */
 interface AuditTrail
 {
     public function append(AuditRecord $record): void;
 
-    /** @return list<AuditRecord> in Erfassungsreihenfolge */
+    /** @return list<AuditRecord> in capture order */
     public function all(): array;
 }

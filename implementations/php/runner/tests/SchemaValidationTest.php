@@ -9,9 +9,9 @@ use PHPUnit\Framework\TestCase;
 use Summae\Runner\Subject\CoreSubject;
 
 /**
- * JOB-011-Akzeptanz: Exporte validieren gegen das maschinenlesbare
- * Schema (schema/format.schema.json, JSON Schema draft 2020-12) —
- * das Schema ist die prüfbare Ableitung der Datenformat-Spec.
+ * JOB-011 acceptance: exports validate against the machine-readable
+ * schema (schema/format.schema.json, JSON Schema draft 2020-12) —
+ * the schema is the verifiable derivation of the data-format spec.
  */
 final class SchemaValidationTest extends TestCase
 {
@@ -25,7 +25,7 @@ final class SchemaValidationTest extends TestCase
         /** @var object{'$id': string} $schema */
         $schema = json_decode($schemaJson, false, 512, JSON_THROW_ON_ERROR);
 
-        // Kleinen Mandanten aufbauen und exportieren.
+        // Build a small tenant and export.
         $subject = new CoreSubject();
         $subject->setup([
             'tenant' => ['name' => 'Schema GmbH', 'baseCurrency' => 'EUR'],
@@ -94,8 +94,8 @@ final class SchemaValidationTest extends TestCase
             }
         }
 
-        // v0.5/F-005: Schema-Manifest kennt jetzt streams + hashAlgorithm —
-        // das volle Manifest validiert.
+        // v0.5/F-005: schema manifest now knows streams + hashAlgorithm —
+        // the full manifest validates.
         $manifestDecoded = json_decode(json_encode($manifest, JSON_THROW_ON_ERROR), false);
         $manifestResult = $validator->validate($manifestDecoded, $schema->{'$id'} . '#/$defs/manifest');
         self::assertTrue(

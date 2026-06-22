@@ -1,51 +1,52 @@
-# summae — PHP-Referenzimplementierung
+# summae — PHP reference implementation
 
-PHP-Referenzimplementierung von summae: GoBD-konforme Doppik, EÜR, Umsatzsteuer,
-Anlagen und KLR — als einbettbare Bibliothek. Aus Nutzersicht ein Composer-Paket
-(`composer require superheld/summae-core`), optional mit Laravel-Adapter
+PHP reference implementation of summae: GoBD-compliant double-entry, cash-basis
+accounting (EÜR), VAT, fixed assets and cost accounting — as an embeddable
+library. From a user's perspective a Composer package
+(`composer require superheld/summae-core`), optionally with the Laravel adapter
 (`composer require superheld/summae-laravel`).
 
-Normative Quelle ist die Konformitäts-Suite (`testsuite/` im Repo-Root): jede
-Implementierung muss alle Fixtures byte-identisch und deterministisch erfüllen.
+The normative source is the conformance suite (`testsuite/` at the repo root): every
+implementation must satisfy all fixtures byte-identically and deterministically.
 
-## Dokumentation
+## Documentation
 
-- **Nutzer** (Package einbinden, konfigurieren, verwenden): das
-  [Handbuch](../../docs/handbuch/README.md), ergänzt durch die Package-READMEs —
+- **Users** (embed, configure, use the package): the
+  [handbook](../../docs/handbuch/README.md), complemented by the package READMEs —
   [packages/laravel/README.md](packages/laravel/README.md),
   [packages/cli/README.md](packages/cli/README.md).
-- **Mitentwickler** (Architektur, Workflow, Konformität): [docs/](docs/README.md).
+- **Contributors** (architecture, workflow, conformance): [docs/](docs/README.md).
 
-## Struktur
+## Structure
 
-| Pfad | Inhalt |
+| Path | Contents |
 |---|---|
-| `packages/core/` | `superheld/summae-core` — framework-freier Fachkern (PHP ≥ 8.3, einzige Abhängigkeit: brick/math) |
-| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, Database-Adapter, Migrationen |
-| `packages/cli/` | `superheld/summae-cli` — CLI, JSON-Ausgaben |
-| `runner/` | Fixture-Runner für die Konformitätssuite |
-| `testsuite/` | Kopie der Konformitäts-Fixtures — **read-only** (Maintainer: `make sync`) |
-| `SPEC-FINDINGS.md` | Befunde gegen Spec/Fixtures (Eskalationsweg) |
+| `packages/core/` | `superheld/summae-core` — framework-free accounting core (PHP ≥ 8.3, only dependency: brick/math) |
+| `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, database adapter, migrations |
+| `packages/cli/` | `superheld/summae-cli` — CLI, JSON output |
+| `runner/` | fixture runner for the conformance suite |
+| `testsuite/` | copy of the conformance fixtures — **read-only** (maintainer: `make sync`) |
+| `SPEC-FINDINGS.md` | findings against spec/fixtures (escalation path) |
 
-## Entwicklung
+## Development
 
-Alles läuft in Docker, lokal ist kein PHP nötig:
+Everything runs in Docker, no local PHP needed:
 
 ```bash
-make build      # PHP-8.3-Image bauen (einmalig)
+make build      # build the PHP 8.3 image (once)
 make install    # composer install
-make check      # PHPStan (level max) + PHPUnit — das prüft auch die CI
-make sync       # (Maintainer) Testsuite aus der internen Wissensbasis aktualisieren
-make shell      # Shell im Container
+make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
+make sync       # (maintainer) update the testsuite from the internal source
+make shell      # shell in the container
 ```
 
-Postgres wird erst ab JOB-012 gebraucht: `docker compose --profile db up -d`
-(Port 54329, User/DB/Passwort: `rechnungswesen`).
+Postgres is only needed from JOB-012 on: `docker compose --profile db up -d`
+(port 54329, user/DB/password: `rechnungswesen`).
 
-## Eiserne Regeln
+## Iron rules
 
-1. **Fixtures werden nie editiert.** Widerspruch gefunden → `SPEC-FINDINGS.md`.
-2. **Kern bleibt framework-frei.** Kein `Illuminate\*` in `packages/core`.
-3. **Journal append-only, Salden sind Projektionen.** Nie einen Saldo speichern.
-4. **Geld nie als Float.** `Money` auf brick/math, half-up, allocate largest-remainder.
-5. Namen kommen aus dem Glossar (EN-Spalte), Fehlercodes aus dem Fehlerkatalog.
+1. **Fixtures are never edited.** Contradiction found → `SPEC-FINDINGS.md`.
+2. **The core stays framework-free.** No `Illuminate\*` in `packages/core`.
+3. **Journal append-only, balances are projections.** Never store a balance.
+4. **Money is never a float.** `Money` on brick/math, half-up, allocate largest-remainder.
+5. Names come from the glossary (EN column), error codes from the error catalog.

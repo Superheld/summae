@@ -1,70 +1,70 @@
-# CLAUDE.md — `core/src/` (Architektur des Fachkerns)
+# CLAUDE.md — `core/src/` (architecture of the domain core)
 
-Zwei **Achsen** — beide hier sichtbar halten. Struktur 1:1 identisch in PHP und Node
-(dort PascalCase-Ordner). Das große Bild + Baustatus: Root-`CLAUDE.md`.
+Two **axes** — keep both visible here. Structure 1:1 identical in PHP and Node
+(PascalCase folders there). The big picture + build status: root `CLAUDE.md`.
 
-## Achse 1 — Hexagonal (Framework-/Persistenz-Freiheit)
+## Axis 1 — hexagonal (framework/persistence freedom)
 
 ```
-        ┌──────────── adapters (außen) ────────────┐
+        ┌──────────── adapters (outside) ──────────┐
         │   in-memory · [knex] · [laravel]          │
-        │   ┌────────── ports (Kante) ──────────┐   │
-        │   │   ┌──────── Domäne (innen) ─────┐  │   │
+        │   ┌────────── ports (edge) ───────────┐   │
+        │   │   ┌──────── domain (inside) ────┐  │   │
         │   │   │  substrate (frozen)          │  │   │
-        │   │   │  policies = SOCKEL           │  │   │
-        │   │   │  composition (Verdrahtung)   │  │   │
+        │   │   │  policies = SOCKET           │  │   │
+        │   │   │  composition (wiring)        │  │   │
         │   │   └──────────────────────────────┘  │   │
         │   └────────────────────────────────────┘   │
         └────────────────────────────────────────────┘
-  STECKER (Daten) liegen in /pack-library/ ──injiziert──▶ in die Sockel
-  Abhängigkeit zeigt nur nach innen · Pack hängt am Kern, nie umgekehrt.
+  PLUGS (data) live in /pack-library/ ──injected──▶ into the sockets
+  Dependency points only inward · pack depends on the core, never the reverse.
 ```
 
-Echte Persistenz (`knex`/`laravel`) sind **eigene Pakete** außerhalb von `core`; in
-`core` liegen nur die in-memory-Adapter (Fakes).
+Real persistence (`knex`/`laravel`) are **own packages** outside of `core`; in
+`core` only the in-memory adapters live (fakes).
 
-## Achse 2 — Substrat → Politiksorten → Pack (Jurisdiktions-Freiheit)
+## Axis 2 — substrate → policy kinds → pack (jurisdiction freedom)
 
-- **`substrate/`** — eingefroren, jurisdiktionsfrei (Buchung Summe 0, Konto, Journal,
-  Saldo, Periode). Wächst nicht. **Importiert nichts von oben.**
-- **`policies/`** — die DREI Politiksorten; hier nur der **Sockel** (gesetzesfreie Mechanik),
-  die **Stecker** (Daten) liegen in `/pack-library/` und werden injiziert:
-  - **`expansion/`** — Absicht → ausbalancierte Buchungen (tax · assets · costing · settle-Differenz · reverse)
-  - **`projection/`** — Journal → Sicht (Falt-Engines + mappings)
-  - **`constraint/`** — Prädikat-Gates (noch dünn; dritte Sorte unfertig)
-- **`composition/`** — Resolver · Factory · Tenant · Dispatcher (Dependency Inversion)
-- **`records/`** — Belege/Records (voucher · open-item · audit), **keine** Politiksorte
-- **`partner/`** — Supporting-Subdomain (Stammdaten), **keine** Politiksorte
-- **`ports/` · `adapters/`** — Hexagon-Kante / -außen
+- **`substrate/`** — frozen, jurisdiction-free (posting sum 0, account, journal,
+  balance, period). Does not grow. **Imports nothing from above.**
+- **`policies/`** — the THREE policy kinds; here only the **socket** (law-free mechanism),
+  the **plugs** (data) live in `/pack-library/` and are injected:
+  - **`expansion/`** — intent → balanced postings (tax · assets · costing · settle difference · reverse)
+  - **`projection/`** — journal → view (fold engines + mappings)
+  - **`constraint/`** — predicate gates (still thin; third kind unfinished)
+- **`composition/`** — resolver · factory · tenant · dispatcher (dependency inversion)
+- **`records/`** — vouchers/records (voucher · open-item · audit), **not** a policy kind
+- **`partner/`** — supporting subdomain (master data), **not** a policy kind
+- **`ports/` · `adapters/`** — hexagon edge / outside
 
-## Struktur-Stand: umgesetzt (Scheiben 1–4)
+## Structure status: implemented (slices 1–4)
 
-Die Ordner oben **sind** die Struktur (nicht mehr nur Ziel): `shared→substrate`,
+The folders above **are** the structure (no longer just a target): `shared→substrate`,
 `tax/assets/costing→policies/expansion`, `projection/mapping→policies/projection`; `ledger/`
-aufgeteilt auf `substrate/` (Primitive+Enums) · `records/` (voucher/open-item/audit) ·
+split across `substrate/` (primitives+enums) · `records/` (voucher/open-item/audit) ·
 `policies/constraint/` (dimension-registry) · `policies/expansion/` (settlement) — `ledger.ts`
-blieb als **Orchestrator** in `ledger/`. Jede Scheibe grün (typecheck/lint/test + `fixtures --strict`
-+ `make cross`), PHP + Node 1:1. `records/` darf das Substrat referenzieren (Daten-Schicht); die
-Substrat-Grenze (Lint/Arch-Test) verbietet `policies/` + obere Schichten.
+stayed as the **orchestrator** in `ledger/`. Each slice green (typecheck/lint/test + `fixtures --strict`
++ `make cross`), PHP + Node 1:1. `records/` may reference the substrate (data layer); the
+substrate boundary (lint/arch test) forbids `policies/` + upper layers.
 
-## Gated — nicht mit Ordnern lösbar
+## Gated — not solvable with folders
 
-- **In `policies/expansion/` sind Sockel und DE-Paradigma fusioniert**: `tax-service.ts` verzweigt
-  auf `reverse_charge`/`intra_community_supply`. Das zu trennen hängt an der offenen
-  **closed/open**-Entscheidung (siehe „Zielmodell vs. Stand" unten). Der Ordner zeigt die
-  Schicht, **nicht** die Naht darin.
-- **`ledger.ts` (Orchestrator in `ledger/`) fusioniert intern** post (Substrat) + settle/reverse
-  (Expansion) + close (Constraint) in *einer* Klasse — die **Methoden**-Entflechtung ist die
-  closed/open-gated Chirurgie, separat vom (erledigten) Verzeichnis-Split.
+- **In `policies/expansion/` socket and DE paradigm are fused**: `tax-service.ts` branches
+  on `reverse_charge`/`intra_community_supply`. Separating that hangs on the open
+  **closed/open** decision (see „target model vs. status" below). The folder shows the
+  layer, **not** the seam within it.
+- **`ledger.ts` (orchestrator in `ledger/`) fuses internally** post (substrate) + settle/reverse
+  (expansion) + close (constraint) into *one* class — the **method** disentanglement is the
+  closed/open-gated surgery, separate from the (done) directory split.
 
-## Engine-Bündel & Zielmodell vs. Stand
+## Engine bundle & target model vs. status
 
-**Engine-Bündel:** Die Engine isst *ein* aufgelöstes `ruleModules`-Bündel (`profiles/chartsOfAccounts/taxCodes/
-mappings/assetAccounts/depreciation/packPolicy`); dahin **inline** (Bündel direkt) oder **komponiert** (Manifest →
-`PackResolver`). `packPolicy` parametrisiert jurisdiktionsfrei (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
+**Engine bundle:** the engine eats *one* resolved `ruleModules` bundle (`profiles/chartsOfAccounts/taxCodes/
+mappings/assetAccounts/depreciation/packPolicy`); reached **inline** (bundle directly) or **composed** (manifest →
+`PackResolver`). `packPolicy` parametrizes jurisdiction-free (`currencyScale`→`Currency`, `taxRoundingGranularity`→`TaxService`).
 
-**Zielmodell vs. heutiger Stand (ehrlich — sonst driftet's):** Das Sockel/Stecker-Bild ist das **Ziel**. Heute
-injiziert sind nur Infrastruktur-Ports (Clock/Id/Repositories) + das Bündel als *Daten*; die drei Politiksorten
-sind **noch nicht** als Ports gebaut (`tax-service.ts`/`asset-service.ts` sind konkrete Klassen). **Offen
-entschieden:** ob das Mechanik-Repertoire *abgeschlossen* ist (Kern wächst nie, Pack = nur Auswahl) oder *offen*
-(wächst nur gesetzesfrei + sichtbar). Nicht raten.
+**Target model vs. today's status (honest — otherwise it drifts):** the socket/plug picture is the **target**. Today
+only infrastructure ports (Clock/Id/Repositories) + the bundle as *data* are injected; the three policy kinds
+are **not yet** built as ports (`tax-service.ts`/`asset-service.ts` are concrete classes). **Open
+decision:** whether the mechanism repertoire is *closed* (core never grows, pack = selection only) or *open*
+(grows only law-free + visible). Do not guess.

@@ -3,8 +3,8 @@ import type { Uuid } from './uuid.js';
 import type { AccountStatus, AccountType } from './types.js';
 
 /**
- * Konto (ledger-modell.md Aggregat 2). Kein Saldo im Aggregat — Salden sind
- * Projektionen des Journals, immer.
+ * Account (ledger-modell.md aggregate 2). No balance in the aggregate — balances are
+ * projections of the journal, always.
  */
 export class Account {
   private accountStatus: AccountStatus;

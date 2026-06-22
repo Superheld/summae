@@ -32,8 +32,8 @@ final class MoneyTest extends TestCase
     }
 
     /**
-     * determinismus.md §2: half-up, von Null weg bei genau .5 — die
-     * half-even-Falle (Fixture-Pflichtfall 1).
+     * determinismus.md §2: half-up, away from zero at exactly .5 — the
+     * half-even trap (mandatory fixture case 1).
      */
     #[DataProvider('roundingCases')]
     public function testFromCalculationRoundsHalfUpAwayFromZero(string $input, string $expected): void
@@ -44,11 +44,11 @@ final class MoneyTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function roundingCases(): iterable
     {
-        yield 'half-even-Falle' => ['2.225', '2.23'];
-        yield 'kaufmännisch positiv' => ['2.345', '2.35'];
-        yield 'kaufmännisch negativ (von Null weg)' => ['-2.345', '-2.35'];
-        yield 'unter der Mitte' => ['2.2249', '2.22'];
-        yield 'über der Mitte' => ['2.2251', '2.23'];
+        yield 'half-even trap' => ['2.225', '2.23'];
+        yield 'commercial positive' => ['2.345', '2.35'];
+        yield 'commercial negative (away from zero)' => ['-2.345', '-2.35'];
+        yield 'below the midpoint' => ['2.2249', '2.22'];
+        yield 'above the midpoint' => ['2.2251', '2.23'];
     }
 
     public function testArithmetic(): void
@@ -76,8 +76,8 @@ final class MoneyTest extends TestCase
     }
 
     /**
-     * determinismus.md §2 / Fixture-Pflichtfall 3:
-     * 100,00 € auf 3 Teile -> 33,34 / 33,33 / 33,33 (Gleichstand -> erster).
+     * determinismus.md §2 / mandatory fixture case 3:
+     * 100.00 € into 3 parts -> 33.34 / 33.33 / 33.33 (tie -> first).
      */
     public function testAllocateEvenlyLargestRemainderTieGoesToFirst(): void
     {
@@ -130,8 +130,8 @@ final class MoneyTest extends TestCase
     }
 
     /**
-     * determinismus.md §2 / Fixture-Pflichtfall 4: AfA-Verteilung über
-     * 36 Monate ohne Restfehler — Σ Teile = Ausgangsbetrag, immer.
+     * determinismus.md §2 / mandatory fixture case 4: depreciation allocation over
+     * 36 months without remainder error — Σ parts = original amount, always.
      */
     public function testAllocateOver36MonthsSumsExactly(): void
     {
@@ -146,7 +146,7 @@ final class MoneyTest extends TestCase
         }
 
         self::assertTrue($sum->equals($total));
-        // 100000 / 36 = 2777 Rest 28: die ersten 28 Teile bekommen den Mehr-Cent.
+        // 100000 / 36 = 2777 remainder 28: the first 28 parts get the extra cent.
         self::assertSame('27.78', $parts[0]->amountAsString());
         self::assertSame('27.78', $parts[27]->amountAsString());
         self::assertSame('27.77', $parts[28]->amountAsString());
@@ -187,7 +187,7 @@ final class MoneyTest extends TestCase
         foreach ($cases as $case) {
             try {
                 $case();
-                self::fail('InvalidValue erwartet');
+                self::fail('InvalidValue expected');
             } catch (InvalidValue) {
                 $this->addToAssertionCount(1);
             }

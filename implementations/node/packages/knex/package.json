@@ -1,7 +1,7 @@
 {
   "name": "@superheld/summae-knex",
-  "version": "0.3.1",
-  "description": "Datenbank-Adapter (Node) für @superheld/summae-core — persistiert in das geteilte summae_*-Schema via Knex (Query-/Schema-Builder) + better-sqlite3 / pg",
+  "version": "0.3.2",
+  "description": "Database adapter (Node) for @superheld/summae-core — persists into the shared summae_* schema via Knex (query/schema builder) + better-sqlite3 / pg",
   "type": "module",
   "license": "MIT",
   "keywords": [

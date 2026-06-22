@@ -7,10 +7,10 @@ namespace Summae\Core\Policies\Expansion\Tax;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Regelversion eines Steuerschlüssels mit Gültigkeitszeitraum (NF-5.1).
- * Inhalte sind Regelmodul-Daten — Code zitiert kein Gesetz.
- * mechanism `reverse_charge`: USt- und VSt-Position gleichzeitig,
- * je eigene Kennzahl; Zahlbetrag = Netto.
+ * Rule version of a tax code with validity period (NF-5.1).
+ * Contents are rule-module data — code cites no statute.
+ * mechanism `reverse_charge`: VAT and input-tax line at once,
+ * each with its own reporting key; payable = net.
  */
 final readonly class TaxCodeVersion
 {

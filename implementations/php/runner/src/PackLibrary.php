@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Runner;
 
 /**
- * Lädt die ausgelieferte Pack-Bibliothek von der Platte: Module (rekursiv unter
- * `modules/`) und Manifeste (unter `packs/`). Der Loader, der den reinen Resolver
- * mit echten Produkt-Daten füttert — Pendant zu „Pack bei Installation/Anlegen
- * wählen". Read-only, daher gecacht. Byte-gleich zur Node-Seite (pack-library.ts).
+ * Loads the shipped pack library from disk: modules (recursively under
+ * `modules/`) and manifests (under `packs/`). The loader that feeds the pure
+ * resolver with real product data — counterpart to "choose a pack at
+ * installation/creation". Read-only, hence cached. Byte-equal to the Node side (pack-library.ts).
  */
 final class PackLibrary
 {
@@ -26,8 +26,8 @@ final class PackLibrary
             return self::$cached;
         }
 
-        // Inhaltsbasierte Klassifikation: Ordnerstruktur egal — `modules/`+`packs/` ODER ein
-        // gesammelter Pack-Ordner (z. B. `de-pack/`). Manifest = hat `modules[]`; Modul = hat `kind`.
+        // Content-based classification: folder structure irrelevant — `modules/`+`packs/` OR a
+        // collected pack folder (e.g. `de-pack/`). Manifest = has `modules[]`; module = has `kind`.
         $modules = [];
         $manifests = [];
         foreach (self::readJsonRecursive($dir) as $json) {

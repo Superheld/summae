@@ -8,13 +8,13 @@ use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung,
- * mehrere Buchungen können ihn referenzieren.
+ * Voucher (ledger-modell.md aggregate 4): exists before/without a posting,
+ * several postings can reference it.
  *
- * Metadaten: `due`/`recurring`/`economicYear` für die EÜR (R2);
- * `serviceDate`/`servicePeriod` (v0.4, § 27 UStG: Steuerregelversion und
- * Soll-VA folgen dem Leistungsdatum); `partnerId` (v0.4, vererbt an OPs);
- * `kind` als Auswertungs-/Exporthilfe ohne Kernlogik.
+ * Metadata: `due`/`recurring`/`economicYear` for the EÜR (R2);
+ * `serviceDate`/`servicePeriod` (v0.4, § 27 UStG: tax-rule version and
+ * accrual-basis VAT follow the service date); `partnerId` (v0.4, inherited by OPs);
+ * `kind` as an analysis/export hint without core logic.
  */
 final readonly class Voucher implements \JsonSerializable
 {
@@ -35,7 +35,7 @@ final readonly class Voucher implements \JsonSerializable
     ) {
     }
 
-    /** Steuerlich maßgebliches Datum: Leistungsdatum, Fallback Belegdatum. */
+    /** Tax-relevant date: service date, fallback voucher date. */
     public function taxDate(): CalendarDate
     {
         return $this->serviceDate ?? $this->servicePeriodTo ?? $this->voucherDate;
