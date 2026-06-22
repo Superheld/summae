@@ -1,92 +1,91 @@
 # summae
 
-Wiederverwendbare Rechnungswesen-Bibliothek: GoBD-konforme Doppik, EÜR,
-Umsatzsteuer, Anlagen und KLR — als einbettbare Implementierung, **nicht** als
-Anwendung. Mehrere Sprach-Implementierungen mit **identischer API und
-identischem Datenformat**, geprüft gegen eine gemeinsame Konformitäts-Suite.
+Reusable accounting library: GoBD-compliant double-entry bookkeeping, cash-basis
+accounting (EÜR), VAT, fixed assets and cost accounting (KLR) — as an **embeddable**
+implementation, **not** an application. Multiple language implementations with an
+**identical API and identical data format**, verified against a shared conformance suite.
 
 ```
 summae/
-├── testsuite/              Der Kompatibilitätsvertrag: fixtures/ + schema/
-│                           (maßgeblich für alle Implementierungen)
+├── testsuite/              The compatibility contract: fixtures/ + schema/
+│                           (authoritative for all implementations)
 ├── implementations/
-│   ├── php/                PHP-Implementierung  (core · laravel · cli)
-│   └── node/               Node/TypeScript-Implementierung (core · runner)
-├── compose.yaml, docker/   Docker-Toolchain (PHP)
-└── Makefile                Orchestrierung
+│   ├── php/                PHP implementation  (core · laravel · cli)
+│   └── node/               Node/TypeScript implementation (core · runner)
+├── compose.yaml, docker/   Docker toolchain (PHP)
+└── Makefile                Orchestration
 ```
 
-Beide Implementierungen laufen gegen **dieselbe `testsuite/`** und erzeugen
-byte-identische Ergebnisse — das ist der Kern des Versprechens.
+Both implementations run against the **same `testsuite/`** and produce
+byte-identical results — that is the heart of the promise.
 
 ## Installation
 
-Kern in ein Projekt einbinden:
+Embed the core in a project:
 
 ```bash
 # PHP (Composer)
 composer require superheld/summae-core
-composer require superheld/summae-laravel   # optionaler Laravel-Adapter
+composer require superheld/summae-laravel   # optional Laravel adapter
 
 # Node (npm/pnpm)
 pnpm add @superheld/summae-core
 ```
 
-Vollständige Anleitung zu Konfiguration, Initialisierung und Nutzung:
-**→ [Handbuch](docs/handbuch/README.md)**.
+Full guidance on configuration, initialization and usage:
+**→ [Handbook](docs/handbuch/README.md)**.
 
-### Paketnamen über die Ökosysteme
+### Package names across ecosystems
 
-Ein Produktname (`summae`), pro Ökosystem dessen Konvention — der Stamm bleibt
-gleich, nur das Registry-Präfix unterscheidet sich:
+One product name (`summae`), each ecosystem's convention — the stem stays the
+same, only the registry prefix differs:
 
-| Rolle | PHP (Composer) | Node (npm) | Python (PyPI) |
+| Role | PHP (Composer) | Node (npm) | Python (PyPI) |
 |---|---|---|---|
-| Kern | `superheld/summae-core` | `@superheld/summae-core` | `summae-core` |
+| Core | `superheld/summae-core` | `@superheld/summae-core` | `summae-core` |
 | CLI | `superheld/summae-cli` | `@superheld/summae-cli` | `summae-cli` |
-| Framework-Adapter | `superheld/summae-laravel` | `@superheld/summae-nestjs` | `summae-django` |
+| Framework adapter | `superheld/summae-laravel` | `@superheld/summae-nestjs` | `summae-django` |
 
-Die Sprache steckt im Ordner (`implementations/<sprache>/`), nicht im Namen.
-Nur der Framework-Adapter heißt je Framework anders; Kern und CLI bleiben uniform.
+The language lives in the folder (`implementations/<language>/`), not in the name.
+Only the framework adapter is named per framework; core and CLI stay uniform.
 
-## Implementierungen
+## Implementations
 
-| | Pfad | Stand | Doku |
+| | Path | Status | Docs |
 |---|---|---|---|
-| PHP | `implementations/php/` | Referenz, vollständig | [README](implementations/php/README.md) · [Entwickler-Doku](implementations/php/docs/README.md) |
-| Node | `implementations/node/` | M3 — 45/45 Fixtures grün | [README](implementations/node/README.md) |
+| PHP | `implementations/php/` | Reference, complete | [README](implementations/php/README.md) · [Developer docs](implementations/php/docs/README.md) |
+| Node | `implementations/node/` | Complete, parity with PHP | [README](implementations/node/README.md) · [Developer docs](implementations/node/docs/README.md) |
 
-**Nutzer** (Package einbinden, konfigurieren, verwenden) lesen das
-[Handbuch](docs/handbuch/README.md). **Mitentwickler** starten bei der
-jeweiligen Entwickler-Doku.
+**Users** (embed, configure and use the package) read the
+[Handbook](docs/handbuch/README.md). **Contributors** start with the respective
+developer docs.
 
-## Der Kompatibilitätsvertrag (`testsuite/`)
+## The compatibility contract (`testsuite/`)
 
-`testsuite/fixtures/**.json` + `testsuite/schema/` sind die normative Quelle:
-jede Implementierung muss alle Fixtures byte-identisch und deterministisch
-erfüllen. Fixtures sind **append-only** — eine Verhaltensänderung wird zu einer
-neuen Fixture, bestehende werden nie still editiert.
+`testsuite/fixtures/**.json` + `testsuite/schema/` are the normative source:
+every implementation must satisfy all fixtures byte-identically and
+deterministically. Fixtures are **append-only** — a behavior change becomes a
+new fixture; existing ones are never silently edited.
 
-> **Maintainer-Hinweis:** Die Autoren-Heimat der Fixtures liegt in einer
-> separaten, internen Wissensbasis. `bin/sync-testsuite.sh` (bzw. `make sync`)
-> spiegelt sie hierher — eine Einbahnstraße, ausschließlich für Maintainer.
-> Konsumenten und CI brauchen das nie: die committete `testsuite/` ist
-> eigenständig und maßgeblich.
+> **Maintainer note:** The authoring home of the fixtures lives in a separate,
+> internal knowledge base. `bin/sync-testsuite.sh` (or `make sync`) mirrors them
+> here — a one-way street, for maintainers only. Consumers and CI never need
+> this: the committed `testsuite/` is self-contained and authoritative.
 
-## Schnelltest
+## Quick test
 
 ```bash
-# PHP (Docker, kein lokales PHP nötig)
+# PHP (Docker, no local PHP required)
 make build && make install
 make check                     # PHPStan max + PHPUnit
-make fixtures                  # Konformitätssuite gegen den Kern
+make fixtures                  # conformance suite against the core
 
 # Node
 cd implementations/node && pnpm install
-pnpm test                      # vitest (Unit + Konformität)
-pnpm fixtures --strict         # Konformitätssuite, deterministischer Doppellauf
+pnpm test                      # vitest (unit + conformance)
+pnpm fixtures --strict         # conformance suite, deterministic double run
 ```
 
-## Lizenz
+## License
 
-MIT — siehe [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

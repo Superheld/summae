@@ -1,26 +1,26 @@
-# Entwickler-Dokumentation
+# Developer Documentation
 
-Doku **für Mitentwickler** an `rechnungswesen-php` — nicht für Nutzer des
-Packages (die finden alles in den Package-READMEs unter `packages/*/README.md`).
+Docs **for co-developers** of `rechnungswesen-php` — not for users of the
+package (they find everything in the package READMEs under `packages/*/README.md`).
 
-| Dokument | Inhalt |
+| Document | Content |
 |---|---|
-| [architektur.md](architektur.md) | Schichten, Packages, Ports & Adapter, Datenfluss — *warum* es so geschnitten ist |
-| [entwicklung.md](entwicklung.md) | Setup (Docker), Tests/PHPStan/Fixtures, Branch-/Job-Workflow, Konventionen |
-| [konformitaet.md](konformitaet.md) | Der Kompatibilitätsvertrag: Fixture-Suite, Determinismus, SPEC-FINDINGS |
+| [architektur.md](architektur.md) | Layers, packages, ports & adapters, data flow — *why* it is cut this way |
+| [entwicklung.md](entwicklung.md) | Setup (Docker), tests/PHPStan/fixtures, branch/job workflow, conventions |
+| [konformitaet.md](konformitaet.md) | The compatibility contract: fixture suite, determinism, SPEC-FINDINGS |
 
-## Die wichtigste Regel zuerst
+## The most important rule first
 
-Die **normative Quelle** ist nicht dieser Code, sondern die Wissensbasis
-(Schwester-Repo „Rechnungswesen"): Spezifikation, Domänenmodell und die
-Konformitäts-Fixtures. Diese Implementierung ist *konform*, wenn alle Fixtures
-grün sind. Fixtures werden hier **nie editiert** — Widersprüche gehen nach
-[`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) und fließen über die Wissensbasis
-zurück (siehe [konformitaet.md](konformitaet.md)).
+The **normative source** is not this code but the knowledge base
+(sister repo "Rechnungswesen"): specification, domain model, and the
+conformance fixtures. This implementation is *conformant* when all fixtures are
+green. Fixtures are **never edited here** — contradictions go to
+[`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) and flow back through the knowledge
+base (see [konformitaet.md](konformitaet.md)).
 
-## Schnelleinstieg für Neue
+## Quick start for newcomers
 
-1. `packages/core/` lesen — der framework-freie Fachkern, hier passiert alles Fachliche.
-2. `docs/architektur.md` — wie core / laravel / cli zusammenhängen.
-3. `make check` laufen lassen (Docker) — PHPStan + Tests müssen grün sein.
-4. `make fixtures` — die Konformitätssuite gegen den Kern.
+1. Read `packages/core/` — the framework-free core, where all domain logic lives.
+2. `docs/architektur.md` — how core / laravel / cli fit together.
+3. Run `make check` (Docker) — PHPStan + tests must be green.
+4. `make fixtures` — the conformance suite against the core.
