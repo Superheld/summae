@@ -15,9 +15,9 @@ use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * Journal: append-only — `save` aktualisiert ausschließlich die
- * veränderlichen Aggregat-Teile (Status, Text, Zeilen-Korrektur,
- * Storno-Verweis); gelöscht wird nie.
+ * Journal: append-only — `save` updates exclusively the
+ * mutable aggregate parts (status, text, line correction,
+ * reversal reference); nothing is ever deleted.
  */
 final readonly class DatabaseJournalRepository implements JournalRepository
 {
@@ -116,7 +116,7 @@ final readonly class DatabaseJournalRepository implements JournalRepository
         return new JournalEntry(
             Uuid::fromString($row->id),
             (int) $row->sequence_number,
-            Hydrator::date($row->entry_date) ?? throw new \RuntimeException('entry_date fehlt'),
+            Hydrator::date($row->entry_date) ?? throw new \RuntimeException('entry_date missing'),
             Hydrator::date($row->voucher_date),
             new \DateTimeImmutable($row->recorded_at),
             new PeriodRef((int) $row->fiscal_year, (int) $row->period),

@@ -2,8 +2,8 @@ import type { AuditTrail } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 
 /**
- * Änderungshistorie als Projektion (F-CORE-014). Reihenfolge =
- * Erfassungsreihenfolge des Audit-Trails.
+ * Change history as a projection (F-CORE-014). Order =
+ * recording order of the audit trail.
  */
 export class AuditLogProjection {
   constructor(private readonly audit: AuditTrail) {}

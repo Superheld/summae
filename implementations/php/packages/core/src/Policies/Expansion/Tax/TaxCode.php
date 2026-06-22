@@ -8,9 +8,8 @@ use Summae\Core\DomainError;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Steuerschlüssel (tax-modell.md Aggregat 1): gebündelter
- * Steuersachverhalt als Liste von Regelversionen. Die Versionswahl
- * folgt dem Belegdatum.
+ * Tax code (tax-modell.md aggregate 1): bundled tax case as a list
+ * of rule versions. Version selection follows the voucher date.
  */
 final readonly class TaxCode
 {
@@ -33,7 +32,7 @@ final readonly class TaxCode
         }
 
         throw new DomainError('E_TAXCODE_NO_VALID_VERSION', sprintf(
-            'Steuerschlüssel %s hat keine zum %s gültige Regelversion',
+            'tax code %s has no rule version valid for %s',
             $this->code,
             $date->iso,
         ), ['code' => $this->code, 'date' => $date->iso]);

@@ -10,8 +10,8 @@ use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\SettlementDifferenceKind;
 
 /**
- * Einzelner Ausgleich eines offenen Postens. `money` ist der
- * ausgeglichene OP-Betrag EINSCHLIESSLICH Differenz (api.md G2).
+ * Single settlement of an open item. `money` is the settled
+ * open-item amount INCLUDING the difference (api.md G2).
  */
 final readonly class Settlement implements \JsonSerializable
 {

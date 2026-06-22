@@ -1,32 +1,32 @@
-# CLAUDE.md — `pack-library/` (Pack-Autoren)
+# CLAUDE.md — `pack-library/` (pack authors)
 
-Hier liegen die ausgelieferten **Packs** — die **Stecker** der drei Politiksorten, nie Code/Recht des Kerns.
-Produkt-Daten, **keine Tests** (Konformitäts-Fixtures leben in `testsuite/`).
+Here live the shipped **packs** — the **plugs** of the three policy kinds, never core code/law.
+Product data, **no tests** (conformance fixtures live in `testsuite/`).
 
-> **Quelle ist die Wissensbasis** (`/Rechnungswesen/pack-library/`), ins Repo via `make sync` (`rsync --delete`)
-> gespiegelt — **den Ordner im Repo nie direkt editieren**, sonst überschreibt der nächste Sync.
+> **The source is an internal repository**, mirrored into this repo via `make sync` (`rsync --delete`)
+> — **never edit the folder in the repo directly**, the next sync overwrites it.
 
-## Aufbau
+## Layout
 
-- Ein **Pack** = self-contained Ordner `pack-library/<pack>/` mit Manifest + eigenen Modulen. Packs **bauen nicht
-  aufeinander auf** (eigene IDs, eigener Kontenrahmen, **kein geteiltes `modules/`**).
-- Ein **Modul** = ein Stecker für **genau eine** Politiksorte, meist eine Daten-Datei (`kind` + `data`).
+- A **pack** = self-contained folder `pack-library/<pack>/` with manifest + own modules. Packs **do not build
+  on each other** (own ids, own chart of accounts, **no shared `modules/`**).
+- A **module** = a plug for **exactly one** policy kind, usually a data file (`kind` + `data`).
 
-| `kind` | Politiksorte |
+| `kind` | policy kind |
 |---|---|
-| `tax` · `depreciation` · `assetAccounts` | **Expansion** (Stecker) |
-| `mapping` | **Projektion** (Mappings) |
-| `accounts` | füllt das (kontenlose) **Substrat**-Konto-Primitiv |
-| `policy` | **Parameter** (Rundung/Skala via `packPolicy`) |
-| *(`constraint` — fehlt noch)* | Constraint (heute nur generisch im Kern) |
+| `tax` · `depreciation` · `assetAccounts` | **expansion** (plug) |
+| `mapping` | **projection** (mappings) |
+| `accounts` | fills the (account-less) **substrate** account primitive |
+| `policy` | **parameters** (rounding/scale via `packPolicy`) |
+| *(`constraint` — still missing)* | constraint (today only generic in the core) |
 
-- Der **Resolver** (`PackResolver`, byte-gleich PHP↔Node) faltet Manifest + Module zu *einem* Bündel und
-  **scheitert laut** bei fehlenden/inkohärenten Referenzen (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).
+- The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
+  **fails loudly** on missing/incoherent references (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).
 
-## Regel
+## Rule
 
-- **Kein Code/Recht ins Substrat.** Ein Pack ist Daten; ein neues *Paradigma* mit eigenem Algorithmus wäre ein
-  komponierbares Modul **hinter dem Sockel** — nie in den Kern geschmiert (Zielmodell, Root-`CLAUDE.md`).
-- Konsumenten **referenzieren** ein Pack per Name, statt Konten/Regeln inline zu kopieren.
+- **No code/law into the substrate.** A pack is data; a new *paradigm* with its own algorithm would be a
+  composable module **behind the socket** — never smeared into the core (target model, root `CLAUDE.md`).
+- Consumers **reference** a pack by name instead of copying accounts/rules inline.
 
-Pack von Hand schreiben (Skelette je `kind`, Manifest): Handbuch `docs/handbuch/README.md`.
+Writing a pack by hand (skeletons per `kind`, manifest): handbook `docs/handbuch/README.md`.

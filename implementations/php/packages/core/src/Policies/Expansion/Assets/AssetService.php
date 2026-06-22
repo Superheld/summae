@@ -19,24 +19,24 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Anlagen-Nebenbuch (assets-modell.md): GWG-Weiche beim Zugang,
- * AfA-Lauf idempotent je Lauf-Ziel, Buchungen als normale
- * Journal-Buchungen über den Ledger (kein Sonderweg) — maschinell
- * erzeugte Buchungen werden sofort festgeschrieben (GoBD).
+ * Asset subledger (assets-modell.md): low-value-asset switch at acquisition,
+ * depreciation run idempotent per run target, postings as normal journal
+ * entries through the ledger (no special path) — machine-generated entries
+ * are finalized immediately (GoBD).
  *
- * AfA-Verteilung (determinismus.md §2): Monatswerte = allocate der AHK
- * über die Laufzeit (flach); Jahreswerte = allocate nach Monaten je
- * Kalenderjahr — kein Restwert-Rest, Σ = AHK exakt.
+ * Depreciation distribution (determinismus.md §2): monthly values = allocate
+ * of the acquisition cost over the useful life (flat); yearly values = allocate
+ * by months per calendar year — no residual remainder, Σ = acquisition cost exactly.
  *
- * Kontenauflösung (Spec-Lücke, siehe SPEC-FINDINGS): Regelmodul-Schlüssel
+ * Account resolution (spec gap, see SPEC-FINDINGS): rule-module keys
  * `depreciationExpenseAccount`/`gwgExpenseAccount`/`acquisitionCounterAccount`,
- * sonst Konvention: einziges bank-Konto als Gegenkonto; AfA-Konto per
- * Namenspräfix "AfA", GWG-Konto per Namensteil "GWG".
+ * otherwise convention: the single bank account as counter account; depreciation
+ * account by name prefix "AfA", low-value-asset account by name part "GWG".
  */
 final class AssetService
 {
     /**
-     * @param array<string, mixed> $ruleModule gwgThresholds, usefulLife, Konten-Schlüssel
+     * @param array<string, mixed> $ruleModule gwgThresholds, usefulLife, account keys
      */
     public function __construct(
         private readonly Currency $baseCurrency,
@@ -67,7 +67,7 @@ final class AssetService
         $assetAccount = AccountNumber::of(is_string($input['assetAccount'] ?? null) ? $input['assetAccount'] : '0');
         $cost = $this->parseMoney($input['acquisitionCost'] ?? null);
         $acquiredOn = CalendarDate::of(is_string($input['acquiredOn'] ?? null) ? $input['acquiredOn'] : '');
-        $voucherId = is_string($input['voucherId'] ?? null) ? Uuid::fromString($input['voucherId']) : throw new InvalidValue('acquireAsset braucht voucherId');
+        $voucherId = is_string($input['voucherId'] ?? null) ? Uuid::fromString($input['voucherId']) : throw new InvalidValue('acquireAsset requires voucherId');
         $choice = is_string($input['gwgChoice'] ?? null) ? $input['gwgChoice'] : 'auto';
 
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
@@ -78,7 +78,7 @@ final class AssetService
             $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
             $schedule = $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Sammelposten § 6 Abs. 2a: starr 5 Jahre je 1/5, unabhängig von Abgängen.
+            // Pool § 6 Abs. 2a: fixed 5 years at 1/5 each, independent of disposals.
             $usefulLifeMonths = 60;
             $annual = $cost->allocateEvenly(5);
             foreach ($annual as $yearAmount) {
@@ -104,7 +104,7 @@ final class AssetService
 
         $this->assets->add($asset);
 
-        // Zugangsbuchung: Aktivierung bzw. Sofortaufwand gegen Geldkonto.
+        // Acquisition entry: capitalization or immediate expense against cash account.
         $targetAccount = $route === AssetRoute::ImmediateExpense
             ? $this->gwgExpenseAccount()
             : $assetAccount->value;
@@ -112,7 +112,7 @@ final class AssetService
         $this->postMachineEntry(
             $acquiredOn,
             $voucherId,
-            sprintf('Anlagenzugang %s', $name),
+            sprintf('Asset acquisition %s', $name),
             [
                 ['account' => $targetAccount, 'side' => 'debit', 'money' => $cost->jsonSerialize()],
                 ['account' => $this->counterAccount(), 'side' => 'credit', 'money' => $cost->jsonSerialize()],
@@ -154,7 +154,7 @@ final class AssetService
             $this->postMachineEntry(
                 $disposedOn,
                 $voucherId,
-                sprintf('Anlagenabgang %s', $asset->name),
+                sprintf('Asset disposal %s', $asset->name),
                 [
                     ['account' => $bankAccount, 'side' => 'debit', 'money' => $proceeds->jsonSerialize()],
                     ['account' => $proceedsAccount, 'side' => 'credit', 'money' => $proceeds->jsonSerialize()],
@@ -166,8 +166,8 @@ final class AssetService
     }
 
     /**
-     * AfA-Lauf: Jahres- oder Monatslauf, idempotent je Lauf-Ziel
-     * (Wiederholung: No-op mit alreadyRun, api.md).
+     * Depreciation run: yearly or monthly run, idempotent per run target
+     * (repetition: no-op with alreadyRun, api.md).
      *
      * @param array<string, mixed> $input {fiscalYear} | {fiscalYear, period}
      *
@@ -203,14 +203,14 @@ final class AssetService
             $entry = $this->postMachineEntry(
                 $bookingDate,
                 $this->depreciationVoucher($asset, $fiscalYear, $period),
-                sprintf('AfA %s %d%s', $asset->name, $fiscalYear, $period === null ? '' : sprintf('/%02d', $period)),
+                sprintf('Depreciation %s %d%s', $asset->name, $fiscalYear, $period === null ? '' : sprintf('/%02d', $period)),
                 [
                     ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
                     ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
                 ],
             );
 
-            // Verteilung auf die Planmonate festhalten (Idempotenz + asOf).
+            // Record the distribution over the plan months (idempotency + asOf).
             $monthAmounts = count($months) === 1
                 ? [$amount]
                 : $this->monthAmounts($asset, $months, $amount);
@@ -247,16 +247,16 @@ final class AssetService
         }
 
         return $asset ?? throw new DomainError('E_ASSET_UNKNOWN', sprintf(
-            'Anlagegut %s existiert nicht',
+            'asset %s does not exist',
             is_string($assetId) ? $assetId : '?',
         ));
     }
 
-    // ---- intern ----------------------------------------------------------
+    // ---- internal --------------------------------------------------------
 
     /**
-     * Jahresziel: alle offenen Planmonate des Kalenderjahres; Betrag =
-     * Jahres-Allokation (Monatsgewichte je Jahr) minus bereits Gebuchtes.
+     * Year target: all open plan months of the calendar year; amount =
+     * yearly allocation (month weights per year) minus what is already booked.
      *
      * @return array{0: list<int>, 1: Money}
      */
@@ -305,8 +305,8 @@ final class AssetService
     }
 
     /**
-     * Monatsziel: der Planmonat, der in (fiscalYear, period) fällt —
-     * Betrag aus dem flachen Monatsplan (determinismus.md §2).
+     * Month target: the plan month that falls in (fiscalYear, period) —
+     * amount from the flat monthly schedule (determinismus.md §2).
      *
      * @return array{0: list<int>, 1: Money}
      */
@@ -314,7 +314,7 @@ final class AssetService
     {
         $year = $this->fiscalYears->byYear($fiscalYear);
         if ($year === null) {
-            throw new DomainError('E_PERIOD_UNKNOWN', sprintf('Geschäftsjahr %d ist nicht angelegt', $fiscalYear));
+            throw new DomainError('E_PERIOD_UNKNOWN', sprintf('fiscal year %d is not set up', $fiscalYear));
         }
 
         $periodEntity = $year->period($period);
@@ -344,8 +344,8 @@ final class AssetService
      */
     private function monthAmounts(Asset $asset, array $months, Money $total): array
     {
-        // Jahresbetrag auf die offenen Monate verteilen — die Differenz zum
-        // flachen Plan landet per largest remainder deterministisch vorn.
+        // Distribute the yearly amount over the open months — the difference to
+        // the flat schedule lands deterministically up front via largest remainder.
         $planned = array_map(
             static fn (int $planMonth): Money => $asset->monthlySchedule[$planMonth - 1],
             $months,
@@ -389,7 +389,7 @@ final class AssetService
             'lines' => $lines,
         ]);
 
-        // Maschinell erzeugte Buchung: sofort festschreiben (GoBD).
+        // Machine-generated entry: finalize immediately (GoBD).
         $this->ledger->finalize(['entryId' => $result->entry->id->value]);
 
         return $result->entry->id;
@@ -472,7 +472,7 @@ final class AssetService
         }
 
         throw new DomainError('E_ASSET_UNKNOWN', sprintf(
-            'Keine Nutzungsdauer für Anlagenklasse "%s" im Regelmodul (siehe SPEC-FINDINGS)',
+            'No useful life for asset class "%s" in the rule module (see SPEC-FINDINGS)',
             $assetClass,
         ));
     }
@@ -493,8 +493,8 @@ final class AssetService
     }
 
     /**
-     * v0.5/F-004: Anlagenkonten kommen aus dem Regelmodul-Block
-     * `assetAccounts` — keine Namens-Heuristik mehr.
+     * v0.5/F-004: asset accounts come from the rule-module block
+     * `assetAccounts` — no more name heuristic.
      */
     private function assetAccount(string $key): string
     {
@@ -506,7 +506,7 @@ final class AssetService
         }
 
         throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf(
-            'assetAccounts.%s ist im Regelmodul nicht gesetzt',
+            'assetAccounts.%s is not set in the rule module',
             $key,
         ), ['key' => $key]);
     }
@@ -516,7 +516,7 @@ final class AssetService
         $amount = is_array($raw) && is_string($raw['amount'] ?? null) ? $raw['amount'] : null;
 
         if ($amount === null) {
-            throw new InvalidValue('Betrag fehlt');
+            throw new InvalidValue('amount missing');
         }
 
         return Money::of($amount, $this->baseCurrency);

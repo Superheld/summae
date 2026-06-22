@@ -2,8 +2,8 @@ import type { CalendarDate } from '../substrate/calendar-date.js';
 import type { Uuid } from '../substrate/uuid.js';
 
 /**
- * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung, mehrere
- * Buchungen können ihn referenzieren. Metadaten für EÜR/USt (due, recurring,
+ * Voucher (ledger-modell.md aggregate 4): exists before/without a posting, several
+ * postings can reference it. Metadata for EÜR/VAT (due, recurring,
  * economicYear, serviceDate/servicePeriod, partnerId, kind …).
  */
 export interface VoucherProps {
@@ -53,7 +53,7 @@ export class Voucher {
     this.issuer = props.issuer ?? null;
   }
 
-  /** Steuerlich maßgebliches Datum: Leistungsdatum, Fallback Belegdatum. */
+  /** Tax-relevant date: service date, fallback voucher date. */
   taxDate(): CalendarDate {
     return this.serviceDate ?? this.servicePeriodTo ?? this.voucherDate;
   }

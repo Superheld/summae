@@ -7,11 +7,11 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Kontonummer als String — führende Nullen sind signifikant (datenformat.md).
- * Vergleich nach Unicode-Codepoints, keine Locale-Collation:
- * "10" < "9" ist gewollt, "0420" < "1200" < "8400" (determinismus.md §3).
+ * Account number as a string — leading zeros are significant (datenformat.md).
+ * Comparison by Unicode code points, no locale collation:
+ * "10" < "9" is intended, "0420" < "1200" < "8400" (determinismus.md §3).
  *
- * Byteweiser Vergleich von UTF-8 entspricht exakt der Codepoint-Ordnung.
+ * Byte-wise comparison of UTF-8 matches the code point order exactly.
  */
 final readonly class AccountNumber implements \JsonSerializable, \Stringable
 {
@@ -23,12 +23,12 @@ final readonly class AccountNumber implements \JsonSerializable, \Stringable
     public static function of(string $value): self
     {
         if ($value === '' || strlen($value) > 64) {
-            throw new InvalidValue('Kontonummer muss 1-64 Zeichen lang sein');
+            throw new InvalidValue('Account number must be 1-64 characters long');
         }
 
         if (preg_match('/^[^\s\p{C}]+$/u', $value) !== 1) {
             throw new InvalidValue(sprintf(
-                'Kontonummer enthält Whitespace oder Steuerzeichen: "%s"',
+                'Account number contains whitespace or control characters: "%s"',
                 $value,
             ));
         }
@@ -36,7 +36,7 @@ final readonly class AccountNumber implements \JsonSerializable, \Stringable
         return new self($value);
     }
 
-    /** Unicode-Codepoint-Ordnung (byteweise auf UTF-8). */
+    /** Unicode code point order (byte-wise on UTF-8). */
     public function compareTo(self $other): int
     {
         return strcmp($this->value, $other->value) <=> 0;

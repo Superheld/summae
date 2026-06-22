@@ -7,9 +7,9 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Zonenloses Kalenderdatum (determinismus.md §4): Belegdatum und
- * Buchungsdatum kennen keine Zeitzone — kein UTC-Shift-Risiko.
- * ISO-Format sortiert lexikographisch korrekt.
+ * Zoneless calendar date (determinismus.md §4): voucher date and
+ * posting date know no time zone — no UTC shift risk.
+ * ISO format sorts lexicographically correctly.
  */
 final readonly class CalendarDate implements \JsonSerializable, \Stringable
 {
@@ -23,7 +23,7 @@ final readonly class CalendarDate implements \JsonSerializable, \Stringable
         $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $iso);
 
         if ($parsed === false || $parsed->format('Y-m-d') !== $iso) {
-            throw new InvalidValue(sprintf('Kein gültiges Kalenderdatum: "%s"', $iso));
+            throw new InvalidValue(sprintf('Not a valid calendar date: "%s"', $iso));
         }
 
         return new self($iso);

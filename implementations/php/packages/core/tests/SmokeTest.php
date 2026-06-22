@@ -12,8 +12,8 @@ use Summae\Core\CorePackage;
 use Summae\Laravel\SummaeServiceProvider;
 
 /**
- * JOB-000: beweist nur, dass das Gerüst trägt — Autoloading über alle
- * drei Packages und die Decimal-Abhängigkeit. Fachtests ab JOB-001.
+ * JOB-000: only proves the scaffold holds — autoloading across all
+ * three packages and the decimal dependency. Domain tests from JOB-001.
  */
 final class SmokeTest extends TestCase
 {
@@ -26,8 +26,8 @@ final class SmokeTest extends TestCase
 
     public function testDecimalDependencyRoundsHalfUp(): void
     {
-        // Kernanforderung aus determinismus.md §2 — hier nur als Beweis,
-        // dass brick/math im Container korrekt arbeitet.
+        // Core requirement from determinismus.md §2 — here only as proof
+        // that brick/math works correctly in the container.
         $rounded = BigDecimal::of('2.225')->toScale(2, RoundingMode::HALF_UP);
 
         self::assertSame('2.23', (string) $rounded);

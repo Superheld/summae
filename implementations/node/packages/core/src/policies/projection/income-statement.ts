@@ -6,9 +6,9 @@ import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
 
 /**
- * GuV als Projektion über ein Mapping (SF-09). Vorzeichen: Haben − Soll
- * (Erträge positiv, Aufwand negativ); netIncome = Summe der Positionen.
- * fromPeriod/throughPeriod grenzen ab (Monats-GuV als BWA-Grundlage).
+ * Income statement as a projection over a mapping (SF-09). Sign: credit − debit
+ * (revenue positive, expense negative); netIncome = sum of the positions.
+ * fromPeriod/throughPeriod restrict the range (monthly income statement as BWA basis).
  */
 export class IncomeStatementProjection {
   constructor(
@@ -27,7 +27,7 @@ export class IncomeStatementProjection {
 
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" ist nicht geladen`);
+      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" is not loaded`);
     }
 
     const zero = Money.zero(this.baseCurrency);

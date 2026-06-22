@@ -12,7 +12,7 @@ interface Depreciation {
   entryId: Uuid;
 }
 
-/** Letzter Tag des Monats `monthsToAdd` nach `base` (1-basierte Planmonate). */
+/** Last day of the month `monthsToAdd` after `base` (1-based plan months). */
 function lastDayOfMonthAfter(base: CalendarDate, monthsToAdd: number): CalendarDate {
   const totalMonth0 = base.month() - 1 + monthsToAdd;
   const year = base.year() + Math.floor(totalMonth0 / 12);
@@ -24,8 +24,8 @@ function lastDayOfMonthAfter(base: CalendarDate, monthsToAdd: number): CalendarD
 }
 
 /**
- * Anlagegut (assets-modell.md): Stammdaten + AfA-Plan + Lebenslauf. Invarianten:
- * Restbuchwert = AHK − Σ Abschreibungen, nie < 0; keine AfA vor Zugang/nach Abgang.
+ * Asset (assets-modell.md): master data + depreciation schedule + history. Invariants:
+ * book value = acquisition cost − Σ depreciations, never < 0; no depreciation before acquisition/after disposal.
  */
 export class Asset {
   private readonly depreciations: Depreciation[] = [];
@@ -53,7 +53,7 @@ export class Asset {
     if (this.disposed) {
       throw new DomainError(
         'E_ASSET_DISPOSED',
-        `Anlagegut ${this.id.value} ist bereits abgegangen (${this.disposedOn?.iso ?? '?'})`,
+        `asset ${this.id.value} is already disposed (${this.disposedOn?.iso ?? '?'})`,
         { assetId: this.id.value },
       );
     }
@@ -77,7 +77,7 @@ export class Asset {
     this.depreciations.push({ planMonth, date, amount, entryId });
   }
 
-  /** AfA-Lebenslauf in persistierbarer Form — Pendant zu PHPs `depreciationsForPersistence`. */
+  /** Depreciation history in persistable form — counterpart to PHP's `depreciationsForPersistence`. */
   depreciationsForPersistence(): Array<{
     planMonth: number;
     date: string;
@@ -93,8 +93,8 @@ export class Asset {
   }
 
   /**
-   * Aus Persistenz wiederherstellen: Stammdaten + AfA-Lebenslauf + Abgangsstatus
-   * direkt setzen (keine erneute Prüfung) — Pendant zu PHPs `Asset::restore`.
+   * Restore from persistence: set master data + depreciation history + disposal
+   * status directly (no re-validation) — counterpart to PHP's `Asset::restore`.
    */
   static restore(
     id: Uuid,
@@ -137,7 +137,7 @@ export class Asset {
   }
 
   accumulatedDepreciationAt(asOf: CalendarDate | null): Money {
-    let sum = this.acquisitionCost.subtract(this.acquisitionCost); // 0 in Mandantenwährung
+    let sum = this.acquisitionCost.subtract(this.acquisitionCost); // 0 in tenant currency
     for (const booking of this.depreciations) {
       if (asOf !== null && booking.date.isAfter(asOf)) continue;
       sum = sum.add(booking.amount);

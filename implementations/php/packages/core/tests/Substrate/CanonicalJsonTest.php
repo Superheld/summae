@@ -28,9 +28,9 @@ final class CanonicalJsonTest extends TestCase
     }
 
     /**
-     * RFC 8785: Sortierung nach UTF-16-Code-Units, nicht Codepoints.
-     * U+1F600 (Surrogatpaar, D83D DE00) sortiert VOR U+FB33 (FB33),
-     * obwohl der Codepoint größer ist.
+     * RFC 8785: sorting by UTF-16 code units, not codepoints.
+     * U+1F600 (surrogate pair, D83D DE00) sorts BEFORE U+FB33 (FB33),
+     * even though the codepoint is larger.
      */
     public function testSortsByUtf16CodeUnitsNotCodepoints(): void
     {
@@ -41,13 +41,13 @@ final class CanonicalJsonTest extends TestCase
 
     public function testNumericStringKeysStayStrings(): void
     {
-        // PHP macht "81" intern zum int-Key — die Ausgabe muss ihn als String tragen.
+        // PHP turns "81" into an int key internally — the output must carry it as a string.
         self::assertSame('{"66":2,"81":1}', CanonicalJson::encode(['81' => 1, '66' => 2]));
     }
 
     public function testStringEscaping(): void
     {
-        // U+0001 hat kein Kurz-Escape -> Hex-Escape lowercase (RFC 8785)
+        // U+0001 has no short escape -> hex escape lowercase (RFC 8785)
         $expected = '"Zeile\n\tTab \u0001 \"quote\" \\\\ ü€"';
         self::assertSame($expected, CanonicalJson::encode("Zeile\n\tTab \x01 \"quote\" \\ ü€"));
     }

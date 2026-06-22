@@ -1,39 +1,39 @@
 # @superheld/summae-runner (Node)
 
-Konformitäts-Fixture-Runner: führt die geteilte Testsuite (`testsuite/` im
-Repo-Root) gegen ein **Subject** aus und prüft nach dem Runner-Kontrakt
+Conformance fixture runner: runs the shared test suite (`testsuite/` in the
+repo root) against a **subject** and checks it against the runner contract
 (`testsuite/README.md`).
 
-**Stand:** alle 45 Fixtures grün gegen das `CoreSubject` (@superheld/summae-core,
-In-Memory-Ports), Doppellauf byte-deterministisch.
+**Status:** all 45 fixtures green against the `CoreSubject` (@superheld/summae-core,
+in-memory ports), double run byte-deterministic.
 
-## Befehle
+## Commands
 
 ```bash
-pnpm fixtures                 # ganze Suite, Bericht (PASS/FAIL/CRASH)
-pnpm fixtures -- --strict     # exit ≠ 0, wenn nicht alles grün / Determinismus bricht
-pnpm fixtures -- --filter=vat # nur Fixtures, deren Name den Teilstring enthält
-pnpm test                     # vitest — inkl. conformance.test.ts (s. u.)
+pnpm fixtures                 # whole suite, report (PASS/FAIL/CRASH)
+pnpm fixtures -- --strict     # exit ≠ 0 if not everything is green / determinism breaks
+pnpm fixtures -- --filter=vat # only fixtures whose name contains the substring
+pnpm test                     # vitest — incl. conformance.test.ts (see below)
 ```
 
-(`pnpm fixtures` läuft via `tsx runner/bin/run-fixtures.ts`.)
+(`pnpm fixtures` runs via `tsx runner/bin/run-fixtures.ts`.)
 
-## Bausteine
+## Building blocks
 
-- **`Subject`** (`src/subject.ts`) — das Prüfobjekt: `setup` / `execute(op, input)` /
-  `project(name, params)`. Fachfehler werden als `SubjectError` mit exaktem
-  `E_*`-Code geworfen; alles andere gilt als Crash.
-- **`CoreSubject`** (`src/subject/core-subject.ts`) — Subject über `@superheld/summae-core`:
-  baut den Mandanten aus dem `setup`-Block, routet über `TenantOperations`,
-  übersetzt `DomainError → SubjectError`. Eine neue Runtime/Anbindung implementiert
-  nur dieses Interface.
-- **`FixtureRunner`** — eine Fixture: `setup → steps → projections`.
-- **`SuiteRunner`** — ganze Suite + Doppellauf-Determinismus (UUID-Normalisierung
-  auf Auftrittsindex).
-- **`Comparator` / `PlaceholderBag`** — Teilmengen-Vergleich und `$V1`/`$E1`-Mechanik.
+- **`Subject`** (`src/subject.ts`) — the object under test: `setup` / `execute(op, input)` /
+  `project(name, params)`. Domain errors are thrown as `SubjectError` with the exact
+  `E_*` code; anything else counts as a crash.
+- **`CoreSubject`** (`src/subject/core-subject.ts`) — subject over `@superheld/summae-core`:
+  builds the tenant from the `setup` block, routes via `TenantOperations`,
+  translates `DomainError → SubjectError`. A new runtime/binding implements
+  only this interface.
+- **`FixtureRunner`** — a single fixture: `setup → steps → projections`.
+- **`SuiteRunner`** — whole suite + double-run determinism (UUID normalization
+  to occurrence index).
+- **`Comparator` / `PlaceholderBag`** — subset comparison and `$V1`/`$E1` mechanics.
 
-## Regressionsschutz
+## Regression guard
 
-`runner/expected-green.txt` listet die aktuell grün erwarteten Fixtures;
-`runner/test/conformance.test.ts` lässt die Suite laufen und nagelt diese Liste
-(plus Doppellauf-Determinismus) als Teil von `pnpm test` fest.
+`runner/expected-green.txt` lists the fixtures currently expected green;
+`runner/test/conformance.test.ts` runs the suite and pins this list
+(plus double-run determinism) as part of `pnpm test`.

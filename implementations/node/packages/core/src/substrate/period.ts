@@ -2,8 +2,8 @@ import type { CalendarDate } from './calendar-date.js';
 import type { PeriodStatus } from './types.js';
 
 /**
- * Periode — Entity innerhalb des FiscalYear-Aggregats (lückenlos,
- * überlappungsfrei; Statuswechsel nur über das Aggregat).
+ * Period — entity within the FiscalYear aggregate (gapless,
+ * non-overlapping; status change only via the aggregate).
  */
 export class Period {
   private periodStatus: PeriodStatus;
@@ -29,12 +29,12 @@ export class Period {
     return date.isBetween(this.start, this.end);
   }
 
-  /** Nur über FiscalYear aufrufen (Reihenfolgeprüfung dort). */
+  /** Call only via FiscalYear (order check there). */
   close(): void {
     this.periodStatus = 'closed';
   }
 
-  /** Nur über FiscalYear aufrufen (Jahresstatusprüfung dort). */
+  /** Call only via FiscalYear (year status check there). */
   reopen(): void {
     this.periodStatus = 'open';
   }

@@ -52,14 +52,14 @@ function asString(value: unknown): string | null {
 }
 
 /**
- * Domain Service `post` und Verwandte (ledger-modell.md). Prüfreihenfolge beim
- * Buchen ist Vertragsbestandteil (api.md):
- *   1. Struktur (E_ENTRY_TOO_FEW_LINES, E_ENTRY_INVALID_AMOUNT)
- *   2. Referenzen (E_ENTRY_NO_VOUCHER, E_VOUCHER_UNKNOWN, E_ACCOUNT_UNKNOWN,
+ * Domain Service `post` and relatives (ledger-modell.md). Check order when
+ * posting is part of the contract (api.md):
+ *   1. Structure (E_ENTRY_TOO_FEW_LINES, E_ENTRY_INVALID_AMOUNT)
+ *   2. References (E_ENTRY_NO_VOUCHER, E_VOUCHER_UNKNOWN, E_ACCOUNT_UNKNOWN,
  *      E_ACCOUNT_LOCKED, E_DIMENSION_INVALID)
- *   3. Bilanzgleichung (E_ENTRY_UNBALANCED)
- *   4. Zeitlicher Kontext (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
- * Nur der erste Fehler wird gemeldet.
+ *   3. Balance equation (E_ENTRY_UNBALANCED)
+ *   4. Temporal context (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
+ * Only the first error is reported.
  */
 export class Ledger {
   constructor(
@@ -78,26 +78,26 @@ export class Ledger {
   post(input: Record<string, unknown>): PostResult {
     const actor = this.actor(input);
 
-    // 1. Struktur
+    // 1. Structure
     const rawLines = input.lines;
     if (!Array.isArray(rawLines) || rawLines.length < 2) {
-      throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
+      throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'A posting needs at least two lines');
     }
     const parsed = rawLines.map((rawLine, index) => {
       if (!isRecord(rawLine)) {
-        throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Position ${index} ist keine Struktur`);
+        throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Line ${index} is not a structure`);
       }
       return this.parseLine(rawLine, index);
     });
 
-    // 2. Referenzen
+    // 2. References
     const voucher = this.requireVoucher(input.voucherId);
     const lines = this.resolveLines(parsed);
 
-    // 3. Bilanzgleichung
+    // 3. Balance equation
     this.assertBalanced(lines);
 
-    // 4. Zeitlicher Kontext
+    // 4. Temporal context
     const entryDate = this.parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
 
@@ -122,8 +122,8 @@ export class Ledger {
   }
 
   /**
-   * AR/AP-Automatik: Soll auf Forderungskonto → receivable, Haben auf
-   * Verbindlichkeitskonto → payable. Stornobuchungen erzeugen keine Posten.
+   * AR/AP automation: debit on a receivable account → receivable, credit on a
+   * payable account → payable. Reversal postings create no items.
    */
   private createOpenItems(entry: JournalEntry): OpenItem[] {
     if (entry.reverses !== null) return [];
@@ -156,9 +156,9 @@ export class Ledger {
   }
 
   /**
-   * Ausgleich: Zuordnung Zahlung → offene(r) Posten, auch teilweise; immer
-   * explizit, kein FIFO (determinismus.md §3). Differenzen (Skonto/Ausfall/
-   * Kleindifferenz) nach api.md G2. Erst vollständig validieren, dann anwenden.
+   * Settlement: allocation payment → open item(s), also partial; always
+   * explicit, no FIFO (determinismus.md §3). Differences (cash discount/write-off/
+   * small difference) per api.md G2. Validate fully first, then apply.
    */
   settle(input: Record<string, unknown>): OpenItem[] {
     const actor = this.actor(input);
@@ -166,7 +166,7 @@ export class Ledger {
 
     const allocations = Array.isArray(input.allocations) ? input.allocations : [];
     if (allocations.length === 0) {
-      throw new DomainError('E_OPENITEM_UNKNOWN', 'settle ohne Zuordnungen');
+      throw new DomainError('E_OPENITEM_UNKNOWN', 'settle without allocations');
     }
 
     const plan: Array<{ item: OpenItem; settlement: Settlement }> = [];
@@ -174,7 +174,7 @@ export class Ledger {
 
     for (const allocation of allocations) {
       if (!isRecord(allocation)) {
-        throw new DomainError('E_OPENITEM_UNKNOWN', 'Zuordnung ist keine Struktur');
+        throw new DomainError('E_OPENITEM_UNKNOWN', 'Allocation is not a structure');
       }
       const openItemId = allocation.openItemId;
       let item: OpenItem | null = null;
@@ -188,21 +188,21 @@ export class Ledger {
       if (item === null) {
         throw new DomainError(
           'E_OPENITEM_UNKNOWN',
-          `Offener Posten ${typeof openItemId === 'string' ? openItemId : '?'} existiert nicht`,
+          `Open item ${typeof openItemId === 'string' ? openItemId : '?'} does not exist`,
         );
       }
 
-      const money = this.parseSettlementMoney(allocation.money, 'Zuordnungsbetrag');
+      const money = this.parseSettlementMoney(allocation.money, 'Allocation amount');
       const [differenceMoney, differenceKind] = this.parseDifference(allocation.difference ?? null, item);
 
       const alreadyPlanned = planned.get(item.id.value) ?? Money.zero(this.baseCurrency);
       if (money.add(alreadyPlanned).compareTo(item.remaining()) > 0) {
         throw new DomainError(
           'E_SETTLEMENT_EXCEEDS_ITEM',
-          `Zuordnung ${money.amountAsString()} übersteigt Restbetrag ${item
+          `Allocation ${money.amountAsString()} exceeds remaining amount ${item
             .remaining()
             .subtract(alreadyPlanned)
-            .amountAsString()} des Postens ${item.id.value}`,
+            .amountAsString()} of item ${item.id.value}`,
           { openItemId: item.id.value },
         );
       }
@@ -232,11 +232,11 @@ export class Ledger {
     const amount = isRecord(raw) ? asString(raw.amount) : null;
     const currency = isRecord(raw) ? asString(raw.currency) : null;
     if (amount === null || currency !== this.baseCurrency.code) {
-      throw new InvalidValue(`${label} fehlt oder falsche Währung`);
+      throw new InvalidValue(`${label} missing or wrong currency`);
     }
     const money = Money.of(amount, this.baseCurrency);
     if (!money.isPositive()) {
-      throw new InvalidValue(`${label} muss > 0 sein`);
+      throw new InvalidValue(`${label} must be > 0`);
     }
     return money;
   }
@@ -247,28 +247,28 @@ export class Ledger {
   ): [Money | null, SettlementDifferenceKind | null] {
     if (raw === null) return [null, null];
     if (!isRecord(raw)) {
-      throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference ist keine Struktur');
+      throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference is not a structure');
     }
     const kind = parseSettlementDifferenceKind(raw.kind);
     if (kind === null) {
       throw new DomainError(
         'E_SETTLEMENT_DIFFERENCE_INVALID',
-        `Unbekannte Differenzart "${typeof raw.kind === 'string' ? raw.kind : '?'}"`,
+        `Unknown difference kind "${typeof raw.kind === 'string' ? raw.kind : '?'}"`,
       );
     }
     let money: Money;
     try {
-      money = this.parseSettlementMoney(raw.money, 'Differenzbetrag');
+      money = this.parseSettlementMoney(raw.money, 'Difference amount');
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Differenzbetrag ungültig (≤ 0 oder Format)');
+        throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Difference amount invalid (≤ 0 or format)');
       }
       throw error;
     }
     if (money.compareTo(item.remaining()) > 0) {
       throw new DomainError(
         'E_SETTLEMENT_DIFFERENCE_INVALID',
-        `Differenz ${money.amountAsString()} übersteigt Restbetrag ${item.remaining().amountAsString()}`,
+        `Difference ${money.amountAsString()} exceeds remaining amount ${item.remaining().amountAsString()}`,
       );
     }
     return [money, kind];
@@ -287,11 +287,11 @@ export class Ledger {
 
     if (Array.isArray(input.lines)) {
       if (input.lines.length < 2) {
-        throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'Eine Buchung braucht mindestens zwei Positionen');
+        throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'A posting needs at least two lines');
       }
       const parsed = input.lines.map((rawLine, index) => {
         if (!isRecord(rawLine)) {
-          throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Position ${index} ist keine Struktur`);
+          throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Line ${index} is not a structure`);
         }
         return this.parseLine(rawLine, index);
       });
@@ -309,7 +309,7 @@ export class Ledger {
       this.journal.save(entry);
       this.recordAudit(actor, 'journalEntry', entry.id, 'corrected', changes);
     } else {
-      // Statusprüfung auch ohne effektive Änderung (E_ENTRY_FINALIZED).
+      // Status check even without an effective change (E_ENTRY_FINALIZED).
       entry.changeText(entry.text());
     }
 
@@ -332,7 +332,7 @@ export class Ledger {
 
     const until = input.finalizeUntil;
     if (typeof until !== 'string') {
-      throw new DomainError('E_ENTRY_UNKNOWN', 'finalize braucht entryId oder finalizeUntil');
+      throw new DomainError('E_ENTRY_UNKNOWN', 'finalize needs entryId or finalizeUntil');
     }
     const untilDate = this.parseEntryDate(until);
     let count = 0;
@@ -354,14 +354,14 @@ export class Ledger {
     const original = this.requireEntry(input.entryId);
 
     if (original.reversedBy() !== null) {
-      throw new DomainError('E_ENTRY_ALREADY_REVERSED', `Buchung ${original.id.value} ist bereits storniert`, {
+      throw new DomainError('E_ENTRY_ALREADY_REVERSED', `Posting ${original.id.value} is already reversed`, {
         entryId: original.id.value,
       });
     }
 
     const entryDate = this.parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
-    const text = asString(input.text) ?? `Storno ${original.sequenceNumber}`;
+    const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
 
     const reversal = new JournalEntry(
       this.ids.next(),
@@ -408,7 +408,7 @@ export class Ledger {
       if (!entry.isFinalized()) {
         throw new DomainError(
           'E_FISCALYEAR_UNFINALIZED_ENTRIES',
-          `Jahresabschluss ${fiscalYear.year}: Buchung ${entry.sequenceNumber} ist nicht festgeschrieben`,
+          `Year-end close ${fiscalYear.year}: posting ${entry.sequenceNumber} is not finalized`,
           { fiscalYear: fiscalYear.year, sequenceNumber: entry.sequenceNumber },
         );
       }
@@ -428,7 +428,7 @@ export class Ledger {
       if (overlaps || existing.year === year) {
         throw new DomainError(
           'E_FISCALYEAR_OVERLAP',
-          `Geschäftsjahr ${year} (${start.iso} bis ${end.iso}) überschneidet sich mit ${existing.year}`,
+          `Fiscal year ${year} (${start.iso} to ${end.iso}) overlaps with ${existing.year}`,
           { year, existing: existing.year },
         );
       }
@@ -444,7 +444,7 @@ export class Ledger {
     const account = this.buildAccount(input);
 
     if (this.accounts.byNumber(account.number) !== null) {
-      throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Kontonummer ${account.number.value} ist bereits vergeben`, {
+      throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Account number ${account.number.value} is already taken`, {
         number: account.number.value,
       });
     }
@@ -460,7 +460,7 @@ export class Ledger {
     const account = this.accounts.byNumber(AccountNumber.of(number));
 
     if (account === null) {
-      throw new DomainError('E_ACCOUNT_UNKNOWN', `Konto ${number} existiert nicht`, { number });
+      throw new DomainError('E_ACCOUNT_UNKNOWN', `Account ${number} does not exist`, { number });
     }
 
     const before = account.status();
@@ -476,7 +476,7 @@ export class Ledger {
     const actor = this.actor(input);
     const rows = input.rows;
     if (!Array.isArray(rows) || rows.length === 0) {
-      throw new DomainError('E_COA_FORMAT_INVALID', 'Import ohne Zeilen');
+      throw new DomainError('E_COA_FORMAT_INVALID', 'Import without rows');
     }
 
     const accounts: Account[] = [];
@@ -484,19 +484,19 @@ export class Ledger {
 
     rows.forEach((row, index) => {
       if (!isRecord(row)) {
-        throw new DomainError('E_COA_FORMAT_INVALID', `Zeile ${index} ist keine Struktur`);
+        throw new DomainError('E_COA_FORMAT_INVALID', `Row ${index} is not a structure`);
       }
       let account: Account;
       try {
         account = this.buildAccount(row);
       } catch (error) {
         if (error instanceof DomainError) {
-          throw new DomainError('E_COA_FORMAT_INVALID', `Zeile ${index} ist nicht parsebar`, { row: index });
+          throw new DomainError('E_COA_FORMAT_INVALID', `Row ${index} is not parsable`, { row: index });
         }
         throw error;
       }
       if (numbers.has(account.number.value) || this.accounts.byNumber(account.number) !== null) {
-        throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Kontonummer ${account.number.value} ist bereits vergeben`, {
+        throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Account number ${account.number.value} is already taken`, {
           number: account.number.value,
         });
       }
@@ -511,7 +511,7 @@ export class Ledger {
     return accounts.length;
   }
 
-  // ---- intern ----------------------------------------------------------
+  // ---- internal --------------------------------------------------------
 
   private actor(input: Record<string, unknown>): string {
     const actor = asString(input.actor);
@@ -524,12 +524,12 @@ export class Ledger {
     const currency = isRecord(money) ? asString(money.currency) : null;
 
     if (amount === null || currency === null) {
-      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Position ${index}: money fehlt oder unvollständig`);
+      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Line ${index}: money missing or incomplete`);
     }
     if (currency !== this.baseCurrency.code) {
       throw new DomainError(
         'E_ENTRY_INVALID_AMOUNT',
-        `Position ${index}: Fremdwährung ${currency} — v1 bucht nur Mandantenwährung ${this.baseCurrency.code}`,
+        `Line ${index}: foreign currency ${currency} — v1 posts only the tenant currency ${this.baseCurrency.code}`,
         { currency },
       );
     }
@@ -541,7 +541,7 @@ export class Ledger {
       if (error instanceof InvalidValue) {
         throw new DomainError(
           'E_ENTRY_INVALID_AMOUNT',
-          `Position ${index}: Betrag "${amount}" ist kein gültiger ${this.baseCurrency.code}-Betrag`,
+          `Line ${index}: amount "${amount}" is not a valid ${this.baseCurrency.code} amount`,
           { amount },
         );
       }
@@ -550,26 +550,26 @@ export class Ledger {
     if (!parsedMoney.isPositive()) {
       throw new DomainError(
         'E_ENTRY_INVALID_AMOUNT',
-        `Position ${index}: Betrag muss > 0 sein (negative Beträge nur bei Storno)`,
+        `Line ${index}: amount must be > 0 (negative amounts only on reversal)`,
         { amount },
       );
     }
 
     const side = rawLine.side;
     if (side !== 'debit' && side !== 'credit') {
-      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Position ${index}: side muss debit oder credit sein`);
+      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Line ${index}: side must be debit or credit`);
     }
 
     const account = asString(rawLine.account);
     if (account === null || account === '') {
-      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Position ${index}: account fehlt`);
+      throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Line ${index}: account missing`);
     }
 
     const dimensions: DimensionValue[] = [];
     const rawDimensions = Array.isArray(rawLine.dimensions) ? rawLine.dimensions : [];
     for (const rawDimension of rawDimensions) {
       if (!isRecord(rawDimension) || typeof rawDimension.type !== 'string' || typeof rawDimension.code !== 'string') {
-        throw new DomainError('E_DIMENSION_INVALID', `Position ${index}: Dimension unvollständig`);
+        throw new DomainError('E_DIMENSION_INVALID', `Line ${index}: dimension incomplete`);
       }
       dimensions.push(DimensionValue.of(rawDimension.type, rawDimension.code));
     }
@@ -581,7 +581,7 @@ export class Ledger {
 
   private requireVoucher(voucherId: unknown): Voucher {
     if (typeof voucherId !== 'string' || voucherId === '') {
-      throw new DomainError('E_ENTRY_NO_VOUCHER', 'Keine Buchung ohne Beleg (F-CORE-003)');
+      throw new DomainError('E_ENTRY_NO_VOUCHER', 'No posting without a voucher (F-CORE-003)');
     }
     let voucher: Voucher | null = null;
     try {
@@ -590,7 +590,7 @@ export class Ledger {
       if (!(error instanceof InvalidValue)) throw error;
     }
     if (voucher === null) {
-      throw new DomainError('E_VOUCHER_UNKNOWN', `Beleg ${voucherId} existiert nicht`, { voucherId });
+      throw new DomainError('E_VOUCHER_UNKNOWN', `Voucher ${voucherId} does not exist`, { voucherId });
     }
     return voucher;
   }
@@ -600,10 +600,10 @@ export class Ledger {
       const number = AccountNumber.of(line.account);
       const account = this.accounts.byNumber(number);
       if (account === null) {
-        throw new DomainError('E_ACCOUNT_UNKNOWN', `Konto ${number.value} existiert nicht`, { number: number.value });
+        throw new DomainError('E_ACCOUNT_UNKNOWN', `Account ${number.value} does not exist`, { number: number.value });
       }
       if (account.isLocked()) {
-        throw new DomainError('E_ACCOUNT_LOCKED', `Konto ${number.value} ist gesperrt`, { number: number.value });
+        throw new DomainError('E_ACCOUNT_LOCKED', `Account ${number.value} is locked`, { number: number.value });
       }
       return new EntryLine(account.id, account.number, line.side, line.money, line.dimensions, line.taxTag);
     });
@@ -624,7 +624,7 @@ export class Ledger {
     if (!debit.equals(credit)) {
       throw new DomainError(
         'E_ENTRY_UNBALANCED',
-        `Σ Soll (${debit.amountAsString()}) ≠ Σ Haben (${credit.amountAsString()})`,
+        `Σ debit (${debit.amountAsString()}) ≠ Σ credit (${credit.amountAsString()})`,
         { debit: debit.amountAsString(), credit: credit.amountAsString() },
       );
     }
@@ -632,13 +632,13 @@ export class Ledger {
 
   private parseEntryDate(entryDate: unknown): CalendarDate {
     if (typeof entryDate !== 'string') {
-      throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate fehlt');
+      throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate missing');
     }
     try {
       return CalendarDate.of(entryDate);
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_PERIOD_UNKNOWN', `Ungültiges Buchungsdatum "${entryDate}"`);
+        throw new DomainError('E_PERIOD_UNKNOWN', `Invalid posting date "${entryDate}"`);
       }
       throw error;
     }
@@ -649,13 +649,13 @@ export class Ledger {
     if (fiscalYear === null) {
       throw new DomainError(
         'E_PERIOD_UNKNOWN',
-        `Buchungsdatum ${entryDate.iso} liegt außerhalb angelegter Geschäftsjahre`,
+        `Posting date ${entryDate.iso} lies outside any created fiscal year`,
         { date: entryDate.iso },
       );
     }
     const period = fiscalYear.periodForDate(entryDate);
     if (fiscalYear.isClosed() || !period.isOpen()) {
-      throw new DomainError('E_PERIOD_CLOSED', `Periode ${fiscalYear.year}/${period.number} ist geschlossen`, {
+      throw new DomainError('E_PERIOD_CLOSED', `Period ${fiscalYear.year}/${period.number} is closed`, {
         fiscalYear: fiscalYear.year,
         period: period.number,
       });
@@ -673,7 +673,7 @@ export class Ledger {
       }
     }
     if (entry === null) {
-      throw new DomainError('E_ENTRY_UNKNOWN', `Buchung ${typeof entryId === 'string' ? entryId : '?'} existiert nicht`);
+      throw new DomainError('E_ENTRY_UNKNOWN', `Posting ${typeof entryId === 'string' ? entryId : '?'} does not exist`);
     }
     return entry;
   }
@@ -681,7 +681,7 @@ export class Ledger {
   private requireFiscalYear(year: unknown): FiscalYear {
     const fiscalYear = typeof year === 'number' ? this.fiscalYears.byYear(year) : null;
     if (fiscalYear === null) {
-      throw new DomainError('E_PERIOD_UNKNOWN', `Geschäftsjahr ${typeof year === 'number' ? year : '?'} ist nicht angelegt`);
+      throw new DomainError('E_PERIOD_UNKNOWN', `Fiscal year ${typeof year === 'number' ? year : '?'} is not created`);
     }
     return fiscalYear;
   }
@@ -689,7 +689,7 @@ export class Ledger {
   private periodNumber(input: Record<string, unknown>): number {
     const period = input.period;
     if (typeof period !== 'number' || !Number.isInteger(period)) {
-      throw new DomainError('E_PERIOD_UNKNOWN', 'Periodennummer fehlt');
+      throw new DomainError('E_PERIOD_UNKNOWN', 'Period number missing');
     }
     return period;
   }
@@ -700,7 +700,7 @@ export class Ledger {
     const type = input.type;
 
     if (number === null || number === '' || name === null || name === '' || !isAccountType(type)) {
-      throw new DomainError('E_COA_FORMAT_INVALID', 'Konto braucht number, name und gültigen type');
+      throw new DomainError('E_COA_FORMAT_INVALID', 'Account needs number, name and a valid type');
     }
 
     const subtype = asString(input.subtype);

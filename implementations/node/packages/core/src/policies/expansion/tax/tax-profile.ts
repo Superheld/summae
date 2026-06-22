@@ -6,9 +6,9 @@ interface Segment {
 }
 
 /**
- * Steuerliches Mandantenprofil (tax-modell.md Aggregat 2): Versteuerungsart,
- * Kleinunternehmer-Status mit Gültigkeitszeitraum (unterjähriger Wechsel,
- * SF-11), Voranmeldungszeitraum.
+ * Tenant tax profile (tax-modell.md aggregate 2): taxation method,
+ * small-business status with validity period (mid-year change,
+ * SF-11), VAT filing period.
  */
 export class TaxProfile {
   private constructor(

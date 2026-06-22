@@ -8,7 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Geladene, validierte Form der Steuerschlüssel-Regelmodul-Daten.
+ * Loaded, validated form of the tax-code rule-module data.
  */
 final readonly class TaxCodeRegistry
 {
@@ -26,7 +26,7 @@ final readonly class TaxCodeRegistry
     }
 
     /**
-     * @param list<array<mixed>> $data Regelmodul-Daten (setup.taxCodes)
+     * @param list<array<mixed>> $data rule-module data (setup.taxCodes)
      */
     public static function fromData(array $data): self
     {
@@ -64,7 +64,7 @@ final readonly class TaxCodeRegistry
         return new self($codes);
     }
 
-    /** @return list<TaxCodeVersion> alle Versionen aller Schlüssel */
+    /** @return list<TaxCodeVersion> all versions of all codes */
     public function allVersions(): array
     {
         $versions = [];
@@ -78,7 +78,7 @@ final readonly class TaxCodeRegistry
         return $versions;
     }
 
-    /** DATEV-BU-Alias eines Schlüssels (eigene Codes bleiben führend). */
+    /** DATEV BU alias of a code (own codes stay authoritative). */
     public function datevBuFor(string $code): ?string
     {
         return ($this->codes[$code] ?? null)?->datevBu;
@@ -87,7 +87,7 @@ final readonly class TaxCodeRegistry
     public function get(string $code): TaxCode
     {
         return $this->codes[$code] ?? throw new DomainError('E_TAXCODE_UNKNOWN', sprintf(
-            'Steuerschlüssel "%s" ist nicht definiert',
+            'tax code "%s" is not defined',
             $code,
         ), ['code' => $code]);
     }

@@ -10,9 +10,9 @@ use Summae\Cli\Command\ReportCommand;
 use Symfony\Component\Console\Application;
 
 /**
- * `summae` — Rechnungswesen-CLI (api.md F-IO-003).
- * Zielnutzer ist ein LLM-Operator: alle Ausgaben JSON (eine Antwort
- * pro Aufruf, maschinenlesbar), Exit-Codes = Fehlercodes.
+ * `summae` — accounting CLI (api.md F-IO-003).
+ * Target user is an LLM operator: all output JSON (one response
+ * per invocation, machine-readable), exit codes = error codes.
  */
 final class Cli
 {

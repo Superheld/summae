@@ -14,7 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * `summae init --name="Muster GmbH" [--currency=EUR] [--rules=regeln.json]`
  *
- * Die Regeldatei trägt App-Schicht-Daten: accounts, taxCodes, taxProfile,
+ * The rules file carries app-layer data: accounts, taxCodes, taxProfile,
  * dimensionTypes/-Values, ruleModules (mappings, gwgThresholds, …).
  */
 final class InitCommand extends Command
@@ -27,14 +27,14 @@ final class InitCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Arbeitsbereich anlegen (summae.json + SQLite-Datenbank)')
-            ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Mandantenname')
-            ->addOption('currency', null, InputOption::VALUE_REQUIRED, 'Basiswährung (ISO 4217)', 'EUR')
-            ->addOption('rules', null, InputOption::VALUE_REQUIRED, 'JSON-Datei mit Regelmodul-Daten (Alternative zu --pack)')
-            ->addOption('pack', null, InputOption::VALUE_REQUIRED, 'Ausgeliefertes Pack aus der Bibliothek (z. B. "de", "default")')
-            ->addOption('pack-library', null, InputOption::VALUE_REQUIRED, 'Pfad zur Pack-Bibliothek')
-            ->addOption('first-fiscal-year', null, InputOption::VALUE_REQUIRED, 'Erstes Geschäftsjahr anlegen (z. B. 2026)')
-            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Arbeitsverzeichnis', '.');
+            ->setDescription('Create workspace (summae.json + SQLite database)')
+            ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Tenant name')
+            ->addOption('currency', null, InputOption::VALUE_REQUIRED, 'Base currency (ISO 4217)', 'EUR')
+            ->addOption('rules', null, InputOption::VALUE_REQUIRED, 'JSON file with pack data (alternative to --pack)')
+            ->addOption('pack', null, InputOption::VALUE_REQUIRED, 'Shipped pack from the library (e.g. "de", "default")')
+            ->addOption('pack-library', null, InputOption::VALUE_REQUIRED, 'Path to the pack library')
+            ->addOption('first-fiscal-year', null, InputOption::VALUE_REQUIRED, 'Create first fiscal year (e.g. 2026)')
+            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Working directory', '.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -72,7 +72,7 @@ final class InitCommand extends Command
         $workspace = Workspace::in($directory);
         $workspace->initialize($name, $currency, $rules);
 
-        // Stammdaten aus der Regeldatei direkt anlegen (SF-01: sofort buchbar).
+        // Create master data from the rules file directly (SF-01: immediately postable).
         $tenant = $workspace->tenant();
         $created = ['accounts' => 0, 'fiscalYears' => 0];
 

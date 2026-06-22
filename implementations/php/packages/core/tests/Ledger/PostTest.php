@@ -31,7 +31,7 @@ final class PostTest extends LedgerTestCase
 
     public function testCheckOrderStructureBeforeReferences(): void
     {
-        // Nur 1 Position UND unbekanntes Konto: Struktur gewinnt (api.md).
+        // Only 1 line AND unknown account: structure wins (api.md).
         $this->expectDomainError('E_ENTRY_TOO_FEW_LINES', fn () => $this->tenant->ledger->post(
             $this->draft([['4711', 'debit', '10.00']]),
         ));
@@ -39,7 +39,7 @@ final class PostTest extends LedgerTestCase
 
     public function testCheckOrderAmountBeforeAccount(): void
     {
-        // Negativer Betrag UND unbekanntes Konto: E_ENTRY_INVALID_AMOUNT gewinnt.
+        // Negative amount AND unknown account: E_ENTRY_INVALID_AMOUNT wins.
         $this->expectDomainError('E_ENTRY_INVALID_AMOUNT', fn () => $this->tenant->ledger->post(
             $this->draft([
                 ['4711', 'debit', '-5.00'],
@@ -50,7 +50,7 @@ final class PostTest extends LedgerTestCase
 
     public function testCheckOrderVoucherBeforeAccount(): void
     {
-        // Kein Beleg UND unbekanntes Konto: Beleg gewinnt (Referenzen-Reihenfolge).
+        // No voucher AND unknown account: voucher wins (reference order).
         $input = $this->draft([
             ['4711', 'debit', '10.00'],
             ['1200', 'credit', '10.00'],
@@ -62,7 +62,7 @@ final class PostTest extends LedgerTestCase
 
     public function testCheckOrderBalanceBeforePeriod(): void
     {
-        // Unbalanciert UND Datum außerhalb der Geschäftsjahre: Bilanzgleichung gewinnt.
+        // Unbalanced AND date outside the fiscal years: accounting equation wins.
         $this->expectDomainError('E_ENTRY_UNBALANCED', fn () => $this->tenant->ledger->post(
             $this->draft([
                 ['1200', 'debit', '10.00'],

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * UUIDv7-förmige IDs aus fester Uhr + Zähler statt Zufall — für Tests
- * und den Doppellauf-Determinismus-Check der Konformitätssuite
- * (Strom-Hashes enthalten IDs; zwei Läufe müssen byte-identisch sein).
- * Produktion nutzt UuidV7IdGenerator.
+ * UUIDv7-shaped IDs from a fixed clock + counter instead of random — for tests
+ * and the double-run determinism check of the conformance suite
+ * (stream hashes contain IDs; two runs must be byte-identical).
+ * Production uses UuidV7IdGenerator.
  */
 final class DeterministicIdGenerator implements IdGenerator
 {

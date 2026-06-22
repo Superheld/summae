@@ -11,10 +11,10 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Anlagegut (assets-modell.md): Stammdaten + AfA-Plan + Lebenslauf.
- * Invarianten: Restbuchwert = AHK − Σ Abschreibungen, nie < 0;
- * keine AfA vor Zugang oder nach Abgang; jeder Lebenslauf-Schritt
- * referenziert seine Journal-Buchung.
+ * Asset (assets-modell.md): master data + depreciation schedule + history.
+ * Invariants: book value = acquisition cost − Σ depreciations, never < 0;
+ * no depreciation before acquisition or after disposal; every history step
+ * references its journal entry.
  */
 final class Asset implements \JsonSerializable
 {
@@ -26,7 +26,7 @@ final class Asset implements \JsonSerializable
     private ?CalendarDate $disposedOn = null;
 
     /**
-     * @param list<Money> $monthlySchedule flacher allocate über die Laufzeit (determinismus.md §2)
+     * @param list<Money> $monthlySchedule flat allocate over the useful life (determinismus.md §2)
      */
     public function __construct(
         public readonly Uuid $id,
@@ -43,7 +43,7 @@ final class Asset implements \JsonSerializable
     }
 
     /**
-     * Rehydrierung aus Persistenz (Adapter).
+     * Rehydration from persistence (adapter).
      *
      * @param list<Money> $monthlySchedule
      * @param list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> $depreciations
@@ -80,7 +80,7 @@ final class Asset implements \JsonSerializable
     {
         if ($this->disposed) {
             throw new DomainError('E_ASSET_DISPOSED', sprintf(
-                'Anlagegut %s ist bereits abgegangen (%s)',
+                'asset %s is already disposed (%s)',
                 $this->id->value,
                 $this->disposedOn->iso ?? '?',
             ), ['assetId' => $this->id->value]);
@@ -94,7 +94,7 @@ final class Asset implements \JsonSerializable
         $this->disposedOn = $disposedOn;
     }
 
-    /** Kalenderjahr+Monat des Planmonats (1-basiert). */
+    /** Calendar year+month of the plan month (1-based). */
     public function planMonthDate(int $planMonth): CalendarDate
     {
         $start = new \DateTimeImmutable($this->acquiredOn->iso);
@@ -125,7 +125,7 @@ final class Asset implements \JsonSerializable
     }
 
     /**
-     * Lebenslauf in Persistenzform (Adapter).
+     * History in persistence form (adapter).
      *
      * @return list<array<string, mixed>>
      */
@@ -141,7 +141,7 @@ final class Asset implements \JsonSerializable
 
     public function accumulatedDepreciationAt(?CalendarDate $asOf): Money
     {
-        $sum = $this->acquisitionCost->subtract($this->acquisitionCost); // 0 in Mandantenwährung
+        $sum = $this->acquisitionCost->subtract($this->acquisitionCost); // 0 in tenant currency
 
         foreach ($this->depreciations as $booking) {
             if ($asOf !== null && $booking['date']->isAfter($asOf)) {
@@ -164,8 +164,8 @@ final class Asset implements \JsonSerializable
     }
 
     /**
-     * AfA-Plan als prüfbare Zusammenfassung: aufeinanderfolgende Monate
-     * gleicher Rate gruppiert ("months1to28" usw.) plus Summe.
+     * Depreciation schedule as a verifiable summary: consecutive months
+     * of equal rate grouped ("months1to28" etc.) plus total.
      *
      * @return array<string, string>
      */

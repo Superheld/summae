@@ -24,20 +24,20 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * EÜR als Projektion über das doppische Journal — Regeln R1–R7
- * (euer-projektions-beweis.md, validiert durch den Prototyp):
+ * Cash-basis accounting (EÜR) as a projection over the double-entry journal — rules R1–R7
+ * (euer-projektions-beweis.md, validated by the prototype):
  *
- * R1 Zahlungswirksamkeit über Geldkonten; Kategorien bei OP-Ausgleich
- *    über den OP-Link aus dem Ursprungsbeleg (anteilig bei Teilzahlung).
- * R2 10-Tage-Regel: wiederkehrend, gezahlt UND fällig im Fenster
- *    22.12.–10.01. -> Jahr der wirtschaftlichen Zugehörigkeit.
- * R3 USt/Vorsteuer zahlungswirksam erfolgswirksam.
- * R4 Anlagenzahlung nicht abziehbar (AfA kommt über R7).
- * R5 Darlehen/Privat/durchlaufende Posten neutral.
- * R6 Kategorie = Mapping-Label, sonst Kontoname.
- * R7 includeNonCash-Positionen zählen im Buchungsjahr ohne Zahlungsfluss.
+ * R1 Cash effect via money accounts; categories on open-item settlement
+ *    via the OP link from the origin voucher (proportional on partial payment).
+ * R2 10-day rule: recurring, paid AND due within the window
+ *    22.12.–10.01. -> year of economic allocation.
+ * R3 VAT/input tax cash-effective and income-relevant.
+ * R4 Asset payment not deductible (depreciation comes via R7).
+ * R5 Loans/private/pass-through items neutral.
+ * R6 Category = mapping label, otherwise account name.
+ * R7 includeNonCash positions count in the posting year without cash flow.
  *
- * EÜR ist kalenderjahrgebunden: abweichendes Geschäftsjahr ->
+ * Cash-basis accounting is bound to the calendar year: a deviating fiscal year ->
  * E_CASHBASIS_DEVIATING_FISCAL_YEAR.
  */
 final readonly class CashBasisProjection
@@ -80,7 +80,7 @@ final readonly class CashBasisProjection
             $bankFlow = $this->bankFlow($entry);
 
             if ($bankFlow->isZero()) {
-                // R7: nicht zahlungswirksame Pflichtkategorien (Buchungsjahr).
+                // R7: non-cash mandatory categories (posting year).
                 if ($mapping === null || $entry->entryDate->year() !== $year) {
                     continue;
                 }
@@ -108,7 +108,7 @@ final readonly class CashBasisProjection
                 continue;
             }
 
-            // R1: zahlungswirksam — Zieljahr (R2), Quelle ggf. via OP-Link.
+            // R1: cash-effective — target year (R2), source possibly via OP link.
             if ($this->assignYear($entry) !== $year) {
                 continue;
             }
@@ -126,7 +126,7 @@ final readonly class CashBasisProjection
                 $amount = $this->proportional($line->money, $ratio);
 
                 if ($account->subtype === 'tax_out') {
-                    // R3: USt erfolgswirksam.
+                    // R3: VAT income-relevant.
                     if ($inflow) {
                         $income = self::addTo($income, 'Vereinnahmte USt', $amount);
                     } else {
@@ -139,7 +139,7 @@ final readonly class CashBasisProjection
                 } elseif ($account->type === AccountType::Expense) {
                     $expenses = self::addTo($expenses, $this->label($mapping, $account), $amount);
                 }
-                // R4/R5: Anlagen, Darlehen, Privat, durchlaufende Posten — neutral.
+                // R4/R5: assets, loans, private, pass-through items — neutral.
             }
         }
 
@@ -162,7 +162,7 @@ final readonly class CashBasisProjection
         return $bucket;
     }
 
-    /** EÜR ist kalenderjahrgebunden (§ 4 Abs. 3 EStG). */
+    /** Cash-basis accounting is bound to the calendar year (§ 4 Abs. 3 EStG). */
     private function assertCalendarYearFiscalYears(int $year): void
     {
         $start = CalendarDate::of(sprintf('%04d-01-01', $year));
@@ -180,7 +180,7 @@ final readonly class CashBasisProjection
 
             if (!$isCalendarYear) {
                 throw new DomainError('E_CASHBASIS_DEVIATING_FISCAL_YEAR', sprintf(
-                    'Geschäftsjahr %d (%s bis %s) weicht vom Kalenderjahr ab — EÜR ist kalenderjahrgebunden',
+                    'Fiscal year %d (%s to %s) deviates from the calendar year — cash-basis accounting is bound to the calendar year',
                     $fiscalYear->year,
                     $fiscalYear->start->iso,
                     $fiscalYear->end->iso,
@@ -195,7 +195,7 @@ final readonly class CashBasisProjection
 
         foreach ($entry->lines() as $line) {
             $account = $this->accounts->byId($line->accountId);
-            // Geldkonto := {bank, cash} (datenformat.md v0.4)
+            // Money account := {bank, cash} (datenformat.md v0.4)
             if (!in_array($account?->subtype, ['bank', 'cash'], true)) {
                 continue;
             }
@@ -207,8 +207,8 @@ final readonly class CashBasisProjection
     }
 
     /**
-     * R2: Zahljahr, außer 10-Tage-Regel greift (gezahlt UND fällig im
-     * Fenster) — dann Jahr der wirtschaftlichen Zugehörigkeit.
+     * R2: payment year, unless the 10-day rule applies (paid AND due within
+     * the window) — then the year of economic allocation.
      */
     private function assignYear(JournalEntry $entry): int
     {
@@ -237,8 +237,8 @@ final readonly class CashBasisProjection
     }
 
     /**
-     * R1: Quellzeilen der Zahlung — bei OP-Ausgleich die Zeilen des
-     * Ursprungsbelegs, anteilig nach Ausgleichsquote; sonst die eigenen.
+     * R1: source lines of the payment — on open-item settlement the lines of the
+     * origin voucher, proportional to the settlement ratio; otherwise its own.
      *
      * @return list<array{line: EntryLine, ratio: BigDecimal}>
      */

@@ -19,10 +19,10 @@ import type { JournalEntry } from '../../substrate/journal-entry.js';
 const NON_PROFIT_SUBTYPES = new Set(['bank', 'cash', 'transit', 'ar', 'ap']);
 
 /**
- * EÜR als Projektion über das doppische Journal — Regeln R1–R7
- * (euer-projektions-beweis.md). Zahlungswirksamkeit über Geldkonten, OP-Link bei
- * Ausgleich (anteilig), 10-Tage-Regel, USt zahlungswirksam, R7 includeNonCash.
- * Kalenderjahrgebunden: abweichendes GJ → E_CASHBASIS_DEVIATING_FISCAL_YEAR.
+ * Cash-basis accounting (EÜR) as a projection over the double-entry journal — rules R1–R7
+ * (euer-projektions-beweis.md). Cash effect via money accounts, OP link on
+ * settlement (proportional), 10-day rule, VAT cash-effective, R7 includeNonCash.
+ * Bound to the calendar year: a deviating FY → E_CASHBASIS_DEVIATING_FISCAL_YEAR.
  */
 export class CashBasisProjection {
   constructor(
@@ -54,7 +54,7 @@ export class CashBasisProjection {
       const bankFlow = this.bankFlow(entry);
 
       if (bankFlow.isZero()) {
-        // R7: nicht zahlungswirksame Pflichtkategorien (Buchungsjahr).
+        // R7: non-cash mandatory categories (posting year).
         if (mapping === null || entry.entryDate.year() !== year) continue;
         for (const line of entry.lines()) {
           const account = this.accounts.byId(line.accountId);
@@ -73,7 +73,7 @@ export class CashBasisProjection {
         continue;
       }
 
-      // R1: zahlungswirksam — Zieljahr (R2), Quelle ggf. via OP-Link.
+      // R1: cash-effective — target year (R2), source possibly via OP link.
       if (this.assignYear(entry) !== year) continue;
       const inflow = bankFlow.isPositive();
 
@@ -93,7 +93,7 @@ export class CashBasisProjection {
         } else if (account.type === 'expense') {
           addTo(expenses, this.label(mapping, account), amount);
         }
-        // R4/R5: Anlagen, Darlehen, Privat, durchlaufende Posten — neutral.
+        // R4/R5: assets, loans, private, pass-through items — neutral.
       }
     }
 
@@ -113,7 +113,7 @@ export class CashBasisProjection {
       if (!isCalendarYear) {
         throw new DomainError(
           'E_CASHBASIS_DEVIATING_FISCAL_YEAR',
-          `Geschäftsjahr ${fiscalYear.year} (${fiscalYear.start.iso} bis ${fiscalYear.end.iso}) weicht vom Kalenderjahr ab — EÜR ist kalenderjahrgebunden`,
+          `Fiscal year ${fiscalYear.year} (${fiscalYear.start.iso} to ${fiscalYear.end.iso}) deviates from the calendar year — cash-basis accounting is bound to the calendar year`,
           { fiscalYear: fiscalYear.year },
         );
       }

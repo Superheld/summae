@@ -21,14 +21,14 @@ final readonly class Fixture
     }
 
     /**
-     * Wie fromFile, liefert aber `null` für Dateien ohne "fixture"-Schlüssel
-     * (Modul-/Pack-Datendateien unter pack/**, keine Fixtures).
+     * Like fromFile, but returns `null` for files without a "fixture" key
+     * (module/pack data files under pack/**, not fixtures).
      */
     public static function tryFromFile(string $path): ?self
     {
         $raw = file_get_contents($path);
         if ($raw === false) {
-            throw new \RuntimeException(sprintf('Fixture nicht lesbar: %s', $path));
+            throw new \RuntimeException(sprintf('Fixture not readable: %s', $path));
         }
 
         /** @var mixed $data */
@@ -44,7 +44,7 @@ final readonly class Fixture
     {
         $raw = file_get_contents($path);
         if ($raw === false) {
-            throw new \RuntimeException(sprintf('Fixture nicht lesbar: %s', $path));
+            throw new \RuntimeException(sprintf('Fixture not readable: %s', $path));
         }
 
         /** @var array<string, mixed> $data */
@@ -56,7 +56,7 @@ final readonly class Fixture
         $projections = $data['projections'] ?? [];
 
         if (!is_string($name) || !is_array($setup) || !is_array($steps) || !is_array($projections)) {
-            throw new \RuntimeException(sprintf('Fixture hat unerwartete Struktur: %s', $path));
+            throw new \RuntimeException(sprintf('Fixture has unexpected structure: %s', $path));
         }
 
         /**

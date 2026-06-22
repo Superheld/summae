@@ -1,8 +1,8 @@
 import { InvalidValue } from './errors.js';
 
 /**
- * Verweis auf eine Periode: Geschäftsjahr + Periodennummer (datenformat.md
- * `periodRef`). `fiscalYear` = Kalenderjahr des GJ-Endes.
+ * Reference to a period: fiscal year + period number (datenformat.md
+ * `periodRef`). `fiscalYear` = calendar year of the fiscal year end.
  */
 export class PeriodRef {
   constructor(
@@ -10,14 +10,14 @@ export class PeriodRef {
     readonly period: number,
   ) {
     if (fiscalYear < 1 || fiscalYear > 9999) {
-      throw new InvalidValue(`Ungültiges Geschäftsjahr: ${fiscalYear}`);
+      throw new InvalidValue(`Invalid fiscal year: ${fiscalYear}`);
     }
     if (period < 1 || period > 999) {
-      throw new InvalidValue(`Ungültige Periodennummer: ${period}`);
+      throw new InvalidValue(`Invalid period number: ${period}`);
     }
   }
 
-  /** Chronologisch: erst Jahr, dann Periode. */
+  /** Chronological: year first, then period. */
   compareTo(other: PeriodRef): number {
     if (this.fiscalYear !== other.fiscalYear) {
       return this.fiscalYear < other.fiscalYear ? -1 : 1;

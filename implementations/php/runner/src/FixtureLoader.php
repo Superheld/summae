@@ -7,12 +7,12 @@ namespace Summae\Runner;
 final class FixtureLoader
 {
     /**
-     * @return list<Fixture> sortiert nach Fixture-Name (deterministisch)
+     * @return list<Fixture> sorted by fixture name (deterministic)
      */
     public function discover(string $directory): array
     {
-        // Rekursiv (auch pack/<gruppe>/<name>.json); Dateien ohne "fixture"-Schlüssel
-        // (Modul-/Pack-Daten) werden übersprungen. Sortierung nach Name folgt.
+        // Recursive (also pack/<group>/<name>.json); files without a "fixture" key
+        // (module/pack data) are skipped. Sorting by name follows.
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
         );
@@ -29,7 +29,7 @@ final class FixtureLoader
         }
 
         if ($fixtures === []) {
-            throw new \RuntimeException(sprintf('Keine Fixtures unter %s', $directory));
+            throw new \RuntimeException(sprintf('No fixtures under %s', $directory));
         }
 
         usort($fixtures, static fn (Fixture $a, Fixture $b): int => strcmp($a->name, $b->name));

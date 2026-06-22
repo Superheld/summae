@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-core",
-    "description": "Framework-freier Rechnungswesen-Kern: GoBD-Doppik, EÜR, Umsatzsteuer, Anlagen, KLR",
+    "description": "Framework-free accounting core: GoBD double-entry, cash-basis accounting (EÜR), VAT, fixed assets, cost accounting (KLR)",
     "type": "library",
     "license": "MIT",
     "homepage": "https://github.com/superheld/summae",

@@ -4,41 +4,41 @@ import { PlaceholderBag } from '../src/placeholder-bag.js';
 
 const bag = (): PlaceholderBag => new PlaceholderBag();
 
-describe('Comparator.diff — Teilmengen-Vergleich', () => {
-  it('prüft nur angegebene Felder (Teilmenge)', () => {
+describe('Comparator.diff — subset comparison', () => {
+  it('checks only given fields (subset)', () => {
     expect(diff({ a: 1 }, { a: 1, b: 2 }, bag())).toEqual([]);
   });
 
-  it('meldet abweichende Skalare', () => {
+  it('reports deviating scalars', () => {
     expect(diff({ a: '1.00' }, { a: '1.01' }, bag())).toHaveLength(1);
   });
 
-  it('meldet fehlende Felder', () => {
-    expect(diff({ a: 1, b: 2 }, { a: 1 }, bag())).toEqual(['$.b: Feld fehlt im Ergebnis']);
+  it('reports missing fields', () => {
+    expect(diff({ a: 1, b: 2 }, { a: 1 }, bag())).toEqual(['$.b: field missing in result']);
   });
 
-  it('ignoriert comment-Schlüssel', () => {
+  it('ignores comment keys', () => {
     expect(diff({ a: 1, comment: 'egal' }, { a: 1 }, bag())).toEqual([]);
   });
 
-  it('prüft Listen exakt in Länge und Reihenfolge', () => {
+  it('checks lists exact in length and order', () => {
     expect(diff([1, 2], [1, 2], bag())).toEqual([]);
     expect(diff([1, 2], [1, 2, 3], bag())).toHaveLength(1);
     expect(diff([1, 2], [2, 1], bag())).toHaveLength(2);
   });
 
-  it('vergleicht verschachtelt', () => {
+  it('compares nested', () => {
     expect(diff({ x: { y: [1] } }, { x: { y: [1] }, z: 9 }, bag())).toEqual([]);
   });
 
-  it('bindet Platzhalter beim ersten Auftreten, vergleicht danach', () => {
+  it('binds placeholder on first occurrence, compares thereafter', () => {
     const b = bag();
     expect(diff({ id: '$E1' }, { id: 'uuid-a' }, b)).toEqual([]);
-    expect(diff({ ref: '$E1' }, { ref: 'uuid-a' }, b)).toEqual([]); // gleicher Wert → ok
-    expect(diff({ ref: '$E1' }, { ref: 'uuid-b' }, b)).toHaveLength(1); // anderer Wert → Diff
+    expect(diff({ ref: '$E1' }, { ref: 'uuid-a' }, b)).toEqual([]); // same value → ok
+    expect(diff({ ref: '$E1' }, { ref: 'uuid-b' }, b)).toHaveLength(1); // different value → diff
   });
 
-  it('meldet Typfehler (Liste vs. Objekt)', () => {
+  it('reports type errors (list vs. object)', () => {
     expect(diff([1], { 0: 1 }, bag())).toHaveLength(1);
     expect(diff({ a: 1 }, [1], bag())).toHaveLength(1);
   });

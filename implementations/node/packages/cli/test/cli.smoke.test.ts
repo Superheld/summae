@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { run } from '../src/cli.js';
 
-/** Einen CLI-Aufruf fahren und die JSON-Ausgabezeilen einsammeln. */
+/** Run one CLI call and collect the JSON output lines. */
 function capture(argv: string[]): string[] {
   const out: string[] = [];
   const spy = vi.spyOn(console, 'log').mockImplementation((msg: unknown) => {
@@ -18,7 +18,7 @@ function capture(argv: string[]): string[] {
   return out;
 }
 
-test('init → postVoucher → trialBalance über die CLI (persistente SQLite)', () => {
+test('init → postVoucher → trialBalance via the CLI (persistent SQLite)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'summae-cli-'));
   const rulesPath = join(dir, 'rules.json');
   writeFileSync(
@@ -61,16 +61,16 @@ test('init → postVoucher → trialBalance über die CLI (persistente SQLite)',
   ]);
 
   const report = capture(['report', 'trialBalance', '--dir', dir, '--params', '{"fiscalYear":2026}']).join('');
-  // Die Buchung wurde persistiert und aus der DB neu projiziert.
+  // The posting was persisted and re-projected from the DB.
   expect(report).toContain('1200');
   expect(report).toContain('8400');
   expect(report).toContain('1000.00');
 });
 
-test('init --pack de → buchen → Bilanz balanciert (Pack-Bibliothek vom Frontend gewählt)', () => {
+test('init --pack de → post → balance sheet balances (pack library chosen by frontend)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'summae-cli-de-'));
 
-  // Frontend wählt das ausgelieferte de-Pack aus der Bibliothek — kein Inline.
+  // Frontend selects the shipped de pack from the library — no inline.
   const init = capture(['init', '--name', 'DE GmbH', '--pack', 'de', '--first-fiscal-year', '2026', '--dir', dir]);
   expect(JSON.parse(init[0] ?? '{}')).toMatchObject({
     initialized: true,
@@ -93,13 +93,13 @@ test('init --pack de → buchen → Bilanz balanciert (Pack-Bibliothek vom Front
     }),
   ]);
 
-  // Journal: USt-Ausgangsbuchung auf den neutralen DE-Nummern.
+  // Journal: output VAT posting on the neutral DE numbers.
   const tb = capture(['report', 'trialBalance', '--dir', dir, '--params', '{"fiscalYear":2026}']).join('');
   expect(tb).toContain('4000');
   expect(tb).toContain('-1000.00');
   expect(tb).toContain('-190.00');
 
-  // Bilanz: über die mitgelieferten Mappings, Aktiva == Passiva.
+  // Balance sheet: via the bundled mappings, assets == liabilities.
   const bs = JSON.parse(
     capture([
       'report',

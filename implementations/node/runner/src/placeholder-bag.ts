@@ -1,11 +1,11 @@
 /**
- * Platzhalter-Mechanik der Fixtures (testsuite/README.md):
- * "$V1", "$E1", … stehen für IDs, die die Implementierung selbst erzeugt.
+ * Placeholder mechanics of the fixtures (testsuite/README.md):
+ * "$V1", "$E1", … stand for IDs that the implementation generates itself.
  *
- * - In setup/input wird ein unbekannter Platzhalter an eine frische ID
- *   gebunden, ein bekannter durch seinen Wert ersetzt.
- * - In expect wird ein unbekannter Platzhalter an den Ist-Wert gebunden
- *   (Capture), ein bekannter muss exakt übereinstimmen.
+ * - In setup/input an unknown placeholder is bound to a fresh ID,
+ *   a known one is replaced by its value.
+ * - In expect an unknown placeholder is bound to the actual value
+ *   (capture), a known one must match exactly.
  */
 const PLACEHOLDER = /^\$[A-Za-z0-9_]+$/;
 
@@ -23,7 +23,7 @@ export class PlaceholderBag {
   get(name: string): string {
     const value = this.values.get(name);
     if (value === undefined) {
-      throw new Error(`Platzhalter ${name} ist nicht gebunden`);
+      throw new Error(`Placeholder ${name} is not bound`);
     }
     return value;
   }
@@ -31,14 +31,14 @@ export class PlaceholderBag {
   bind(name: string, value: string): void {
     const existing = this.values.get(name);
     if (existing !== undefined && existing !== value) {
-      throw new Error(`Platzhalter ${name} ist bereits an "${existing}" gebunden`);
+      throw new Error(`Placeholder ${name} is already bound to "${existing}"`);
     }
     this.values.set(name, value);
   }
 
   /**
-   * Ersetzt rekursiv alle Platzhalter in Eingabedaten. Unbekannte werden über
-   * `onUnknown` an einen frischen Wert gebunden.
+   * Recursively replaces all placeholders in input data. Unknown ones are
+   * bound to a fresh value via `onUnknown`.
    */
   resolve(data: unknown, onUnknown: (name: string) => string): unknown {
     if (Array.isArray(data)) {

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * ID-Quelle des Kerns — Port, damit Tests und Determinismus-Läufe
- * die Erzeugung kontrollieren können. Produktion: UUIDv7.
+ * ID source of the core — port, so that tests and determinism runs
+ * can control generation. Production: UUIDv7.
  */
 interface IdGenerator
 {

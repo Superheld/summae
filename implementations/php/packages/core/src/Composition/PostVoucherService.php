@@ -12,9 +12,9 @@ use Summae\Core\Records\Voucher;
 use Summae\Core\Tenant;
 
 /**
- * Anwendungsschicht-Komposition `postVoucher` (api.md, Teil der Spec!):
- * SF-02/03 in einem Aufruf — Beleg anlegen, expandTax, post, OP-Anlage.
- * Haupteinstiegspunkt für Apps und die CLI.
+ * Application-layer composition `postVoucher` (api.md, part of the spec!):
+ * SF-02/03 in one call — create voucher, expandTax, post, OP creation.
+ * Main entry point for apps and the CLI.
  */
 final readonly class PostVoucherService
 {
@@ -29,7 +29,7 @@ final readonly class PostVoucherService
      * @return array<string, mixed>
      */
     /**
-     * Beleg aus `input.voucher` bauen + ablegen — geteilt von postVoucher und createVoucher.
+     * Build + store voucher from `input.voucher` — shared by postVoucher and createVoucher.
      *
      * @param array<string, mixed> $input
      */
@@ -41,10 +41,10 @@ final readonly class PostVoucherService
         try {
             $voucherDate = CalendarDate::of($voucherDateRaw);
         } catch (InvalidValue) {
-            throw new DomainError('E_ENTRY_NO_VOUCHER', 'Beleg braucht voucher.voucherDate');
+            throw new DomainError('E_ENTRY_NO_VOUCHER', 'Voucher needs voucher.voucherDate');
         }
 
-        // v0.4: Partner muss existieren, bevor irgendetwas entsteht.
+        // v0.4: partner must exist before anything is created.
         $partnerId = null;
         if (isset($voucherData['partnerId'])) {
             $partnerId = $this->tenant->partnerService->require($voucherData['partnerId'])->id;
@@ -76,7 +76,7 @@ final readonly class PostVoucherService
     }
 
     /**
-     * createVoucher: Beleg anlegen, ohne zu buchen — macht Pack-Modus-Fixtures vollwertig.
+     * createVoucher: create a voucher without posting — makes pack-mode fixtures complete.
      *
      * @param array<string, mixed> $input
      *
@@ -99,7 +99,7 @@ final readonly class PostVoucherService
         $voucher = $this->buildAndAddVoucher($input);
         $voucherDate = $voucher->voucherDate;
 
-        // Direkter Brutto-Modus: explizite `lines` ohne Steuerexpansion (z. B. Zahlungen).
+        // Direct gross mode: explicit `lines` without tax expansion (e.g. payments).
         if (is_array($input['lines'] ?? null)) {
             $directResult = $this->tenant->ledger->post([
                 'actor' => $input['actor'] ?? null,

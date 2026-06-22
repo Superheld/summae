@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
-// Dual-Format-Build (ESM + CJS + Typen). core, knex und better-sqlite3 bleiben
-// extern (stehen in dependencies). Dev läuft über die TS-Source-Exports.
+// Dual-format build (ESM + CJS + types). core, knex and better-sqlite3 stay
+// external (listed in dependencies). Dev runs via the TS source exports.
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],

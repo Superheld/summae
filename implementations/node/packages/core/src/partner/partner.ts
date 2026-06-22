@@ -2,8 +2,8 @@ import type { AuditChanges } from '../records/audit-record.js';
 import type { Uuid } from '../substrate/uuid.js';
 
 /**
- * Geschäftspartner (datenformat.md v0.4) — bewusst schlank: OP-je-Partner,
- * igL-Nachweis (USt-IdNr.), ZM-Grundlage, DATEV-Stammdaten.
+ * Business partner (datenformat.md v0.4) — deliberately lean: OP-per-partner,
+ * intra-community supply proof (VAT ID), EC sales list basis, DATEV master data.
  */
 export class Partner {
   private partnerName: string;

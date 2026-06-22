@@ -3,10 +3,10 @@ import type { Subject, SubjectFactory } from '../subject.js';
 import { CoreSubject } from './core-subject.js';
 
 /**
- * Database-Subject: dieselbe Konformitätssuite gegen den Knex/SQLite-Adapter
- * (`@superheld/summae-knex`). Reicht `CoreSubject` einen Tenant-Builder herein,
- * der DB-gestützte Ports verdrahtet — je Mandanten-Aufbau eine frische
- * In-Memory-SQLite mit installiertem `summae_*`-Schema. Pendant zu PHPs
+ * Database subject: the same conformance suite against the Knex/SQLite adapter
+ * (`@superheld/summae-knex`). Passes `CoreSubject` a tenant builder that
+ * wires up DB-backed ports — a fresh in-memory SQLite with installed
+ * `summae_*` schema per tenant build. Counterpart to PHP's
  * `DatabaseSubjectFactory`.
  */
 export class DatabaseSubjectFactory implements SubjectFactory {

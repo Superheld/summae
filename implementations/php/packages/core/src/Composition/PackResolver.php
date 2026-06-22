@@ -7,14 +7,14 @@ namespace Summae\Core\Composition;
 use Summae\Core\DomainError;
 
 /**
- * Pack-Resolver (`resolvePack`) — reine Auflösung eines Manifests gegen einen
- * Modulbestand zu einem `ResolvedPack`. Strukturgleiches Pendant zur Node-Seite
- * (`pack-resolver.ts`) für Byte-Parität. Design:
+ * Pack resolver (`resolvePack`) — pure resolution of a manifest against a
+ * module store into a `ResolvedPack`. Structurally identical counterpart to the
+ * Node side (`pack-resolver.ts`) for byte parity. Design:
  * `_bauflow-pack-gate01/design/module-manifest-resolver.md` (§ 3/§ 4).
  *
- * Keine neue Engine-Fähigkeit: der Resolver wählt, prüft und faltet vorhandene
- * Modul-Daten zu genau dem `ruleModules`-Bündel, das `TenantFactory` hand-gereicht
- * konsumiert. Scheitert laut (genau ein `E_PACK_*`/`E_POLICY_*`).
+ * No new engine capability: the resolver selects, checks and folds existing
+ * module data into exactly the `ruleModules` bundle that `TenantFactory` consumes
+ * hand-fed. Fails loudly (exactly one `E_PACK_*`/`E_POLICY_*`).
  */
 final class PackResolver
 {
@@ -37,7 +37,7 @@ final class PackResolver
      */
     public static function resolve(array $manifest, array $moduleSource): array
     {
-        // 1. Effektive Modulliste: overrides (remove/replace) in Array-Reihenfolge.
+        // 1. Effective module list: overrides (remove/replace) in array order.
         /** @var list<array<mixed>> $effective */
         $effective = [];
         foreach (is_array($manifest['modules'] ?? null) ? $manifest['modules'] : [] as $module) {
@@ -52,7 +52,7 @@ final class PackResolver
             $ref = is_array($override['ref'] ?? null) ? $override['ref'] : [];
             $idx = self::findRefIndex($effective, $ref);
             if ($idx === null) {
-                throw new DomainError('E_PACK_INCOHERENT', 'Override greift nicht');
+                throw new DomainError('E_PACK_INCOHERENT', 'Override does not match');
             }
             $op = $override['op'] ?? null;
             if ($op === 'remove') {
@@ -60,15 +60,15 @@ final class PackResolver
             } elseif ($op === 'replace') {
                 $with = is_array($override['with'] ?? null) ? $override['with'] : null;
                 if ($with === null) {
-                    throw new DomainError('E_PACK_INCOHERENT', 'replace-Override ohne "with"');
+                    throw new DomainError('E_PACK_INCOHERENT', 'replace override without "with"');
                 }
                 $effective[$idx] = $with;
             } else {
-                throw new DomainError('E_PACK_INCOHERENT', 'Unbekannte Override-Operation');
+                throw new DomainError('E_PACK_INCOHERENT', 'Unknown override operation');
             }
         }
 
-        // 2. Modul-Referenzen auflösen (version fehlt → höchste per Codepoint).
+        // 2. Resolve module references (version missing → highest per codepoint).
         /** @var list<array<mixed>> $resolved */
         $resolved = [];
         foreach ($effective as $ref) {
@@ -86,7 +86,7 @@ final class PackResolver
                 }
             }
             if ($candidates === []) {
-                throw new DomainError('E_PACK_UNRESOLVED_REF', sprintf('Modul nicht gefunden: %s|%s', $kind ?? '', $id ?? ''));
+                throw new DomainError('E_PACK_UNRESOLVED_REF', sprintf('Module not found: %s|%s', $kind ?? '', $id ?? ''));
             }
             usort(
                 $candidates,
@@ -95,14 +95,14 @@ final class PackResolver
             $resolved[] = $candidates[count($candidates) - 1];
         }
 
-        // unbekanntes kind → INCOHERENT
+        // unknown kind → INCOHERENT
         foreach ($resolved as $module) {
             if (!in_array(self::str($module['kind'] ?? null), self::MODULE_KINDS, true)) {
-                throw new DomainError('E_PACK_INCOHERENT', 'Unbekanntes Modul-kind');
+                throw new DomainError('E_PACK_INCOHERENT', 'Unknown module kind');
             }
         }
 
-        // 3. Abhängigkeits-DAG: fehlende dependsOn-Referenz → UNRESOLVED_REF (vor Zyklus).
+        // 3. Dependency DAG: missing dependsOn reference → UNRESOLVED_REF (before cycle).
         $present = [];
         foreach ($resolved as $module) {
             $present[self::moduleKey($module)] = true;
@@ -114,13 +114,13 @@ final class PackResolver
                 }
                 $key = self::refKey(self::str($dep['kind'] ?? null) ?? '', self::str($dep['id'] ?? null) ?? '');
                 if (!isset($present[$key])) {
-                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'dependsOn zeigt auf nicht gelistetes Modul: ' . $key);
+                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'dependsOn points to an unlisted module: ' . $key);
                 }
             }
         }
         $sorted = self::topoSort($resolved, $present);
 
-        // 4. Falten (topologisch); Kollisionen → INCOHERENT.
+        // 4. Fold (topological); collisions → INCOHERENT.
         /** @var list<array<mixed>> $accounts */
         $accounts = [];
         $accountNumbers = [];
@@ -147,7 +147,7 @@ final class PackResolver
                         }
                         $number = self::str($account['number'] ?? null) ?? '';
                         if (isset($accountNumbers[$number])) {
-                            throw new DomainError('E_PACK_INCOHERENT', 'Konto-Nummer doppelt: ' . $number);
+                            throw new DomainError('E_PACK_INCOHERENT', 'Duplicate account number: ' . $number);
                         }
                         $accountNumbers[$number] = true;
                         $accounts[] = $account;
@@ -160,7 +160,7 @@ final class PackResolver
                         }
                         $code = self::str($taxCode['code'] ?? null) ?? '';
                         if (isset($taxCodeCodes[$code])) {
-                            throw new DomainError('E_PACK_INCOHERENT', 'taxCode.code doppelt: ' . $code);
+                            throw new DomainError('E_PACK_INCOHERENT', 'Duplicate taxCode.code: ' . $code);
                         }
                         $taxCodeCodes[$code] = true;
                         $taxCodes[] = $taxCode;
@@ -173,7 +173,7 @@ final class PackResolver
                     }
                     $id = self::str($mapping['id'] ?? null) ?? '';
                     if (isset($mappingIds[$id])) {
-                        throw new DomainError('E_PACK_INCOHERENT', 'mapping.id doppelt: ' . $id);
+                        throw new DomainError('E_PACK_INCOHERENT', 'Duplicate mapping.id: ' . $id);
                     }
                     $mappingIds[$id] = true;
                     $mappings[] = $mapping;
@@ -186,15 +186,15 @@ final class PackResolver
                     break;
                 case 'policy':
                     if ($packPolicyModule !== null) {
-                        throw new DomainError('E_PACK_INCOHERENT', 'Mehr als ein policy-Modul');
+                        throw new DomainError('E_PACK_INCOHERENT', 'More than one policy module');
                     }
                     $packPolicyModule = is_array($data['packPolicy'] ?? null) ? $data['packPolicy'] : [];
                     break;
             }
         }
 
-        // 5. Referentielle Integrität.
-        // I1: taxAccount (+ inputTaxAccount bei reverse_charge) existiert.
+        // 5. Referential integrity.
+        // I1: taxAccount (+ inputTaxAccount on reverse_charge) exists.
         foreach ($taxCodes as $taxCode) {
             foreach (is_array($taxCode['versions'] ?? null) ? $taxCode['versions'] : [] as $version) {
                 if (!is_array($version)) {
@@ -202,23 +202,23 @@ final class PackResolver
                 }
                 $taxAccount = self::str($version['taxAccount'] ?? null);
                 if ($taxAccount !== null && !isset($accountNumbers[$taxAccount])) {
-                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'taxAccount ohne Konto (I1): ' . $taxAccount);
+                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'taxAccount without account (I1): ' . $taxAccount);
                 }
                 if (self::str($version['mechanism'] ?? null) === 'reverse_charge') {
                     $inputTaxAccount = self::str($version['inputTaxAccount'] ?? null);
                     if ($inputTaxAccount !== null && !isset($accountNumbers[$inputTaxAccount])) {
-                        throw new DomainError('E_PACK_UNRESOLVED_REF', 'inputTaxAccount ohne Konto (I1): ' . $inputTaxAccount);
+                        throw new DomainError('E_PACK_UNRESOLVED_REF', 'inputTaxAccount without account (I1): ' . $inputTaxAccount);
                     }
                 }
             }
         }
-        // I3: alle fünf assetAccounts.*Account (+ perClass) existieren.
+        // I3: all five assetAccounts.*Account (+ perClass) exist.
         if ($assetAccounts !== null) {
             $default = is_array($assetAccounts['default'] ?? null) ? $assetAccounts['default'] : [];
             foreach (self::ASSET_ACCOUNT_KEYS as $key) {
                 $number = self::str($default[$key] ?? null);
                 if ($number === null || !isset($accountNumbers[$number])) {
-                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'assetAccounts.' . $key . ' ohne Konto (I3)');
+                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'assetAccounts.' . $key . ' without account (I3)');
                 }
             }
             $perClass = is_array($assetAccounts['perClass'] ?? null) ? $assetAccounts['perClass'] : [];
@@ -229,29 +229,29 @@ final class PackResolver
                 foreach ($cls as $value) {
                     $number = self::str($value);
                     if ($number !== null && !isset($accountNumbers[$number])) {
-                        throw new DomainError('E_PACK_UNRESOLVED_REF', 'assetAccounts.perClass ohne Konto (I3): ' . $number);
+                        throw new DomainError('E_PACK_UNRESOLVED_REF', 'assetAccounts.perClass without account (I3): ' . $number);
                     }
                 }
             }
         }
-        // I2: jeder Mapping-Selektor trifft >= 1 Konto.
+        // I2: every mapping selector hits >= 1 account.
         $numbers = array_keys($accountNumbers);
         foreach ($mappings as $mapping) {
             self::checkMappingSelectors($mapping, $accountNumbers, $numbers);
         }
-        // I4: jeder vom Manifest referenzierte taxCode wird von einem tax-Modul bereitgestellt.
+        // I4: every taxCode referenced by the manifest is provided by a tax module.
         foreach (is_array($manifest['taxCodes'] ?? null) ? $manifest['taxCodes'] : [] as $code) {
             if (is_string($code) && !isset($taxCodeCodes[$code])) {
-                throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest-taxCode ohne tax-Modul (I4): ' . $code);
+                throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest taxCode without tax module (I4): ' . $code);
             }
         }
 
-        // 6. packPolicy: Manifest-Kopie == aufgelöstes policy-Modul + Wertebereiche.
+        // 6. packPolicy: manifest copy == resolved policy module + value ranges.
         $manifestPolicy = is_array($manifest['packPolicy'] ?? null) ? $manifest['packPolicy'] : [];
         $effectivePolicy = $packPolicyModule ?? $manifestPolicy;
         self::validatePolicyValues($effectivePolicy);
         if ($packPolicyModule !== null && !self::samePolicy($manifestPolicy, $packPolicyModule)) {
-            throw new DomainError('E_POLICY_INVALID', 'Manifest-packPolicy weicht vom policy-Modul ab');
+            throw new DomainError('E_POLICY_INVALID', 'Manifest packPolicy deviates from the policy module');
         }
 
         $manifestId = self::str($manifest['id'] ?? null) ?? '';
@@ -284,7 +284,7 @@ final class PackResolver
     }
 
     /**
-     * Wandelt einen ResolvedPack in das `ruleModules`-Bündel der TenantFactory.
+     * Converts a ResolvedPack into the TenantFactory's `ruleModules` bundle.
      *
      * @param array<mixed> $pack
      *
@@ -295,11 +295,11 @@ final class PackResolver
         $profile = is_array($pack['profile'] ?? null) ? $pack['profile'] : [];
         $coa = is_array($pack['chartOfAccounts'] ?? null) ? $pack['chartOfAccounts'] : [];
 
-        // assetAccounts: Resolver-I3 validiert die `default`-Form ({default:{Konten}}); der AssetService
-        // liest die Konten flach → hier auf die flache Form auspacken (Pack-Pfad-Parität zum Inline-Pfad).
+        // assetAccounts: resolver I3 validates the `default` form ({default:{accounts}}); the AssetService
+        // reads the accounts flat → unpack to the flat form here (pack-path parity with the inline path).
         $aa = is_array($pack['assetAccounts'] ?? null) ? $pack['assetAccounts'] : [];
         $assetAccounts = is_array($aa['default'] ?? null) ? $aa['default'] : $aa;
-        // depreciation-Daten (gwgThresholds, usefulLife) liest der AssetService top-level → spreaden.
+        // depreciation data (gwgThresholds, usefulLife) the AssetService reads top-level → spread.
         /** @var array<string, mixed> $depreciation */
         $depreciation = is_array($pack['depreciation'] ?? null) ? $pack['depreciation'] : [];
 
@@ -335,7 +335,7 @@ final class PackResolver
     }
 
     /**
-     * Kahn-artige topologische Sortierung; stabiler Tie-Break per (kind|id)-Codepoint.
+     * Kahn-style topological sort; stable tie-break per (kind|id) codepoint.
      *
      * @param list<array<mixed>> $modules
      * @param array<string, bool>        $present
@@ -369,7 +369,7 @@ final class PackResolver
                 }
             }
             if ($ready === []) {
-                throw new DomainError('E_PACK_INCOHERENT', 'Abhängigkeits-Zyklus');
+                throw new DomainError('E_PACK_INCOHERENT', 'Dependency cycle');
             }
             usort($ready, static fn (array $a, array $b): int => strcmp(self::moduleKey($a), self::moduleKey($b)));
             $next = $ready[0];
@@ -410,7 +410,7 @@ final class PackResolver
                     $to = self::str($selector['to'] ?? null);
                     if ($from !== null && $to !== null) {
                         foreach ($numbers as $n) {
-                            // PHP castet numerische Array-Keys zu int → vor strcmp zurück zu string.
+                            // PHP casts numeric array keys to int → back to string before strcmp.
                             $ns = (string) $n;
                             if (strcmp($ns, $from) >= 0 && strcmp($ns, $to) <= 0) {
                                 $hits++;
@@ -419,7 +419,7 @@ final class PackResolver
                     }
                 }
                 if ($hits === 0) {
-                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping-Selektor trifft kein Konto (I2)');
+                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping selector hits no account (I2)');
                 }
             }
             foreach (is_array($position['children'] ?? null) ? $position['children'] : [] as $child) {
@@ -442,15 +442,15 @@ final class PackResolver
     {
         $roundingMode = self::str($policy['roundingMode'] ?? null);
         if ($roundingMode === null || !in_array($roundingMode, self::ROUNDING_MODES, true)) {
-            throw new DomainError('E_POLICY_INVALID', 'Ungültiger roundingMode');
+            throw new DomainError('E_POLICY_INVALID', 'Invalid roundingMode');
         }
         $granularity = self::str($policy['taxRoundingGranularity'] ?? null);
         if ($granularity === null || !in_array($granularity, self::TAX_GRANULARITIES, true)) {
-            throw new DomainError('E_POLICY_INVALID', 'Ungültige taxRoundingGranularity');
+            throw new DomainError('E_POLICY_INVALID', 'Invalid taxRoundingGranularity');
         }
         $scale = $policy['currencyScale'] ?? null;
         if (!is_int($scale) || $scale < 0 || $scale > 4) {
-            throw new DomainError('E_POLICY_INVALID', 'currencyScale außerhalb 0–4');
+            throw new DomainError('E_POLICY_INVALID', 'currencyScale outside 0–4');
         }
     }
 

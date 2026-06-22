@@ -19,9 +19,9 @@ function tagCode(line: EntryLine): string | null {
 }
 
 /**
- * DATEV-Export (F-IO-005): Buchungsstapel, Kontenbeschriftungen, Partner-
- * Stammdaten. Steuerzeilen werden DATEV-seitig aus dem BU-Schlüssel erzeugt und
- * deshalb in die Basiszeile gefaltet; zusammengesetzte Buchungen in Teilzeilen.
+ * DATEV export (F-IO-005): posting batch, account labels, partner
+ * master data. Tax lines arise on the DATEV side from the BU key and are
+ * therefore folded into the base line; composite postings into sub-lines.
  */
 export class DatevExportProjection {
   constructor(

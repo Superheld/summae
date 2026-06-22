@@ -9,10 +9,10 @@ import {
 } from '@superheld/summae-core';
 
 /**
- * (De-)Serialisierung der JSON-Dokumente des Adapters — dieselben
- * „Published-Language"-Formen wie PHPs `Hydrator`. Geschrieben wird über die
- * `toJSON()` der Domänenobjekte; gelesen wird schlüsselbasiert (Reihenfolge
- * egal — der Cross-Test vergleicht kanonische Projektionen, nicht Spalten-Bytes).
+ * (De)serialization of the adapter's JSON documents — the same
+ * "published-language" forms as PHP's `Hydrator`. Writing goes through the
+ * `toJSON()` of the domain objects; reading is key-based (order
+ * irrelevant — the cross-test compares canonical projections, not column bytes).
  */
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -41,7 +41,7 @@ export function money(data: Record<string, unknown>): Money {
   return Money.of(amount, currency);
 }
 
-/** Buchungsdatum zonenlos: nur die ersten 10 Zeichen (YYYY-MM-DD). */
+/** Posting date zoneless: only the first 10 characters (YYYY-MM-DD). */
 export function date(value: unknown): CalendarDate | null {
   return typeof value === 'string' && value !== '' ? CalendarDate.of(value.slice(0, 10)) : null;
 }
@@ -65,9 +65,9 @@ export function entryLines(lines: Record<string, unknown>[]): EntryLine[] {
   });
 }
 
-/** Pflicht-Datum aus einer Spalte; wirft, wenn leer (sollte nie passieren). */
+/** Required date from a column; throws if empty (should never happen). */
 export function requireDate(value: unknown, field: string): CalendarDate {
   const result = date(value);
-  if (result === null) throw new Error(`${field} fehlt im persistierten Datensatz`);
+  if (result === null) throw new Error(`${field} missing in persisted record`);
   return result;
 }

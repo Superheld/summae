@@ -7,10 +7,10 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
- * Zusatzzuordnung einer Buchungsposition: Dimensionstyp + Wert-Code
+ * Additional allocation of a posting line: dimension type + value code
  * (datenformat.md: `"dimensions": [{ "type": "costCenter", "code": "100" }]`).
- * Typen sind Stammdaten — die Gültigkeitsprüfung gegen sie passiert
- * an der Operation (E_DIMENSION_INVALID), nicht hier.
+ * Types are master data — the validity check against them happens
+ * at the operation (E_DIMENSION_INVALID), not here.
  */
 final readonly class DimensionValue implements \JsonSerializable
 {
@@ -23,7 +23,7 @@ final readonly class DimensionValue implements \JsonSerializable
     public static function of(string $type, string $code): self
     {
         if ($type === '' || $code === '') {
-            throw new InvalidValue('Dimensionstyp und -code dürfen nicht leer sein');
+            throw new InvalidValue('Dimension type and code must not be empty');
         }
 
         return new self($type, $code);

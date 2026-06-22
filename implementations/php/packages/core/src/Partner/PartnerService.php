@@ -14,8 +14,8 @@ use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Partner-Operationen (api.md v0.4): createPartner / updatePartner,
- * beide mit Audit-Trail (Stammdatenänderungen sind GoBD-relevant).
+ * Partner operations (api.md v0.4): createPartner / updatePartner,
+ * both with audit trail (master-data changes are GoBD-relevant).
  */
 final readonly class PartnerService
 {
@@ -82,7 +82,7 @@ final readonly class PartnerService
         }
 
         return $partner ?? throw new DomainError('E_PARTNER_UNKNOWN', sprintf(
-            'Geschäftspartner %s existiert nicht',
+            'Business partner %s does not exist',
             is_string($partnerId) ? $partnerId : '?',
         ));
     }

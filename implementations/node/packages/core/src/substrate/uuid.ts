@@ -3,9 +3,9 @@ import { type Clock, SystemClock } from './clock.js';
 import { InvalidValue } from './errors.js';
 
 /**
- * UUIDv7 (RFC 9562): 48 Bit Unix-Millisekunden + Zufall — zeitlich sortierbar
- * als String, implementierungsunabhängig erzeugbar (datenformat.md Grundsatz 3).
- * Fixtures vergleichen nie ID-Werte, nur Platzhalter-Gleichheit.
+ * UUIDv7 (RFC 9562): 48 bit Unix milliseconds + random — time-sortable
+ * as a string, generatable independent of implementation (datenformat.md principle 3).
+ * Fixtures never compare ID values, only placeholder equality.
  */
 const PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -15,15 +15,15 @@ export class Uuid {
   static fromString(value: string): Uuid {
     const normalized = value.toLowerCase();
     if (!PATTERN.test(normalized)) {
-      throw new InvalidValue(`Keine gültige UUID: "${value}"`);
+      throw new InvalidValue(`Not a valid UUID: "${value}"`);
     }
     return new Uuid(normalized);
   }
 
   static v7(clock: Clock = new SystemClock()): Uuid {
     const time = clock.now().getTime().toString(16).padStart(12, '0');
-    const random = randomBytes(10).toString('hex'); // 20 Hex-Zeichen Entropie
-    // Variantennibble: oberste zwei Bits = 10 -> 8, 9, a oder b.
+    const random = randomBytes(10).toString('hex'); // 20 hex chars of entropy
+    // Variant nibble: top two bits = 10 -> 8, 9, a or b.
     const variant = ((parseInt(random[3]!, 16) & 0x3) | 0x8).toString(16);
 
     return new Uuid(
@@ -35,7 +35,7 @@ export class Uuid {
     return this.value === other.value;
   }
 
-  /** Byteweise = zeitliche Ordnung bei v7. */
+  /** Byte-wise = chronological order for v7. */
   compareTo(other: Uuid): number {
     return this.value < other.value ? -1 : this.value > other.value ? 1 : 0;
   }

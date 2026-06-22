@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Verweis einer Buchung auf ihren Beleg (datenformat.md `voucherId`).
- * Jede Buchung MUSS einen Beleg referenzieren (E_ENTRY_NO_VOUCHER) —
- * der eigene Typ macht das im Code unübersehbar.
+ * Reference of a posting to its voucher (datenformat.md `voucherId`).
+ * Every posting MUST reference a voucher (E_ENTRY_NO_VOUCHER) —
+ * the dedicated type makes that unmissable in code.
  */
 final readonly class VoucherRef implements \JsonSerializable, \Stringable
 {

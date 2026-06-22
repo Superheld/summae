@@ -11,7 +11,7 @@ use Summae\Runner\SuiteRunner;
 require __DIR__ . '/../../vendor/autoload.php';
 
 $implRoot = dirname(__DIR__, 2);   // implementations/php
-$root = dirname(__DIR__, 4);       // Repo-Root (geteilte testsuite/)
+$root = dirname(__DIR__, 4);       // repo root (shared testsuite/)
 
 /** @var list<string> $argvList */
 $argvList = $_SERVER['argv'] ?? [];
@@ -30,8 +30,8 @@ foreach (array_slice($argvList, 1) as $arg) {
     } elseif (str_starts_with($arg, '--expected=')) {
         $expectedFile = substr($arg, 11);
     } else {
-        fwrite(STDERR, "Unbekanntes Argument: {$arg}\n");
-        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--subject=core|database] [--expected=datei]\n");
+        fwrite(STDERR, "Unknown argument: {$arg}\n");
+        fwrite(STDERR, "Usage: run-fixtures.php [--filter=name] [--strict] [--subject=core|database] [--expected=file]\n");
         exit(2);
     }
 }
@@ -60,7 +60,7 @@ foreach ($suite->results as $result) {
     }
 
     if (count($result->diffs) > 5) {
-        printf("        … %d weitere Abweichungen\n", count($result->diffs) - 5);
+        printf("        … %d more deviations\n", count($result->diffs) - 5);
     }
 }
 
@@ -68,16 +68,16 @@ $pass = count($suite->withStatus(FixtureStatus::Pass));
 $fail = count($suite->withStatus(FixtureStatus::Fail));
 $crash = count($suite->withStatus(FixtureStatus::Crash));
 
-printf("\n%d Fixtures: %d grün, %d rot, %d Crashes\n", count($suite->results), $pass, $fail, $crash);
+printf("\n%d fixtures: %d green, %d red, %d crashes\n", count($suite->results), $pass, $fail, $crash);
 
 if ($suite->determinismBreaks !== []) {
-    printf("\033[31mDoppellauf NICHT deterministisch: %s\033[0m\n", implode(', ', $suite->determinismBreaks));
+    printf("\033[31mDouble run NOT deterministic: %s\033[0m\n", implode(', ', $suite->determinismBreaks));
 } else {
-    printf("Doppellauf deterministisch.\n");
+    printf("Double run deterministic.\n");
 }
 
-// Exit-Logik: Crashes sind immer ein Fehler. Im strict-Modus (M3) muss
-// alles grün sein; sonst gilt die Expected-Green-Liste als Regressions-Schutz.
+// Exit logic: crashes are always an error. In strict mode (M3) everything
+// must be green; otherwise the expected-green list serves as a regression guard.
 if ($crash > 0) {
     exit(2);
 }
@@ -90,7 +90,7 @@ if ($strict) {
     exit($fail > 0 ? 1 : 0);
 }
 
-// Gefilterte Läufe sind Entwickler-Werkzeug — Expected-Green gilt nur für die volle Suite.
+// Filtered runs are a developer tool — expected-green applies only to the full suite.
 if ($filter !== null) {
     exit(0);
 }
@@ -110,13 +110,13 @@ $passed = $suite->passedNames();
 $regressions = array_diff($expected, $passed);
 
 if ($regressions !== []) {
-    printf("\033[31mRegression — erwartet grün, aber rot: %s\033[0m\n", implode(', ', $regressions));
+    printf("\033[31mRegression — expected green, but red: %s\033[0m\n", implode(', ', $regressions));
     exit(1);
 }
 
 $unlisted = array_diff($passed, $expected);
 if ($unlisted !== [] && $filter === null) {
-    printf("Neu grün (in %s aufnehmen): %s\n", basename($expectedFile), implode(', ', $unlisted));
+    printf("Newly green (add to %s): %s\n", basename($expectedFile), implode(', ', $unlisted));
 }
 
 exit(0);

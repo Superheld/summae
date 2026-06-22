@@ -3,8 +3,8 @@ import type { Uuid } from '../substrate/uuid.js';
 export type AuditChanges = Record<string, { from: unknown; to: unknown }>;
 
 /**
- * Audit-Eintrag (datenformat.md v0.3 `auditLog.jsonl`): flacher Vorher/Nachher-
- * Diff nur der geänderten Felder.
+ * Audit entry (datenformat.md v0.3 `auditLog.jsonl`): flat before/after
+ * diff of only the changed fields.
  */
 export class AuditRecord {
   constructor(
@@ -25,7 +25,7 @@ export class AuditRecord {
       objectType: this.objectType,
       objectId: this.objectId.value,
       action: this.action,
-      // Leerer Diff → {} (nicht []), damit das Format stabil bleibt.
+      // Empty diff → {} (not []), so the format stays stable.
       changes: this.changes,
     };
   }

@@ -14,8 +14,8 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Gemeinsame (De-)Serialisierung der JSON-Dokumente des Adapters —
- * exakt die Published-Language-Formen aus datenformat.md.
+ * Shared (de)serialization of the adapter's JSON documents —
+ * exactly the published-language forms from datenformat.md.
  */
 final class Hydrator
 {

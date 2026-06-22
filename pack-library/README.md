@@ -1,43 +1,42 @@
-# Pack-Bibliothek (ausgeliefert)
+# Pack library (shipped)
 
-Der **Produkt-Datenbestand** von summae: die wählbaren *Packs* und die
-wiederverwendbaren *Module*, aus denen sie komponiert sind. Kanonisch hier in der
-Wissensbasis, per `make sync` ins Repo gespiegelt (`pack-library/`), mit der
-Library ausgeliefert.
+summae's **product data**: the selectable *packs* and the *modules* they are
+composed of. Maintained in an internal source, mirrored into the repo via
+`make sync` (`pack-library/`), and shipped with the library.
 
-> Nicht zu verwechseln mit `70-testsuite/fixtures/pack/` — das sind *Tests*, die
-> beweisen, dass diese Packs korrekt auflösen. Hier liegt das *Produkt*.
+> Not to be confused with the pack **fixtures** under `testsuite/fixtures/pack/` —
+> those are *tests* that prove these packs resolve correctly. Here lives the *product*.
 
-## Aufbau
+## Layout
 
-**Ein Ordner je Pack**; geteilte Bausteine in `modules/`.
+**Each pack is a self-contained folder** with its own manifest and its own modules.
+Packs do not build on each other — own ids, own chart of accounts, no shared `modules/`.
 
 ```
 pack-library/
-├── modules/                      ← GETEILTE Bausteine (von mehreren Packs genutzt)
-│   └── accounts/neutral.json        (id "neutral" — 32 Konten, jurisdiktionsfrei)
-├── default-pack/                 ← Pack "default": neutraler Starter
-│   └── default.json                 (Manifest → nimmt modules/accounts/neutral)
-└── de-pack/                      ← Pack "de": Deutschland (eigene Module + Manifest)
-    ├── accounts/de-extras.json      (DE-Zusatzkonten)
+├── default-pack/                ← pack "default": neutral starter
+│   ├── accounts/neutral.json       (id "neutral" — 32 jurisdiction-free accounts)
+│   └── default.json                (manifest → its own accounts/neutral)
+└── de-pack/                     ← pack "de": Germany (self-contained)
+    ├── accounts/de-konten.json     (40 accounts)
     ├── tax/de-ust.json
     ├── mappings/de-bilanz.json · de-guv.json
     ├── depreciation/de-afa.json
     ├── assets/de-assets.json
     ├── policy/de.json
-    └── de.json                      (Manifest → neutral + die de-Module)
+    └── de.json                     (manifest → the de-* modules)
 ```
 
-Der Loader klassifiziert **inhaltsbasiert** (Manifest = hat `modules[]`, Modul = hat `kind`) und
-sammelt rekursiv über die ganze Bibliothek — die Ordnerstruktur ist also nur Konvention, kein Zwang.
-Ein Pack referenziert geteilte Module über deren `id` (z. B. zieht `de` dasselbe `accounts/neutral`).
+The loader classifies **content-based** (manifest = has `modules[]`, module = has `kind`) and
+collects recursively across the library, resolving a manifest's module refs by their `id` — the
+folder structure is convention, not enforced. By design each pack ships its own modules.
 
-## Begriffe
+## Terms
 
-- **Pack** (`<name>-pack/` mit Manifest `<id>.json`): das, was man beim Anlegen eines Mandanten
-  **wählt** (`createTenant(pack: "<id>")`). Ein Manifest benennt Module + trägt die `packPolicy`;
-  der Resolver schlägt es über den **Namen** nach.
-- **Modul** (`<kind>`-Datei mit `data`): ein Baustein **einer** Sorte. Geteilte liegen in
-  `modules/<kind>/`, pack-spezifische im jeweiligen Pack-Ordner.
-- **base / Kern**: die Engine selbst — trägt **keine** Konten. Konten kommen ausschließlich übers
-  Pack, einmalig beim Anlegen.
+- **Pack** (`<name>-pack/` with manifest `<id>.json`): what you **choose** when creating a
+  tenant (`createTenant(pack: "<id>")`). A manifest names modules + carries the `packPolicy`;
+  the resolver looks it up by **name**.
+- **Module** (`<kind>` file with `data`): a building block of **one** kind, living in its
+  pack's folder.
+- **base / core**: the engine itself — carries **no** accounts. Accounts come exclusively via
+  the pack, once at creation.

@@ -10,14 +10,14 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Buchungsposition — Value Object innerhalb der Buchung
- * (keine eigene Identität; Referenz = Buchungs-ID + Positionsindex).
+ * Posting line — value object within the posting
+ * (no own identity; reference = posting ID + line index).
  */
 final readonly class EntryLine implements \JsonSerializable
 {
     /**
      * @param list<DimensionValue> $dimensions
-     * @param array<string, mixed>|null $taxTag taxTag laut datenformat.md (VO folgt mit JOB-006)
+     * @param array<string, mixed>|null $taxTag taxTag per datenformat.md (VO follows with JOB-006)
      */
     public function __construct(
         public Uuid $accountId,

@@ -9,15 +9,15 @@ use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\DimensionValue;
 
 /**
- * Dimensions-Validierung: Mechanik im Kern, Inhalte als Regelmodul-Daten
- * (ledger-modell.md, taktische Frage 4). Typen und Werte sind Stammdaten;
- * Pflichtdimensionen kommen aus `ruleModules.dimensionRules`.
+ * Dimension validation: mechanism in the core, contents as rule module data
+ * (ledger-modell.md, tactical question 4). Types and values are master data;
+ * mandatory dimensions come from `ruleModules.dimensionRules`.
  */
 final class DimensionRegistry
 {
     /**
-     * @param array<string, true> $types bekannte Typ-Codes
-     * @param array<string, true> $values "typ:code"
+     * @param array<string, true> $types known type codes
+     * @param array<string, true> $values "type:code"
      * @param list<array{from: string, to: string, required: string}> $rules
      */
     private function __construct(
@@ -71,14 +71,14 @@ final class DimensionRegistry
         foreach ($dimensions as $dimension) {
             if (!isset($this->types[$dimension->type])) {
                 throw new DomainError('E_DIMENSION_INVALID', sprintf(
-                    'Unbekannter Dimensionstyp "%s"',
+                    'Unknown dimension type "%s"',
                     $dimension->type,
                 ), ['type' => $dimension->type]);
             }
 
             if (!isset($this->values[$dimension->type . ':' . $dimension->code])) {
                 throw new DomainError('E_DIMENSION_INVALID', sprintf(
-                    'Unbekannter Dimensionswert "%s" für Typ "%s"',
+                    'Unknown dimension value "%s" for type "%s"',
                     $dimension->code,
                     $dimension->type,
                 ), ['type' => $dimension->type, 'code' => $dimension->code]);
@@ -100,7 +100,7 @@ final class DimensionRegistry
             }
 
             throw new DomainError('E_DIMENSION_INVALID', sprintf(
-                'Pflichtdimension "%s" fehlt auf Konto %s',
+                'Mandatory dimension "%s" missing on account %s',
                 $rule['required'],
                 $account->value,
             ), ['account' => $account->value, 'required' => $rule['required']]);

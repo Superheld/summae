@@ -8,7 +8,7 @@ final readonly class FixtureResult
 {
     /**
      * @param list<string> $diffs
-     * @param array<int, mixed> $trace Vergleichsrelevante Ausgaben für den Doppellauf
+     * @param array<int, mixed> $trace comparison-relevant outputs for the double run
      */
     private function __construct(
         public string $fixture,

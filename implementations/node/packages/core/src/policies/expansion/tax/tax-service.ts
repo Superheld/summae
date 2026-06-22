@@ -23,10 +23,10 @@ interface NetLine {
 }
 
 /**
- * Steuerexpansion (tax-modell.md): side-effect-free. Determinismus (§2):
- * USt pro Beleg je Steuersatz — Netto-Summe je Schlüssel, Steuer berechnen,
- * EINMAL half-up runden. Versionswahl nach Leistungs-/Belegdatum.
- * Kleinunternehmer (§ 19): keine Steuerpositionen, Brutto = Netto.
+ * Tax expansion (tax-modell.md): side-effect-free. Determinism (§2):
+ * VAT per voucher per tax rate — sum net per code, compute tax, round
+ * half-up ONCE. Version selection by service/voucher date.
+ * Small business (§ 19): no tax lines, gross = net.
  */
 export class TaxService {
   constructor(
@@ -34,7 +34,7 @@ export class TaxService {
     private readonly registry: TaxCodeRegistry,
     private readonly profileValue: TaxProfile,
     private readonly journal: JournalRepository,
-    // Pack-Parameter: 'perVoucher' (Steuer einmal je Schlüssel) | 'perLine' (je Position).
+    // Pack parameter: 'perVoucher' (tax once per code) | 'perLine' (per line).
     private readonly taxRoundingGranularity: string = 'perVoucher',
   ) {}
 
@@ -47,7 +47,7 @@ export class TaxService {
   }
 
   expand(input: Record<string, unknown>): Record<string, unknown> {
-    // v0.4 (§ 27): Regelversion folgt dem Leistungsdatum, Fallback Belegdatum.
+    // v0.4 (§ 27): rule version follows the service date, fallback voucher date.
     const date =
       typeof input.serviceDate === 'string'
         ? this.parseDate(input.serviceDate)
@@ -57,21 +57,21 @@ export class TaxService {
 
     const rawLines = Array.isArray(input.netLines) ? input.netLines : [];
     if (rawLines.length === 0) {
-      throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'expandTax ohne Netto-Positionen');
+      throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'expandTax without net lines');
     }
 
     const netLines: NetLine[] = rawLines.map((rawLine) => {
       if (!isRecord(rawLine)) {
-        throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'Netto-Position ist keine Struktur');
+        throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'net line is not a structure');
       }
       const code = asString(rawLine.taxCode) ?? defaultCode;
       if (code === null) {
-        throw new DomainError('E_TAXCODE_UNKNOWN', 'Position ohne Steuerschlüssel (kein Default gesetzt)');
+        throw new DomainError('E_TAXCODE_UNKNOWN', 'line without tax code (no default set)');
       }
       return { account: asString(rawLine.account) ?? '', money: this.parseMoney(rawLine.money), code };
     });
 
-    // Referenzprüfung vollständig vor Berechnung (Reihenfolge-unabhängig).
+    // Reference check fully before computation (order-independent).
     for (const line of netLines) this.registry.get(line.code);
 
     const versions = new Map<string, TaxCodeVersion>();
@@ -99,8 +99,8 @@ export class TaxService {
       };
     }
 
-    // perLine (Pack-Parameter): Steuer je Position runden, eine Steuerzeile je
-    // Position. Nur Standard-Mechanismus (perLine wird nicht mit RC/IC kombiniert).
+    // perLine (pack parameter): round tax per line, one tax line per
+    // line. Standard mechanism only (perLine not combined with RC/IC).
     if (this.taxRoundingGranularity === 'perLine') {
       const taxLines: Array<Record<string, unknown>> = [];
       let grossTotal = netTotal;
@@ -127,7 +127,7 @@ export class TaxService {
       };
     }
 
-    // Gruppen deterministisch nach Steuerkonto sortieren (Codepoints).
+    // Sort groups deterministically by tax account (codepoints).
     const codes = [...bases.keys()].sort((a, b) => {
       const aa = versions.get(a)!.taxAccount;
       const bb = versions.get(b)!.taxAccount;
@@ -192,7 +192,7 @@ export class TaxService {
   setProfile(input: Record<string, unknown>): TaxProfile {
     const smallBusiness = input.smallBusiness;
     if (!isRecord(smallBusiness) || typeof smallBusiness.validFrom !== 'string') {
-      throw new DomainError('E_PROFILE_RETROACTIVE_CONFLICT', 'setTaxProfile braucht smallBusiness.validFrom');
+      throw new DomainError('E_PROFILE_RETROACTIVE_CONFLICT', 'setTaxProfile requires smallBusiness.validFrom');
     }
     const validFrom = this.parseDate(smallBusiness.validFrom);
 
@@ -200,7 +200,7 @@ export class TaxService {
       if (entry.isFinalized() && !entry.entryDate.isBefore(validFrom)) {
         throw new DomainError(
           'E_PROFILE_RETROACTIVE_CONFLICT',
-          `Zeitraum ab ${validFrom.iso} enthält festgeschriebene Buchungen (z. B. Nr. ${entry.sequenceNumber})`,
+          `period from ${validFrom.iso} contains finalized entries (e.g. no. ${entry.sequenceNumber})`,
           { validFrom: validFrom.iso, sequenceNumber: entry.sequenceNumber },
         );
       }
@@ -229,7 +229,7 @@ export class TaxService {
       return CalendarDate.of(typeof date === 'string' ? date : '');
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_TAXCODE_NO_VALID_VERSION', 'Belegdatum fehlt oder ungültig');
+        throw new DomainError('E_TAXCODE_NO_VALID_VERSION', 'voucher date missing or invalid');
       }
       throw error;
     }
@@ -238,13 +238,13 @@ export class TaxService {
   private parseMoney(raw: unknown): Money {
     const amount = isRecord(raw) ? asString(raw.amount) : null;
     if (amount === null) {
-      throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'Netto-Position ohne Betrag');
+      throw new DomainError('E_ENTRY_INVALID_AMOUNT', 'net line without amount');
     }
     try {
       return Money.of(amount, this.baseCurrency);
     } catch (error) {
       if (error instanceof InvalidValue) {
-        throw new DomainError('E_ENTRY_INVALID_AMOUNT', `Ungültiger Betrag "${amount}"`);
+        throw new DomainError('E_ENTRY_INVALID_AMOUNT', `invalid amount "${amount}"`);
       }
       throw error;
     }

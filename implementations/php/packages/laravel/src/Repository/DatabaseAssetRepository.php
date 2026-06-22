@@ -103,7 +103,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
 
             $depreciations[] = [
                 'planMonth' => is_int($booking['planMonth'] ?? null) ? $booking['planMonth'] : 0,
-                'date' => Hydrator::date($booking['date'] ?? null) ?? throw new \RuntimeException('AfA-Datum fehlt'),
+                'date' => Hydrator::date($booking['date'] ?? null) ?? throw new \RuntimeException('depreciation date missing'),
                 'amount' => Hydrator::money($bookingMoney),
                 'entryId' => Uuid::fromString(is_string($booking['entryId'] ?? null) ? $booking['entryId'] : ''),
             ];
@@ -118,7 +118,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             is_string($data['assetClass'] ?? null) ? $data['assetClass'] : '',
             AccountNumber::of(is_string($data['assetAccount'] ?? null) ? $data['assetAccount'] : '0'),
             Hydrator::money($cost),
-            Hydrator::date($data['acquiredOn'] ?? null) ?? throw new \RuntimeException('acquiredOn fehlt'),
+            Hydrator::date($data['acquiredOn'] ?? null) ?? throw new \RuntimeException('acquiredOn missing'),
             AssetRoute::from(is_string($data['route'] ?? null) ? $data['route'] : 'capitalize'),
             is_int($data['usefulLifeMonths'] ?? null) ? $data['usefulLifeMonths'] : null,
             $schedule,

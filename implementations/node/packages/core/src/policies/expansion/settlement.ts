@@ -4,8 +4,8 @@ import type { Uuid } from '../../substrate/uuid.js';
 import type { SettlementDifferenceKind } from '../../substrate/types.js';
 
 /**
- * Einzelner Ausgleich eines offenen Postens. `money` ist der ausgeglichene
- * OP-Betrag EINSCHLIESSLICH Differenz (api.md G2).
+ * Single settlement of an open item. `money` is the settled
+ * open-item amount INCLUDING the difference (api.md G2).
  */
 export class Settlement {
   constructor(

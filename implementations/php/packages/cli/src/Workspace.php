@@ -18,9 +18,9 @@ use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * CLI-Arbeitsbereich: `summae.json` (Mandanten-Meta + Regelmodul-Daten,
- * App-Schicht) + `summae.sqlite` (Adapter-Persistenz).
- * Jeder Aufruf lädt den Mandanten, führt aus, die Datenbank persistiert.
+ * CLI workspace: `summae.json` (tenant meta + pack data,
+ * app layer) + `summae.sqlite` (adapter persistence).
+ * Each invocation loads the tenant, runs, the database persists.
  */
 final class Workspace
 {
@@ -52,7 +52,7 @@ final class Workspace
     public function initialize(string $name, string $currency, array $ruleData): void
     {
         if ($this->exists()) {
-            throw new \RuntimeException(sprintf('Arbeitsbereich existiert bereits: %s', $this->configPath()));
+            throw new \RuntimeException(sprintf('Workspace already exists: %s', $this->configPath()));
         }
 
         $this->config = [
@@ -75,7 +75,7 @@ final class Workspace
     {
         if (!$this->exists()) {
             throw new \RuntimeException(sprintf(
-                'Kein Arbeitsbereich in %s — zuerst `summae init` ausführen',
+                'No workspace in %s — run `summae init` first',
                 $this->directory,
             ));
         }
@@ -132,7 +132,7 @@ final class Workspace
         $path = $this->directory . '/' . self::DB_FILE;
 
         if (!is_file($path)) {
-            touch($path); // SQLite-Connector erwartet eine existierende Datei
+            touch($path); // SQLite connector expects an existing file
         }
 
         $capsule = new Capsule();

@@ -21,9 +21,9 @@ export interface DimensionRuleData {
 }
 
 /**
- * Dimensions-Validierung: Mechanik im Kern, Inhalte als Regelmodul-Daten
- * (ledger-modell.md). Typen/Werte sind Stammdaten; Pflichtdimensionen kommen
- * aus `ruleModules.dimensionRules`.
+ * Dimension validation: mechanism in the core, contents as rule module data
+ * (ledger-modell.md). Types/values are master data; mandatory dimensions come
+ * from `ruleModules.dimensionRules`.
  */
 export class DimensionRegistry {
   private constructor(
@@ -54,14 +54,14 @@ export class DimensionRegistry {
   validateLine(account: AccountNumber, dimensions: DimensionValue[]): void {
     for (const dimension of dimensions) {
       if (!this.types.has(dimension.type)) {
-        throw new DomainError('E_DIMENSION_INVALID', `Unbekannter Dimensionstyp "${dimension.type}"`, {
+        throw new DomainError('E_DIMENSION_INVALID', `Unknown dimension type "${dimension.type}"`, {
           type: dimension.type,
         });
       }
       if (!this.values.has(`${dimension.type}:${dimension.code}`)) {
         throw new DomainError(
           'E_DIMENSION_INVALID',
-          `Unbekannter Dimensionswert "${dimension.code}" für Typ "${dimension.type}"`,
+          `Unknown dimension value "${dimension.code}" for type "${dimension.type}"`,
           { type: dimension.type, code: dimension.code },
         );
       }
@@ -73,7 +73,7 @@ export class DimensionRegistry {
       if (dimensions.some((d) => d.type === rule.required)) continue;
       throw new DomainError(
         'E_DIMENSION_INVALID',
-        `Pflichtdimension "${rule.required}" fehlt auf Konto ${account.value}`,
+        `Mandatory dimension "${rule.required}" missing on account ${account.value}`,
         { account: account.value, required: rule.required },
       );
     }

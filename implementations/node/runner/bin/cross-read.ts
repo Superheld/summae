@@ -12,18 +12,18 @@ import { DatabaseTenantFactory, SyncDb, TABLE_PREFIX } from '@superheld/summae-k
 import { loadFixtures } from '../src/fixture-loader.js';
 
 /**
- * Cross-Test-Vergleichs-Hub (SF-15), BEIDE Richtungen — bewusst komplett in Node,
- * weil JS die {}/[]-Unterscheidung beim Parsen bewahrt (PHPs json_decode(assoc)
- * nicht):
- *  1. PHP→Node: Node öffnet die von `cross-export.php` geschriebenen `*.sqlite`,
- *     berechnet journalExport und vergleicht mit PHPs Oracle (`*.expected.json`).
- *  2. Node→PHP: vergleicht Nodes Oracle (`*.node.expected.json`) mit PHPs
- *     Ergebnis (`*.php-actual.json`, von `cross-read.php` aus der Node-DB berechnet).
+ * Cross-test comparison hub (SF-15), BOTH directions — deliberately fully in Node,
+ * because JS preserves the {}/[] distinction on parsing (PHP's json_decode(assoc)
+ * does not):
+ *  1. PHP→Node: Node opens the `*.sqlite` written by `cross-export.php`,
+ *     computes journalExport and compares with PHP's oracle (`*.expected.json`).
+ *  2. Node→PHP: compares Node's oracle (`*.node.expected.json`) with PHP's
+ *     result (`*.php-actual.json`, computed by `cross-read.php` from the Node DB).
  *
- * journalExport ist konfig-/placeholder-frei. Verglichen wird der **vollständige**
- * kanonische journalExport byte-genau — inkl. der sha256-contentHashes und des
- * exportedAt (gleiche fixe Uhr beidseits). Seit der Zeitstempel-Kanonisierung
- * (F-CROSS-001 gelöst: UTC-Z/ms in beiden Sprachen) sind keine Ausnahmen mehr nötig.
+ * journalExport is config-/placeholder-free. The **full** canonical journalExport
+ * is compared byte-exact — incl. the sha256 contentHashes and the
+ * exportedAt (same fixed clock on both sides). Since the timestamp canonicalization
+ * (F-CROSS-001 solved: UTC-Z/ms in both languages) no exceptions are needed anymore.
  */
 
 const dirArg = process.argv.slice(2).find((a) => a.startsWith('--dir='));
@@ -42,7 +42,7 @@ function tenantConfig(name: string): { tenantName: string; currency: string } {
 
 const TENANT_TABLES = ['accounts', 'journal_entries', 'fiscal_years', 'vouchers', 'partners', 'assets', 'open_items', 'audit_log'];
 
-/** tenant_id aus den Daten ermitteln — ein fremdes Package kennt sie nicht vorab. */
+/** Determine tenant_id from the data — a foreign package does not know it in advance. */
 function discoverTenantId(db: SyncDb): string | null {
   for (const table of TENANT_TABLES) {
     const row = db.first(db.table(`${TABLE_PREFIX}${table}`).select('tenant_id'));
@@ -61,10 +61,10 @@ function firstDiff(a: string, b: string): string {
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
   const at = Math.max(0, i - 30);
-  return `…${a.slice(at, i + 30)}\n      B: …${b.slice(at, i + 30)}  (ab Position ${i})`;
+  return `…${a.slice(at, i + 30)}\n      B: …${b.slice(at, i + 30)}  (from position ${i})`;
 }
 
-// ── Richtung 1: PHP schreibt, Node liest ────────────────────────────────────
+// ── Direction 1: PHP writes, Node reads ─────────────────────────────────────
 const phpToNode: Result = { green: 0, red: 0, failures: [] };
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.endsWith('.node.sqlite')).sort()) {
   const name = file.slice(0, -'.sqlite'.length);
@@ -73,7 +73,7 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.en
     const tenantId = discoverTenantId(db);
     if (tenantId === null) {
       phpToNode.red++;
-      phpToNode.failures.push(`${name}: keine tenant_id`);
+      phpToNode.failures.push(`${name}: no tenant_id`);
       continue;
     }
     const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
@@ -93,7 +93,7 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.en
   }
 }
 
-// ── Richtung 2: Node schreibt, PHP liest (Vergleich hier in Node) ────────────
+// ── Direction 2: Node writes, PHP reads (comparison here in Node) ────────────
 const nodeToPhp: Result = { green: 0, red: 0, failures: [] };
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.php-actual.json')).sort()) {
   const name = file.slice(0, -'.php-actual.json'.length);
@@ -109,11 +109,11 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.php-actual.json')
 }
 
 function report(label: string, r: Result): void {
-  console.log(`${label}: ${r.green} grün, ${r.red} rot`);
+  console.log(`${label}: ${r.green} green, ${r.red} red`);
   for (const f of r.failures.slice(0, 5)) console.log(`  ${f}`);
 }
 
 console.log('');
-report('Cross-Test PHP→Node (journalExport)', phpToNode);
-report('Cross-Test Node→PHP (journalExport)', nodeToPhp);
+report('Cross-test PHP→Node (journalExport)', phpToNode);
+report('Cross-test Node→PHP (journalExport)', nodeToPhp);
 process.exit(phpToNode.red === 0 && nodeToPhp.red === 0 ? 0 : 1);

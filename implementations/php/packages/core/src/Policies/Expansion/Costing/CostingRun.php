@@ -10,17 +10,17 @@ use Summae\Core\Substrate\PeriodRef;
 use Summae\Core\Substrate\Uuid;
 
 /**
- * Abrechnungslauf (costing-modell.md Aggregat 1): je Periode + Version
- * eindeutig; Wiederholung erzeugt neue Version. draft -> released.
- * Invarianten: Verrechnungssumme bleibt erhalten, Hilfsstellen nach
- * Umlage = 0 (vom Service beim Rechnen sichergestellt).
+ * Costing run (costing-modell.md aggregate 1): unique per period + version;
+ * repetition creates a new version. draft -> released.
+ * Invariants: the allocation total is preserved, auxiliary centers after
+ * allocation = 0 (ensured by the service during computation).
  */
 final class CostingRun
 {
     private string $status = 'draft';
 
     /**
-     * @param array<string, Money> $primary Kostenstelle -> Primärkosten
+     * @param array<string, Money> $primary cost center -> primary costs
      * @param array<string, Money> $afterAllocation
      */
     public function __construct(
@@ -42,7 +42,7 @@ final class CostingRun
     {
         if ($this->status === 'released') {
             throw new DomainError('E_COSTING_RUN_RELEASED', sprintf(
-                'Lauf %s ist bereits freigegeben — Änderungen erzeugen eine neue Version',
+                'run %s is already released — changes create a new version',
                 $this->id->value,
             ), ['runId' => $this->id->value]);
         }

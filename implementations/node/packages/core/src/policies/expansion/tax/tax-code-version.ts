@@ -1,9 +1,9 @@
 import type { CalendarDate } from '../../../substrate/calendar-date.js';
 
 /**
- * Regelversion eines Steuerschlüssels mit Gültigkeitszeitraum. Inhalte sind
- * Regelmodul-Daten — Code zitiert kein Gesetz. mechanism `reverse_charge`:
- * USt- und VSt-Position gleichzeitig; `intra_community_supply`: steuerfrei.
+ * Rule version of a tax code with validity period. Contents are
+ * rule-module data — code cites no statute. mechanism `reverse_charge`:
+ * VAT and input-tax line at once; `intra_community_supply`: tax-free.
  */
 export class TaxCodeVersion {
   constructor(

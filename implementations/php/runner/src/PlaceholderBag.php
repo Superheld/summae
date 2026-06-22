@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Summae\Runner;
 
 /**
- * Platzhalter-Mechanik der Fixtures (testsuite/README.md):
- * "$V1", "$E1", … stehen für IDs, die die Implementierung selbst erzeugt.
+ * Placeholder mechanics of the fixtures (testsuite/README.md):
+ * "$V1", "$E1", … stand for IDs that the implementation generates itself.
  *
- * - In setup/input wird ein unbekannter Platzhalter an eine frische ID
- *   gebunden, ein bekannter durch seinen Wert ersetzt.
- * - In expect wird ein unbekannter Platzhalter an den Ist-Wert gebunden
- *   (Capture), ein bekannter muss exakt übereinstimmen.
+ * - In setup/input an unknown placeholder is bound to a fresh ID,
+ *   a known one is replaced by its value.
+ * - In expect an unknown placeholder is bound to the actual value
+ *   (capture), a known one must match exactly.
  */
 final class PlaceholderBag
 {
@@ -31,14 +31,14 @@ final class PlaceholderBag
     public function get(string $name): string
     {
         return $this->values[$name]
-            ?? throw new \LogicException(sprintf('Platzhalter %s ist nicht gebunden', $name));
+            ?? throw new \LogicException(sprintf('Placeholder %s is not bound', $name));
     }
 
     public function bind(string $name, string $value): void
     {
         if ($this->has($name) && $this->values[$name] !== $value) {
             throw new \LogicException(sprintf(
-                'Platzhalter %s ist bereits an "%s" gebunden',
+                'Placeholder %s is already bound to "%s"',
                 $name,
                 $this->values[$name],
             ));
@@ -48,8 +48,8 @@ final class PlaceholderBag
     }
 
     /**
-     * Ersetzt rekursiv alle Platzhalter in Eingabedaten. Unbekannte werden
-     * über $onUnknown an einen frischen Wert gebunden.
+     * Recursively replaces all placeholders in input data. Unknown ones are
+     * bound to a fresh value via $onUnknown.
      *
      * @param callable(string): string $onUnknown
      */

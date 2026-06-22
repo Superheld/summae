@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Cross-Test, Schreib-Seite (SF-15): Fährt jede Fixture mit `setup.tenant` gegen
- * eine SQLite-DATEI (Database-Adapter) und legt zusätzlich den kanonischen
- * `journalExport` als Erwartung ab. Die Node-Seite (`cross-read.ts`) öffnet
- * dieselbe Datei, berechnet ihrerseits `journalExport` und muss byte-identisch
- * herauskommen — Beweis, dass beide Sprachen denselben Datenbestand teilen.
+ * Cross-test, write side (SF-15): runs every fixture with `setup.tenant` against
+ * a SQLite FILE (database adapter) and additionally stores the canonical
+ * `journalExport` as expectation. The Node side (`cross-read.ts`) opens
+ * the same file, computes `journalExport` on its part and must come out
+ * byte-identical — proof that both languages share the same data stock.
  */
 
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -20,7 +20,7 @@ use Summae\Runner\Subject\CoreSubject;
 
 require __DIR__ . '/../../vendor/autoload.php';
 
-$root = dirname(__DIR__, 4); // Repo-Root (geteilte testsuite/)
+$root = dirname(__DIR__, 4); // repo root (shared testsuite/)
 
 /** @var list<string> $argvList */
 $argvList = $_SERVER['argv'] ?? [];
@@ -32,7 +32,7 @@ foreach (array_slice($argvList, 1) as $arg) {
 }
 
 if (!is_dir($dir) && !mkdir($dir, 0o777, true) && !is_dir($dir)) {
-    fwrite(STDERR, "Ausgabeverzeichnis nicht anlegbar: {$dir}\n");
+    fwrite(STDERR, "Output directory not creatable: {$dir}\n");
     exit(1);
 }
 
@@ -41,7 +41,7 @@ $written = 0;
 $skipped = 0;
 
 foreach ($fixtures as $fixture) {
-    // Nur Fixtures mit persistierendem Setup-Mandanten (createTenant läuft in-memory).
+    // Only fixtures with a persisting setup tenant (createTenant runs in-memory).
     if (!isset($fixture->setup['tenant']) || !is_array($fixture->setup['tenant'])) {
         $skipped++;
         continue;
@@ -49,7 +49,7 @@ foreach ($fixtures as $fixture) {
 
     $dbFile = $dir . '/' . $fixture->name . '.sqlite';
     @unlink($dbFile);
-    touch($dbFile); // Laravels SQLite-Connector verlangt eine existierende Datei
+    touch($dbFile); // Laravel's SQLite connector requires an existing file
 
     $capsule = new Capsule();
     $capsule->addConnection([
@@ -79,14 +79,14 @@ foreach ($fixtures as $fixture) {
         );
     });
 
-    // Fixture fahren (setup + steps mit Placeholder-Auflösung) → Datei wird befüllt.
+    // Run fixture (setup + steps with placeholder resolution) → file gets populated.
     (new FixtureRunner())->run($fixture, $subject);
 
-    // Oracle: kanonischer journalExport aus dem persistierten Bestand.
+    // Oracle: canonical journalExport from the persisted stock.
     $export = $subject->project('journalExport', ['format' => 'gobd-z3']);
     file_put_contents($dir . '/' . $fixture->name . '.expected.json', CanonicalJson::encode($export));
 
     $written++;
 }
 
-printf("Cross-Export: %d Fixtures geschrieben, %d übersprungen (kein setup.tenant) → %s\n", $written, $skipped, $dir);
+printf("Cross-export: %d fixtures written, %d skipped (no setup.tenant) → %s\n", $written, $skipped, $dir);

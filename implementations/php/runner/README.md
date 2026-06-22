@@ -1,8 +1,8 @@
-# Fixture-Runner (JOB-002)
+# Fixture runner (JOB-002)
 
-Liest `testsuite/fixtures/**.json`, baut In-Memory-Mandanten aus `setup`,
-führt `steps` und `projections` aus und vergleicht nach dem Runner-Kontrakt
-(`testsuite/README.md`): Teilmengen-Vergleich, Platzhalter (`$1`, `$V1`, …),
-exakter Fehlercode-Vergleich, Suite-Doppellauf-Determinismus.
+Reads `testsuite/fixtures/**.json`, builds in-memory tenants from `setup`,
+runs `steps` and `projections` and compares according to the runner contract
+(`testsuite/README.md`): subset comparison, placeholders (`$1`, `$V1`, …),
+exact error-code comparison, suite double-run determinism.
 
-Entsteht in JOB-002 — nach dem Shared Kernel (JOB-001).
+Created in JOB-002 — after the shared kernel (JOB-001).

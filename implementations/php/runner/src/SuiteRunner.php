@@ -8,10 +8,10 @@ use Summae\Core\Substrate\CanonicalJson;
 use Summae\Runner\Subject\SubjectFactory;
 
 /**
- * Kompletter Suite-Lauf inkl. Doppellauf-Determinismus-Check
- * (Runner-Kontrakt Punkt 4): beide Läufe müssen nach Normalisierung
- * identische Spuren liefern. UUIDs werden auf Auftrittsreihenfolge
- * normalisiert — Fixtures vergleichen nie ID-Werte (determinismus.md §5).
+ * Complete suite run incl. double-run determinism check
+ * (runner contract point 4): both runs must yield identical traces
+ * after normalization. UUIDs are normalized to order of appearance —
+ * fixtures never compare ID values (determinismus.md §5).
  */
 final class SuiteRunner
 {
@@ -58,7 +58,7 @@ final class SuiteRunner
     }
 
     /**
-     * Kanonisches JSON der Spur, UUIDs durch Auftrittsindex ersetzt.
+     * Canonical JSON of the trace, UUIDs replaced by appearance index.
      *
      * @param array<int, mixed> $trace
      */

@@ -7,8 +7,8 @@ namespace Summae\Core\Substrate;
 use Summae\Core\Records\OpenItem;
 
 /**
- * Ergebnis von `post`: die Buchung plus die dabei entstandenen
- * offenen Posten (AR/AP-Automatik, F-CORE-009).
+ * Result of `post`: the posting plus the open items
+ * created along the way (AR/AP automation, F-CORE-009).
  */
 final readonly class PostResult
 {

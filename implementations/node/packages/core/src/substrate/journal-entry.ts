@@ -6,9 +6,9 @@ import type { EntryLine } from './entry-line.js';
 import type { EntryStatus } from './types.js';
 
 /**
- * Buchung — das wichtigste Aggregat (ledger-modell.md). Entsteht vollständig und
- * gültig (Validierung im Ledger-Service); Lebenszyklus entered → finalized,
- * danach nur Storno (neue Buchung mit Rückverweis, Generalumkehr).
+ * Posting — the most important aggregate (ledger-modell.md). Created complete and
+ * valid (validation in the ledger service); lifecycle entered → finalized,
+ * afterwards only reversal (new posting with back-reference, full reversal).
  */
 export class JournalEntry {
   private entryText: string;
@@ -74,7 +74,7 @@ export class JournalEntry {
     if (this.entryReversedBy !== null) {
       throw new DomainError(
         'E_ENTRY_ALREADY_REVERSED',
-        `Buchung ${this.id.value} ist bereits storniert (durch ${this.entryReversedBy.value})`,
+        `Posting ${this.id.value} is already reversed (by ${this.entryReversedBy.value})`,
         { entryId: this.id.value, reversedBy: this.entryReversedBy.value },
       );
     }
@@ -85,7 +85,7 @@ export class JournalEntry {
     if (this.entryStatus !== 'entered') {
       throw new DomainError(
         'E_ENTRY_FINALIZED',
-        `Buchung ${this.id.value} ist festgeschrieben — Korrektur nicht möglich, nur Storno`,
+        `Posting ${this.id.value} is finalized — correction not possible, only reversal`,
         { entryId: this.id.value },
       );
     }

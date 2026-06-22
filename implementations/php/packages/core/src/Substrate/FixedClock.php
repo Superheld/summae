@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * Feststehende Zeit für Tests und deterministische Läufe.
+ * Fixed time for tests and deterministic runs.
  */
 final class FixedClock implements Clock
 {

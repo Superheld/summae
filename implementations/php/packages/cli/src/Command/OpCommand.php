@@ -15,9 +15,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `summae op post --input '{"entryDate": …}'` — alle Schreiboperationen
- * der api.md in einem Aufruf (SF-02: `summae op postVoucher --input …`).
- * Eingabe als JSON-String oder `@datei.json`.
+ * `summae op post --input '{"entryDate": …}'` — all write operations
+ * of api.md in one call (SF-02: `summae op postVoucher --input …`).
+ * Input as a JSON string or `@datei.json`.
  */
 final class OpCommand extends Command
 {
@@ -29,10 +29,10 @@ final class OpCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Schreiboperation ausführen (post, postVoucher, settle, …)')
-            ->addArgument('operation', InputArgument::REQUIRED, 'Operationsname laut api.md')
-            ->addOption('input', null, InputOption::VALUE_REQUIRED, 'Eingabe als JSON oder @datei', '{}')
-            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Arbeitsverzeichnis', '.');
+            ->setDescription('Run write operation (post, postVoucher, settle, …)')
+            ->addArgument('operation', InputArgument::REQUIRED, 'Operation name per api.md')
+            ->addOption('input', null, InputOption::VALUE_REQUIRED, 'Input as JSON or @file', '{}')
+            ->addOption('dir', null, InputOption::VALUE_REQUIRED, 'Working directory', '.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

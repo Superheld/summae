@@ -1,8 +1,8 @@
 /**
- * Exit-Codes = Fehlercodes (api.md F-IO-003): stabile numerische Abbildung des
- * Fehlerkatalogs. 0 = Erfolg, 1 = unbekannter Fehler, sonst Index + 10.
- * **Reihenfolge ist append-only** und identisch zur PHP-Referenz (`ExitCodes.php`) —
- * Umsortieren wäre ein Breaking Change.
+ * Exit codes = error codes (api.md F-IO-003): stable numeric mapping of the
+ * error catalog. 0 = success, 1 = unknown error, otherwise index + 10.
+ * **Order is append-only** and identical to the PHP reference (`ExitCodes.php`) —
+ * reordering would be a breaking change.
  */
 const CODES: readonly string[] = [
   'E_ENTRY_UNBALANCED',

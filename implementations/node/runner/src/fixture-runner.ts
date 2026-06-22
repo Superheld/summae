@@ -6,17 +6,17 @@ import { crashed, type FixtureResult, passOrFail, type TraceEntry } from './resu
 import { type Subject, SubjectError } from './subject.js';
 
 /**
- * Führt eine Fixture gegen ein frisches Subject aus (Runner-Kontrakt,
+ * Runs a fixture against a fresh subject (runner contract,
  * testsuite/README.md): setup → steps → projections.
  *
- * Fachliche Fehler des Subjects (SubjectError) sind erwartbare Ergebnisse;
- * jede andere Exception ist ein Crash der Implementierung.
+ * Domain errors of the subject (SubjectError) are expected results;
+ * any other exception is a crash of the implementation.
  */
 export class FixtureRunner {
   run(fixture: Fixture, subject: Subject): FixtureResult {
     const bag = new PlaceholderBag();
-    // Deterministische Platzhalter-IDs: der Doppellauf muss byte-identische
-    // Spuren liefern. Eigener Zeitanteil, damit Subject-interne IDs nie kollidieren.
+    // Deterministic placeholder IDs: the double run must yield byte-identical
+    // traces. Own time component, so that subject-internal IDs never collide.
     const ids = new DeterministicIdGenerator(FixedClock.at('2026-06-07T00:00:00+00:00'));
     const freshId = (): string => ids.next().value;
     const diffs: string[] = [];
@@ -35,7 +35,7 @@ export class FixtureRunner {
     for (const [index, step] of fixture.steps.entries()) {
       const op = step.op;
       if (typeof op !== 'string') {
-        return crashed(fixture.name, `steps[${index}]: op fehlt`, trace);
+        return crashed(fixture.name, `steps[${index}]: op missing`, trace);
       }
       const label = `steps[${index}] ${op}`;
 
@@ -57,7 +57,7 @@ export class FixtureRunner {
     for (const [index, projection] of fixture.projections.entries()) {
       const name = projection.name;
       if (typeof name !== 'string') {
-        return crashed(fixture.name, `projections[${index}]: name fehlt`, trace);
+        return crashed(fixture.name, `projections[${index}]: name missing`, trace);
       }
       const label = `projections[${index}] ${name}`;
 
@@ -81,8 +81,8 @@ export class FixtureRunner {
 }
 
 /**
- * Vergleicht ein Step-/Projektions-Ergebnis gegen expect. Steps tragen
- * expect.result, Projektionen ihr expect direkt; beide können expect.error tragen.
+ * Compares a step/projection result against expect. Steps carry
+ * expect.result, projections their expect directly; both can carry expect.error.
  */
 function checkExpectation(
   definition: Record<string, unknown>,
@@ -95,7 +95,7 @@ function checkExpectation(
     return [];
   }
   if (expect === null || typeof expect !== 'object' || Array.isArray(expect)) {
-    return [`${label}: expect hat unerwartete Struktur`];
+    return [`${label}: expect has unexpected structure`];
   }
   const expectObject = expect as Record<string, unknown>;
   const ok = outcome.ok === true;
@@ -103,17 +103,17 @@ function checkExpectation(
   const expectedError = expectObject.error;
   if (typeof expectedError === 'string') {
     if (ok) {
-      return [`${label}: Fehler ${expectedError} erwartet, Operation war erfolgreich`];
+      return [`${label}: error ${expectedError} expected, operation succeeded`];
     }
     const actualError = typeof outcome.error === 'string' ? outcome.error : '?';
     return actualError === expectedError
       ? []
-      : [`${label}: Fehler ${expectedError} erwartet, ist ${actualError}`];
+      : [`${label}: error ${expectedError} expected, is ${actualError}`];
   }
 
   if (!ok) {
     const actualError = typeof outcome.error === 'string' ? outcome.error : '?';
-    return [`${label}: Erfolg erwartet, Fehler ${actualError}`];
+    return [`${label}: success expected, error ${actualError}`];
   }
 
   let expected: unknown;

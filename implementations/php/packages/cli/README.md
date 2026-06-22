@@ -1,22 +1,22 @@
 # superheld/summae-cli
 
-Eigenständiges Kommandozeilen-Werkzeug (`summae`) für summae. Alle Ein- und
-Ausgaben sind **JSON** — Zielnutzer ist ein Mensch oder ein LLM-Operator.
-Exit-Codes entsprechen den Fehlercodes der API. Persistiert in einen lokalen
-Arbeitsbereich (SQLite, via Database-Adapter).
+Standalone command-line tool (`summae`) for summae. All input and
+output is **JSON** — the target user is a human or an LLM operator.
+Exit codes correspond to the API's error codes. Persists to a local
+workspace (SQLite, via the database adapter).
 
 ```bash
 composer require superheld/summae-cli
 
-summae init   --name "Muster GmbH" --currency EUR --rules regeln.json --dir ./buchhaltung
-summae op     postVoucher --dir ./buchhaltung --input @beleg.json
-summae report trialBalance --dir ./buchhaltung --params '{"fiscalYear":2026,"throughPeriod":12}'
+summae init   --name "Example Ltd" --currency EUR --rules rules.json --dir ./accounting
+summae op     postVoucher --dir ./accounting --input @voucher.json
+summae report trialBalance --dir ./accounting --params '{"fiscalYear":2026,"throughPeriod":12}'
 ```
 
-`--input` / `--params` akzeptieren JSON direkt oder `@datei.json`.
+`--input` / `--params` accept JSON directly or `@file.json`.
 
-**📖 Vollständige Dokumentation** — Arbeitsbereich, Regeldatei, komplette
-API-Referenz (alle Operationen & Projektionen), Fehlerkatalog:
-**[summae-Handbuch](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
+**📖 Full documentation** — workspace, rule file, complete
+API reference (all operations & projections), error catalog:
+**[summae handbook](https://github.com/Superheld/summae/blob/main/docs/handbuch/README.md)**.
 
-Lizenz: MIT — siehe [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).
+License: MIT — see [LICENSE](https://github.com/Superheld/summae/blob/main/implementations/php/LICENSE).

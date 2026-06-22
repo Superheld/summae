@@ -26,14 +26,14 @@ export class InMemoryAccountRepository implements AccountRepository {
 
   add(account: Account): void {
     if (this.byNumberMap.has(account.number.value)) {
-      throw new Error(`Repository-Kontrakt verletzt: Kontonummer ${account.number.value} doppelt`);
+      throw new Error(`Repository contract violated: account number ${account.number.value} duplicated`);
     }
     this.byNumberMap.set(account.number.value, account);
     this.byIdMap.set(account.id.value, account);
   }
 
   save(_account: Account): void {
-    // In-Memory: Objektidentität genügt.
+    // In-memory: object identity suffices.
   }
 
   byNumber(number: AccountNumber): Account | null {
