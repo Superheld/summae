@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Port;
 
 use Summae\Core\Assets\Asset;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 
 interface AssetRepository
 {

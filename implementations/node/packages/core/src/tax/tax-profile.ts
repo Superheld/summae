@@ -1,4 +1,4 @@
-import { CalendarDate } from '../shared/calendar-date.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
 
 interface Segment {
   validFrom: CalendarDate;

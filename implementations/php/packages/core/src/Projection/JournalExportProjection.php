@@ -11,11 +11,11 @@ use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\CanonicalJson;
-use Summae\Core\Shared\Clock;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Timestamp;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CanonicalJson;
+use Summae\Core\Substrate\Clock;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Timestamp;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * GoBD-Z3-Export (SF-14): Manifest mit SHA-256-Strom-Hashes über

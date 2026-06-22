@@ -1,19 +1,19 @@
 // Shared Kernel
-export { Currency } from './shared/currency.js';
-export { Money } from './shared/money.js';
-export { canonicalJson } from './shared/canonical-json.js';
-export { type Clock, SystemClock, FixedClock } from './shared/clock.js';
-export { Uuid } from './shared/uuid.js';
+export { Currency } from './substrate/currency.js';
+export { Money } from './substrate/money.js';
+export { canonicalJson } from './substrate/canonical-json.js';
+export { type Clock, SystemClock, FixedClock } from './substrate/clock.js';
+export { Uuid } from './substrate/uuid.js';
 export {
   type IdGenerator,
   UuidV7IdGenerator,
   DeterministicIdGenerator,
-} from './shared/id-generator.js';
-export { InvalidValue, CurrencyMismatch } from './shared/errors.js';
-export { CalendarDate } from './shared/calendar-date.js';
-export { AccountNumber } from './shared/account-number.js';
-export { PeriodRef } from './shared/period-ref.js';
-export { DimensionValue } from './shared/dimension-value.js';
+} from './substrate/id-generator.js';
+export { InvalidValue, CurrencyMismatch } from './substrate/errors.js';
+export { CalendarDate } from './substrate/calendar-date.js';
+export { AccountNumber } from './substrate/account-number.js';
+export { PeriodRef } from './substrate/period-ref.js';
+export { DimensionValue } from './substrate/dimension-value.js';
 
 // Fehler
 export { DomainError } from './domain-error.js';

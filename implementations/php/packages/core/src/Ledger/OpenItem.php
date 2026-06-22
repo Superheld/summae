@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Offener Posten (ledger-modell.md Aggregat 5): entsteht aus einer

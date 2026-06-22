@@ -9,9 +9,9 @@ use Summae\Core\Ledger\EntryLine;
 use Summae\Core\Ledger\EntryStatus;
 use Summae\Core\Ledger\JournalEntry;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\PeriodRef;
-use Summae\Core\Shared\Timestamp;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Timestamp;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Costing;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\PeriodRef;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Abrechnungslauf (costing-modell.md Aggregat 1): je Periode + Version

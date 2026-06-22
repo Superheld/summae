@@ -9,8 +9,8 @@ use Summae\Core\Ledger\Account;
 use Summae\Core\Ledger\AccountStatus;
 use Summae\Core\Ledger\AccountType;
 use Summae\Core\Port\AccountRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseAccountRepository implements AccountRepository

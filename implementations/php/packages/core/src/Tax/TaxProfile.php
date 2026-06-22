@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tax;
 
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Steuerliches Mandantenprofil (tax-modell.md Aggregat 2):

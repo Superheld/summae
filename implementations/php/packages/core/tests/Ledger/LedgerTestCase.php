@@ -12,12 +12,12 @@ use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\DimensionRegistry;
 use Summae\Core\Ledger\FiscalYear;
 use Summae\Core\Ledger\Voucher;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Core\Tenant;
 
 abstract class LedgerTestCase extends TestCase

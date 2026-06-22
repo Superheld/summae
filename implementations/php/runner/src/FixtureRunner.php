@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Runner;
 
-use Summae\Core\Shared\DeterministicIdGenerator;
-use Summae\Core\Shared\FixedClock;
+use Summae\Core\Substrate\DeterministicIdGenerator;
+use Summae\Core\Substrate\FixedClock;
 use Summae\Runner\Subject\Subject;
 use Summae\Runner\Subject\SubjectError;
 

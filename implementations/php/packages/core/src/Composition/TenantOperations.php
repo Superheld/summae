@@ -7,7 +7,7 @@ namespace Summae\Core\Composition;
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\OpenItem;
 use Summae\Core\Ledger\PostResult;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\Money;
 use Summae\Core\Mapping\MappingImporter;
 use Summae\Core\Projection\AccountSheetProjection;
 use Summae\Core\Projection\AssetRegisterProjection;

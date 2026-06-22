@@ -10,7 +10,7 @@ use Summae\Core\Ledger\OpenItemKind;
 use Summae\Core\Ledger\Settlement;
 use Summae\Core\Ledger\SettlementDifferenceKind;
 use Summae\Core\Port\OpenItemRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseOpenItemRepository implements OpenItemRepository

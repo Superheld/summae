@@ -7,7 +7,7 @@ namespace Summae\Core\Projection;
 use Summae\Core\Assets\Asset;
 use Summae\Core\Assets\AssetRoute;
 use Summae\Core\Port\AssetRepository;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Anlageverzeichnis (Pflicht auch bei EÜR, § 4 Abs. 3 S. 5 EStG).

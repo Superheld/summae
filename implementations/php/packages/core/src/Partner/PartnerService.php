@@ -8,10 +8,10 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\PartnerRepository;
-use Summae\Core\Shared\Clock;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\IdGenerator;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Clock;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Partner-Operationen (api.md v0.4): createPartner / updatePartner,

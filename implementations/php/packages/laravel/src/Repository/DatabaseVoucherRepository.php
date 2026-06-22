@@ -7,7 +7,7 @@ namespace Summae\Laravel\Repository;
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Ledger\Voucher;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseVoucherRepository implements VoucherRepository

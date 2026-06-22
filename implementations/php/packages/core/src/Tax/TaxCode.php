@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Tax;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Steuerschlüssel (tax-modell.md Aggregat 1): gebündelter

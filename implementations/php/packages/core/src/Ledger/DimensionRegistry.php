@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\DimensionValue;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\DimensionValue;
 
 /**
  * Dimensions-Validierung: Mechanik im Kern, Inhalte als Regelmodul-Daten

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Tests\Shared;
+namespace Summae\Core\Tests\Substrate;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Shared\Exception\CurrencyMismatch;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\Exception\CurrencyMismatch;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\Money;
 
 final class MoneyTest extends TestCase
 {

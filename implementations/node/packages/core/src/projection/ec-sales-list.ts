@@ -1,6 +1,6 @@
 import type { JournalRepository, PartnerRepository, VoucherRepository } from '../port.js';
-import { Money } from '../shared/money.js';
-import type { Currency } from '../shared/currency.js';
+import { Money } from '../substrate/money.js';
+import type { Currency } from '../substrate/currency.js';
 import type { TaxCodeRegistry } from '../tax/tax-code-registry.js';
 
 /**

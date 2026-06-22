@@ -8,9 +8,9 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\Side;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 
 /**
  * Kontoblatt: alle Bewegungen eines Kontos im Geschäftsjahr mit

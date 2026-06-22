@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Port;
 
 use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 interface FiscalYearRepository
 {

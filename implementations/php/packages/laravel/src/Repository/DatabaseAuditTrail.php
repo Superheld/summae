@@ -7,7 +7,7 @@ namespace Summae\Laravel\Repository;
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Ledger\AuditRecord;
 use Summae\Core\Port\AuditTrail;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseAuditTrail implements AuditTrail

@@ -27,10 +27,10 @@ import type {
   PartnerRepository,
   VoucherRepository,
 } from '../port.js';
-import { type Clock, SystemClock } from '../shared/clock.js';
-import type { Currency } from '../shared/currency.js';
-import { type IdGenerator, UuidV7IdGenerator } from '../shared/id-generator.js';
-import type { Uuid } from '../shared/uuid.js';
+import { type Clock, SystemClock } from '../substrate/clock.js';
+import type { Currency } from '../substrate/currency.js';
+import { type IdGenerator, UuidV7IdGenerator } from '../substrate/id-generator.js';
+import type { Uuid } from '../substrate/uuid.js';
 
 /**
  * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`). Bündelt

@@ -1,7 +1,7 @@
 import { DomainError } from '../domain-error.js';
-import type { Money } from '../shared/money.js';
-import type { PeriodRef } from '../shared/period-ref.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { Money } from '../substrate/money.js';
+import type { PeriodRef } from '../substrate/period-ref.js';
+import type { Uuid } from '../substrate/uuid.js';
 
 /**
  * Abrechnungslauf (costing-modell.md Aggregat 1): je Periode + Version eindeutig;

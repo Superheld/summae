@@ -1,5 +1,5 @@
-import { AccountNumber } from '../shared/account-number.js';
-import type { Uuid } from '../shared/uuid.js';
+import { AccountNumber } from '../substrate/account-number.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type { AccountStatus, AccountType } from './types.js';
 
 /**

@@ -19,9 +19,9 @@ use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 
 /**
  * EÜR als Projektion über das doppische Journal — Regeln R1–R7

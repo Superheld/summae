@@ -1,5 +1,5 @@
 import { DomainError } from '../domain-error.js';
-import type { CalendarDate } from '../shared/calendar-date.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 
 /**

@@ -1,8 +1,8 @@
 import { DomainError } from '../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../port.js';
-import { AccountNumber } from '../shared/account-number.js';
-import type { Currency } from '../shared/currency.js';
-import { Money } from '../shared/money.js';
+import { AccountNumber } from '../substrate/account-number.js';
+import type { Currency } from '../substrate/currency.js';
+import { Money } from '../substrate/money.js';
 import { isBalanceCarrying } from '../ledger/types.js';
 
 /**

@@ -9,12 +9,12 @@ use Summae\Core\Ledger\AccountType;
 use Summae\Core\Ledger\Side;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\IdGenerator;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\PeriodRef;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * KLR-Abrechnung (costing-modell.md): eigener Rechnungskreis — das

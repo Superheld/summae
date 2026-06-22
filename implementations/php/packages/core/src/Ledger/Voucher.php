@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung,

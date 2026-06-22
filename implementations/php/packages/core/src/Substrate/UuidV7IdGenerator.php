@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Shared;
+namespace Summae\Core\Substrate;
 
 final readonly class UuidV7IdGenerator implements IdGenerator
 {

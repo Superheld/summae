@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Konto (ledger-modell.md Aggregat 2). Kein Saldo im Aggregat —

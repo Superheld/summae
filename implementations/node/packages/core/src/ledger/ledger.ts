@@ -7,16 +7,16 @@ import type {
   OpenItemRepository,
   VoucherRepository,
 } from '../port.js';
-import { AccountNumber } from '../shared/account-number.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import type { Clock } from '../shared/clock.js';
-import type { Currency } from '../shared/currency.js';
-import { DimensionValue } from '../shared/dimension-value.js';
-import { InvalidValue } from '../shared/errors.js';
-import type { IdGenerator } from '../shared/id-generator.js';
-import { Money } from '../shared/money.js';
-import { PeriodRef } from '../shared/period-ref.js';
-import { Uuid } from '../shared/uuid.js';
+import { AccountNumber } from '../substrate/account-number.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import type { Clock } from '../substrate/clock.js';
+import type { Currency } from '../substrate/currency.js';
+import { DimensionValue } from '../substrate/dimension-value.js';
+import { InvalidValue } from '../substrate/errors.js';
+import type { IdGenerator } from '../substrate/id-generator.js';
+import { Money } from '../substrate/money.js';
+import { PeriodRef } from '../substrate/period-ref.js';
+import { Uuid } from '../substrate/uuid.js';
 import { Account } from './account.js';
 import { AuditRecord, type AuditChanges } from './audit-record.js';
 import { DimensionRegistry } from './dimension-registry.js';

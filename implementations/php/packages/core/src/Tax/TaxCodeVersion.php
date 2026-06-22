@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tax;
 
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Regelversion eines Steuerschlüssels mit Gültigkeitszeitraum (NF-5.1).

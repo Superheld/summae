@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Shared\Exception;
+namespace Summae\Core\Substrate\Exception;
 
 /**
  * Rechnen über Währungsgrenzen ist ein Programmierfehler, kein Fachfehler:

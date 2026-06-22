@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Tests\Shared;
+namespace Summae\Core\Tests\Substrate;
 
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
 
 final class UuidTest extends TestCase
 {

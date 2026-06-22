@@ -13,11 +13,11 @@ declare(strict_types=1);
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Summae\Core\Composition\TenantOperations;
-use Summae\Core\Shared\CanonicalJson;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Substrate\CanonicalJson;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 use Summae\Runner\FixtureLoader;

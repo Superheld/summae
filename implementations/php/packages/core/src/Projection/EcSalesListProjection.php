@@ -8,7 +8,7 @@ use Summae\Core\Ledger\Side;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\Money;
 use Summae\Core\Tax\TaxCodeRegistry;
 
 /**

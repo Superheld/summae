@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Shared;
+namespace Summae\Core\Substrate;
 
-use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Substrate\Exception\InvalidValue;
 
 /**
  * Kontonummer als String — führende Nullen sind signifikant (datenformat.md).

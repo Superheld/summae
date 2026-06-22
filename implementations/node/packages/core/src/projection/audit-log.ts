@@ -1,5 +1,5 @@
 import type { AuditTrail } from '../port.js';
-import { CalendarDate } from '../shared/calendar-date.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
 
 /**
  * Änderungshistorie als Projektion (F-CORE-014). Reihenfolge =

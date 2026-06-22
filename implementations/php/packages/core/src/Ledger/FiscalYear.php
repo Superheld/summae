@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Geschäftsjahr mit Perioden (ledger-modell.md Aggregat 3).

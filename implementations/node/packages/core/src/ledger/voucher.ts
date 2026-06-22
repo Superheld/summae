@@ -1,5 +1,5 @@
-import type { CalendarDate } from '../shared/calendar-date.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
+import type { Uuid } from '../substrate/uuid.js';
 
 /**
  * Beleg (ledger-modell.md Aggregat 4): existiert vor/ohne Buchung, mehrere

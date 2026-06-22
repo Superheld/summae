@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\PeriodRef;
-use Summae\Core\Shared\Timestamp;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Timestamp;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Buchung — das wichtigste Aggregat (ledger-modell.md).

@@ -1,6 +1,6 @@
-import type { AccountNumber } from './shared/account-number.js';
-import type { CalendarDate } from './shared/calendar-date.js';
-import type { Uuid } from './shared/uuid.js';
+import type { AccountNumber } from './substrate/account-number.js';
+import type { CalendarDate } from './substrate/calendar-date.js';
+import type { Uuid } from './substrate/uuid.js';
 import type { Asset } from './assets/asset.js';
 import type { Partner } from './partner/partner.js';
 import type { Account } from './ledger/account.js';

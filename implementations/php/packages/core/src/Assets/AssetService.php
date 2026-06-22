@@ -10,13 +10,13 @@ use Summae\Core\Ledger\Voucher;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\IdGenerator;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Anlagen-Nebenbuch (assets-modell.md): GWG-Weiche beim Zugang,

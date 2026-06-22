@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\DimensionValue;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\DimensionValue;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Buchungsposition — Value Object innerhalb der Buchung

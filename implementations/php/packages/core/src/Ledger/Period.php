@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Periode — Entity innerhalb des FiscalYear-Aggregats

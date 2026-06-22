@@ -9,9 +9,9 @@ use Summae\Core\Ledger\Side;
 use Summae\Core\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 
 /**
  * Bilanz als Projektion (SF-10): kumulativ zum Stichtag.

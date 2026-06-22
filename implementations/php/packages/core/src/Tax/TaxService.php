@@ -7,10 +7,10 @@ namespace Summae\Core\Tax;
 use Brick\Math\BigDecimal;
 use Summae\Core\DomainError;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\Money;
 
 /**
  * Steuerexpansion (tax-modell.md): side-effect-free — reine Funktion.

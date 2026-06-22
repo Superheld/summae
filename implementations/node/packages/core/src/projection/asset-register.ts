@@ -1,5 +1,5 @@
 import type { AssetRepository } from '../port.js';
-import { CalendarDate } from '../shared/calendar-date.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
 
 /**
  * Anlageverzeichnis (Pflicht auch bei EÜR, § 4 Abs. 3 S. 5 EStG). Sortierung:

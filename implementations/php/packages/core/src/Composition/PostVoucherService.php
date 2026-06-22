@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\Voucher;
 use Summae\Core\Tenant;

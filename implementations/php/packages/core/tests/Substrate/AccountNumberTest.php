@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Tests\Shared;
+namespace Summae\Core\Tests\Substrate;
 
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Exception\InvalidValue;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Exception\InvalidValue;
 
 final class AccountNumberTest extends TestCase
 {

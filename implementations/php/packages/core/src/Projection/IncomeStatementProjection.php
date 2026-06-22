@@ -9,8 +9,8 @@ use Summae\Core\Ledger\Side;
 use Summae\Core\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 
 /**
  * GuV als Projektion über ein Mapping (SF-09). Genau ein Geschäftsjahr;

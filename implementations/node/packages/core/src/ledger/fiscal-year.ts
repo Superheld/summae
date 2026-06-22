@@ -1,7 +1,7 @@
 import { DomainError } from '../domain-error.js';
-import type { CalendarDate } from '../shared/calendar-date.js';
-import { InvalidValue } from '../shared/errors.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
+import { InvalidValue } from '../substrate/errors.js';
+import type { Uuid } from '../substrate/uuid.js';
 import { Period } from './period.js';
 import type { FiscalYearStatus } from './types.js';
 

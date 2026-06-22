@@ -5,10 +5,10 @@ import type {
   OpenItemRepository,
   VoucherRepository,
 } from '../port.js';
-import { AccountNumber } from '../shared/account-number.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import type { Currency } from '../shared/currency.js';
-import { Money } from '../shared/money.js';
+import { AccountNumber } from '../substrate/account-number.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import type { Currency } from '../substrate/currency.js';
+import { Money } from '../substrate/money.js';
 import type { JournalEntry } from '../ledger/journal-entry.js';
 import type { OpenItem } from '../ledger/open-item.js';
 import type { TaxCodeRegistry } from '../tax/tax-code-registry.js';

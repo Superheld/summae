@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Shared\Exception;
+namespace Summae\Core\Substrate\Exception;
 
 /**
  * Ungültiger Wert für ein Value Object des Shared Kernel.

@@ -6,7 +6,7 @@ namespace Summae\Core\InMemory;
 
 use Summae\Core\Partner\Partner;
 use Summae\Core\Port\PartnerRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 
 final class InMemoryPartnerRepository implements PartnerRepository
 {

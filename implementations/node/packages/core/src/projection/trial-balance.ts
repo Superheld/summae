@@ -1,6 +1,6 @@
 import type { AccountRepository, JournalRepository } from '../port.js';
-import type { Currency } from '../shared/currency.js';
-import { Money } from '../shared/money.js';
+import type { Currency } from '../substrate/currency.js';
+import { Money } from '../substrate/money.js';
 import { isBalanceCarrying } from '../ledger/types.js';
 
 interface Totals {

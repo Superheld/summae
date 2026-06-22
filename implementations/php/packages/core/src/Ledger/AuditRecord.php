@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Ledger;
 
-use Summae\Core\Shared\Timestamp;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Timestamp;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Audit-Eintrag (datenformat.md v0.3 `auditLog.jsonl`):

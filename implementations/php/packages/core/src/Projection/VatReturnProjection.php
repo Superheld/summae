@@ -13,10 +13,10 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 use Summae\Core\Tax\TaxCodeRegistry;
 use Summae\Core\Tax\TaxProfile;
 

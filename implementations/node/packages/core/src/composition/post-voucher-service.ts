@@ -1,7 +1,7 @@
 import { DomainError } from '../domain-error.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import { InvalidValue } from '../shared/errors.js';
-import type { Uuid } from '../shared/uuid.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import { InvalidValue } from '../substrate/errors.js';
+import type { Uuid } from '../substrate/uuid.js';
 import { Voucher } from '../ledger/voucher.js';
 import type { Tenant } from './tenant.js';
 

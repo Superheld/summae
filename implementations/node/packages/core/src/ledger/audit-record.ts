@@ -1,4 +1,4 @@
-import type { Uuid } from '../shared/uuid.js';
+import type { Uuid } from '../substrate/uuid.js';
 
 export type AuditChanges = Record<string, { from: unknown; to: unknown }>;
 

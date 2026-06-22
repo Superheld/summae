@@ -1,5 +1,5 @@
 import { DomainError } from '../domain-error.js';
-import { Money } from '../shared/money.js';
+import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../projection/asset-register.js';
 import { MappingImporter } from '../mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../projection/account-sheet.js';

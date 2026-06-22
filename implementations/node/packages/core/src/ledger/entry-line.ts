@@ -1,7 +1,7 @@
-import type { AccountNumber } from '../shared/account-number.js';
-import type { DimensionValue } from '../shared/dimension-value.js';
-import type { Money } from '../shared/money.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { AccountNumber } from '../substrate/account-number.js';
+import type { DimensionValue } from '../substrate/dimension-value.js';
+import type { Money } from '../substrate/money.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type { Side } from './types.js';
 
 /**

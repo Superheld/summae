@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { canonicalJson } from '../shared/canonical-json.js';
-import type { Clock } from '../shared/clock.js';
-import type { Currency } from '../shared/currency.js';
-import type { Uuid } from '../shared/uuid.js';
+import { canonicalJson } from '../substrate/canonical-json.js';
+import type { Clock } from '../substrate/clock.js';
+import type { Currency } from '../substrate/currency.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type {
   AccountRepository,
   AuditTrail,

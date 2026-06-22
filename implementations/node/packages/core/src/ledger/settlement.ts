@@ -1,6 +1,6 @@
-import type { CalendarDate } from '../shared/calendar-date.js';
-import type { Money } from '../shared/money.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
+import type { Money } from '../substrate/money.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type { SettlementDifferenceKind } from './types.js';
 
 /**

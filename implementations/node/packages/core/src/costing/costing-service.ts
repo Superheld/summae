@@ -1,11 +1,11 @@
 import { DomainError } from '../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../port.js';
-import type { Currency } from '../shared/currency.js';
-import { InvalidValue } from '../shared/errors.js';
-import type { IdGenerator } from '../shared/id-generator.js';
-import { Money } from '../shared/money.js';
-import { PeriodRef } from '../shared/period-ref.js';
-import { Uuid } from '../shared/uuid.js';
+import type { Currency } from '../substrate/currency.js';
+import { InvalidValue } from '../substrate/errors.js';
+import type { IdGenerator } from '../substrate/id-generator.js';
+import { Money } from '../substrate/money.js';
+import { PeriodRef } from '../substrate/period-ref.js';
+import { Uuid } from '../substrate/uuid.js';
 import { CostingRun } from './costing-run.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {

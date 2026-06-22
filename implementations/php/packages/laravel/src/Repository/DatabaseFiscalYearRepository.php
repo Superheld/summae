@@ -10,8 +10,8 @@ use Summae\Core\Ledger\FiscalYearStatus;
 use Summae\Core\Ledger\Period;
 use Summae\Core\Ledger\PeriodStatus;
 use Summae\Core\Port\FiscalYearRepository;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseFiscalYearRepository implements FiscalYearRepository

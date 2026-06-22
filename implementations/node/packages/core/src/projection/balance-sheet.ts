@@ -2,9 +2,9 @@ import { DomainError } from '../domain-error.js';
 import { leafMatches } from '../mapping/mapping.js';
 import type { MappingRegistry } from '../mapping/mapping-registry.js';
 import type { AccountRepository, JournalRepository } from '../port.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import type { Currency } from '../shared/currency.js';
-import { Money } from '../shared/money.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import type { Currency } from '../substrate/currency.js';
+import { Money } from '../substrate/money.js';
 import { isBalanceCarrying } from '../ledger/types.js';
 
 type Section = 'assets' | 'liabilitiesAndEquity';

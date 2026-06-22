@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Tests\Shared;
+namespace Summae\Core\Tests\Substrate;
 
 use PHPUnit\Framework\TestCase;
-use Summae\Core\Shared\DimensionValue;
-use Summae\Core\Shared\Exception\InvalidValue;
-use Summae\Core\Shared\PeriodRef;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\VoucherRef;
+use Summae\Core\Substrate\DimensionValue;
+use Summae\Core\Substrate\Exception\InvalidValue;
+use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\VoucherRef;
 
 final class ValueObjectsTest extends TestCase
 {

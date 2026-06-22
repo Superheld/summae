@@ -1,10 +1,10 @@
 import Big from 'big.js';
 import { DomainError } from '../domain-error.js';
 import type { JournalRepository } from '../port.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import type { Currency } from '../shared/currency.js';
-import { InvalidValue } from '../shared/errors.js';
-import { Money } from '../shared/money.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import type { Currency } from '../substrate/currency.js';
+import { InvalidValue } from '../substrate/errors.js';
+import { Money } from '../substrate/money.js';
 import type { TaxCodeRegistry } from './tax-code-registry.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 import type { TaxProfile } from './tax-profile.js';

@@ -7,8 +7,8 @@ namespace Summae\Core\Projection;
 use Summae\Core\Ledger\Side;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\Money;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\Money;
 
 /**
  * Summen- und Saldenliste (SuSa) — Spalten verbindlich (api.md v0.4):

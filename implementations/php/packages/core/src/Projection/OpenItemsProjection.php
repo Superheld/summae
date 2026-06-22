@@ -9,7 +9,7 @@ use Summae\Core\Ledger\OpenItemKind;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * OP-Liste: deterministisch, asOf-fähig (Zeitreise über settledAt).

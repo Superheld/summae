@@ -1,7 +1,7 @@
 import { DomainError } from '../domain-error.js';
-import type { CalendarDate } from '../shared/calendar-date.js';
-import type { PeriodRef } from '../shared/period-ref.js';
-import type { Uuid } from '../shared/uuid.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
+import type { PeriodRef } from '../substrate/period-ref.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type { EntryLine } from './entry-line.js';
 import type { EntryStatus } from './types.js';
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Projection;
 
 use Summae\Core\Port\AuditTrail;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Änderungshistorie als Projektion (F-CORE-014, Review G3).

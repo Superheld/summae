@@ -1,5 +1,5 @@
 import type { JournalRepository, OpenItemRepository, VoucherRepository } from '../port.js';
-import { CalendarDate } from '../shared/calendar-date.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
 import type { OpenItem } from '../ledger/open-item.js';
 import { parseOpenItemKind } from '../ledger/types.js';
 

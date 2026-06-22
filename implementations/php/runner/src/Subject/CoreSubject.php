@@ -16,14 +16,14 @@ use Summae\Core\Ledger\FiscalYear;
 use Summae\Core\Ledger\Voucher;
 use Summae\Core\Mapping\MappingRegistry;
 use Summae\Runner\PackLibrary;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
 use Summae\Core\Tax\TaxCodeRegistry;
 use Summae\Core\Tax\TaxProfile;
-use Summae\Core\Shared\DeterministicIdGenerator;
+use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Tenant;
 
 /**

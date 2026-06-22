@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Shared;
+namespace Summae\Core\Substrate;
 
 /**
  * Kanonische Zeitstempel-Serialisierung (F-CROSS-001): RFC 3339 in **UTC** mit

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Assets;
 
 use Summae\Core\DomainError;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Anlagegut (assets-modell.md): Stammdaten + AfA-Plan + Lebenslauf.
