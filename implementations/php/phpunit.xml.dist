@@ -20,11 +20,11 @@
             <directory>runner/tests</directory>
         </testsuite>
     </testsuites>
+    <!-- Coverage-Gate misst den Fachkern (packages/core/src). Adapter (laravel-DB) und
+         cli sind integrations-/cross-getestet, nicht unit — daher nicht im Coverage-Floor. -->
     <source>
         <include>
             <directory>packages/core/src</directory>
-            <directory>packages/laravel/src</directory>
-            <directory>packages/cli/src</directory>
         </include>
     </source>
 </phpunit>
