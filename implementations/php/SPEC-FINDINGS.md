@@ -146,3 +146,28 @@ Format per finding:
   (e.g. RFC 3339, UTC `Z`, fixed milliseconds) and pull both
   implementations onto it — then the `contentHashes` also match
   byte-exactly in both directions.
+
+## F-008: `format.schema.json` `mappingPosition` omits `includeNonCash`
+
+- **Job:** us-pack build (2026-06-23)
+- **What:** the cash-basis projection reads a position-level flag `includeNonCash`
+  off the mapping leaf (`Policies/Projection/Mapping/Mapping.php` → `CashBasisProjection`
+  R7: non-cash categories such as depreciation count without a cash flow). The us-pack
+  module 5 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
+  on its depreciation line (L13) per the module spec. But the normative
+  `testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+  `includeNonCash` and carries `additionalProperties: false` — by the schema the field
+  is illegal on a mapping position.
+- **Where:** `testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
+  `pack-library/us-pack/mappings/us-schedule-c.json`; core Mapping importer +
+  `CashBasisProjection`.
+- **Chosen behavior:** shipped `us-schedule-c-2026` with `includeNonCash: true` per the
+  module spec and the engine that consumes it. Not currently breaking — pack-library JSON
+  is loaded content-based (never validated against `format.schema.json`: `validate.py`
+  skips module/pack files; `SchemaValidationTest` validates only journalExport streams +
+  manifest), so the module resolves and runs green in both languages. First shipped
+  `cash-basis-categories` module (the de-pack never shipped an EÜR mapping), hence the
+  first time the gap surfaces.
+- **Proposal:** extend `$defs/mappingPosition` with `"includeNonCash": { "type": "boolean" }`
+  (meaningful only for `cash-basis-categories`) so the normative schema matches the engine
+  before any move to schema-validate pack modules. Shared schema artifact — applies to Node too.

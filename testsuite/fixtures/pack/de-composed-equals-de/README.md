@@ -66,7 +66,7 @@ Die drei Fixtures dieser Gruppe sind die **explizite, fixierte** Form der zwei B
 der Pack-Modus ist ihre **Verallgemeinerung über die 45**. Voraussetzung: `de-complete` muss als vollständiges
 Manifest (alle in den 45 referenzierten Konten/taxCodes/Mappings/Assets) vorliegen — die Module hier sind die
 **Mini-Regressionsbasis** (genau die Stammdaten aus `core/create-tenant-profile`); das vollständige `de-complete`
-mit SKR-Voll-Kontenrahmen + allen Mappings ist Gate-2-Material (`modules/` + `packs/de-complete.json` in der WB).
+mit dem mitgelieferten `summae-base`-Kontenrahmen + allen Mappings ist Gate-2-Material (`modules/` + `packs/de-complete.json` in der WB). (SKR03/04 sind nicht Teil des gebündelten `de-complete`, sondern über `importChartOfAccounts` verfügbar.)
 
 ## Format-Notizen (für Gate 0 / Runner-Kontrakt-Erweiterung)
 
@@ -85,5 +85,5 @@ mit SKR-Voll-Kontenrahmen + allen Mappings ist Gate-2-Material (`modules/` + `pa
 - **Resolver-Fehlerfälle** (`E_PACK_UNRESOLVED_REF`/`E_PACK_INCOHERENT`/`E_POLICY_INVALID`) — eigene Gruppe
   (PACK-KOMPOSITION.md Gate 1, Fehlercode-Tabelle § 3.5). Diese Gruppe prüft nur den **Erfolgs**-Pfad „== DE".
 - **Test-Pack XX** (perLine/Skala 3/kein Vorsteuerabzug) — eigene Gruppe `conformance-xx/`.
-- **Vollständiges `de-complete`** mit SKR03/04-Voll-Kontenrahmen + allen DE-Mappings — Gate 2 (`modules/`,
-  `packs/`). Hier steht die **Mini-Basis**, die das Mechanismus-Orakel trägt.
+- **Vollständiges `de-complete`** mit dem mitgelieferten `summae-base`-Kontenrahmen + allen DE-Mappings — Gate 2 (`modules/`,
+  `packs/`). Hier steht die **Mini-Basis**, die das Mechanismus-Orakel trägt. (SKR03/04 werden nicht als Pack-Daten gebündelt, sondern über `importChartOfAccounts` zugeladen.)

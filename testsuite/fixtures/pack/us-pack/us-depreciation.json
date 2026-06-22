@@ -1,0 +1,33 @@
+{
+  "fixture": "us-depreciation",
+  "description": "US-Pack: asset acquisition + depreciation run in pack mode. De-minimis safe harbor from macrs-us (immediateMax 2,500 → Server 5,000 capitalized on 0100, MACRS GDS 5-year = 60 months; Tablet 2,000 immediate expense on 6510). Straight-line, month-accurate: 6/60 of 5,000 = 500. Asset movement accounts from us-asset-accounts.",
+  "covers": ["F-AST-001", "F-AST-002", "F-AST-003", "SF-05"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Assets Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" } } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-SERVER", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset",
+      "input": { "tenant": "$T1", "name": "Server", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "5000.00", "currency": "USD" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 60 } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-TABLET", "voucherDate": "2026-09-10" } },
+      "expect": { "result": { "id": "$V2" } } },
+    { "op": "acquireAsset",
+      "input": { "tenant": "$T1", "name": "Tablet", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "2000.00", "currency": "USD" }, "acquiredOn": "2026-09-10", "voucherId": "$V2", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "immediate_expense", "expenseAccount": "6510" } } },
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "500.00", "currency": "USD" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "0100", "balance": "4500.00" },
+        { "account": "1200", "balance": "-7000.00" },
+        { "account": "6500", "balance": "500.00" },
+        { "account": "6510", "balance": "2000.00" }
+      ] } }
+  ]
+}
