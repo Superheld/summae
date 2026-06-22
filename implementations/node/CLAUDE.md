@@ -50,7 +50,9 @@ pnpm fixtures      # Konformitäts-Runner (tsx); --strict = Doppellauf byte-iden
 ## Definition of Green (hier)
 
 `pnpm typecheck` + `pnpm lint` sauber (Pendant zu „PHPStan level max") · `pnpm test`
-grün · `pnpm fixtures --strict` (alle Fixtures grün + byte-identischer Doppellauf).
+grün **inkl. Coverage-Schwellen** (Kern, `vitest.config.ts`: lines 88 / branches 70 /
+funcs 90 / stmts 85 — fest im Lauf via `coverage.enabled`) · `pnpm fixtures --strict`
+(alle Fixtures grün + byte-identischer Doppellauf).
 
 ## Publish
 

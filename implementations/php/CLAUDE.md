@@ -56,8 +56,10 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 
 ## Definition of Green (hier)
 
-PHPStan level max ohne Fehler · PHPUnit grün · Konformitätssuite `--strict` gegen
-**beide** Subjects (`core` und `database`) inkl. byte-identischem Doppellauf.
+PHPStan level max ohne Fehler · `make test` grün (**PHPUnit inkl. `ConformanceTest`**
+über die volle Suite **+ Coverage-Gate** Kern-Zeilen ≥ 88 % via `coverage-gate.php`) ·
+Konformitätssuite `--strict` gegen **beide** Subjects (`core` und `database`) inkl.
+byte-identischem Doppellauf.
 
 ## Tiefer: `docs/`
 

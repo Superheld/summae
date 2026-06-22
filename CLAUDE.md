@@ -125,7 +125,9 @@ nächstplausiblen Verhalten weiterbauen.
 
 ## Konventionen (sprachneutral)
 
-- Deutschsprachige Kommentare/Doku, englische API-/Klassennamen.
+- **Produkt-Doku auf Englisch** (OSS-Reichweite): Nutzer-Handbuch `docs/handbuch/` und
+  Entwickler-Docs `implementations/*/docs/`. **CLAUDE-Dateien und Code-Kommentare bleiben
+  Deutsch** (interne Arbeitssprache); API-/Klassennamen englisch.
 - Doku-Verweise immer **annotiert**: kurz dazuschreiben, was dort zu finden ist.
 - Git: **nie direkt auf geteilte Branches** (`main`, `develop`) — pro Aufgabe ein
   Branch (`job/…`, `chore/…`, `fix/…`); Merge per `--no-ff`, wenn grün.
@@ -155,7 +157,8 @@ Zwei Mechanismen, **ein** Prinzip:
 
 ## Definition of Green
 
-Jede Implementierung ist grün nach **ihren** Regeln (Linter/Typecheck/Tests +
+Jede Implementierung ist grün nach **ihren** Regeln (Linter/Typecheck/Tests inkl.
+**Coverage-Floor** (Kern-Zeilen ≥ 88 %, fest im Testlauf — darf nur steigen) +
 Konformitätssuite `--strict` inkl. byte-identischem Doppellauf — Details in der
 jeweiligen `implementations/<sprache>/CLAUDE.md`). Sprachübergreifend zusätzlich:
 jede Fähigkeit, die in ≥ 2 Implementierungen existiert, besteht den Cross-Test —
