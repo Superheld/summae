@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountStatus;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Mapping\MappingRegistry;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Clock;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\IdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountStatus;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\FiscalYear;
+use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Clock;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Tenant;
 
 /**

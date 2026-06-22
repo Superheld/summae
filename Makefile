@@ -18,8 +18,8 @@ build:        ## PHP-Image bauen
 install:      ## Composer-Abhängigkeiten installieren
 	$(PHP) composer install
 
-test:         ## PHPUnit
-	$(PHP) vendor/bin/phpunit
+test:         ## PHPUnit + Coverage-Gate (Kern-Zeilen >= 88%)
+	$(PHP) sh -c 'vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml && php runner/bin/coverage-gate.php coverage.xml 88'
 
 stan:         ## PHPStan (level max)
 	$(PHP) vendor/bin/phpstan analyse

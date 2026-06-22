@@ -1,32 +1,32 @@
-# Architektur (Node/TypeScript)
+# Architecture (Node/TypeScript)
 
-Node-spezifisch: Pakete, Pfade, Adapter. Das **sprachneutrale Denkmodell**
-(jurisdiktionsfreies Substrat → drei Politiksorten → Pack → Konfiguration) steht in
-[`/docs/architektur.md`](../../../docs/architektur.md) und im Root-`CLAUDE.md` — das gilt
-für alle Implementierungen und ist beim Bauen Pflichtlektüre. PHP ist die Referenz; Node
-spiegelt sie **1:1** (Byte-Parität ist Vertrag, siehe [`konformitaet.md`](konformitaet.md)).
+Node-specific: packages, paths, adapters. The **language-neutral mental model**
+(jurisdiction-free substrate → three policy kinds → pack → configuration) is in
+[`/docs/architektur.md`](../../../docs/architektur.md) and the root `CLAUDE.md` — it applies
+to all implementations and is required reading when building. PHP is the reference; Node
+mirrors it **1:1** (byte parity is a contract, see [`konformitaet.md`](konformitaet.md)).
 
-## Pakete, ein pnpm-Workspace
+## Packages, one pnpm workspace
 
-| Paket | npm-Name | Rolle |
+| Package | npm name | Role |
 |---|---|---|
-| `packages/core` | `@superheld/summae-core` | Framework-freier Fachkern. Gesamte Buchführungslogik. Einzige Laufzeit-Abhängigkeit fürs Rechnen: `big.js`. |
-| `packages/knex` | `@superheld/summae-knex` | Adapter: DB-Persistenz über **Knex** als Query-Builder (better-sqlite3 / pg), **kein ORM**. Klassen rollenbasiert `Database*`. **Keine Fachlogik.** |
-| `packages/cli` | `@superheld/summae-cli` | Terminal-Werkzeug (`summae init|op|report`), JSON-Ein/Ausgabe, persistente SQLite. Nutzt core + knex. |
+| `packages/core` | `@superheld/summae-core` | Framework-free domain core. All accounting logic. Sole runtime dependency for the math: `big.js`. |
+| `packages/knex` | `@superheld/summae-knex` | Adapter: DB persistence via **Knex** as query builder (better-sqlite3 / pg), **no ORM**. Classes named by role `Database*`. **No domain logic.** |
+| `packages/cli` | `@superheld/summae-cli` | Terminal tool (`summae init|op|report`), JSON in/out, persistent SQLite. Uses core + knex. |
 
-Daneben `runner/` — der Fixture-Runner (nicht veröffentlicht, nur Konformitätsprüfung).
+Alongside them, `runner/` — the fixture runner (not published, conformance check only).
 
-## Warum der Kern framework-frei ist
+## Why the core is framework-free
 
-Lackmustest: *„Würde diese Zeile auch in einem PHP- oder Python-Projekt Sinn ergeben?"* → gehört
-in den Core. **Technisch erzwungen:** eslint `no-restricted-imports` verbietet in
-`packages/core/**` Web-Frameworks, DB-Treiber und ORMs (`express`/`knex`/`pg`/`prisma`/`typeorm`/…)
-— ein Framework-Import im Kern ist ein Lint-Fehler. Pendant zu „kein `use Illuminate\…`" der PHP-Seite.
+Litmus test: *"Would this line also make sense in a PHP or Python project?"* → it belongs
+in the core. **Technically enforced:** eslint `no-restricted-imports` forbids web frameworks,
+DB drivers and ORMs (`express`/`knex`/`pg`/`prisma`/`typeorm`/…) inside `packages/core/**`
+— a framework import in the core is a lint error. The counterpart to "no `use Illuminate\…`" on the PHP side.
 
-## Hexagonal: Ports & Adapter
+## Hexagonal: ports & adapters
 
-Der Kern definiert **Ports** (Interfaces in `packages/core/src/port.ts`) und kennt keine konkrete
-Persistenz:
+The core defines **ports** (interfaces in `packages/core/src/port.ts`) and knows no concrete
+persistence:
 
 ```
 AccountRepository   FiscalYearRepository   VoucherRepository
@@ -34,58 +34,81 @@ JournalRepository   OpenItemRepository     PartnerRepository
 AssetRepository     AuditTrail
 ```
 
-Zwei Adapter-Sätze implementieren sie:
+Two adapter sets implement them:
 
-- **In-Memory** (`packages/core/src/in-memory.ts`) — für Tests, Konformitätsläufe, CLI-Logik. Ohne I/O.
-- **Database** (`packages/knex/src/repositories.ts`, Klassen `Database*Repository`) — echte DB.
-  Persistiert die Aggregat-Innereien als JSON in `summae_*`-Tabellen, bit-genau im Schema der
-  PHP-Seite (geteilte DB). Nutzt **Knex** (`$db.table(...)`), **kein ORM**.
+- **In-memory** (`packages/core/src/in-memory.ts`) — for tests, conformance runs, CLI logic. No I/O.
+- **Database** (`packages/knex/src/repositories.ts`, classes `Database*Repository`) — real DB.
+  Persists the aggregate internals as JSON in `summae_*` tables, bit-for-bit in the schema of
+  the PHP side (shared DB). Uses **Knex** (`$db.table(...)`), **no ORM**.
 
-Zusammengebaut wird ein Mandant durch:
+A tenant is assembled by:
 
-- `Tenant.inMemory(...)` (`packages/core/src/composition/tenant.ts`) — Kern für In-Memory-Betrieb.
-- `DatabaseTenantFactory.build(...)` (`packages/knex/src/database-tenant-factory.ts`) — derselbe
-  `Tenant`, nur mit DB-Ports.
+- `Tenant.inMemory(...)` (`packages/core/src/composition/tenant.ts`) — core for in-memory operation.
+- `DatabaseTenantFactory.build(...)` (`packages/knex/src/database-tenant-factory.ts`) — the same
+  `Tenant`, only with DB ports.
 
-Beide liefern denselben `Tenant`; alles darüber ist identisch. (Beide rufen intern
-`Tenant.fromPorts(...)` — *der* eigentliche Assembler, der die Services über die gereichten Ports verdrahtet.)
+Both yield the same `Tenant`; everything above it is identical. (Both call `Tenant.fromPorts(...)`
+internally — *the* actual assembler, which wires the services over the supplied ports.)
 
-## Genereller Einstiegspunkt: `TenantOperations`
+## Internal structure of `core/src/`
 
-`packages/core/src/composition/tenant-operations.ts` ist der Dispatcher für **alle** Operationen
-(`post`, `postVoucher`, `settle`, …) und Projektionen (`trialBalance`, `vatReturn`, `journalExport`, …)
-— Namen exakt nach API-Spec. CLI und Konformitäts-Runner nutzen denselben Dispatcher; das hält die
-Operationsliste an *einer* Stelle. (Rezept „neue Operation anbauen": [`entwicklung.md`](entwicklung.md).)
+The core's source tree follows the two axes of the domain (identical 1:1 in PHP, there with
+PascalCase folders — full picture in [`../packages/core/src/CLAUDE.md`](../packages/core/src/CLAUDE.md)):
 
-## Konfiguration: Regelmodule & Pack
+- **`substrate/`** — frozen, jurisdiction-free primitives (posting summing to 0, account, journal,
+  balance, period, plus enums). Imports nothing from above.
+- **`ledger/`** — the orchestrator `ledger.ts`, which threads `post` (substrate) + `settle`/`reverse`
+  (expansion) + `close` (constraint) together.
+- **`records/`** — vouchers/records (voucher · open-item · audit), data layer, **not** a policy kind;
+  may reference the substrate.
+- **`policies/`** — the three policy kinds; here only the **socket** (law-free mechanics), the
+  **plugs** (data) live in `/pack-library/` and are injected:
+  - **`policies/expansion/`** — intent → balanced postings (tax · assets · costing · settle difference · reverse)
+  - **`policies/projection/`** — journal → view (fold engines + mappings)
+  - **`policies/constraint/`** — predicate gates (still thin; the third kind is unfinished)
+- **`composition/`** — resolver · factory · tenant · dispatcher (dependency inversion; the core never imports a pack).
+- **`partner/`** — supporting subdomain (master data), **not** a policy kind.
+- **`port.ts` · `in-memory.ts`** — the hexagon edge (ports) and the in-memory adapters (fakes).
 
-Die Engine isst *ein* aufgelöstes `ruleModules`-Bündel (Kontenrahmen, taxCodes, Mappings,
-assetAccounts, depreciation, packPolicy). Dahin führen zwei Wege:
+Real persistence (`knex`/`laravel`) lives in **separate packages** outside `core`; `core` holds
+only the in-memory adapters.
 
-- **inline** — das Bündel wird direkt gereicht (CLI heute via `summae.json`; Fixtures via `setup`).
-- **komponiert** — ein Manifest + Module aus der ausgelieferten `pack-library/` werden vom
-  `PackResolver` (`packages/core/src/composition/pack-resolver.ts`) aufgelöst; der Loader
-  `runner/src/pack-library.ts` liest die Bibliothek von der Platte. `createTenant(pack:"…")`
-  pinnt das Manifest. **`packPolicy` parametrisiert** den Kern (`currencyScale`→`Currency`,
-  `taxRoundingGranularity`→`TaxService`). Details: Root-`CLAUDE.md`, Sektion „Packs konkret".
+## General entry point: `TenantOperations`
 
-**CLI wählt ein Pack.** `summae init --pack de` lädt das Pack aus der ausgelieferten
-`pack-library/` und schreibt die aufgelösten Regeln in den Arbeitsbereich:
-`packages/cli/src/pack-library.ts` (`loadPackLibrary` inhaltsbasiert + `packToRules` =
-`resolvePack`→`ruleModulesFromResolved`→CLI-`rules`-Struktur). `--pack-library <dir>` übersteuert den
-Pfad (Default: Repo-Wurzel/`pack-library`). Alternative zu `--pack`: eine eigene `--rules`-Datei.
+`packages/core/src/composition/tenant-operations.ts` is the dispatcher for **all** operations
+(`post`, `postVoucher`, `settle`, …) and projections (`trialBalance`, `vatReturn`, `journalExport`, …)
+— names exactly per the API spec. CLI and conformance runner use the same dispatcher; this keeps the
+operation list in *one* place. (Recipe "add a new operation": [`entwicklung.md`](entwicklung.md).)
 
-## Datenfluss einer Buchung (Beispiel)
+## Configuration: rule modules & pack
+
+The engine eats *one* resolved `ruleModules` bundle (chart of accounts, taxCodes, mappings,
+assetAccounts, depreciation, packPolicy). Two paths lead there:
+
+- **inline** — the bundle is supplied directly (CLI today via `summae.json`; fixtures via `setup`).
+- **composed** — a manifest + modules from the shipped `pack-library/` are resolved by the
+  `PackResolver` (`packages/core/src/composition/pack-resolver.ts`); the loader
+  `runner/src/pack-library.ts` reads the library from disk. `createTenant(pack:"…")`
+  pins the manifest. **`packPolicy` parametrizes** the core (`currencyScale`→`Currency`,
+  `taxRoundingGranularity`→`TaxService`). Details: root `CLAUDE.md`, section "Packs konkret".
+
+**The CLI picks a pack.** `summae init --pack de` loads the pack from the shipped
+`pack-library/` and writes the resolved rules into the workspace:
+`packages/cli/src/pack-library.ts` (`loadPackLibrary` content-based + `packToRules` =
+`resolvePack`→`ruleModulesFromResolved`→CLI `rules` structure). `--pack-library <dir>` overrides the
+path (default: repo root/`pack-library`). Alternative to `--pack`: a custom `--rules` file.
+
+## Data flow of a posting (example)
 
 ```
 postVoucher(input)
-  → TaxService.expand     (Steuerexpansion, Rundung je packPolicy)
-  → Ledger.post           (Prüfreihenfolge, Invarianten, Journalnummer)
-      → JournalRepository.append   (Port → In-Memory oder Database)
-      → OpenItem-Automatik bei AR/AP
+  → TaxService.expand     (tax expansion, rounding per packPolicy)
+  → Ledger.post           (check order, invariants, journal number)
+      → JournalRepository.append   (port → in-memory or database)
+      → open-item automation for AR/AP
       → AuditTrail.append
-  → PostResult (entry + erzeugte offene Posten)
+  → PostResult (entry + generated open items)
 ```
 
-Lesen läuft nie über gespeicherte Salden, sondern über die Projektionen in
-`packages/core/src/projection/`.
+Reads never go through stored balances, but through the projections in
+`packages/core/src/policies/projection/`.

@@ -6,18 +6,18 @@ namespace Summae\Core\Tests\Ledger;
 
 use PHPUnit\Framework\TestCase;
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\Account;
-use Summae\Core\Ledger\AccountStatus;
-use Summae\Core\Ledger\AccountType;
-use Summae\Core\Ledger\DimensionRegistry;
-use Summae\Core\Ledger\FiscalYear;
-use Summae\Core\Ledger\Voucher;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\CalendarDate;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\Uuid;
-use Summae\Core\Shared\UuidV7IdGenerator;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountStatus;
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
+use Summae\Core\Substrate\FiscalYear;
+use Summae\Core\Records\Voucher;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\CalendarDate;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\Uuid;
+use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Core\Tenant;
 
 abstract class LedgerTestCase extends TestCase

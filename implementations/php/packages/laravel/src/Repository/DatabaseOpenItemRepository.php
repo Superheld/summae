@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Ledger\OpenItemKind;
-use Summae\Core\Ledger\Settlement;
-use Summae\Core\Ledger\SettlementDifferenceKind;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\OpenItemKind;
+use Summae\Core\Policies\Expansion\Settlement;
+use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Port\OpenItemRepository;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseOpenItemRepository implements OpenItemRepository

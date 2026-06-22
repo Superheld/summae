@@ -1,15 +1,15 @@
 import { DomainError } from '../domain-error.js';
-import { Account } from '../ledger/account.js';
-import { FiscalYear } from '../ledger/fiscal-year.js';
-import { isAccountType } from '../ledger/types.js';
-import { MappingRegistry } from '../mapping/mapping-registry.js';
-import { AccountNumber } from '../shared/account-number.js';
-import { CalendarDate } from '../shared/calendar-date.js';
-import type { Clock } from '../shared/clock.js';
-import { Currency } from '../shared/currency.js';
-import type { IdGenerator } from '../shared/id-generator.js';
-import { TaxCodeRegistry } from '../tax/tax-code-registry.js';
-import { TaxProfile } from '../tax/tax-profile.js';
+import { Account } from '../substrate/account.js';
+import { FiscalYear } from '../substrate/fiscal-year.js';
+import { isAccountType } from '../substrate/types.js';
+import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
+import { AccountNumber } from '../substrate/account-number.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
+import type { Clock } from '../substrate/clock.js';
+import { Currency } from '../substrate/currency.js';
+import type { IdGenerator } from '../substrate/id-generator.js';
+import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
+import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
 import { Tenant } from './tenant.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {

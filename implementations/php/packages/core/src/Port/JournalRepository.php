@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Port;
 
-use Summae\Core\Ledger\JournalEntry;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\JournalEntry;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Journal: append-only, lückenlose sequenceNumber je Geschäftsjahr

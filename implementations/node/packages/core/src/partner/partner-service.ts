@@ -1,10 +1,10 @@
 import { DomainError } from '../domain-error.js';
-import { AuditRecord, type AuditChanges } from '../ledger/audit-record.js';
+import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
 import type { AuditTrail, PartnerRepository } from '../port.js';
-import type { Clock } from '../shared/clock.js';
-import { InvalidValue } from '../shared/errors.js';
-import type { IdGenerator } from '../shared/id-generator.js';
-import { Uuid } from '../shared/uuid.js';
+import type { Clock } from '../substrate/clock.js';
+import { InvalidValue } from '../substrate/errors.js';
+import type { IdGenerator } from '../substrate/id-generator.js';
+import { Uuid } from '../substrate/uuid.js';
 import { Partner } from './partner.js';
 
 function asString(value: unknown): string | null {

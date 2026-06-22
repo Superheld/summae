@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
-use Summae\Core\Ledger\OpenItem;
-use Summae\Core\Ledger\PostResult;
-use Summae\Core\Shared\Money;
-use Summae\Core\Mapping\MappingImporter;
-use Summae\Core\Projection\AccountSheetProjection;
-use Summae\Core\Projection\AssetRegisterProjection;
-use Summae\Core\Projection\AuditLogProjection;
-use Summae\Core\Projection\BalanceSheetProjection;
-use Summae\Core\Projection\CashBasisProjection;
-use Summae\Core\Projection\DatevExportProjection;
-use Summae\Core\Projection\EcSalesListProjection;
-use Summae\Core\Projection\IncomeStatementProjection;
-use Summae\Core\Projection\JournalExportProjection;
-use Summae\Core\Projection\OpenItemsProjection;
-use Summae\Core\Projection\TrialBalanceProjection;
-use Summae\Core\Projection\VatReturnProjection;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\PostResult;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Policies\Projection\Mapping\MappingImporter;
+use Summae\Core\Policies\Projection\AccountSheetProjection;
+use Summae\Core\Policies\Projection\AssetRegisterProjection;
+use Summae\Core\Policies\Projection\AuditLogProjection;
+use Summae\Core\Policies\Projection\BalanceSheetProjection;
+use Summae\Core\Policies\Projection\CashBasisProjection;
+use Summae\Core\Policies\Projection\DatevExportProjection;
+use Summae\Core\Policies\Projection\EcSalesListProjection;
+use Summae\Core\Policies\Projection\IncomeStatementProjection;
+use Summae\Core\Policies\Projection\JournalExportProjection;
+use Summae\Core\Policies\Projection\OpenItemsProjection;
+use Summae\Core\Policies\Projection\TrialBalanceProjection;
+use Summae\Core\Policies\Projection\VatReturnProjection;
 use Summae\Core\Tenant;
 
 /**

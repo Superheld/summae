@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Port;
 
-use Summae\Core\Ledger\AuditRecord;
+use Summae\Core\Records\AuditRecord;
 
 /**
  * Audit-Trail ist Formatbestandteil (datenformat.md v0.3, Review G3):

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Tests\Ledger;
 
-use Summae\Core\Ledger\EntryStatus;
+use Summae\Core\Substrate\EntryStatus;
 
 final class PostTest extends LedgerTestCase
 {

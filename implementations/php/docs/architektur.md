@@ -1,41 +1,41 @@
-# Architektur (PHP)
+# Architecture (PHP)
 
-PHP-spezifisch: Packages, Pfade, Adapter. Das **sprachneutrale Denkmodell**
-(jurisdiktionsfreies Substrat → drei Politiksorten → Pack → Konfiguration) steht in
-[`/docs/architektur.md`](../../../docs/architektur.md) — das gilt für alle
-Implementierungen und ist beim Bauen Pflichtlektüre.
+PHP-specific: packages, paths, adapters. The **language-neutral mental model**
+(jurisdiction-free substrate → three policy kinds → pack → configuration) lives in
+[`/docs/architektur.md`](../../../docs/architektur.md) — it applies to all
+implementations and is required reading when building.
 
-## Drei Packages, ein Repo
+## Three packages, one repo
 
-| Package | Composer-Name | Rolle |
+| Package | Composer name | Role |
 |---|---|---|
-| `packages/core` | `superheld/summae-core` | Framework-freier Fachkern. Die gesamte Buchführungslogik. Einzige Abhängigkeit: `brick/math`. |
-| `packages/laravel` | `superheld/summae-laravel` | Adapter: DB-Persistenz (`illuminate/database`-Query-Builder, **kein ORM**), ServiceProvider, Migrationen. **Keine Fachlogik.** |
-| `packages/cli` | `superheld/summae-cli` | Terminal-Werkzeug (`summae`), JSON-Ein/Ausgabe. Nutzt core + laravel-Persistenz. |
+| `packages/core` | `superheld/summae-core` | Framework-free core. All accounting logic. Only dependency: `brick/math`. |
+| `packages/laravel` | `superheld/summae-laravel` | Adapter: DB persistence (`illuminate/database` query builder, **no ORM**), ServiceProvider, migrations. **No domain logic.** |
+| `packages/cli` | `superheld/summae-cli` | Terminal tool (`summae`), JSON in/out. Uses core + laravel persistence. |
 
-Daneben `superheld/summae-php` (`implementations/php/composer.json`) — die
-PHP-Entwickler-Werkbank, **kein** ausgeliefertes Paket. `runner/` ist der
-Fixture-Runner (nicht veröffentlicht, nur Konformitätsprüfung).
+Alongside them `superheld/summae-php` (`implementations/php/composer.json`) — the
+PHP developer workbench, **not** a shipped package. `runner/` is the fixture
+runner (not published, conformance checking only).
 
-## Warum der Kern framework-frei ist
+## Why the core is framework-free
 
-Lackmustest: *„Würde diese Zeile auch in einem Symfony- oder Node-Projekt Sinn
-ergeben?"* → gehört in den Core. Kein `use Illuminate\…` in `packages/core`.
+Litmus test: *"Would this line make sense in a Symfony or Node project too?"*
+→ then it belongs in the core. No `use Illuminate\…` in `packages/core`.
 
-Drei Gründe:
+Three reasons:
 
-1. **Die Konformitätssuite läuft gegen den Core in Millisekunden** (In-Memory-
-   Port, ohne Laravel-Boot, ohne DB). Ein roter Test ist dann eindeutig ein
-   Fachfehler, kein Persistenzfehler.
-2. **Laravel bewegt sich, Buchführung nicht.** Major-Upgrades fassen nur den
-   dünnen Adapter an; der geprüfte, GoBD-relevante Kern bleibt unberührt.
-3. **Mehrsprachigkeit.** Derselbe Schnitt spiegelt sich später in Node
-   (`core` + `nestjs/express`-Adapter) und Python.
+1. **The conformance suite runs against the core in milliseconds** (in-memory
+   port, no Laravel boot, no DB). A red test is then unambiguously a domain
+   error, not a persistence error.
+2. **Laravel moves, accounting does not.** Major upgrades touch only the thin
+   adapter; the audited, GoBD-relevant core stays untouched.
+3. **Multi-language.** The same cut is mirrored in Node
+   (`core` + `nestjs/express` adapter) and Python.
 
-## Hexagonal: Ports & Adapter
+## Hexagonal: ports & adapters
 
-Der Kern definiert **Ports** (Interfaces in `packages/core/src/Port/`) und kennt
-keine konkrete Persistenz:
+The core defines **ports** (interfaces in `packages/core/src/Port/`) and knows
+no concrete persistence:
 
 ```
 AccountRepository   FiscalYearRepository   VoucherRepository
@@ -43,67 +43,93 @@ JournalRepository   OpenItemRepository     PartnerRepository
 AssetRepository     AuditTrail
 ```
 
-Zwei Adapter-Sätze implementieren sie:
+Two adapter sets implement them:
 
-- **In-Memory** (`packages/core/src/InMemory/`) — für Tests, Konformitätsläufe,
-  die CLI-Logik. Schnell, ohne I/O.
-- **Database** (`packages/laravel/src/Repository/`, Klassen `Database*Repository`) —
-  für die echte DB. Persistiert die Aggregat-Innereien als JSON-Dokumente in
-  `summae_*`-Tabellen, exakt in Published-Language-Form. Nutzt den
-  **`illuminate/database`-Query-Builder** (`$connection->table(...)`), **kein ORM**
-  (kein `extends Model`). Rollenbasiert benannt (nicht nach dem Tool) — das
-  Node-Pendant `@superheld/summae-knex` heißt seine Klassen ebenso `Database*` und
-  nutzt Knex als Query-Builder. Siehe `/docs/architektur.md`.
+- **In-Memory** (`packages/core/src/InMemory/`) — for tests, conformance runs,
+  the CLI logic. Fast, no I/O.
+- **Database** (`packages/laravel/src/Repository/`, classes `Database*Repository`) —
+  for the real DB. Persists the aggregate internals as JSON documents in
+  `summae_*` tables, exactly in published-language form. Uses the
+  **`illuminate/database` query builder** (`$connection->table(...)`), **no ORM**
+  (no `extends Model`). Named by role (not by the tool) — the Node counterpart
+  `@superheld/summae-knex` names its classes `Database*` as well and uses Knex
+  as the query builder. See `/docs/architektur.md`.
 
-Zusammengebaut wird ein Mandant durch:
+A tenant is assembled by:
 
-- `Tenant::inMemory(...)` — der Kern für In-Memory-Betrieb.
-- `DatabaseTenantFactory::build(...)` — derselbe `Tenant`, nur mit DB-Ports.
+- `Tenant::inMemory(...)` — the core for in-memory operation.
+- `DatabaseTenantFactory::build(...)` — the same `Tenant`, only with DB ports.
 
-Beide liefern denselben `Tenant`; alles darüber ist identisch.
+Both yield the same `Tenant`; everything above is identical.
 
-## Fachliche Schichtung
+## Domain layering
 
-Das Schichtenmodell (Substrat → Politiksorten → Pack → Konfiguration) ist
-sprachneutral und steht in [`/docs/architektur.md`](../../../docs/architektur.md).
-In PHP konkret: Der `core` ist das Substrat; Regelmodul-/Pack-Daten werden der
-Factory (`Tenant::inMemory` / `DatabaseTenantFactory::build`) als Daten übergeben;
-die App ist das Laravel-Projekt des Nutzers.
+The layering model (substrate → policy kinds → pack → configuration) is
+language-neutral and lives in [`/docs/architektur.md`](../../../docs/architektur.md).
+In concrete PHP terms: the `core` is the substrate; rule-module/pack data are
+passed to the factory (`Tenant::inMemory` / `DatabaseTenantFactory::build`) as
+data; the app is the user's Laravel project.
 
-**CLI wählt ein Pack.** `summae init --pack de` lädt das Pack aus der ausgelieferten
+The source tree of `core` mirrors the two axes directly (PascalCase folders):
+
+- **`Substrate/`** — frozen, jurisdiction-free (zero-sum posting, account,
+  journal, balance, period). Imports nothing from above.
+- **`Policies/`** — the three policy kinds, **socket** only (law-free mechanism);
+  the **plugs** (data) live in `/pack-library/` and are injected:
+  - **`Policies/Expansion/`** — intent → balanced postings (tax · assets ·
+    costing · settle difference · reverse)
+  - **`Policies/Projection/`** — journal → view (fold engines + `Mapping/`)
+  - **`Policies/Constraint/`** — predicate gates (still thin; the third kind is
+    unfinished)
+- **`Composition/`** — resolver · factory · tenant · dispatcher (dependency
+  inversion: the core never imports a pack)
+- **`Records/`** — vouchers/records (Voucher · OpenItem · Audit), **not** a
+  policy kind; may reference the substrate (data layer)
+- **`Partner/`** — supporting subdomain (master data), **not** a policy kind
+- **`Ledger/`** — `Ledger.php`, the orchestrator (see below)
+- **`Port/` · `InMemory/`** — the hexagon edge / outside
+
+## CLI picks a pack
+
+`summae init --pack de` loads the pack from the shipped
 `pack-library/` (`packages/cli/src/PackLibrary.php`: `packToRules` = `PackResolver::resolve` →
-`ruleModulesFromResolved` → CLI-`rules`-Struktur) und schreibt die aufgelösten Regeln in den
-Arbeitsbereich. `--pack-library <dir>` übersteuert den Pfad; Alternative: eigene `--rules`-Datei.
-Byte-gleich zum Node-CLI-Pendant (`packages/cli/src/pack-library.ts`).
+`ruleModulesFromResolved` → CLI `rules` structure) and writes the resolved rules into the
+workspace. `--pack-library <dir>` overrides the path; alternatively a custom `--rules` file.
+Byte-identical to the Node CLI counterpart (`packages/cli/src/pack-library.ts`).
 
-## Eiserne Invarianten
+## Iron invariants
 
-- **Journal append-only; Salden sind Projektionen.** Nie einen Saldo speichern —
-  jede SuSa/Bilanz/EÜR wird aus dem Journal neu berechnet.
-- **Geld nie als Float.** `Money` auf `brick/math`, half-up (kaufmännisch),
-  `allocate` mit Largest-Remainder. Siehe [konformitaet.md](konformitaet.md).
-- **Determinismus.** Gleiche Eingabe → byte-identisches Ergebnis (inkl.
-  Sortierung, Rundung), über alle Implementierungen.
+- **Journal append-only; balances are projections.** Never store a balance —
+  every trial balance / balance sheet / EÜR is recomputed from the journal.
+- **Money never as float.** `Money` on `brick/math`, half-up (commercial),
+  `allocate` with largest-remainder. See [konformitaet.md](konformitaet.md).
+- **Determinism.** Same input → byte-identical result (incl. ordering,
+  rounding), across all implementations.
 
-## Genereller Einstiegspunkt: `TenantOperations`
+## Single entry point: `TenantOperations`
 
-`packages/core/src/Composition/TenantOperations.php` ist der Dispatcher für
-**alle** Operationen (`post`, `postVoucher`, `settle`, …) und Projektionen
-(`trialBalance`, `vatReturn`, `journalExport`, …) eines Mandanten — Namen exakt
-nach API-Spec. CLI und Konformitäts-Runner nutzen denselben Dispatcher; das
-hält die Operationsliste an *einer* Stelle.
+`packages/core/src/Composition/TenantOperations.php` is the dispatcher for
+**all** operations (`post`, `postVoucher`, `settle`, …) and projections
+(`trialBalance`, `vatReturn`, `journalExport`, …) of a tenant — names exactly
+per API spec. CLI and conformance runner use the same dispatcher; that keeps
+the operation list in *one* place.
 
-## Datenfluss einer Buchung (Beispiel)
+## Data flow of a posting (example)
 
 ```
 postVoucher(input)
-  → TaxService::expand     (Steuerexpansion, Rundung pro Beleg)
-  → Ledger::post           (Prüfreihenfolge, Invarianten, Journalnummer)
-      → JournalRepository::append   (Port → In-Memory oder Database)
-      → OpenItem-Automatik bei AR/AP
+  → TaxService::expand     (tax expansion, rounding per voucher)
+  → Ledger::post           (check order, invariants, journal number)
+      → JournalRepository::append   (port → in-memory or database)
+      → open-item automation for AR/AP
       → AuditTrail::append
-  → PostResult (entry + erzeugte offene Posten)
+  → PostResult (entry + generated open items)
 ```
 
-Lesen läuft nie über gespeicherte Salden, sondern über die Projektionen in
-`packages/core/src/Projection/`.
+`Ledger.php` (in `Ledger/`) is the orchestrator: it currently fuses `post`
+(substrate) + settle/reverse (expansion) + close (constraint) in *one* class.
+Splitting those **methods** apart is gated on the open **closed/open** decision
+(see `packages/core/src/CLAUDE.md`); the directory split itself is done.
+
+Reading never goes through stored balances, only through the projections in
+`packages/core/src/Policies/Projection/`.

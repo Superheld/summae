@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Runner;
 
-use Summae\Core\Shared\CanonicalJson;
+use Summae\Core\Substrate\CanonicalJson;
 use Summae\Runner\Subject\SubjectFactory;
 
 /**

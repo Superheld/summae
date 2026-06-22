@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
-use Summae\Core\Ledger\FiscalYear;
+use Summae\Core\Substrate\FiscalYear;
 use Summae\Core\Port\FiscalYearRepository;
-use Summae\Core\Shared\CalendarDate;
+use Summae\Core\Substrate\CalendarDate;
 
 final class InMemoryFiscalYearRepository implements FiscalYearRepository
 {

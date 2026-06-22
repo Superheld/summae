@@ -9,11 +9,11 @@ declare(strict_types=1);
  */
 
 use Summae\Core\Composition\TenantOperations;
-use Summae\Core\Shared\Currency;
-use Summae\Core\Shared\FixedClock;
-use Summae\Core\Shared\DeterministicIdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\FixedClock;
+use Summae\Core\Substrate\DeterministicIdGenerator;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Tenant;
 
 require __DIR__ . '/../../vendor/autoload.php';

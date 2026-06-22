@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Assets\Asset;
-use Summae\Core\Assets\AssetRoute;
+use Summae\Core\Policies\Expansion\Assets\Asset;
+use Summae\Core\Policies\Expansion\Assets\AssetRoute;
 use Summae\Core\Port\AssetRepository;
-use Summae\Core\Shared\AccountNumber;
-use Summae\Core\Shared\Money;
-use Summae\Core\Shared\Uuid;
+use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 final readonly class DatabaseAssetRepository implements AssetRepository
