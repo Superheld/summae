@@ -11,8 +11,8 @@ import type { Currency } from '../substrate/currency.js';
 import { Money } from '../substrate/money.js';
 import type { JournalEntry } from '../ledger/journal-entry.js';
 import type { OpenItem } from '../ledger/open-item.js';
-import type { TaxCodeRegistry } from '../tax/tax-code-registry.js';
-import type { TaxProfile } from '../tax/tax-profile.js';
+import type { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
+import type { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
 
 interface KeyAmount {
   base: Money;

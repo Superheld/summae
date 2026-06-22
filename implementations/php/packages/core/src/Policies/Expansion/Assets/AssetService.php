@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Assets;
+namespace Summae\Core\Policies\Expansion\Assets;
 
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\Ledger;

@@ -73,13 +73,13 @@ export {
 } from './in-memory.js';
 
 // Assets
-export { Asset } from './assets/asset.js';
-export { type AssetRoute, parseAssetRoute } from './assets/asset-route.js';
-export { AssetService } from './assets/asset-service.js';
+export { Asset } from './policies/expansion/assets/asset.js';
+export { type AssetRoute, parseAssetRoute } from './policies/expansion/assets/asset-route.js';
+export { AssetService } from './policies/expansion/assets/asset-service.js';
 
 // Costing
-export { CostingRun } from './costing/costing-run.js';
-export { CostingService } from './costing/costing-service.js';
+export { CostingRun } from './policies/expansion/costing/costing-run.js';
+export { CostingService } from './policies/expansion/costing/costing-service.js';
 
 // Partner
 export { Partner } from './partner/partner.js';
@@ -107,11 +107,11 @@ export { MappingRegistry } from './mapping/mapping-registry.js';
 export { MappingImporter } from './mapping/mapping-importer.js';
 
 // Tax
-export { TaxCode } from './tax/tax-code.js';
-export { TaxCodeVersion } from './tax/tax-code-version.js';
-export { TaxCodeRegistry } from './tax/tax-code-registry.js';
-export { TaxProfile } from './tax/tax-profile.js';
-export { TaxService } from './tax/tax-service.js';
+export { TaxCode } from './policies/expansion/tax/tax-code.js';
+export { TaxCodeVersion } from './policies/expansion/tax/tax-code-version.js';
+export { TaxCodeRegistry } from './policies/expansion/tax/tax-code-registry.js';
+export { TaxProfile } from './policies/expansion/tax/tax-profile.js';
+export { TaxService } from './policies/expansion/tax/tax-service.js';
 
 // Komposition
 export { Tenant } from './composition/tenant.js';

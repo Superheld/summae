@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Costing;
+namespace Summae\Core\Policies\Expansion\Costing;
 
 use Summae\Core\DomainError;
 use Summae\Core\Substrate\Money;

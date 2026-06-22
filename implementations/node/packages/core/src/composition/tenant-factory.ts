@@ -8,8 +8,8 @@ import { CalendarDate } from '../substrate/calendar-date.js';
 import type { Clock } from '../substrate/clock.js';
 import { Currency } from '../substrate/currency.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
-import { TaxCodeRegistry } from '../tax/tax-code-registry.js';
-import { TaxProfile } from '../tax/tax-profile.js';
+import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
+import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
 import { Tenant } from './tenant.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -17,8 +17,8 @@ use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 
 /**
  * USt-VA-Kennzahlen über taxTags (SF-09).

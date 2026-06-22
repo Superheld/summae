@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core;
 
-use Summae\Core\Assets\AssetService;
-use Summae\Core\Costing\CostingService;
+use Summae\Core\Policies\Expansion\Assets\AssetService;
+use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
 use Summae\Core\InMemory\InMemoryAuditTrail;
@@ -32,9 +32,9 @@ use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\SystemClock;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\UuidV7IdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
-use Summae\Core\Tax\TaxService;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxService;
 
 /**
  * Mandant: buchführende Einheit, oberste Datengrenze (Glossar `tenant`).

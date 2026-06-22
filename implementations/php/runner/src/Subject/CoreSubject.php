@@ -21,8 +21,8 @@ use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\FixedClock;
 use Summae\Core\Substrate\Uuid;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Tenant;
 

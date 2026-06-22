@@ -11,7 +11,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\VoucherRepository;
-use Summae\Core\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 
 /**
  * DATEV-Export (F-IO-005, v0.4 beidseitig): Buchungsstapel,

@@ -31,8 +31,8 @@ final class DatabaseSubjectFactory implements SubjectFactory
              * @var \Summae\Core\Substrate\Clock|null $clock
              * @var \Summae\Core\Substrate\IdGenerator|null $ids
              * @var \Summae\Core\Ledger\DimensionRegistry|null $dimensions
-             * @var \Summae\Core\Tax\TaxCodeRegistry|null $taxCodes
-             * @var \Summae\Core\Tax\TaxProfile|null $taxProfile
+             * @var \Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry|null $taxCodes
+             * @var \Summae\Core\Policies\Expansion\Tax\TaxProfile|null $taxProfile
              * @var \Summae\Core\Mapping\MappingRegistry|null $mappings
              */
             return (new DatabaseTenantFactory($connection))->build(

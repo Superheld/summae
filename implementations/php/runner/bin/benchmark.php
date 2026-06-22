@@ -12,8 +12,8 @@ use Summae\Core\Composition\TenantOperations;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\FixedClock;
 use Summae\Core\Substrate\DeterministicIdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Tenant;
 
 require __DIR__ . '/../../vendor/autoload.php';

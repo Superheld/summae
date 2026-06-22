@@ -8,7 +8,7 @@ import type {
   PartnerRepository,
   VoucherRepository,
 } from './port.js';
-import type { Asset } from './assets/asset.js';
+import type { Asset } from './policies/expansion/assets/asset.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';

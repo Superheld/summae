@@ -15,8 +15,8 @@ use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Clock;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\IdGenerator;
-use Summae\Core\Tax\TaxCodeRegistry;
-use Summae\Core\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Tenant;
 
 /**

@@ -1,5 +1,5 @@
-import { AssetService } from '../assets/asset-service.js';
-import { CostingService } from '../costing/costing-service.js';
+import { AssetService } from '../policies/expansion/assets/asset-service.js';
+import { CostingService } from '../policies/expansion/costing/costing-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -14,9 +14,9 @@ import { PartnerService } from '../partner/partner-service.js';
 import { DimensionRegistry } from '../ledger/dimension-registry.js';
 import { Ledger } from '../ledger/ledger.js';
 import { MappingRegistry } from '../mapping/mapping-registry.js';
-import { TaxCodeRegistry } from '../tax/tax-code-registry.js';
-import { TaxProfile } from '../tax/tax-profile.js';
-import { TaxService } from '../tax/tax-service.js';
+import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
+import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
+import { TaxService } from '../policies/expansion/tax/tax-service.js';
 import type {
   AccountRepository,
   AssetRepository,

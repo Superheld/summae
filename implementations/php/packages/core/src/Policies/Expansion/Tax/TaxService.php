@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Summae\Core\Tax;
+namespace Summae\Core\Policies\Expansion\Tax;
 
 use Brick\Math\BigDecimal;
 use Summae\Core\DomainError;

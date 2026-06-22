@@ -6,7 +6,7 @@ import type {
 } from '../port.js';
 import type { EntryLine } from '../ledger/entry-line.js';
 import type { JournalEntry } from '../ledger/journal-entry.js';
-import type { TaxCodeRegistry } from '../tax/tax-code-registry.js';
+import type { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 
 const TAX_SUBTYPES = new Set(['tax_in', 'tax_out']);
 

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
-use Summae\Core\Assets\Asset;
-use Summae\Core\Assets\AssetRoute;
+use Summae\Core\Policies\Expansion\Assets\Asset;
+use Summae\Core\Policies\Expansion\Assets\AssetRoute;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Money;

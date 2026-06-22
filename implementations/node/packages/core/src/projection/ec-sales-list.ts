@@ -1,7 +1,7 @@
 import type { JournalRepository, PartnerRepository, VoucherRepository } from '../port.js';
 import { Money } from '../substrate/money.js';
 import type { Currency } from '../substrate/currency.js';
-import type { TaxCodeRegistry } from '../tax/tax-code-registry.js';
+import type { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 
 /**
  * ZM-Grundlage (v0.4, SF-21): innergemeinschaftliche Umsätze je USt-IdNr. und
