@@ -169,3 +169,18 @@ non-functional **NF-…**) are the target list. Every requirement is *proven* by
 functionally via a fixture (linked in the `covers` field), and where fixtures aren't enough
 (concurrency NF-6, performance NF-7) via a **dedicated** test per implementation. A
 requirement **without** a test is itself a finding (belongs on the gate-gap list), not „done".
+
+**Contracts get their own validating test — nothing is silently swallowed.** Behavioral
+fixture coverage is necessary but not sufficient: every *contract surface* must have a test
+that fails loudly when the contract is broken, so authoring mistakes can't slip through
+unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligations:
+1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
+   streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
+   `testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
+   does not declare is a finding (e.g. NF-002/F-008 `includeNonCash`), not a convenience.
+2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
+   named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
+   validated. The runner's behavioral fixtures exercise it but do not pin the contract.
+3. **NF-6 (concurrency) and NF-7 (performance)** have their dedicated per-implementation tests (above).
+
+A contract surface without its own guard is a gate-gap finding, same as an untested requirement.
