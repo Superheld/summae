@@ -67,7 +67,7 @@ export class AssetService {
       usefulLifeMonths = this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
-      // Pool § 6 Abs. 2a: fixed 5 years at 1/5 each.
+      // Pool route: fixed 5 years at 1/5 each (FINDING: period should be pack-driven, not hard-coded).
       usefulLifeMonths = 60;
       for (const yearAmount of cost.allocateEvenly(5)) {
         schedule.push(...yearAmount.allocateEvenly(12));
@@ -255,7 +255,7 @@ export class AssetService {
     lines: Array<Record<string, unknown>>,
   ): Uuid {
     const result = this.ledger.post({ entryDate: date.iso, voucherId: voucherId.value, text, lines });
-    // Machine-generated entry: finalize immediately (GoBD).
+    // Machine-generated entry: finalize immediately (machine entries are not hand-correctable).
     this.ledger.finalize({ entryId: result.entry.id.value });
     return result.entry.id;
   }

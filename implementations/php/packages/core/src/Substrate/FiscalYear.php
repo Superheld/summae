@@ -13,7 +13,7 @@ use Summae\Core\Substrate\Uuid;
  * Fiscal year with periods (ledger-modell.md aggregate 3).
  * Invariants: periods gapless and non-overlapping; closing only
  * in order; reopening only before year-end closing.
- * `year` = calendar year of the fiscal year end (§ 4a EStG, datenformat.md v0.3).
+ * `year` = calendar year of the fiscal year end (datenformat.md v0.3).
  */
 final class FiscalYear
 {

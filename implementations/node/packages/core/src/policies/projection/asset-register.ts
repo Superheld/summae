@@ -2,7 +2,7 @@ import type { AssetRepository } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 
 /**
- * Asset register (mandatory even under cash-basis accounting, § 4 Abs. 3 S. 5 EStG). Sorting:
+ * Asset register (a jurisdiction may mandate it even under cash-basis accounting). Sorting:
  * acquisition date, then ID (deterministic).
  */
 export class AssetRegisterProjection {

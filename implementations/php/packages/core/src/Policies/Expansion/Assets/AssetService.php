@@ -22,7 +22,7 @@ use Summae\Core\Substrate\Uuid;
  * Asset subledger (assets-modell.md): low-value-asset switch at acquisition,
  * depreciation run idempotent per run target, postings as normal journal
  * entries through the ledger (no special path) — machine-generated entries
- * are finalized immediately (GoBD).
+ * are finalized immediately (machine entries are not hand-correctable).
  *
  * Depreciation distribution (determinismus.md §2): monthly values = allocate
  * of the acquisition cost over the useful life (flat); yearly values = allocate
@@ -78,7 +78,7 @@ final class AssetService
             $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
             $schedule = $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Pool § 6 Abs. 2a: fixed 5 years at 1/5 each, independent of disposals.
+            // Pool route: fixed 5 years at 1/5 each, independent of disposals (FINDING: period should be pack-driven, not hard-coded).
             $usefulLifeMonths = 60;
             $annual = $cost->allocateEvenly(5);
             foreach ($annual as $yearAmount) {
@@ -389,7 +389,7 @@ final class AssetService
             'lines' => $lines,
         ]);
 
-        // Machine-generated entry: finalize immediately (GoBD).
+        // Machine-generated entry: finalize immediately (machine entries are not hand-correctable).
         $this->ledger->finalize(['entryId' => $result->entry->id->value]);
 
         return $result->entry->id;

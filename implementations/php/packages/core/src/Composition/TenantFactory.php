@@ -70,7 +70,7 @@ final readonly class TenantFactory
             ? $packPolicy['taxRoundingGranularity']
             : 'perVoucher';
 
-        // Mappings (balance sheet/P&L/EÜR) from the resolved pack into the tenant's registry —
+        // Mappings (balance sheet/P&L/cash-basis) from the resolved pack into the tenant's registry —
         // otherwise balanceSheet/incomeStatement do not find the mappings (pack-path parity with the inline path).
         $mappings = MappingRegistry::fromRuleModules(
             is_array($this->ruleModules['mappings'] ?? null) ? array_values($this->ruleModules['mappings']) : [],

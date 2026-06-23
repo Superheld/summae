@@ -307,7 +307,7 @@ final readonly class Ledger
 
     /**
      * Correction only in status `entered`, with audit trail — no deletion
-     * (decision 2026-06-07, GoBD-conservative).
+     * (decision 2026-06-07, integrity-conservative).
      *
      * @param array<string, mixed> $input
      */

@@ -5,7 +5,7 @@ import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 
 /**
  * EC sales list basis (v0.4, SF-21): intra-community supplies per VAT ID and
- * period — from reporting-key tags of the igL codes, partner via the voucher.
+ * period — from reporting-key tags of the intra-community-supply codes, partner via the voucher.
  */
 export class EcSalesListProjection {
   constructor(

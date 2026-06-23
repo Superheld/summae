@@ -26,7 +26,7 @@ interface NetLine {
  * Tax expansion (tax-modell.md): side-effect-free. Determinism (§2):
  * VAT per voucher per tax rate — sum net per code, compute tax, round
  * half-up ONCE. Version selection by service/voucher date.
- * Small business (§ 19): no tax lines, gross = net.
+ * Small-business exemption: no tax lines, gross = net.
  */
 export class TaxService {
   constructor(
@@ -47,7 +47,7 @@ export class TaxService {
   }
 
   expand(input: Record<string, unknown>): Record<string, unknown> {
-    // v0.4 (§ 27): rule version follows the service date, fallback voucher date.
+    // v0.4: rule version follows the service date, fallback voucher date.
     const date =
       typeof input.serviceDate === 'string'
         ? this.parseDate(input.serviceDate)

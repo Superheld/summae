@@ -13,7 +13,7 @@ use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 
 /**
  * EC sales list basis (v0.4, SF-21): intra-community supplies per
- * VAT ID and period — from reporting-key tags of the igL codes,
+ * VAT ID and period — from reporting-key tags of the intra-community-supply codes,
  * partner assignment via the voucher.
  */
 final readonly class EcSalesListProjection
