@@ -121,7 +121,7 @@ test('init --pack us → post → balance sheet balances (pack library chosen by
   const init = capture(['init', '--name', 'US Corp', '--currency', 'USD', '--pack', 'us', '--first-fiscal-year', '2026', '--dir', dir]);
   expect(JSON.parse(init[0] ?? '{}')).toMatchObject({
     initialized: true,
-    created: { accounts: 40, fiscalYears: 1 },
+    created: { accounts: 35, fiscalYears: 1 },
   });
 
   capture([
@@ -135,12 +135,12 @@ test('init --pack us → post → balance sheet balances (pack library chosen by
       entryDate: '2026-03-01',
       taxCode: 'SALETAX',
       direction: 'output',
-      counterAccount: '1200',
+      counterAccount: '1010',
       netLines: [{ account: '4000', money: { amount: '1000.00', currency: 'USD' } }],
     }),
   ]);
 
-  // Journal: single-stage sales tax on the own US numbers (3130 Sales Tax Payable).
+  // Journal: single-stage sales tax on the own US numbers (2100 Sales Tax Payable).
   const tb = capture(['report', 'trialBalance', '--dir', dir, '--params', '{"fiscalYear":2026}']).join('');
   expect(tb).toContain('4000');
   expect(tb).toContain('-1000.00');

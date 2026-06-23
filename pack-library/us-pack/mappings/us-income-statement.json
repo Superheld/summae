@@ -12,12 +12,12 @@
       "kind": "income-statement",
       "version": "2026.1",
       "positions": [
-        { "key": "1", "label": "Net Sales", "accounts": [ { "from": "4000", "to": "4099" } ] },
+        { "key": "1", "label": "Net Sales", "accounts": [ { "from": "4000", "to": "4399" } ] },
         { "key": "2", "label": "Cost of Goods Sold", "accounts": [ { "from": "5000", "to": "5999" } ] },
-        { "key": "3", "label": "Selling, General and Administrative Expenses", "accounts": [ { "from": "6000", "to": "6399" } ] },
-        { "key": "4", "label": "Depreciation and Amortization", "accounts": [ { "from": "6500", "to": "6599" } ] },
+        { "key": "3", "label": "Selling, General and Administrative Expenses", "accounts": [ { "from": "6000", "to": "6299" } ] },
+        { "key": "4", "label": "Depreciation and Amortization", "accounts": [ { "from": "6300", "to": "6399" } ] },
         { "key": "5", "label": "Other Income", "accounts": [ { "from": "4900", "to": "4999" } ] },
-        { "key": "6", "label": "Other Expenses", "accounts": [ { "from": "6700", "to": "6999" } ] }
+        { "key": "6", "label": "Other Expenses", "accounts": [ { "from": "6400", "to": "6999" } ] }
       ]
     }
   }

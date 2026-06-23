@@ -8,9 +8,9 @@
   "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
   "data": {
     "default": {
-      "acquisitionCounterAccount": "1200",
-      "depreciationExpenseAccount": "6500",
-      "gwgExpenseAccount": "6510",
+      "acquisitionCounterAccount": "1010",
+      "depreciationExpenseAccount": "6300",
+      "gwgExpenseAccount": "6310",
       "disposalProceedsAccount": "4900",
       "disposalLossAccount": "6900"
     }
