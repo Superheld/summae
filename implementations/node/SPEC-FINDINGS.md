@@ -62,7 +62,17 @@ loader does not enforce). **Proposal:** extend `$defs/mappingPosition` with
 `cash-basis-categories`) so the normative schema matches the engine before any move
 to schema-validate pack modules. Shared schema artifact — applies to PHP too.
 
-## NF-003 — `cashBasisReport` hard-codes a German VAT-passthrough treatment
+## NF-003 — `cashBasisReport` hard-codes a German VAT-passthrough treatment — ✅ resolved
+
+> **Resolved (2026-06-24):** the hard-coded German strings are gone from the core.
+> Tax accounts now flow through the cash-basis result **only where the pack's mapping
+> maps them**, taking the label from the mapping leaf; an unmapped tax account is a
+> neutral pass-through. DE: the `de-euer` mapping maps its VAT accounts (E3 "Vereinnahmte
+> USt", A6 "Gezahlte Vorsteuer") → German labels from the **pack**. US: `us-schedule-c`
+> leaves sales tax unmapped → neutral (now a realistic SALETAX sale in the fixture). A
+> regression guard (`SubstrateBoundaryTest` / `no-jurisdiction-text.test.ts`) fails if such
+> German label text reappears in the core. (The remaining mechanism-name branching —
+> `reverse_charge` etc. — is the separate, documented closed/open matter.)
 
 **Finding (2026-06-24, us-pack conformance audit).** The cash-basis projection
 (`policies/projection/cash-basis.ts`) routes tax accounts by subtype with **hard-coded

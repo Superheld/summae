@@ -179,7 +179,14 @@ Format per finding:
   (meaningful only for `cash-basis-categories`) so the normative schema matches the engine
   before any move to schema-validate pack modules. Shared schema artifact — applies to Node too.
 
-## F-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment
+## F-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment — ✅ resolved
+
+> **Resolved (2026-06-24):** the hard-coded German strings are gone from the core. Tax
+> accounts flow through the cash-basis result **only where the pack's mapping maps them**
+> (label from the mapping leaf); unmapped tax accounts are a neutral pass-through. DE: the
+> `de-euer` mapping maps its VAT accounts → German labels from the pack. US: `us-schedule-c`
+> leaves sales tax unmapped → neutral. Regression guard: `SubstrateBoundaryTest`
+> (`testCoreEmitsNoHardcodedJurisdictionLabels`) + the Node `no-jurisdiction-text` test.
 
 - **Job:** us-pack conformance audit (2026-06-24)
 - **What:** the cash-basis projection routes tax accounts by subtype with **hard-coded German
