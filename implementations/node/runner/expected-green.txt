@@ -72,6 +72,14 @@ resolver-missing-account-ref
 resolver-referenced-taxcode-missing
 resolver-taxcode-missing-account
 tenant-from-de-complete-posts-identically
+# US-Pack (us): own US chart + sales/use tax + GAAP mappings + cash-basis Schedule C + MACRS
+us-pack-resolves
+us-sales-tax
+us-use-tax
+us-exempt-sale
+us-balance-income
+us-depreciation
+us-fiscal-year
 xx-1-tax-perline-vs-pervoucher
 xx-2-allocate-scale3
 xx-3-purchase-no-input-tax

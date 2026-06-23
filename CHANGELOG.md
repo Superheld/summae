@@ -3,6 +3,34 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.4.0 — unreleased
+
+The **us-pack** (United States) — the second complete jurisdiction pack and the first real
+paradigm beside Germany. **Pack data only — no substrate/engine change**; the differences are
+purely in the domain logic, proven by the conformance suite (PHP + Node `--strict`, core +
+database subject, byte-identical double run).
+
+### Added — `us` pack (`createTenant(pack: "us")`)
+- **Own US chart** (40 accounts, English, own number set — US-GAAP prescribes no statutory chart).
+- **Sales & use tax** (`us-salestax`): `SALETAX` (single-stage retail sales tax, no input-tax
+  credit), `USETAX` (self-assessed use tax wired via `reverse_charge` but onto an **expense** leg
+  → cost + liability, not net zero), `EXEMPT` (resale/interstate/nontaxable, rate 0).
+- **US-GAAP mappings**: Classified Balance Sheet (assets by liquidity), Multi-Step Income
+  Statement (by function), and a cash-basis **Schedule C** mapping.
+- **MACRS / de-minimis** depreciation (immediate expense ≤ 2,500 USD, no pool; GDS recovery
+  periods as useful lives) + asset movement accounts.
+- **US policy**: USD, half-up per voucher, scale 2; defaults `accrual` (GAAP) / quarterly.
+- **7 conformance fixtures** under `testsuite/fixtures/pack/us-pack/` (resolve, sales tax, use
+  tax, exempt sale, balance/income, depreciation, end-to-end fiscal year).
+
+### Notes
+- **Schema gap recorded** (NF-002 / F-008): `format.schema.json` `mappingPosition` lacks the
+  `includeNonCash` flag that the engine reads and the Schedule-C mapping needs; not breaking
+  (pack JSON is loaded content-based, never schema-validated), proposal in both `SPEC-FINDINGS`.
+- **Sign-off pending** (does not block the green build): the eight US account numbers, use-tax
+  naming, default taxation method, multi-state strategy — see
+  `99-pack-docs/us-pack/offene-entscheidungen.md` (internal).
+
 ## 0.3.2 — 2026-06-23
 
 Docs/comments only — **no API/behavior change** (conformance + SF-15 cross-test green, byte parity unchanged).

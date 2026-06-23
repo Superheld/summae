@@ -1,0 +1,23 @@
+{
+  "formatVersion": "0.6",
+  "id": "macrs-us",
+  "kind": "depreciation",
+  "version": "2026.1",
+  "name": "Depreciation United States (de minimis safe harbor, MACRS GDS recovery periods as useful lives)",
+  "contributes": ["depreciation"],
+  "dependsOn": [],
+  "data": {
+    "gwgThresholds": [
+      { "validFrom": "2016-01-01", "validTo": null, "immediateMax": "2500.00", "poolMin": null, "poolMax": null }
+    ],
+    "usefulLife": [
+      { "assetClass": "it-hardware", "months": 60 },
+      { "assetClass": "vehicles", "months": 60 },
+      { "assetClass": "office-furniture", "months": 84 },
+      { "assetClass": "machinery", "months": 84 },
+      { "assetClass": "land-improvements", "months": 180 },
+      { "assetClass": "residential-real-estate", "months": 330 },
+      { "assetClass": "nonresidential-real-estate", "months": 468 }
+    ]
+  }
+}

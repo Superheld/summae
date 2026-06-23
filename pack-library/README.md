@@ -17,14 +17,22 @@ pack-library/
 ├── default-pack/                ← pack "default": neutral starter
 │   ├── accounts/neutral.json       (id "neutral" — 32 jurisdiction-free accounts)
 │   └── default.json                (manifest → its own accounts/neutral)
-└── de-pack/                     ← pack "de": Germany (self-contained)
-    ├── accounts/de-konten.json     (40 accounts)
-    ├── tax/de-ust.json
-    ├── mappings/de-bilanz.json · de-guv.json
-    ├── depreciation/de-afa.json
-    ├── assets/de-assets.json
-    ├── policy/de.json
-    └── de.json                     (manifest → the de-* modules)
+├── de-pack/                     ← pack "de": Germany (self-contained)
+│   ├── accounts/de-konten.json     (40 accounts)
+│   ├── tax/de-ust.json
+│   ├── mappings/de-bilanz.json · de-guv.json
+│   ├── depreciation/de-afa.json
+│   ├── assets/de-assets.json
+│   ├── policy/de.json
+│   └── de.json                     (manifest → the de-* modules)
+└── us-pack/                     ← pack "us": United States (self-contained)
+    ├── accounts/us-accounts.json   (40 accounts)
+    ├── tax/us-salestax.json        (SALETAX · USETAX · EXEMPT)
+    ├── mappings/us-balance-sheet.json · us-income-statement.json · us-schedule-c.json
+    ├── depreciation/us-macrs.json
+    ├── assets/us-assets.json
+    ├── policy/us.json
+    └── us.json                     (manifest → the us-* modules)
 ```
 
 The loader classifies **content-based** (manifest = has `modules[]`, module = has `kind`) and

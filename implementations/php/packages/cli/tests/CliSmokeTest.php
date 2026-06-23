@@ -146,6 +146,52 @@ final class CliSmokeTest extends TestCase
         self::assertSame('1190.00', $bs['json']['liabilitiesAndEquityTotal'] ?? null);
     }
 
+    public function testInitPackUsBalanceSheetBalances(): void
+    {
+        // Frontend selects the shipped us pack from the library — no inline.
+        $init = $this->runCli([
+            'command' => 'init',
+            '--name' => 'US Corp',
+            '--currency' => 'USD',
+            '--pack' => 'us',
+            '--first-fiscal-year' => '2026',
+            '--dir' => $this->dir,
+        ]);
+        self::assertSame(0, $init['exit'], $init['raw']);
+        $created = $init['json']['created'] ?? null;
+        self::assertIsArray($created);
+        self::assertSame(40, $created['accounts'] ?? null);
+
+        $op = $this->runCli([
+            'command' => 'op',
+            'operation' => 'postVoucher',
+            '--dir' => $this->dir,
+            '--input' => json_encode([
+                'voucher' => ['voucherNumber' => 'INV-1', 'voucherDate' => '2026-03-01'],
+                'entryDate' => '2026-03-01',
+                'taxCode' => 'SALETAX',
+                'direction' => 'output',
+                'counterAccount' => '1200',
+                'netLines' => [['account' => '4000', 'money' => ['amount' => '1000.00', 'currency' => 'USD']]],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        self::assertSame(0, $op['exit'], $op['raw']);
+        $gross = $op['json']['grossTotal'] ?? null;
+        self::assertIsArray($gross);
+        self::assertSame('1070.00', $gross['amount'] ?? null);
+
+        // Balance sheet via the bundled US-GAAP mappings: assets == liabilities.
+        $bs = $this->runCli([
+            'command' => 'report',
+            'projection' => 'balanceSheet',
+            '--dir' => $this->dir,
+            '--params' => '{"asOf":"2026-12-31","mapping":"us-gaap-balance-sheet","incomeMapping":"us-gaap-income-statement"}',
+        ]);
+        self::assertSame(0, $bs['exit'], $bs['raw']);
+        self::assertSame('1070.00', $bs['json']['assetsTotal'] ?? null);
+        self::assertSame('1070.00', $bs['json']['liabilitiesAndEquityTotal'] ?? null);
+    }
+
     public function testErrorsMapToExitCodes(): void
     {
         $this->runCli(['command' => 'init', '--name' => 'X', '--dir' => $this->dir]);

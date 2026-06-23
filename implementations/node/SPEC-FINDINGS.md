@@ -26,3 +26,31 @@ bent: `defaults: {taxationMethod: "cash", smallBusiness: false, vatPeriod: "quar
 added — in both manifest copies (`tenant-from-…` **and** `resolve-de-complete-…`,
 pinning consistency `de-mini-regression@2026.1`), at the source (internal source) and the mirror.
 Also applies to the PHP side (shared fixture).
+
+## NF-002 — `format.schema.json` `mappingPosition` omits `includeNonCash`
+
+**Finding (2026-06-23, us-pack build).** The cash-basis projection reads a
+position-level flag `includeNonCash` off the mapping leaf
+(`policies/projection/mapping/mapping.ts:82` → `cash-basis.ts` R7: non-cash
+categories like depreciation count without a cash flow). The us-pack module 5
+(`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
+on its depreciation line (L13) per the module spec. But the normative
+`testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+`includeNonCash` and carries `additionalProperties: false` — so by the schema the
+field is illegal on a mapping position.
+
+**Assessment.** A schema-vs-engine gap, not currently breaking: pack-library JSON
+is loaded content-based (`JSON.parse` → resolver), never validated against
+`format.schema.json`. `validate.py` explicitly skips module/pack files; the schema
+test validates only the journalExport streams + manifest. So `us-schedule-c.json`
+resolves and runs green in both languages. The gap would only bite if schema
+validation is ever extended to pack modules. The de-pack never shipped an
+EÜR/cash-basis mapping, so this is the first shipped `cash-basis-categories` module
+and the first time the gap surfaces.
+
+**Resolution.** Shipped `us-schedule-c-2026` with `includeNonCash: true` per the
+module spec and the engine that consumes it (do not bend the data to a schema the
+loader does not enforce). **Proposal:** extend `$defs/mappingPosition` with
+`"includeNonCash": { "type": "boolean" }` (meaningful only for
+`cash-basis-categories`) so the normative schema matches the engine before any move
+to schema-validate pack modules. Shared schema artifact — applies to PHP too.

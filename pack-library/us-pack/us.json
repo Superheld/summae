@@ -1,0 +1,24 @@
+{
+  "formatVersion": "0.6",
+  "id": "us",
+  "name": "United States — complete pack (own chart + sales/use tax + US-GAAP mappings + cash-basis Schedule C + MACRS)",
+  "version": "2026.1",
+  "modules": [
+    { "kind": "accounts", "id": "us-accounts-2026", "version": "2026.1" },
+    { "kind": "tax", "id": "us-salestax-2026", "version": "2026.1" },
+    { "kind": "mapping", "id": "us-gaap-balance-sheet", "version": "2026.1" },
+    { "kind": "mapping", "id": "us-gaap-income-statement", "version": "2026.1" },
+    { "kind": "mapping", "id": "us-schedule-c-2026", "version": "2026.1" },
+    { "kind": "depreciation", "id": "macrs-us", "version": "2026.1" },
+    { "kind": "assetAccounts", "id": "us-asset-accounts", "version": "2026.1" },
+    { "kind": "policy", "id": "us-usd", "version": "2026.1" }
+  ],
+  "overrides": [],
+  "taxCodes": ["SALETAX", "USETAX", "EXEMPT"],
+  "defaults": { "taxationMethod": "accrual", "smallBusiness": false, "vatPeriod": "quarterly" },
+  "packPolicy": {
+    "roundingMode": "halfUpAwayFromZero",
+    "taxRoundingGranularity": "perVoucher",
+    "currencyScale": 2
+  }
+}

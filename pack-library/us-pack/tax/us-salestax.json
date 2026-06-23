@@ -1,0 +1,19 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-salestax-2026",
+  "kind": "tax",
+  "version": "2026.1",
+  "name": "Sales & Use Tax United States (single-stage retail sales tax, self-assessed use tax, exempt sales)",
+  "contributes": ["taxCodes"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "taxCodes": [
+      { "code": "SALETAX", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "mechanism": "standard", "taxAccount": "3130", "reportingKey": "TAXABLE_SALES" } ] },
+      { "code": "USETAX", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "mechanism": "reverse_charge", "taxAccount": "3140", "reportingKey": "USE_TAX_DUE", "inputTaxAccount": "6020", "inputReportingKey": "USE_TAX_EXPENSE", "baseReportingKey": "PURCHASES_SUBJECT_TO_USE_TAX" } ] },
+      { "code": "EXEMPT", "versions": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00", "mechanism": "standard", "taxAccount": "3130", "reportingKey": "EXEMPT_SALES" } ] }
+    ]
+  }
+}
