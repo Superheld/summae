@@ -1,0 +1,25 @@
+{
+  "fixture": "de-vorsteuer-ermaessigt",
+  "description": "DE-Pack: Eingangsrechnung mit ermäßigter Vorsteuer 7 % (taxCode VSt7 → Vorsteuer ermäßigt 1510, Aufwand 6000, Verbindlichkeit 3000). Netto 500 → brutto 535. Gegenstück zu de-eingangsrechnung (VSt19), schließt den ermäßigten Vorsteuersatz ab.",
+  "covers": ["F-TAX-002", "SF-03"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Einkauf 7% GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ER-007", "voucherDate": "2026-04-05" },
+        "entryDate": "2026-04-05", "text": "Eingangsrechnung ermäßigt 7%",
+        "taxCode": "VSt7", "direction": "input",
+        "netLines": [ { "account": "6000", "money": { "amount": "500.00", "currency": "EUR" } } ],
+        "counterAccount": "3000" },
+      "expect": { "result": { "grossTotal": { "amount": "535.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1510", "balance": "35.00" },
+        { "account": "3000", "balance": "-535.00" },
+        { "account": "6000", "balance": "500.00" }
+      ] } }
+  ]
+}

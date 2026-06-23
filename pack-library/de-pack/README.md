@@ -13,6 +13,7 @@ the accounts ourselves; SKR03/04 remain loadable via `importChartOfAccounts`.
 | `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (intra-community supply), USt19WA (deemed supply) — rates/codes, accounts on neutral numbers |
 | `mappings/de-bilanz` | mapping | Balance-sheet structure HGB §266 |
 | `mappings/de-guv` | mapping | Income-statement structure HGB §275 (total-cost method) |
+| `mappings/de-euer` | mapping | Cash-basis categories — Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR) |
 | `depreciation/de-afa` | depreciation | Low-value-asset thresholds (§6 (2) EStG), useful lives |
 | `assets/de-assets` | assetAccounts | Asset contra-accounts (addition/depreciation/low-value/disposal) on neutral numbers |
 | `policy/de` | policy | EUR, half-up per voucher (`perVoucher`), scale 2; defaults: cash (EÜR), standard taxation, quarterly |
@@ -32,6 +33,7 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 | tax · USt19 standard rate | F-TAX-002 / SF-02 | `de-pack-resolves`, `de-jahresgang` |
 | tax · USt7 reduced | F-TAX-002 | `de-ust7-ermaessigt` |
 | tax · VSt19 input tax | F-TAX-002 / SF-03 | `de-eingangsrechnung` |
+| tax · VSt7 reduced input tax | F-TAX-002 / SF-03 | `de-vorsteuer-ermaessigt` |
 | tax · RC13b §13b | F-TAX-006 | `de-reverse-charge` |
 | tax · igL | F-TAX-012 / SF-21 | `de-ig-lieferung` |
 | tax · USt19WA deemed supply | F-TAX-010 / SF-20 | `de-wertabgabe` |
@@ -41,6 +43,7 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 | de-konten · 4040 small business §19 | F-TAX-004 / SF-11 | `de-kleinunternehmer` |
 | de-konten · 1900/3900 accruals/deferrals | HGB §266 | `de-jahresgang` |
 | mappings · de-bilanz §266 + de-guv §275 | F-CORE-015 / SF-10 | `de-bilanz-guv`, `de-jahresgang` |
+| mappings · de-euer (Anlage EÜR §4 Abs. 3) | F-CORE-008/010 / SF-08 | `de-euer` |
 | depreciation + assetAccounts | F-AST-001/002/003 / SF-05 | `de-afa-lauf`, `de-jahresgang` |
 | policy · perVoucher/scale 2 | Determinism | `de-pack-resolves`; mechanism `conformance-xx` |
 | **Integration** (balance sheet + journal correct at all times) | F-CORE-016 / SF-10 | `de-jahresgang` |
