@@ -42,4 +42,24 @@ describe('core emits no hard-coded jurisdiction labels', () => {
     }
     expect(violations, 'the law-free core must not hard-code jurisdiction label text (use the pack/mapping)').toEqual([]);
   });
+
+  // The same axis, for code comments: the law-free core must not cite a jurisdiction's
+  // statutes (the litmus test "does your code cite a statute -> wrong layer"). A statute
+  // citation is provenance that belongs in the pack docs, not in the substrate/policies.
+  // Matches "§ 17 UStG", "§ 4 Abs. 3 EStG" etc. — NOT doc-section refs like "determinismus.md §3"
+  // (no statute keyword follows). Locks in the jurisdiction-comment cleanup.
+  const STATUTE = /§\s*\d+[a-z]?\s*(Abs\.?|Nr\.?|UStG|EStG|HGB|BGB|AO|GewStG|KStG)/;
+
+  it('cites no jurisdiction statutes in src', () => {
+    const violations: string[] = [];
+    for (const file of tsFiles(srcDir)) {
+      const lines = readFileSync(file, 'utf8').split('\n');
+      lines.forEach((line, index) => {
+        if (STATUTE.test(line)) {
+          violations.push(`${file.slice(srcDir.length + 1)}:${index + 1} cites a statute`);
+        }
+      });
+    }
+    expect(violations, 'the law-free core must not cite jurisdiction statutes (provenance belongs in the pack)').toEqual([]);
+  });
 });
