@@ -178,3 +178,32 @@ Format per finding:
 - **Proposal:** extend `$defs/mappingPosition` with `"includeNonCash": { "type": "boolean" }`
   (meaningful only for `cash-basis-categories`) so the normative schema matches the engine
   before any move to schema-validate pack modules. Shared schema artifact — applies to Node too.
+
+## F-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment
+
+- **Job:** us-pack conformance audit (2026-06-24)
+- **What:** the cash-basis projection routes tax accounts by subtype with **hard-coded German
+  labels** (`tax_out` → `"Vereinnahmte USt"`/`"USt-Zahlung an FA"`, `tax_in` → `"Gezahlte
+  Vorsteuer"`) — the German EÜR rule (VAT flows through profit). For the US, sales tax is a
+  pure pass-through (never income). With `2100 Sales Tax Payable` marked `tax_out` (required by
+  `vatReturn`, F-… below), a SALETAX cash sale would count its collected tax as income under a
+  German label — wrong for US.
+- **Where:** `Policies/Projection/CashBasisProjection.php`; `pack-library/us-pack/accounts/us-accounts.json`.
+- **Chosen behavior / workaround:** `us-schedule-c` posts its sample revenue **tax-free** so the
+  mechanism (mapping labels + `includeNonCash`) is proven without tripping the DE-centric tax path.
+- **Proposal:** make the cash-basis tax treatment pack-appropriate (neutral pass-through unless the
+  cash-basis mapping maps the tax accounts; drop the hard-coded German strings). Behavior change with
+  DE-fixture ripple → own job, human decision. Applies to Node too.
+
+## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected
+
+- **Job:** us-pack conformance audit (2026-06-24)
+- **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
+  `expandTax` returns it fine (proven by `us-exempt-sale`), but `postVoucher`/`post` reject it with
+  `E_ENTRY_INVALID_AMOUNT` (zero-amount line). Exempt sales **cannot be recorded in the journal** with
+  the EXEMPT code today — only previewed via `expandTax`; they also cannot appear in the sales-tax return.
+- **Where:** tax expansion (`standard` at rate 0) + ledger amount validation; `us-exempt-sale`, `us-sales-tax-return`.
+- **Chosen behavior:** documented; `us-sales-tax-return` covers the taxable line only.
+- **Proposal:** add an `exempt` mechanism (base tag only, no tax line) — analogous to
+  `intra_community_supply` — so exempt sales post cleanly and show in the return (open decision E).
+  Engine addition → own job. Applies to Node too.

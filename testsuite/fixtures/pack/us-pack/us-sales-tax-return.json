@@ -1,0 +1,24 @@
+{
+  "fixture": "us-sales-tax-return",
+  "description": "US-Pack: sales-tax return as a projection (the legal filing). Accrual (us default) → tax recognized at posting. A taxable sale (SALETAX, base 1,000 / tax 70) in Q1 groups by reportingKey TAXABLE_SALES; the amount owed to the state = collected sales tax 70. Mirrors the German UStVA (de-vat-return), here with a descriptive US key. (Exempt sales would add an EXEMPT_SALES key, but the EXEMPT code cannot be posted today — its 0.00 tax line is rejected; see SPEC-FINDINGS.)",
+  "covers": ["F-TAX-005", "SF-09"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Filing Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "taxationMethod": "accrual" } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10", "text": "Taxable sale 7%", "taxCode": "SALETAX", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } } ], "counterAccount": "1010" },
+      "expect": { "result": { "grossTotal": { "amount": "1070.00", "currency": "USD" } } } }
+  ],
+  "projections": [
+    { "name": "vatReturn", "params": { "tenant": "$T1", "year": 2026, "quarter": 1, "asOf": "2026-04-01" },
+      "expect": {
+        "keys": {
+          "TAXABLE_SALES": { "base": "1000.00", "tax": "70.00" }
+        },
+        "payload": { "amount": "70.00", "currency": "USD" }
+      } }
+  ]
+}

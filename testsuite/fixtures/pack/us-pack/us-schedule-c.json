@@ -1,0 +1,46 @@
+{
+  "fixture": "us-schedule-c",
+  "description": "US-Pack: cash-basis profit-or-loss as a projection over the shipped Schedule-C mapping (us-schedule-c-2026, kind cash-basis-categories). Rows are labelled by the Schedule-C line they map to. Cash sale 1,000 → L1 Gross receipts; SG&A 300 paid → L27 Other expenses; depreciation 600 (no cash flow) is counted via the L13 `includeNonCash` flag. Proves the includeNonCash path end-to-end. (The sale is posted tax-free here on purpose — a SALETAX cash sale would have its collected tax mislabelled by the cash-basis projection's hardcoded German VAT treatment; see SPEC-FINDINGS.)",
+  "covers": ["F-CORE-008", "F-CORE-010", "SF-08"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Schedule C Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" } } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Cash sale",
+        "lines": [
+          { "account": "1010", "side": "debit", "money": { "amount": "1000.00", "currency": "USD" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "USD" } }
+        ] },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "EXP-001", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01", "text": "Office supplies (SG&A)",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "300.00", "currency": "USD" } },
+          { "account": "1010", "side": "credit", "money": { "amount": "300.00", "currency": "USD" } }
+        ] },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-SERVER", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset", "input": {
+        "tenant": "$T1", "name": "Server", "assetClass": "it-hardware", "assetAccount": "1500",
+        "acquisitionCost": { "amount": "6000.00", "currency": "USD" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 60 } } },
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "600.00", "currency": "USD" } } } }
+  ],
+  "projections": [
+    { "name": "cashBasisReport", "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "us-schedule-c-2026" },
+      "expect": {
+        "income": [
+          { "category": "Gross receipts or sales", "amount": "1000.00" }
+        ],
+        "expenses": [
+          { "category": "Depreciation and section 179 expense", "amount": "600.00" },
+          { "category": "Other expenses (SG&A, bad debt)", "amount": "300.00" }
+        ]
+      } }
+  ]
+}
