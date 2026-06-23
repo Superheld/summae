@@ -1,0 +1,72 @@
+{
+  "fixture": "us-fiscal-year",
+  "description": "US-Pack end-to-end: a full fiscal year over the API on the shipped us pack (no inline). Standard sales tax → deferred revenue (US-GAAP accrual) → capitalized asset + de-minimis immediate expense → SG&A → depreciation run. Balance sheet correct at all times: mid-year 2026-06-30 balances (13700=13700), year-end balances (11100=11100), net income 7400.",
+  "covers": ["F-CORE-015", "F-CORE-016", "SF-10", "SF-05"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Fiscal Year Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "accountCount": 35, "taxationMethod": "accrual" } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Taxable sale 7%", "taxCode": "SALETAX", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "10000.00", "currency": "USD" } } ], "counterAccount": "1010" },
+      "expect": { "result": { "grossTotal": { "amount": "10700.00", "currency": "USD" } } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ADV-001", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01", "text": "Customer prepayment (deferred revenue)",
+        "lines": [
+          { "account": "1010", "side": "debit", "money": { "amount": "3000.00", "currency": "USD" } },
+          { "account": "2400", "side": "credit", "money": { "amount": "3000.00", "currency": "USD" } }
+        ] },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } } },
+
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-SERVER", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset", "input": {
+        "tenant": "$T1", "name": "Server", "assetClass": "it-hardware", "assetAccount": "1500",
+        "acquisitionCost": { "amount": "6000.00", "currency": "USD" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 60 } } },
+
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-TABLET", "voucherDate": "2026-08-01" } },
+      "expect": { "result": { "id": "$V2" } } },
+    { "op": "acquireAsset", "input": {
+        "tenant": "$T1", "name": "Tablet", "assetClass": "it-hardware", "assetAccount": "1500",
+        "acquisitionCost": { "amount": "1500.00", "currency": "USD" }, "acquiredOn": "2026-08-01", "voucherId": "$V2", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "immediate_expense", "expenseAccount": "6310" } } },
+
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "EXP-001", "voucherDate": "2026-09-01" },
+        "entryDate": "2026-09-01", "text": "Office supplies (SG&A)",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "500.00", "currency": "USD" } },
+          { "account": "1010", "side": "credit", "money": { "amount": "500.00", "currency": "USD" } }
+        ] },
+      "expect": { "result": { "entry": { "sequenceNumber": 5 } } } },
+
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "600.00", "currency": "USD" } } } }
+  ],
+  "projections": [
+    { "name": "balanceSheet", "params": { "tenant": "$T1", "asOf": "2026-06-30", "mapping": "us-gaap-balance-sheet", "incomeMapping": "us-gaap-income-statement" },
+      "expect": { "assetsTotal": "13700.00", "liabilitiesAndEquityTotal": "13700.00" } },
+    { "name": "balanceSheet", "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "us-gaap-balance-sheet", "incomeMapping": "us-gaap-income-statement" },
+      "expect": { "assetsTotal": "11100.00", "liabilitiesAndEquityTotal": "11100.00" } },
+    { "name": "incomeStatement", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "us-gaap-income-statement" },
+      "expect": { "netIncome": "7400.00" } },
+    { "name": "assetRegister", "params": { "tenant": "$T1", "asOf": "2026-12-31" },
+      "expect": { "assets": [ { "name": "Server", "bookValue": { "amount": "5400.00", "currency": "USD" } }, { "name": "Tablet", "bookValue": { "amount": "0.00", "currency": "USD" } } ] } },
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1010", "balance": "5700.00" },
+        { "account": "1500", "balance": "5400.00" },
+        { "account": "2100", "balance": "-700.00" },
+        { "account": "2400", "balance": "-3000.00" },
+        { "account": "4000", "balance": "-10000.00" },
+        { "account": "6000", "balance": "500.00" },
+        { "account": "6300", "balance": "600.00" },
+        { "account": "6310", "balance": "1500.00" }
+      ] } }
+  ]
+}

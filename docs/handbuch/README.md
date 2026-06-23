@@ -55,9 +55,10 @@ without changing the business logic:
 
 | Variant | Persistence | For what |
 |---|---|---|
-| **In-memory** | volatile (RAM) | tests, scripts, conformance runs |
+| **In-memory** (PHP + Node) | volatile (RAM) | tests, scripts, conformance runs |
 | **Laravel adapter** (PHP) | database (`summae_*` tables) | production in Laravel apps |
-| **CLI workspace** (PHP) | local SQLite file | terminal/automation |
+| **Knex adapter** (Node) | database (`summae_*` tables, SQLite/Postgres) | production in Node apps |
+| **CLI workspace** (PHP + Node) | local SQLite file | terminal/automation |
 
 ---
 
@@ -88,11 +89,13 @@ no entry in `config/app.php` is required.
 
 ```bash
 pnpm add @superheld/summae-core      # or: npm i / yarn add
+pnpm add @superheld/summae-knex      # optional: database persistence (Knex + better-sqlite3 / pg)
 ```
 
-Requirement: **Node ≥ 22**. The package ships dual — **ESM** (`import`) and
-**CJS** (`require`), including type declarations. The only runtime dependency is
-`big.js`.
+Requirement: **Node ≥ 22**. The core ships dual — **ESM** (`import`) and
+**CJS** (`require`), including type declarations. The core's only runtime dependency is
+`big.js`; the optional `@superheld/summae-knex` adapter adds `knex` + a driver
+(`better-sqlite3` for SQLite, `pg` for Postgres).
 
 > **Publishing status.** All packages are listed in the public registries
 > (v0.1.0) — the commands above (`composer require …` / `pnpm add …`) work
@@ -112,10 +115,10 @@ There are two ways to create a tenant:
    created from a **profile** and versioned **rule-module data** and is
    immediately postable (see [§ 5](#5-setup--rule-module-data-format) and
    [createTenant](#createtenant-bootstrap-operation-sf-01)).
-2. **Programmatically** via `Tenant::inMemory(...)` (core, in-memory ports) or
-   `DatabaseTenantFactory::build(...)` (Laravel adapter, DB persistence) — here
-   you pass the registries (tax codes, mappings, …) yourself as ready-made
-   objects.
+2. **Programmatically** via `Tenant::inMemory(...)` (core, in-memory ports) or a
+   `DatabaseTenantFactory` for DB persistence — PHP via the **Laravel adapter**,
+   Node via the **Knex adapter** (`@superheld/summae-knex`). Here you pass the
+   registries (tax codes, mappings, …) yourself as ready-made objects.
 
 Optional parameters have sensible defaults and can be supplied later.
 
@@ -123,7 +126,7 @@ Optional parameters have sensible defaults and can be supplied later.
 
 ```php
 use Summae\Core\Tenant;
-use Summae\Core\Shared\Currency;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Composition\TenantOperations;
 
 $tenant = Tenant::inMemory('Example Ltd', Currency::of('EUR'));
@@ -160,7 +163,7 @@ const ops    = new TenantOperations(tenant);
 ### Laravel adapter (PHP, persistent)
 
 ```php
-use Summae\Core\Shared\Currency;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Laravel\DatabaseTenantFactory;
 
@@ -173,6 +176,30 @@ $ops    = new TenantOperations($tenant);
 plus one additional trailing parameter `tenantId` (`?Uuid`, default: freshly
 generated) — this lets you resume an existing tenant ID. Prerequisite:
 `php artisan migrate` has been run (see § 4).
+
+### Knex adapter (Node, persistent)
+
+```ts
+import { SyncDb, installSchema, DatabaseTenantFactory } from '@superheld/summae-knex';
+import { Currency, SystemClock, UuidV7IdGenerator, TenantOperations } from '@superheld/summae-core';
+
+const db = new SyncDb('./accounting.sqlite');   // file-backed; `new SyncDb()` → in-memory SQLite
+installSchema(db);                              // creates the summae_* tables (once)
+
+const clock  = new SystemClock();
+const tenant = DatabaseTenantFactory.build(
+  db, 'Example Ltd', Currency.of('USD'), clock, new UuidV7IdGenerator(clock),
+  { /* options: taxCodes, mappings, taxProfile, dimensions, tenantId */ },
+);
+const ops = new TenantOperations(tenant);
+```
+
+`DatabaseTenantFactory.build(...)` wires the same services as `Tenant.inMemory`,
+only against **DB-backed ports** — the direct counterpart to PHP's Laravel adapter,
+writing the **same `summae_*` schema** (the SF-15 cross-test proves byte-identical
+`journalExport` across the PHP↔Node boundary on a shared database). `better-sqlite3`
+is the SQLite driver; `pg` covers Postgres. The optional `options.tenantId` resumes
+an existing tenant. The schema must be installed beforehand (`installSchema`).
 
 ### CLI workspace (PHP and Node)
 
@@ -256,10 +283,16 @@ default: current directory) it creates two files:
 | `summae.json` | tenant metadata (name, currency, `tenantId`) + rule-module data |
 | `summae.sqlite` | the posting data (database/SQLite) |
 
-### Node / in-memory: no configuration
+### Node: in-memory or Knex adapter
 
-No persistence setup. The only things you control are the determinism hooks
-(`Clock`, `IdGenerator`) as constructor parameters — see § 10.
+**In-memory** needs no configuration — the only things you control are the
+determinism hooks (`Clock`, `IdGenerator`) as constructor parameters (see § 10).
+
+**Persistent** (`@superheld/summae-knex`): configuration is the `SyncDb` connection
+you pass — `new SyncDb('./accounting.sqlite')` for a file, `new SyncDb()` for an
+in-memory SQLite, or a Postgres connection via `pg`. `installSchema(db)` creates the
+`summae_*` tables (the same schema PHP's Laravel adapter migrates). No framework
+config files; the connection is code.
 
 ---
 

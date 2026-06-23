@@ -1,0 +1,26 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-schedule-c-2026",
+  "kind": "mapping",
+  "version": "2026.1",
+  "name": "Cash-basis categories — IRS Schedule C (Form 1040), on the US chart",
+  "contributes": ["mappings"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "mapping": {
+      "id": "us-schedule-c-2026",
+      "kind": "cash-basis-categories",
+      "version": "2026.1",
+      "positions": [
+        { "key": "L1", "label": "Gross receipts or sales", "accounts": [ { "from": "4000", "to": "4199" } ] },
+        { "key": "L2", "label": "Returns and allowances", "accounts": [ { "from": "4200", "to": "4399" } ] },
+        { "key": "L6", "label": "Other income (incl. gain on disposal)", "accounts": [ { "numbers": ["4900"] } ] },
+        { "key": "L4", "label": "Cost of goods sold", "accounts": [ { "from": "5000", "to": "5999" } ] },
+        { "key": "L13", "label": "Depreciation and section 179 expense", "accounts": [ { "from": "6300", "to": "6399" } ], "includeNonCash": true },
+        { "key": "L26", "label": "Wages", "accounts": [ { "numbers": ["6100"] } ] },
+        { "key": "L23", "label": "Taxes and licenses (incl. employer payroll tax, use tax)", "accounts": [ { "numbers": ["6110", "6200"] } ] },
+        { "key": "L27", "label": "Other expenses (SG&A, bad debt)", "accounts": [ { "numbers": ["6000", "6400"] } ] }
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-usd",
+  "kind": "policy",
+  "version": "2026.1",
+  "name": "US policy (USD, half-up, sales tax rounded per voucher)",
+  "contributes": ["policy"],
+  "dependsOn": [],
+  "data": {
+    "packPolicy": {
+      "roundingMode": "halfUpAwayFromZero",
+      "taxRoundingGranularity": "perVoucher",
+      "currencyScale": 2
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-gaap-income-statement",
+  "kind": "mapping",
+  "version": "2026.1",
+  "name": "Multi-Step Income Statement US-GAAP (by function, on the US chart)",
+  "contributes": ["mappings"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "mapping": {
+      "id": "us-gaap-income-statement",
+      "kind": "income-statement",
+      "version": "2026.1",
+      "positions": [
+        { "key": "1", "label": "Net Sales", "accounts": [ { "from": "4000", "to": "4399" } ] },
+        { "key": "2", "label": "Cost of Goods Sold", "accounts": [ { "from": "5000", "to": "5999" } ] },
+        { "key": "3", "label": "Selling, General and Administrative Expenses", "accounts": [ { "from": "6000", "to": "6299" } ] },
+        { "key": "4", "label": "Depreciation and Amortization", "accounts": [ { "from": "6300", "to": "6399" } ] },
+        { "key": "5", "label": "Other Income", "accounts": [ { "from": "4900", "to": "4999" } ] },
+        { "key": "6", "label": "Other Expenses", "accounts": [ { "from": "6400", "to": "6999" } ] }
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "fixture": "us-nexus",
+  "description": "US-Pack: economic nexus (South Dakota v. Wayfair). Below the nexus threshold a seller has no obligation to collect sales tax — modelled via the `smallBusiness` flag (true = below nexus). With smallBusiness active, SALETAX produces no tax line and gross = net. Counterpart to the German Kleinunternehmer (§19), here the Wayfair threshold.",
+  "covers": ["F-TAX-003", "F-TAX-004"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Below Nexus LLC", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "taxationMethod": "accrual" } } },
+    { "op": "setTaxProfile", "input": { "tenant": "$T1", "smallBusiness": { "validFrom": "2026-01-01", "value": true } },
+      "expect": { "result": { "smallBusiness": [ { "validFrom": "2026-01-01", "value": true } ] } } },
+    { "op": "expandTax", "input": {
+        "tenant": "$T1", "date": "2026-03-01", "taxCode": "SALETAX", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } } ] },
+      "expect": {
+        "result": {
+          "taxLines": [],
+          "grossTotal": { "amount": "1000.00", "currency": "USD" }
+        }
+      } }
+  ],
+  "projections": []
+}

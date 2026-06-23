@@ -19,7 +19,15 @@
         "recurring": true, "due": "2025-12-10", "economicYear": 2025 },
       { "id": "$V3", "voucherNumber": "USTVA-2025-12-DF", "voucherDate": "2026-01-05",
         "recurring": true, "due": "2026-02-10", "economicYear": 2025 }
-    ]
+    ],
+    "ruleModules": {
+      "mappings": [
+        { "id": "euer-ten-day", "kind": "cash-basis-categories", "version": "1",
+          "positions": [
+            { "key": "A7", "label": "USt-Zahlung an FA", "accounts": [ { "numbers": ["1776"] } ] }
+          ] }
+      ]
+    }
   },
   "steps": [
     {
@@ -59,7 +67,7 @@
   "projections": [
     {
       "name": "cashBasisReport",
-      "params": { "year": 2025, "asOf": "2026-06-07" },
+      "params": { "year": 2025, "asOf": "2026-06-07", "mapping": "euer-ten-day" },
       "expect": {
         "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ],
         "income": []
@@ -67,7 +75,7 @@
     },
     {
       "name": "cashBasisReport",
-      "params": { "year": 2026, "asOf": "2026-06-07" },
+      "params": { "year": 2026, "asOf": "2026-06-07", "mapping": "euer-ten-day" },
       "expect": {
         "expenses": [ { "category": "USt-Zahlung an FA", "amount": "180.00" } ],
         "income": []
@@ -75,7 +83,7 @@
     },
     {
       "name": "cashBasisReport",
-      "params": { "year": 2025, "asOf": "2030-01-01" },
+      "params": { "year": 2025, "asOf": "2030-01-01", "mapping": "euer-ten-day" },
       "expect": {
         "comment": "Neuberechnung Jahre später: identisch (F-CORE-016)",
         "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ],

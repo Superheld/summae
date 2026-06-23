@@ -113,3 +113,50 @@ test('init --pack de → post → balance sheet balances (pack library chosen by
   expect(bs.assetsTotal).toBe('1190.00');
   expect(bs.liabilitiesAndEquityTotal).toBe('1190.00');
 });
+
+test('init --pack us → post → balance sheet balances (pack library chosen by frontend)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'summae-cli-us-'));
+
+  // Frontend selects the shipped us pack from the library — no inline.
+  const init = capture(['init', '--name', 'US Corp', '--currency', 'USD', '--pack', 'us', '--first-fiscal-year', '2026', '--dir', dir]);
+  expect(JSON.parse(init[0] ?? '{}')).toMatchObject({
+    initialized: true,
+    created: { accounts: 35, fiscalYears: 1 },
+  });
+
+  capture([
+    'op',
+    'postVoucher',
+    '--dir',
+    dir,
+    '--input',
+    JSON.stringify({
+      voucher: { voucherNumber: 'INV-1', voucherDate: '2026-03-01' },
+      entryDate: '2026-03-01',
+      taxCode: 'SALETAX',
+      direction: 'output',
+      counterAccount: '1010',
+      netLines: [{ account: '4000', money: { amount: '1000.00', currency: 'USD' } }],
+    }),
+  ]);
+
+  // Journal: single-stage sales tax on the own US numbers (2100 Sales Tax Payable).
+  const tb = capture(['report', 'trialBalance', '--dir', dir, '--params', '{"fiscalYear":2026}']).join('');
+  expect(tb).toContain('4000');
+  expect(tb).toContain('-1000.00');
+  expect(tb).toContain('-70.00');
+
+  // Balance sheet: via the bundled US-GAAP mappings, assets == liabilities.
+  const bs = JSON.parse(
+    capture([
+      'report',
+      'balanceSheet',
+      '--dir',
+      dir,
+      '--params',
+      '{"asOf":"2026-12-31","mapping":"us-gaap-balance-sheet","incomeMapping":"us-gaap-income-statement"}',
+    ])[0] ?? '{}',
+  ) as { assetsTotal: string; liabilitiesAndEquityTotal: string };
+  expect(bs.assetsTotal).toBe('1070.00');
+  expect(bs.liabilitiesAndEquityTotal).toBe('1070.00');
+});

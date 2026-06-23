@@ -8,6 +8,7 @@
     { "kind": "tax", "id": "de-ust", "version": "2026.1" },
     { "kind": "mapping", "id": "de-bilanz", "version": "2026.1" },
     { "kind": "mapping", "id": "de-guv", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-euer", "version": "2026.1" },
     { "kind": "depreciation", "id": "de-afa", "version": "2026.1" },
     { "kind": "assetAccounts", "id": "de-assets", "version": "2026.1" },
     { "kind": "policy", "id": "de-policy", "version": "2026.1" }

@@ -84,10 +84,18 @@ export class CashBasisProjection {
         }
         const amount = this.proportional(sourced.line.money, sourced.ratio);
 
-        if (account.subtype === 'tax_out') {
-          addTo(inflow ? income : expenses, inflow ? 'Vereinnahmte USt' : 'USt-Zahlung an FA', amount);
-        } else if (account.subtype === 'tax_in') {
-          addTo(expenses, 'Gezahlte Vorsteuer', amount);
+        if (account.subtype === 'tax_out' || account.subtype === 'tax_in') {
+          // Tax flows through the cash-basis result only where the pack's category
+          // mapping maps the tax account (and provides its label). The German EÜR maps
+          // its VAT accounts → VAT becomes income/expense; an unmapped tax account is a
+          // neutral pass-through (e.g. US sales tax). No jurisdiction text in the core.
+          const taxLeaf = mapping !== null ? mapping.leafFor(account.number.value) : null;
+          if (taxLeaf === null) continue;
+          if (account.subtype === 'tax_out') {
+            addTo(inflow ? income : expenses, taxLeaf.label, amount);
+          } else {
+            addTo(expenses, taxLeaf.label, amount);
+          }
         } else if (account.type === 'revenue') {
           addTo(income, this.label(mapping, account), amount);
         } else if (account.type === 'expense') {

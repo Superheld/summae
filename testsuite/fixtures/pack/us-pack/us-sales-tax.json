@@ -1,0 +1,25 @@
+{
+  "fixture": "us-sales-tax",
+  "description": "US-Pack: collected sales tax (output). SALETAX (standard mechanism, 7%) books the tax as a liability on 2100 Sales Tax Payable — single-stage, no input-tax credit (the conceptual difference to German VAT). expandTax shows the single tax line; gross = net + tax.",
+  "covers": ["F-TAX-002", "SF-02"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Retail Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" } } } },
+    { "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-03-12", "taxCode": "SALETAX", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } } ]
+      },
+      "expect": {
+        "result": {
+          "taxLines": [
+            { "account": "2100", "side": "credit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "SALETAX", "reportingKey": "TAXABLE_SALES" } }
+          ],
+          "grossTotal": { "amount": "1070.00", "currency": "USD" }
+        }
+      } }
+  ],
+  "projections": []
+}

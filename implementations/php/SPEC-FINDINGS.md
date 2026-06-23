@@ -146,3 +146,71 @@ Format per finding:
   (e.g. RFC 3339, UTC `Z`, fixed milliseconds) and pull both
   implementations onto it — then the `contentHashes` also match
   byte-exactly in both directions.
+
+## F-008: `format.schema.json` `mappingPosition` omits `includeNonCash` — ✅ schema extended
+
+> **Resolved (2026-06-23):** `$defs/mappingPosition` now declares
+> `includeNonCash` (`{ "type": "boolean" }`) — the schema matches the engine.
+> **Still open (separate question):** pack-library JSON is not validated against
+> the schema at all (only journalExport streams + manifest are). Whether to add
+> schema validation for the pack-library (the third-party extension surface) is its
+> own decision — this drift slipping through unnoticed is the argument for it.
+
+- **Job:** us-pack build (2026-06-23)
+- **What:** the cash-basis projection reads a position-level flag `includeNonCash`
+  off the mapping leaf (`Policies/Projection/Mapping/Mapping.php` → `CashBasisProjection`
+  R7: non-cash categories such as depreciation count without a cash flow). The us-pack
+  module 5 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
+  on its depreciation line (L13) per the module spec. But the normative
+  `testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+  `includeNonCash` and carries `additionalProperties: false` — by the schema the field
+  is illegal on a mapping position.
+- **Where:** `testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
+  `pack-library/us-pack/mappings/us-schedule-c.json`; core Mapping importer +
+  `CashBasisProjection`.
+- **Chosen behavior:** shipped `us-schedule-c-2026` with `includeNonCash: true` per the
+  module spec and the engine that consumes it. Not currently breaking — pack-library JSON
+  is loaded content-based (never validated against `format.schema.json`: `validate.py`
+  skips module/pack files; `SchemaValidationTest` validates only journalExport streams +
+  manifest), so the module resolves and runs green in both languages. First shipped
+  `cash-basis-categories` module (the de-pack never shipped an EÜR mapping), hence the
+  first time the gap surfaces.
+- **Proposal:** extend `$defs/mappingPosition` with `"includeNonCash": { "type": "boolean" }`
+  (meaningful only for `cash-basis-categories`) so the normative schema matches the engine
+  before any move to schema-validate pack modules. Shared schema artifact — applies to Node too.
+
+## F-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment — ✅ resolved
+
+> **Resolved (2026-06-24):** the hard-coded German strings are gone from the core. Tax
+> accounts flow through the cash-basis result **only where the pack's mapping maps them**
+> (label from the mapping leaf); unmapped tax accounts are a neutral pass-through. DE: the
+> `de-euer` mapping maps its VAT accounts → German labels from the pack. US: `us-schedule-c`
+> leaves sales tax unmapped → neutral. Regression guard: `SubstrateBoundaryTest`
+> (`testCoreEmitsNoHardcodedJurisdictionLabels`) + the Node `no-jurisdiction-text` test.
+
+- **Job:** us-pack conformance audit (2026-06-24)
+- **What:** the cash-basis projection routes tax accounts by subtype with **hard-coded German
+  labels** (`tax_out` → `"Vereinnahmte USt"`/`"USt-Zahlung an FA"`, `tax_in` → `"Gezahlte
+  Vorsteuer"`) — the German EÜR rule (VAT flows through profit). For the US, sales tax is a
+  pure pass-through (never income). With `2100 Sales Tax Payable` marked `tax_out` (required by
+  `vatReturn`, F-… below), a SALETAX cash sale would count its collected tax as income under a
+  German label — wrong for US.
+- **Where:** `Policies/Projection/CashBasisProjection.php`; `pack-library/us-pack/accounts/us-accounts.json`.
+- **Chosen behavior / workaround:** `us-schedule-c` posts its sample revenue **tax-free** so the
+  mechanism (mapping labels + `includeNonCash`) is proven without tripping the DE-centric tax path.
+- **Proposal:** make the cash-basis tax treatment pack-appropriate (neutral pass-through unless the
+  cash-basis mapping maps the tax accounts; drop the hard-coded German strings). Behavior change with
+  DE-fixture ripple → own job, human decision. Applies to Node too.
+
+## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected
+
+- **Job:** us-pack conformance audit (2026-06-24)
+- **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
+  `expandTax` returns it fine (proven by `us-exempt-sale`), but `postVoucher`/`post` reject it with
+  `E_ENTRY_INVALID_AMOUNT` (zero-amount line). Exempt sales **cannot be recorded in the journal** with
+  the EXEMPT code today — only previewed via `expandTax`; they also cannot appear in the sales-tax return.
+- **Where:** tax expansion (`standard` at rate 0) + ledger amount validation; `us-exempt-sale`, `us-sales-tax-return`.
+- **Chosen behavior:** documented; `us-sales-tax-return` covers the taxable line only.
+- **Proposal:** add an `exempt` mechanism (base tag only, no tax line) — analogous to
+  `intra_community_supply` — so exempt sales post cleanly and show in the return (open decision E).
+  Engine addition → own job. Applies to Node too.

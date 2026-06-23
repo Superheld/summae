@@ -1,0 +1,51 @@
+{
+  "fixture": "us-pack-resolves",
+  "description": "US-Pack skeleton: the shipped `us` pack is loaded from the pack library (no inline) — own US chart (35 accounts, US small-business numbering), sales/use tax codes, US policy (accrual/perVoucher). Proves resolution + tenant build + one standard SALETAX output posting (7%) on the own US numbers (4000 revenue, 2100 Sales Tax Payable).",
+  "covers": ["F-PACK-011", "SF-02"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": "us", "version": "2026.1" },
+      "expect": {
+        "result": {
+          "id": "us",
+          "version": "2026.1",
+          "accountCount": 35,
+          "assetAccounts": { "default": { "acquisitionCounterAccount": "1010", "depreciationExpenseAccount": "6300", "gwgExpenseAccount": "6310", "disposalProceedsAccount": "4900", "disposalLossAccount": "6900" } },
+          "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+        }
+      }
+    },
+    {
+      "op": "createTenant",
+      "input": { "name": "Example Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "accountCount": 35, "taxationMethod": "accrual" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10", "text": "Consulting February",
+        "taxCode": "SALETAX", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } } ],
+        "counterAccount": "1010"
+      },
+      "expect": { "result": { "grossTotal": { "amount": "1070.00", "currency": "USD" } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1010", "balance": "1070.00" },
+          { "account": "2100", "balance": "-70.00" },
+          { "account": "4000", "balance": "-1000.00" }
+        ]
+      }
+    }
+  ]
+}

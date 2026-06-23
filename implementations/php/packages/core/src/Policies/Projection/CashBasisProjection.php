@@ -125,15 +125,21 @@ final readonly class CashBasisProjection
 
                 $amount = $this->proportional($line->money, $ratio);
 
-                if ($account->subtype === 'tax_out') {
-                    // R3: VAT income-relevant.
-                    if ($inflow) {
-                        $income = self::addTo($income, 'Vereinnahmte USt', $amount);
-                    } else {
-                        $expenses = self::addTo($expenses, 'USt-Zahlung an FA', $amount);
+                if ($account->subtype === 'tax_out' || $account->subtype === 'tax_in') {
+                    // Tax flows through the cash-basis result only where the pack's category
+                    // mapping maps the tax account (and provides its label). The German EÜR maps
+                    // its VAT accounts → VAT becomes income/expense; an unmapped tax account is a
+                    // neutral pass-through (e.g. US sales tax). No jurisdiction text in the core.
+                    $taxLeaf = $mapping !== null ? $mapping->leafFor($account->number->value) : null;
+                    if ($taxLeaf === null) {
+                        continue;
                     }
-                } elseif ($account->subtype === 'tax_in') {
-                    $expenses = self::addTo($expenses, 'Gezahlte Vorsteuer', $amount);
+                    if ($account->subtype === 'tax_out') {
+                        $income = $inflow ? self::addTo($income, $taxLeaf['label'], $amount) : $income;
+                        $expenses = $inflow ? $expenses : self::addTo($expenses, $taxLeaf['label'], $amount);
+                    } else {
+                        $expenses = self::addTo($expenses, $taxLeaf['label'], $amount);
+                    }
                 } elseif ($account->type === AccountType::Revenue) {
                     $income = self::addTo($income, $this->label($mapping, $account), $amount);
                 } elseif ($account->type === AccountType::Expense) {
