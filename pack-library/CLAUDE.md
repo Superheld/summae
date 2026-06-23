@@ -28,5 +28,12 @@ Product data, **no tests** (conformance fixtures live in `testsuite/`).
 - **No code/law into the substrate.** A pack is data; a new *paradigm* with its own algorithm would be a
   composable module **behind the socket** — never smeared into the core (target model, root `CLAUDE.md`).
 - Consumers **reference** a pack by name instead of copying accounts/rules inline.
+- **Tests ship with the pack — building a pack means building its fixtures, in the same change.** Every
+  capability the pack offers, **especially every legally-expected one** (tax collection, self-assessment,
+  exemption/threshold, the tax **return/filing**, depreciation thresholds, cash-basis, balance-sheet &
+  income-statement structure), is proven by a conformance fixture under `testsuite/fixtures/pack/<pack>/`
+  that drives it through the API and pins the expected result. A shipped-but-untested capability is a
+  **gate-gap finding, not "done"** (root `CLAUDE.md`, quality gate). When auditing an existing pack, the
+  question is: *is every legally-expected effect proven by a fixture?* — if not, that gap is the work.
 
 Writing a pack by hand (skeletons per `kind`, manifest): handbook `docs/handbuch/README.md`.

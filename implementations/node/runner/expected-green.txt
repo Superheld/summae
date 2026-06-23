@@ -80,6 +80,10 @@ us-exempt-sale
 us-balance-income
 us-depreciation
 us-fiscal-year
+us-sales-tax-return
+us-schedule-c
+us-contra-revenue
+us-nexus
 xx-1-tax-perline-vs-pervoucher
 xx-2-allocate-scale3
 xx-3-purchase-no-input-tax

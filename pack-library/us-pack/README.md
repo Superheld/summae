@@ -56,7 +56,11 @@ both the in-memory core and the database subject. Module → requirement → tes
 | tax · SALETAX standard | F-TAX-002 / SF-02 | `us-pack-resolves`, `us-sales-tax`, `us-fiscal-year` |
 | tax · USETAX (cost + liability) | F-TAX-006 | `us-use-tax` |
 | tax · EXEMPT (rate 0, base tag) | F-TAX-004 | `us-exempt-sale` |
+| tax · **sales-tax return** (the legal filing) | F-TAX-005 / SF-09 | `us-sales-tax-return` |
+| tax · **economic nexus** (Wayfair, `smallBusiness`) | F-TAX-003/004 | `us-nexus` |
 | mappings · balance sheet + income statement | F-CORE-015 / SF-10 | `us-balance-income`, `us-fiscal-year` |
+| mappings · **Schedule C cash-basis** (`includeNonCash`) | F-CORE-008/010 / SF-08 | `us-schedule-c` |
+| mappings · **contra-revenue netting** (returns, discounts) | F-CORE-015 / SF-10 | `us-contra-revenue` |
 | depreciation + assetAccounts (de minimis 2,500, MACRS 60 mo) | F-AST-001/002/003 / SF-05 | `us-depreciation`, `us-fiscal-year` |
 | policy · perVoucher/scale 2/accrual | Determinism | `us-pack-resolves` |
 | **Integration** (balance sheet correct at all times) | F-CORE-015 / F-CORE-016 / SF-10 | `us-fiscal-year` |
