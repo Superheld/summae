@@ -27,7 +27,14 @@ added — in both manifest copies (`tenant-from-…` **and** `resolve-de-complet
 pinning consistency `de-mini-regression@2026.1`), at the source (internal source) and the mirror.
 Also applies to the PHP side (shared fixture).
 
-## NF-002 — `format.schema.json` `mappingPosition` omits `includeNonCash`
+## NF-002 — `format.schema.json` `mappingPosition` omits `includeNonCash` — ✅ schema extended
+
+> **Resolved (2026-06-23):** `$defs/mappingPosition` now declares
+> `includeNonCash` (`{ "type": "boolean" }`) — the schema matches the engine.
+> **Still open (separate question):** pack-library JSON is not validated against
+> the schema at all (only journalExport streams + manifest are). Whether to add
+> schema validation for the pack-library (the third-party extension surface) is its
+> own decision — this drift slipping through unnoticed is the argument for it.
 
 **Finding (2026-06-23, us-pack build).** The cash-basis projection reads a
 position-level flag `includeNonCash` off the mapping leaf

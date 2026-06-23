@@ -147,7 +147,14 @@ Format per finding:
   implementations onto it — then the `contentHashes` also match
   byte-exactly in both directions.
 
-## F-008: `format.schema.json` `mappingPosition` omits `includeNonCash`
+## F-008: `format.schema.json` `mappingPosition` omits `includeNonCash` — ✅ schema extended
+
+> **Resolved (2026-06-23):** `$defs/mappingPosition` now declares
+> `includeNonCash` (`{ "type": "boolean" }`) — the schema matches the engine.
+> **Still open (separate question):** pack-library JSON is not validated against
+> the schema at all (only journalExport streams + manifest are). Whether to add
+> schema validation for the pack-library (the third-party extension surface) is its
+> own decision — this drift slipping through unnoticed is the argument for it.
 
 - **Job:** us-pack build (2026-06-23)
 - **What:** the cash-basis projection reads a position-level flag `includeNonCash`
