@@ -3,36 +3,59 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
-## 0.4.0 — unreleased
+## 0.4.0 — 2026-06-24
 
 The **us-pack** (United States) — the second complete jurisdiction pack and the first real
-paradigm beside Germany. **Pack data only — no substrate/engine change**; the differences are
-purely in the domain logic, proven by the conformance suite (PHP + Node `--strict`, core +
-database subject, byte-identical double run).
+paradigm beside Germany — plus a substrate cleanup that pulls the last jurisdiction text out of
+the law-free core. Green throughout: PHP + Node `--strict`, core **and** database subject,
+byte-identical double run, coverage ~90% both.
 
 ### Added — `us` pack (`createTenant(pack: "us")`)
 - **Own US chart** (35 accounts, English) in the **common US small-business numbering**
   (1xxx assets · 2xxx liabilities · 3xxx equity · 4xxx revenue · 5xxx COGS · 6xxx expenses) —
-  US-GAAP prescribes no statutory chart, so this follows the conventional layout US users expect
-  (distinct from the de-pack's class scheme; the two packs are self-contained and share no accounts).
+  US-GAAP prescribes no statutory chart, so this follows the layout US users expect (distinct from
+  the de-pack's class scheme; the two packs are self-contained and share no accounts).
 - **Sales & use tax** (`us-salestax`): `SALETAX` (single-stage retail sales tax, no input-tax
-  credit), `USETAX` (self-assessed use tax wired via `reverse_charge` but onto an **expense** leg
-  → cost + liability, not net zero), `EXEMPT` (resale/interstate/nontaxable, rate 0).
-- **US-GAAP mappings**: Classified Balance Sheet (assets by liquidity), Multi-Step Income
-  Statement (by function), and a cash-basis **Schedule C** mapping.
-- **MACRS / de-minimis** depreciation (immediate expense ≤ 2,500 USD, no pool; GDS recovery
-  periods as useful lives) + asset movement accounts.
+  credit), `USETAX` (self-assessed use tax → cost + liability), `EXEMPT` (resale/interstate, rate 0).
+- **US-GAAP mappings**: Classified Balance Sheet (by liquidity), Multi-Step Income Statement (by
+  function), cash-basis **Schedule C**.
+- **MACRS / de-minimis** depreciation (immediate expense ≤ 2,500 USD, no pool) + asset accounts.
 - **US policy**: USD, half-up per voucher, scale 2; defaults `accrual` (GAAP) / quarterly.
-- **7 conformance fixtures** under `testsuite/fixtures/pack/us-pack/` (resolve, sales tax, use
-  tax, exempt sale, balance/income, depreciation, end-to-end fiscal year).
+- **11 conformance fixtures** (resolve, sales tax, use tax, exempt sale, balance/income,
+  depreciation, end-to-end fiscal year, **sales-tax return**, **Schedule C cash-basis**,
+  **contra-revenue**, **economic nexus / Wayfair**) + a `summae init --pack us` CLI smoke.
+
+### Added — `de` pack
+- **EÜR mapping** (`de-euer`, Anlage EÜR §4 Abs. 3 EStG) — the cash-basis profit/loss as a
+  projection, the symmetric counterpart to the us-pack's Schedule C (the de manifest gains an
+  8th module). Plus a **VSt7** (reduced input tax) conformance fixture.
+
+### Changed — cash-basis tax labels are now pack-driven (core cleanup)
+- The cash-basis projection no longer hard-codes German VAT strings (`Vereinnahmte USt` …) or the
+  "VAT flows through" treatment in the law-free core. A tax account flows through the cash-basis
+  result only where the pack's mapping maps it (label from the mapping leaf); unmapped tax is a
+  neutral pass-through. **Behavior note:** running `cashBasisReport` on a de tenant now requires
+  passing the `de-euer` mapping to get the VAT lines (previously hard-coded). Resolves NF-003/F-009.
+
+### Quality gate
+- **Contract-validation obligation** + **tests-ship-with-the-pack obligation** recorded in
+  `CLAUDE.md` / `pack-library/CLAUDE.md`: behavioral fixture coverage isn't enough — contract
+  surfaces (data/pack format, the API dispatcher, NF-6/NF-7) each need a guard, and every legally
+  expected pack capability ships with its fixture.
+- **Structural guard added**: "no hard-coded jurisdiction label text in the core" (PHP
+  `SubstrateBoundaryTest` + Node `no-jurisdiction-text` test) — the regression guard for the
+  class of bug the cash-basis labels were.
+
+### Schema & docs
+- `format.schema.json` `$defs/mappingPosition` now declares `includeNonCash` (NF-002/F-008).
+- **Handbook**: documents Node DB persistence (the Knex adapter), parallel to the PHP Laravel
+  adapter; stale `Summae\Core\Shared\` namespace fixed.
 
 ### Notes
-- **Schema gap recorded** (NF-002 / F-008): `format.schema.json` `mappingPosition` lacks the
-  `includeNonCash` flag that the engine reads and the Schedule-C mapping needs; not breaking
-  (pack JSON is loaded content-based, never schema-validated), proposal in both `SPEC-FINDINGS`.
-- **Sign-off pending** (does not block the green build): the eight US account numbers, use-tax
-  naming, default taxation method, multi-state strategy — see
-  `99-pack-docs/us-pack/offene-entscheidungen.md` (internal).
+- **Sign-off pending** (does not block the green build): the US account numbers, use-tax naming,
+  default taxation method, multi-state strategy — see internal `99-pack-docs/us-pack/`.
+- **Open engine items** (documented in both `SPEC-FINDINGS`): `EXEMPT` cannot be posted yet (its
+  0.00 tax line is rejected — NF-004/F-010, argues for an `exempt` mechanism).
 
 ## 0.3.2 — 2026-06-23
 
