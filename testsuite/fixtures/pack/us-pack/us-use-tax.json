@@ -1,6 +1,6 @@
 {
   "fixture": "us-use-tax",
-  "description": "US-Pack: self-assessed use tax (input). USETAX reuses the reverse_charge mechanism, but the input leg points at an EXPENSE account (6020 Use Tax Expense) instead of a recoverable-tax account. Unlike German §13b (output VAT and input VAT net to zero), the tax becomes cost + liability: debit 6020, credit 3140 Use Tax Payable. Payment to the supplier stays net.",
+  "description": "US-Pack: self-assessed use tax (input). USETAX reuses the reverse_charge mechanism, but the input leg points at an EXPENSE account (6200 Use Tax Expense) instead of a recoverable-tax account. Unlike German §13b (output VAT and input VAT net to zero), the tax becomes cost + liability: debit 6200, credit 2110 Use Tax Payable. Payment to the supplier stays net.",
   "covers": ["F-TAX-006"],
   "setup": {},
   "steps": [
@@ -15,8 +15,8 @@
       "expect": {
         "result": {
           "taxLines": [
-            { "account": "3140", "side": "credit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "USETAX", "reportingKey": "USE_TAX_DUE" } },
-            { "account": "6020", "side": "debit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "USETAX", "reportingKey": "USE_TAX_EXPENSE" } }
+            { "account": "2110", "side": "credit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "USETAX", "reportingKey": "USE_TAX_DUE" } },
+            { "account": "6200", "side": "debit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "USETAX", "reportingKey": "USE_TAX_EXPENSE" } }
           ],
           "grossTotal": { "amount": "1000.00", "currency": "USD" }
         }

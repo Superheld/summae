@@ -13,7 +13,7 @@
         "entryDate": "2026-03-01", "text": "Cash sale",
         "taxCode": "SALETAX", "direction": "output",
         "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } } ],
-        "counterAccount": "1200"
+        "counterAccount": "1010"
       },
       "expect": { "result": { "grossTotal": { "amount": "1070.00", "currency": "USD" } } } },
     { "op": "postVoucher",
@@ -23,7 +23,7 @@
         "entryDate": "2026-03-15", "text": "Office supplies",
         "lines": [
           { "account": "6000", "side": "debit", "money": { "amount": "300.00", "currency": "USD" } },
-          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "USD" } }
+          { "account": "1010", "side": "credit", "money": { "amount": "300.00", "currency": "USD" } }
         ]
       },
       "expect": { "result": { "entry": { "sequenceNumber": 2 } } } }

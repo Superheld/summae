@@ -1,6 +1,6 @@
 {
   "fixture": "us-sales-tax",
-  "description": "US-Pack: collected sales tax (output). SALETAX (standard mechanism, 7%) books the tax as a liability on 3130 Sales Tax Payable — single-stage, no input-tax credit (the conceptual difference to German VAT). expandTax shows the single tax line; gross = net + tax.",
+  "description": "US-Pack: collected sales tax (output). SALETAX (standard mechanism, 7%) books the tax as a liability on 2100 Sales Tax Payable — single-stage, no input-tax credit (the conceptual difference to German VAT). expandTax shows the single tax line; gross = net + tax.",
   "covers": ["F-TAX-002", "SF-02"],
   "setup": {},
   "steps": [
@@ -15,7 +15,7 @@
       "expect": {
         "result": {
           "taxLines": [
-            { "account": "3130", "side": "credit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "SALETAX", "reportingKey": "TAXABLE_SALES" } }
+            { "account": "2100", "side": "credit", "money": { "amount": "70.00", "currency": "USD" }, "taxTag": { "code": "SALETAX", "reportingKey": "TAXABLE_SALES" } }
           ],
           "grossTotal": { "amount": "1070.00", "currency": "USD" }
         }

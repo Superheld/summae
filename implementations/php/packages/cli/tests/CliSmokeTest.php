@@ -160,7 +160,7 @@ final class CliSmokeTest extends TestCase
         self::assertSame(0, $init['exit'], $init['raw']);
         $created = $init['json']['created'] ?? null;
         self::assertIsArray($created);
-        self::assertSame(40, $created['accounts'] ?? null);
+        self::assertSame(35, $created['accounts'] ?? null);
 
         $op = $this->runCli([
             'command' => 'op',
@@ -171,7 +171,7 @@ final class CliSmokeTest extends TestCase
                 'entryDate' => '2026-03-01',
                 'taxCode' => 'SALETAX',
                 'direction' => 'output',
-                'counterAccount' => '1200',
+                'counterAccount' => '1010',
                 'netLines' => [['account' => '4000', 'money' => ['amount' => '1000.00', 'currency' => 'USD']]],
             ], JSON_THROW_ON_ERROR),
         ]);

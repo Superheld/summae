@@ -4,16 +4,17 @@ The second complete jurisdiction pack: the United States. Selectable as
 `createTenant(pack: "us")`. **Self-contained:** all modules live in this folder, no
 module shared with other packs (packs do not build on each other). **Own chart of
 accounts** — the US has no statutory chart (US-GAAP leaves the account structure free),
-so we manage the accounts ourselves on the same accepted number set as the de-pack
-(4-digit, account class = leading digit), with English names and US-specific accounts in
-the gaps. Base currency **USD** is set when creating the tenant (the pack carries only
-rounding/granularity/scale, not a currency).
+so we manage the accounts ourselves in the **common US small-business numbering** that US
+users expect: `1xxx` assets · `2xxx` liabilities · `3xxx` equity · `4xxx` revenue · `5xxx`
+COGS · `6xxx` expenses. (This is distinct from the de-pack's class scheme — the packs are
+self-contained and share no accounts; only the 4-digit idea is common.) Base currency **USD**
+is set when creating the tenant (the pack carries only rounding/granularity/scale, not a currency).
 
 ## What's inside (modules → the manifest `us.json` composes them)
 
 | Module | kind | Content |
 |---|---|---|
-| `accounts/us-accounts` | accounts | Own US chart, **40 accounts** (32 base + 8 US extras: 1900 prepaid · 3130 sales tax payable · 3140 use tax payable · 3900 deferred revenue · 4020 returns & allowances · 4030 sales discounts · 4040 exempt sales · 6020 use tax expense) |
+| `accounts/us-accounts` | accounts | Own US chart, **35 accounts** in US small-business numbering — incl. US-specific 2100 sales tax payable · 2110 use tax payable · 2400 deferred revenue · 4100 exempt sales · 4200 returns & allowances · 4300 sales discounts · 6200 use tax expense · 6310 de-minimis immediate expense |
 | `tax/us-salestax` | tax | SALETAX (single-stage retail sales tax, 7% placeholder), USETAX (self-assessed use tax → cost + liability), EXEMPT (resale/interstate/nontaxable, rate 0) |
 | `mappings/us-balance-sheet` | mapping | Classified Balance Sheet US-GAAP (assets ordered by liquidity) |
 | `mappings/us-income-statement` | mapping | Multi-Step Income Statement US-GAAP (by function) |
@@ -33,9 +34,9 @@ Same module kinds and manifest mechanics as the de-pack; the differences are pur
 the **domain logic**:
 
 - **Sales tax is single-stage** (retail, no input-tax credit) — German VAT is multi-stage
-  with deductible input tax. SALETAX books a pure liability on 3130, no recoverable counterpart.
+  with deductible input tax. SALETAX books a pure liability on 2100, no recoverable counterpart.
 - **Use tax** reuses the `reverse_charge` mechanism, but the input leg points at an **expense**
-  account (6020) instead of a recoverable-tax account → the tax becomes **cost + liability**,
+  account (6200) instead of a recoverable-tax account → the tax becomes **cost + liability**,
   not net zero (the opposite of German §13b).
 - **US-GAAP** orders balance-sheet assets by liquidity (reverse of HGB §266) and presents a
   multi-step, by-function income statement (vs. the German total-cost method).
@@ -51,7 +52,7 @@ both the in-memory core and the database subject. Module → requirement → tes
 
 | Module | Requirement | Test fixture |
 |---|---|---|
-| accounts (`us-accounts`) | resolves, 40 accounts, selectable as a pack | `us-pack-resolves` |
+| accounts (`us-accounts`) | resolves, 35 accounts, selectable as a pack | `us-pack-resolves` |
 | tax · SALETAX standard | F-TAX-002 / SF-02 | `us-pack-resolves`, `us-sales-tax`, `us-fiscal-year` |
 | tax · USETAX (cost + liability) | F-TAX-006 | `us-use-tax` |
 | tax · EXEMPT (rate 0, base tag) | F-TAX-004 | `us-exempt-sale` |

@@ -26,7 +26,7 @@ pack-library/
 │   ├── policy/de.json
 │   └── de.json                     (manifest → the de-* modules)
 └── us-pack/                     ← pack "us": United States (self-contained)
-    ├── accounts/us-accounts.json   (40 accounts)
+    ├── accounts/us-accounts.json   (35 accounts)
     ├── tax/us-salestax.json        (SALETAX · USETAX · EXEMPT)
     ├── mappings/us-balance-sheet.json · us-income-statement.json · us-schedule-c.json
     ├── depreciation/us-macrs.json

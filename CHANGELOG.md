@@ -11,7 +11,10 @@ purely in the domain logic, proven by the conformance suite (PHP + Node `--stric
 database subject, byte-identical double run).
 
 ### Added — `us` pack (`createTenant(pack: "us")`)
-- **Own US chart** (40 accounts, English, own number set — US-GAAP prescribes no statutory chart).
+- **Own US chart** (35 accounts, English) in the **common US small-business numbering**
+  (1xxx assets · 2xxx liabilities · 3xxx equity · 4xxx revenue · 5xxx COGS · 6xxx expenses) —
+  US-GAAP prescribes no statutory chart, so this follows the conventional layout US users expect
+  (distinct from the de-pack's class scheme; the two packs are self-contained and share no accounts).
 - **Sales & use tax** (`us-salestax`): `SALETAX` (single-stage retail sales tax, no input-tax
   credit), `USETAX` (self-assessed use tax wired via `reverse_charge` but onto an **expense** leg
   → cost + liability, not net zero), `EXEMPT` (resale/interstate/nontaxable, rate 0).
