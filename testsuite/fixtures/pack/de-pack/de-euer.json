@@ -1,0 +1,42 @@
+{
+  "fixture": "de-euer",
+  "description": "DE-Pack: Einnahmen-Überschuss-Rechnung (§4 Abs. 3 EStG) als Projektion über das mitgelieferte EÜR-Mapping (de-euer). Barverkauf 19 % (Erlös 1.000, vereinnahmte USt 190) → Einnahmen; Eingangsrechnung 19 % (Aufwand 500, gezahlte Vorsteuer 95) und AfA 500 (ohne Zahlungsfluss, via includeNonCash) → Ausgaben. Die USt-Positionen tragen die EÜR-Standardlabels (durchlaufende USt).",
+  "covers": ["F-CORE-008", "F-CORE-010", "SF-08"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "EÜR Freiberufler", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "taxationMethod": "cash" } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Barverkauf 19%", "taxCode": "USt19", "direction": "output",
+        "netLines": [ { "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } } ], "counterAccount": "1200" },
+      "expect": { "result": { "grossTotal": { "amount": "1190.00", "currency": "EUR" } } } },
+    { "op": "postVoucher", "input": {
+        "tenant": "$T1", "voucher": { "voucherNumber": "ER-001", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01", "text": "Eingangsrechnung 19% (bar bezahlt)", "taxCode": "VSt19", "direction": "input",
+        "netLines": [ { "account": "6000", "money": { "amount": "500.00", "currency": "EUR" } } ], "counterAccount": "1200" },
+      "expect": { "result": { "grossTotal": { "amount": "595.00", "currency": "EUR" } } } },
+    { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-LAPTOP", "voucherDate": "2026-07-01" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "acquireAsset", "input": {
+        "tenant": "$T1", "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "3000.00", "currency": "EUR" }, "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 36 } } },
+    { "op": "runDepreciation", "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "500.00", "currency": "EUR" } } } }
+  ],
+  "projections": [
+    { "name": "cashBasisReport", "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "expect": {
+        "income": [
+          { "category": "Umsatzerlöse", "amount": "1000.00" },
+          { "category": "Vereinnahmte USt", "amount": "190.00" }
+        ],
+        "expenses": [
+          { "category": "Abschreibungen (AfA und GWG)", "amount": "500.00" },
+          { "category": "Gezahlte Vorsteuer", "amount": "95.00" },
+          { "category": "Sonstige Betriebsausgaben", "amount": "500.00" }
+        ]
+      } }
+  ]
+}

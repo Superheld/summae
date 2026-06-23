@@ -1,0 +1,27 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-euer",
+  "kind": "mapping",
+  "version": "2026.1",
+  "name": "Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR, auf den neutralen DE-Rahmen)",
+  "contributes": ["mappings"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "mapping": {
+      "id": "de-euer",
+      "kind": "cash-basis-categories",
+      "version": "2026.1",
+      "positions": [
+        { "key": "E1", "label": "Umsatzerlöse", "accounts": [ { "from": "4000", "to": "4019" } ] },
+        { "key": "E2", "label": "Steuerfreie innergemeinschaftliche Lieferungen", "accounts": [ { "numbers": ["4030"] } ] },
+        { "key": "E4", "label": "Unentgeltliche Wertabgaben", "accounts": [ { "numbers": ["4050"] } ], "includeNonCash": true },
+        { "key": "E6", "label": "Erträge aus Anlagenabgang", "accounts": [ { "numbers": ["4900"] } ] },
+        { "key": "A1", "label": "Wareneinsatz und Fremdleistungen", "accounts": [ { "from": "5000", "to": "5999" } ] },
+        { "key": "A2", "label": "Personalkosten", "accounts": [ { "from": "6300", "to": "6319" } ] },
+        { "key": "A3", "label": "Abschreibungen (AfA und GWG)", "accounts": [ { "from": "6500", "to": "6519" } ], "includeNonCash": true },
+        { "key": "A4", "label": "Bewirtungskosten (abziehbar)", "accounts": [ { "numbers": ["6010"] } ] },
+        { "key": "A5", "label": "Sonstige Betriebsausgaben", "accounts": [ { "numbers": ["6000", "6700"] } ] }
+      ]
+    }
+  }
+}
