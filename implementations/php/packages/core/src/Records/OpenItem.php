@@ -16,7 +16,7 @@ use Summae\Core\Policies\Expansion\Settlement;
  * Open item (ledger-modell.md aggregate 5): arises from a
  * posting to an AR/AP account, references the origin posting + line.
  * Invariant: Σ settlements ≤ amount; partial settlements allowed.
- * Carries the OP link for the EÜR projection (F-CORE-009).
+ * Carries the OP link for the cash-basis projection (F-CORE-009).
  */
 final class OpenItem implements \JsonSerializable
 {

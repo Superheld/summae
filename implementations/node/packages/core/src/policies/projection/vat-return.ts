@@ -79,7 +79,7 @@ export class VatReturnProjection {
       for (const entry of this.journal.all()) {
         let taxDate: CalendarDate;
         if (entry.reverses !== null) {
-          // F-011: § 17 correction counts by its own posting date.
+          // F-011: a tax correction counts by its own posting date.
           taxDate = entry.entryDate;
         } else {
           const voucher = this.vouchers.byId(entry.voucherId);

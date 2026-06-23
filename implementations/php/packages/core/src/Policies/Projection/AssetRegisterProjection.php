@@ -10,7 +10,7 @@ use Summae\Core\Port\AssetRepository;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
- * Asset register (mandatory even under cash-basis accounting, § 4 Abs. 3 S. 5 EStG).
+ * Asset register (a jurisdiction may mandate it even under cash-basis accounting).
  * Sorting: acquisition date, then ID (deterministic).
  */
 final readonly class AssetRegisterProjection

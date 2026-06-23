@@ -7,7 +7,7 @@ namespace Summae\Core\Substrate;
 /**
  * Settlement with difference (api.md v0.3, Review G2): cash discount,
  * bad debt, minor difference — the difference itself MUST be visible as
- * posting line(s) in the settling posting (§ 17 UStG).
+ * posting line(s) in the settling posting.
  */
 enum SettlementDifferenceKind: string
 {

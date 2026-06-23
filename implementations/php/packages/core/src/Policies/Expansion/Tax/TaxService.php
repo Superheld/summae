@@ -19,7 +19,7 @@ use Summae\Core\Substrate\Money;
  * rate — sum net per code, compute tax, round half-up ONCE. Version
  * selection by voucher date.
  *
- * Small business (§ 19 UStG, SF-11): active at voucher date -> no tax
+ * Small-business exemption (SF-11): active at voucher date -> no tax
  * lines, gross = net.
  */
 final readonly class TaxService
@@ -51,7 +51,7 @@ final readonly class TaxService
      */
     public function expand(array $input): array
     {
-        // v0.4 (§ 27 UStG): rule version follows the service date, fallback voucher date.
+        // v0.4: rule version follows the service date, fallback voucher date.
         $date = is_string($input['serviceDate'] ?? null)
             ? $this->parseDate($input['serviceDate'])
             : $this->parseDate($input['date'] ?? null);
@@ -181,14 +181,14 @@ final readonly class TaxService
             $mainSide = $direction === 'output' ? 'credit' : 'debit';
 
             if ($version->mechanism === 'intra_community_supply') {
-                // intra-community supply (§ 4 Nr. 1b): tax-free — no tax line, but
+                // intra-community supply: tax-free — no tax line, but
                 // reporting-key tag on the base (recapitulative-statement basis, v0.4).
                 $baseTags[$code] = $this->tag($code, $version, $version->reportingKey, $base);
                 continue;
             }
 
             if ($version->mechanism === 'reverse_charge') {
-                // § 13b: VAT and input tax at once, each its own reporting key; payable = net.
+                // Reverse charge: VAT and input tax at once, each its own reporting key; payable = net.
                 $taxLines[] = [
                     'account' => $version->taxAccount,
                     'side' => 'credit',

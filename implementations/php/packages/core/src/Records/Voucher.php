@@ -11,8 +11,8 @@ use Summae\Core\Substrate\Uuid;
  * Voucher (ledger-modell.md aggregate 4): exists before/without a posting,
  * several postings can reference it.
  *
- * Metadata: `due`/`recurring`/`economicYear` for the EÜR (R2);
- * `serviceDate`/`servicePeriod` (v0.4, § 27 UStG: tax-rule version and
+ * Metadata: `due`/`recurring`/`economicYear` for the cash-basis projection (R2);
+ * `serviceDate`/`servicePeriod` (v0.4: tax-rule version and
  * accrual-basis VAT follow the service date); `partnerId` (v0.4, inherited by OPs);
  * `kind` as an analysis/export hint without core logic.
  */
