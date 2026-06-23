@@ -306,6 +306,7 @@
         "label": { "type": "string" },
         "side": { "enum": ["assets", "liabilitiesAndEquity"], "description": "nur am Wurzelknoten einer balance-sheet-Mapping; bestimmt Aktiv-/Passivseite (v0.5/F-007)" },
         "includesNetIncome": { "type": "boolean" },
+        "includeNonCash": { "type": "boolean", "description": "only meaningful on a cash-basis-categories mapping leaf; non-cash postings (e.g. depreciation) count without a cash flow (R7)" },
         "accounts": {
           "type": "array",
           "items": {
