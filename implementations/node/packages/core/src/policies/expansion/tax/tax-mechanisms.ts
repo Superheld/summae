@@ -34,11 +34,20 @@ export interface MechanismContribution {
 }
 
 export interface TaxMechanism {
+  /** The resolver must check `inputTaxAccount` exists for this mechanism (reverse charge). */
+  readonly requiresInputTaxAccount: boolean;
+  /** This mechanism's reporting keys feed the EC sales list (intra-community supply). */
+  readonly affectsEcSalesList: boolean;
+  /** Fixed VAT-return direction, or `null` to derive it from the tax account. */
+  readonly vatReturnDirection: 'input' | null;
   contribute(ctx: MechanismContext): MechanismContribution;
 }
 
 /** Standard VAT: one tax line on the output/input side; gross = net + tax. */
 class StandardMechanism implements TaxMechanism {
+  readonly requiresInputTaxAccount = false;
+  readonly affectsEcSalesList = false;
+  readonly vatReturnDirection: 'input' | null = null;
   contribute({ version, tax, outputSide, tag }: MechanismContext): MechanismContribution {
     return {
       taxLines: [{ account: version.taxAccount, side: outputSide, money: tax.toJSON(), taxTag: tag(version.reportingKey) }],
@@ -50,6 +59,9 @@ class StandardMechanism implements TaxMechanism {
 
 /** Reverse charge: VAT and input tax at once (credit + debit), each its own key; payable = net. */
 class ReverseChargeMechanism implements TaxMechanism {
+  readonly requiresInputTaxAccount = true;
+  readonly affectsEcSalesList = false;
+  readonly vatReturnDirection: 'input' | null = 'input';
   contribute({ version, tax, tag, zero }: MechanismContext): MechanismContribution {
     return {
       taxLines: [
@@ -69,6 +81,9 @@ class ReverseChargeMechanism implements TaxMechanism {
 
 /** Intra-community supply: tax-free — no tax line, just the reporting-key tag on the base. */
 class IntraCommunitySupplyMechanism implements TaxMechanism {
+  readonly requiresInputTaxAccount = false;
+  readonly affectsEcSalesList = true;
+  readonly vatReturnDirection: 'input' | null = null;
   contribute({ version, tag, zero }: MechanismContext): MechanismContribution {
     return { taxLines: [], baseTag: tag(version.reportingKey), grossDelta: zero };
   }
@@ -81,6 +96,9 @@ class IntraCommunitySupplyMechanism implements TaxMechanism {
  * line (the reason a plain rate-0 standard code could not — NF-004/F-010).
  */
 class ExemptMechanism implements TaxMechanism {
+  readonly requiresInputTaxAccount = false;
+  readonly affectsEcSalesList = false;
+  readonly vatReturnDirection: 'input' | null = null;
   contribute({ version, tag, zero }: MechanismContext): MechanismContribution {
     return { taxLines: [], baseTag: tag(version.reportingKey), grossDelta: zero };
   }

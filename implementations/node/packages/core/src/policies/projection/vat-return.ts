@@ -6,6 +6,7 @@ import type {
   VoucherRepository,
 } from '../../port.js';
 import { AccountNumber } from '../../substrate/account-number.js';
+import { mechanismFor } from '../expansion/tax/tax-mechanisms.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
@@ -124,7 +125,7 @@ export class VatReturnProjection {
       if (version.baseReportingKey !== null) {
         directions.set(
           version.baseReportingKey,
-          version.mechanism === 'reverse_charge' ? 'input' : this.accountDirection(version.taxAccount),
+          mechanismFor(version.mechanism).vatReturnDirection ?? this.accountDirection(version.taxAccount),
         );
       }
     }

@@ -22,6 +22,15 @@ use Summae\Core\Substrate\Money;
  */
 interface TaxMechanism
 {
+    /** The resolver must check `inputTaxAccount` exists for this mechanism (reverse charge). */
+    public function requiresInputTaxAccount(): bool;
+
+    /** This mechanism's reporting keys feed the EC sales list (intra-community supply). */
+    public function affectsEcSalesList(): bool;
+
+    /** Fixed VAT-return direction, or `null` to derive it from the tax account. */
+    public function vatReturnDirection(): ?string;
+
     /**
      * @param \Closure(string|null): array<string, mixed> $tag builds a tax tag for this
      *                                                          code/version/base with the given key

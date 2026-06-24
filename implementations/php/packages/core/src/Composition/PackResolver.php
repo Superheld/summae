@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
+use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 
 /**
  * Pack resolver (`resolvePack`) — pure resolution of a manifest against a
@@ -204,7 +205,7 @@ final class PackResolver
                 if ($taxAccount !== null && !isset($accountNumbers[$taxAccount])) {
                     throw new DomainError('E_PACK_UNRESOLVED_REF', 'taxAccount without account (I1): ' . $taxAccount);
                 }
-                if (self::str($version['mechanism'] ?? null) === 'reverse_charge') {
+                if (TaxMechanisms::mechanismFor(self::str($version['mechanism'] ?? null) ?? 'standard')->requiresInputTaxAccount()) {
                     $inputTaxAccount = self::str($version['inputTaxAccount'] ?? null);
                     if ($inputTaxAccount !== null && !isset($accountNumbers[$inputTaxAccount])) {
                         throw new DomainError('E_PACK_UNRESOLVED_REF', 'inputTaxAccount without account (I1): ' . $inputTaxAccount);

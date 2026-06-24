@@ -9,6 +9,21 @@ use Summae\Core\Substrate\Money;
 /** Reverse charge: VAT and input tax at once (credit + debit), each its own key; payable = net. */
 final class ReverseChargeMechanism implements TaxMechanism
 {
+    public function requiresInputTaxAccount(): bool
+    {
+        return true;
+    }
+
+    public function affectsEcSalesList(): bool
+    {
+        return false;
+    }
+
+    public function vatReturnDirection(): string
+    {
+        return 'input';
+    }
+
     public function contribute(TaxCodeVersion $version, Money $tax, string $outputSide, \Closure $tag, Money $zero): array
     {
         return [
