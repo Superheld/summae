@@ -16,9 +16,10 @@ use PHPUnit\Framework\TestCase;
  *
  * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
  * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. The
- * `mapping` kind is already deeply schema'd (`#/$defs/mapping`, incl. positions/mappingPosition),
- * so its `data.mapping` is validated here. The other kinds (accounts/tax/depreciation/policy/
- * assetAccounts) still need per-kind sub-schemas authored in the knowledge base — tracked separately.
+ * `mapping` and `policy` kinds are already deeply schema'd (`#/$defs/mapping` incl.
+ * positions/mappingPosition, `#/$defs/packPolicy`), so their `data` is validated here. The other
+ * kinds (accounts/tax/depreciation/assetAccounts) still need per-kind sub-schemas authored in the
+ * knowledge base — tracked separately.
  */
 final class PackLibrarySchemaValidationTest extends TestCase
 {
@@ -61,14 +62,21 @@ final class PackLibrarySchemaValidationTest extends TestCase
                     . ($result->error()?->message() ?? '?');
             }
 
-            // Layer 2 for the mapping kind: its data.mapping is deeply schema'd already.
-            if (($arr['kind'] ?? null) === 'mapping') {
+            // Layer 2: kinds whose data.<key> is already deeply schema'd by an existing $def.
+            // (accounts/tax/depreciation/assetAccounts need per-kind sub-schemas authored in the WB.)
+            $deepByKind = [
+                'mapping' => ['def' => 'mapping', 'key' => 'mapping'],
+                'policy' => ['def' => 'packPolicy', 'key' => 'packPolicy'],
+            ];
+            $kind = $arr['kind'] ?? null;
+            if (is_string($kind) && isset($deepByKind[$kind])) {
+                $deep = $deepByKind[$kind];
                 $dataObj = $arr['data'] ?? null;
-                $inner = is_object($dataObj) ? (((array) $dataObj)['mapping'] ?? null) : null;
-                $mapResult = $validator->validate($inner, $base . '#/$defs/mapping');
-                if (!$mapResult->isValid()) {
-                    $violations[] = substr($file, strlen($packDir) + 1) . ' (data.mapping): '
-                        . ($mapResult->error()?->message() ?? '?');
+                $inner = is_object($dataObj) ? (((array) $dataObj)[$deep['key']] ?? null) : null;
+                $deepResult = $validator->validate($inner, $base . '#/$defs/' . $deep['def']);
+                if (!$deepResult->isValid()) {
+                    $violations[] = substr($file, strlen($packDir) + 1) . ' (data.' . $deep['key'] . '): '
+                        . ($deepResult->error()?->message() ?? '?');
                 }
             }
         }
