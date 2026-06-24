@@ -14,9 +14,11 @@ use PHPUnit\Framework\TestCase;
  * Node pack-library-schema test). A field the engine reads but the schema does not
  * declare is a finding (the NF-002/F-008 class), not a convenience.
  *
- * Layer 1 (here): the module/manifest WRAPPER (kind enum, required keys, no stray keys).
- * Deep per-kind validation of each module's `data` ("tief per-kind") is layer 2 — it
- * needs per-kind sub-schemas authored in the knowledge base and is tracked separately.
+ * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
+ * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. The
+ * `mapping` kind is already deeply schema'd (`#/$defs/mapping`, incl. positions/mappingPosition),
+ * so its `data.mapping` is validated here. The other kinds (accounts/tax/depreciation/policy/
+ * assetAccounts) still need per-kind sub-schemas authored in the knowledge base — tracked separately.
  */
 final class PackLibrarySchemaValidationTest extends TestCase
 {
@@ -49,17 +51,25 @@ final class PackLibrarySchemaValidationTest extends TestCase
             }
             $doc = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
 
-            $isManifest = false;
-            if (is_object($doc)) {
-                $arr = (array) $doc;
-                $isManifest = isset($arr['modules']) && is_array($arr['modules']) && isset($arr['packPolicy']);
-            }
+            $arr = is_object($doc) ? (array) $doc : [];
+            $isManifest = isset($arr['modules']) && is_array($arr['modules']) && isset($arr['packPolicy']);
             $def = $isManifest ? 'packManifest' : 'module';
 
             $result = $validator->validate($doc, $base . '#/$defs/' . $def);
             if (!$result->isValid()) {
                 $violations[] = substr($file, strlen($packDir) + 1) . ': '
                     . ($result->error()?->message() ?? '?');
+            }
+
+            // Layer 2 for the mapping kind: its data.mapping is deeply schema'd already.
+            if (($arr['kind'] ?? null) === 'mapping') {
+                $dataObj = $arr['data'] ?? null;
+                $inner = is_object($dataObj) ? (((array) $dataObj)['mapping'] ?? null) : null;
+                $mapResult = $validator->validate($inner, $base . '#/$defs/mapping');
+                if (!$mapResult->isValid()) {
+                    $violations[] = substr($file, strlen($packDir) + 1) . ' (data.mapping): '
+                        . ($mapResult->error()?->message() ?? '?');
+                }
             }
         }
 
