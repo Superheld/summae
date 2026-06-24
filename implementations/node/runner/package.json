@@ -10,5 +10,8 @@
   "dependencies": {
     "@superheld/summae-core": "workspace:*",
     "@superheld/summae-knex": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0"
   }
 }
