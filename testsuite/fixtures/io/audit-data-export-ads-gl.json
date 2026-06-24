@@ -1,0 +1,51 @@
+{
+  "fixture": "audit-data-export-ads-gl",
+  "description": "AICPA Audit Data Standard (General Ledger) export — the US counterpart to the GoBD-Z3 journalExport (F-IO-001). A single cash sale exports as one GLDetail journal with signed line items (debit +, credit −), a trial balance (beginning/ending), and the chart of accounts. JSON form per the AICPA-ADS/AuditData-API schema. journalId/enteredDate are omitted here (subset match) — id/timestamp byte-parity is already pinned by the journalExport fixtures; this fixture pins the ADS-specific shape and the signed amounts.",
+  "covers": ["F-IO-009"],
+  "setup": {
+    "tenant": { "name": "ADS Corp", "baseCurrency": "USD" },
+    "accounts": [
+      { "number": "1010", "name": "Bank / Checking", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Sales Revenue", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "JE-1", "voucherDate": "2026-01-15" } ]
+  },
+  "steps": [
+    { "op": "post",
+      "input": {
+        "entryDate": "2026-01-15", "voucherId": "$V1", "text": "Cash sale",
+        "lines": [
+          { "account": "1010", "side": "debit", "money": { "amount": "100.00", "currency": "USD" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "100.00", "currency": "USD" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } } }
+  ],
+  "projections": [
+    { "name": "auditDataExport", "params": { "fiscalYear": 2026 },
+      "expect": {
+        "standard": "aicpa-ads-gl",
+        "currency": "USD",
+        "journals": [
+          {
+            "effectiveDate": "2026-01-15", "fiscalYear": 2026, "period": 1,
+            "jeHeaderDescription": "Cash sale", "source": "JE-1", "reversalIndicator": false,
+            "reversalJournalId": null,
+            "glLineItems": [
+              { "glAccountNumber": "1010", "transactionAmount": "100.00", "transactionCurrency": "USD" },
+              { "glAccountNumber": "4000", "transactionAmount": "-100.00", "transactionCurrency": "USD" }
+            ]
+          }
+        ],
+        "trialBalance": [
+          { "glAccountNumber": "1010", "balanceAsOfDate": "2026-01-15", "fiscalYear": 2026, "amountBeginning": "0.00", "amountEnding": "100.00", "amountCurrency": "USD" },
+          { "glAccountNumber": "4000", "balanceAsOfDate": "2026-01-15", "fiscalYear": 2026, "amountBeginning": "0.00", "amountEnding": "-100.00", "amountCurrency": "USD" }
+        ],
+        "accounts": [
+          { "glAccountNumber": "1010", "glAccountName": "Bank / Checking", "accountType": "asset", "accountSubtype": "bank", "parentGLAccountNumber": null },
+          { "glAccountNumber": "4000", "glAccountName": "Sales Revenue", "accountType": "revenue", "accountSubtype": null, "parentGLAccountNumber": null }
+        ]
+      } }
+  ]
+}

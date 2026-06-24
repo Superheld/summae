@@ -13,7 +13,7 @@
       { "code": "USETAX", "versions": [
         { "validFrom": "2024-01-01", "validTo": null, "rate": "7.00", "mechanism": "reverse_charge", "taxAccount": "2110", "reportingKey": "USE_TAX_DUE", "inputTaxAccount": "6200", "inputReportingKey": "USE_TAX_EXPENSE", "baseReportingKey": "PURCHASES_SUBJECT_TO_USE_TAX" } ] },
       { "code": "EXEMPT", "versions": [
-        { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00", "mechanism": "standard", "taxAccount": "2100", "reportingKey": "EXEMPT_SALES" } ] }
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00", "mechanism": "exempt", "taxAccount": "2100", "reportingKey": "EXEMPT_SALES" } ] }
     ]
   }
 }

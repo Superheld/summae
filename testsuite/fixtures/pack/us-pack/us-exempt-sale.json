@@ -1,6 +1,6 @@
 {
   "fixture": "us-exempt-sale",
-  "description": "US-Pack: exempt sale (resale / interstate / nontaxable). EXEMPT uses the standard mechanism at rate 0 — revenue books to 4100 Exempt Sales; the base tag (EXEMPT_SALES) holds the basis for the sales-tax return. The standard path emits a 0.00 tax line on 2100 (open decision E: a dedicated `exempt` mechanism would suppress it).",
+  "description": "US-Pack: exempt sale (resale / interstate / nontaxable). EXEMPT now uses the `exempt` mechanism at rate 0 — tax-free: NO tax line is emitted, the revenue books to 4100 Exempt Sales and the base tag (EXEMPT_SALES) holds the basis for the sales-tax return. Because no 0.00 tax line is produced, the exempt sale posts cleanly (resolves the former NF-004/F-010 rejection of a 0.00 line).",
   "covers": ["F-TAX-004"],
   "setup": {},
   "steps": [
@@ -14,11 +14,20 @@
       },
       "expect": {
         "result": {
-          "taxLines": [
-            { "account": "2100", "side": "credit", "money": { "amount": "0.00", "currency": "USD" }, "taxTag": { "code": "EXEMPT", "reportingKey": "EXEMPT_SALES" } }
-          ],
+          "taxLines": [],
           "grossTotal": { "amount": "1000.00", "currency": "USD" }
         }
+      } },
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "EX-1", "voucherDate": "2026-06-01" },
+        "entryDate": "2026-06-01", "text": "Exempt resale", "taxCode": "EXEMPT", "direction": "output",
+        "netLines": [ { "account": "4100", "money": { "amount": "1000.00", "currency": "USD" } } ],
+        "counterAccount": "1010"
+      },
+      "expect": {
+        "result": { "grossTotal": { "amount": "1000.00", "currency": "USD" } }
       } }
   ],
   "projections": []
