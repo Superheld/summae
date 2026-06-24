@@ -17,6 +17,7 @@ final class TaxMechanisms
         return match ($name) {
             'reverse_charge' => new ReverseChargeMechanism(),
             'intra_community_supply' => new IntraCommunitySupplyMechanism(),
+            'exempt' => new ExemptMechanism(),
             default => new StandardMechanism(),
         };
     }
