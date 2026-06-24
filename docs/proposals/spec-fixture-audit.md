@@ -1,14 +1,38 @@
-# Spec-vs-fixture audit (#28) — depth options + sample findings
+# Spec-vs-fixture audit (#28) — depth A executed
 
 Goal (your methodological finding): do the fixtures pin the **spec's expectation**, or just the
 **code's current output**? The cash-basis German labels slipped through because a fixture pinned
-code behavior, not spec intent. This proposes the audit **depth** (your call) and shows the method
-on a sample.
+code behavior, not spec intent.
 
-> Tracking/proposal branch, not merged. The full interpretive audit needs the requirement specs
-> (knowledge base) and your depth choice; the objective layer below I ran now.
+**Decision (Roland): depth A — hotspot audit.** Executed below; result: **no amount-level findings,
+clean bill.** The objective layer + original options are kept beneath for the record.
 
-## Objective findings (ran now, no interpretation needed)
+## Depth-A result — hotspot audit (executed)
+
+Hand-verified the expected values of the cash-basis/VAT hotspot fixtures against correct accounting
+from first principles (not against the engine output). Every one is **spec-derived** — several fixtures
+even document their own derivation:
+
+| Fixture | Check (re-derived by hand) | Verdict |
+|---|---|---|
+| `de-euer` | Sale 19 %: Umsatzerlöse 1000 + USt 190 (19 % × 1000). Input 19 %: Sonstige 500 + Vorsteuer 95. AfA 500 (asset + depreciation, non-cash via includeNonCash). | ✓ all 5 lines |
+| `de-vorsteuer-ermaessigt` | net 500 at 7 % → gross 535 (500 × 1.07); trial-balance rows follow the postings. | ✓ |
+| `vat-return-cash-basis` | Invoice alone: nothing (Ist-Versteuerung). 595/1190 = 50 % → base 500, tax 95; final payment gets remainder, Σ = exactly 1000/190. | ✓ |
+| `vat-return-cash-basis-rounding` | 400/1190 → tax 63.8655…→63.87 (half-up), base 336.13→336 (floored); final 62.26 so Σ tax = exactly 190.00; Σ shown bases 336+336+327 = 999 (euro-floor not sum-preserving — correctly noted in the fixture). | ✓✓ exemplary |
+| `cash-basis-ten-day-rule` | Payments count in the economic year iff in the 22.12–10.01 window; three variants → 190 / 180 / 190; recompute identical (F-CORE-016). Label `USt-Zahlung an FA` from the pack mapping. | ✓ |
+
+**Finding:** the hotspot **amounts** are rigorously spec-derived (the derivation is in the fixture
+comments). The class that actually slipped through was code-pinned **label text** (`Vereinnahmte USt`) —
+*output strings*, not amounts — now (a) fixed (labels come from the pack mapping) and (b) guarded by #27
+(no jurisdiction label/text in the core). Hole closed, audited amounts sound. No `SPEC-FINDINGS` entries
+from depth A.
+
+**Out of scope for A (would be depth B):** non-hotspot fixtures (assets, costing, dimensions, DATEV) were
+not hand-re-derived — trusted via covers-linkage + the conformance oracle.
+
+---
+
+## Appendix — objective findings (ran during scoping)
 
 - **Covers-linkage is complete.** 85/85 behavioral fixtures carry a `covers` field linking the
   requirement(s) they prove (92 distinct F-…/SF-…/NF-… requirements). The only 4 JSON files without
