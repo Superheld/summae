@@ -28,7 +28,7 @@ const OPERATIONS = [
 const PROJECTIONS = [
   'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'assetRegister',
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
-  'cashBasisReport', 'journalExport', 'datevExport',
+  'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport',
 ] as const;
 
 function freshOps(): TenantOperations {

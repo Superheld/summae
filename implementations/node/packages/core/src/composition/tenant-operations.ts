@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../policies/projection/asset-register.js';
+import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
@@ -189,6 +190,13 @@ export class TenantOperations {
           tenant.vouchers,
           tenant.partners,
           tenant.tax.registryHandle(),
+        ).compute(params);
+      case 'auditDataExport':
+        return new AuditDataExportProjection(
+          tenant.baseCurrency,
+          tenant.journal,
+          tenant.accounts,
+          tenant.vouchers,
         ).compute(params);
       default:
         throw new DomainError('E_NOT_IMPLEMENTED', `Projection "${name}" is not defined`);

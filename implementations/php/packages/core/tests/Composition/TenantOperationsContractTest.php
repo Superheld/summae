@@ -36,7 +36,7 @@ final class TenantOperationsContractTest extends TestCase
     private const PROJECTIONS = [
         'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'assetRegister',
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
-        'cashBasisReport', 'journalExport', 'datevExport',
+        'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport',
     ];
 
     private function freshOps(): TenantOperations

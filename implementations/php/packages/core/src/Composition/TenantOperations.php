@@ -11,6 +11,7 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\AssetRegisterProjection;
+use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
 use Summae\Core\Policies\Projection\BalanceSheetProjection;
 use Summae\Core\Policies\Projection\CashBasisProjection;
@@ -131,6 +132,12 @@ final readonly class TenantOperations
                 $tenant->vouchers,
                 $tenant->partners,
                 $tenant->tax->registry(),
+            ))->compute($params),
+            'auditDataExport' => (new AuditDataExportProjection(
+                $tenant->baseCurrency,
+                $tenant->journal,
+                $tenant->accounts,
+                $tenant->vouchers,
             ))->compute($params),
             'incomeStatement' => (new IncomeStatementProjection(
                 $tenant->baseCurrency,
