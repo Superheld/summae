@@ -14,6 +14,21 @@ use Summae\Core\Substrate\Money;
  */
 final class ExemptMechanism implements TaxMechanism
 {
+    public function requiresInputTaxAccount(): bool
+    {
+        return false;
+    }
+
+    public function affectsEcSalesList(): bool
+    {
+        return false;
+    }
+
+    public function vatReturnDirection(): ?string
+    {
+        return null;
+    }
+
     public function contribute(TaxCodeVersion $version, Money $tax, string $outputSide, \Closure $tag, Money $zero): array
     {
         return [

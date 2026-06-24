@@ -9,6 +9,7 @@ use Brick\Math\RoundingMode;
 use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\Side;
+use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
@@ -190,9 +191,8 @@ final readonly class VatReturnProjection
 
             if ($version->baseReportingKey !== null) {
                 // Base reporting key follows the supply direction of the main position.
-                $directions[$version->baseReportingKey] = $version->mechanism === 'reverse_charge'
-                    ? 'input'
-                    : $this->accountDirection($version->taxAccount);
+                $directions[$version->baseReportingKey] = TaxMechanisms::mechanismFor($version->mechanism)->vatReturnDirection()
+                    ?? $this->accountDirection($version->taxAccount);
             }
         }
 
