@@ -3,6 +3,56 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.5.0 — 2026-06-24
+
+US reach and a hardened core. A new US export (AICPA Audit Data Standard), an `exempt`
+tax mechanism, the tax-mechanism socket realized as a registry, pack-format schema
+validation, and a battery of structural guards — all green: PHP + Node `--strict`
+(core **and** database subjects), byte-identical double run, SF-15 cross-test both directions.
+
+### Added — US export (`auditDataExport`)
+- **AICPA Audit Data Standard (General Ledger)** export — the US counterpart to
+  `journalExport` (GoBD-Z3) and `datevExport` (DATEV), both German. The US has no statutory
+  GL export format; the ADS is the voluntary standard a US auditor expects. Three streams
+  (journals/GLDetail, trialBalance/GLAccountBalance, accounts/chart) with the standard's JSON
+  field names; **signed** amounts (debit +, credit −). New requirement F-IO-009, conformance
+  fixture, both languages 1:1.
+
+### Added — `exempt` tax mechanism
+- A tax-exempt sale is now postable. A plain rate-0 *standard* code expands to a 0.00 tax
+  line the ledger rejects; the new `exempt` mechanism emits **no** tax line (tax-free, base
+  tagged), so it posts cleanly. The us-pack `EXEMPT` code is wired to it. Resolves NF-004/F-010.
+
+### Changed — tax-mechanism socket → registry (internal, byte-identical)
+- The inline tax-mechanism switch in `TaxService` (`reverse_charge` / `intra_community_supply`
+  / standard) is now an **addressable registry** of strategy objects in the policy layer — the
+  "socket" the architecture calls for. The three projection/resolver sites that hard-coded
+  mechanism *names* now query mechanism *metadata*. **No behavior change** (byte-identical,
+  conformance + cross-test unchanged). A new mechanism (like `exempt`) is a registered strategy,
+  not an edit scattered across sites.
+
+### Added — pack-format schema validation
+- Every shipped pack-library module + manifest is validated against `format.schema.json` in
+  both languages (Node ajv / PHP opis); the `mapping` and `policy` kinds deeply against their
+  `$defs`. The Node runner now also validates journalExport streams (parity with PHP).
+
+### Added — structural guards & contract tests
+- Determinism guard (no wall-clock/RNG in the core outside the injected Clock/Id seam),
+  no-statute-citation guard, a `TenantOperations` contract test (every API operation/projection
+  resolves; unknown → the defined error; identical surface PHP↔Node), and dedicated NF-6
+  (sequence integrity) / NF-7 (performance) tests.
+
+### Changed — core comments de-jurisdiction'd
+- Statute citations (§ N UStG/EStG/HGB) and German abbreviations removed from the law-free
+  core's comments; mechanism identifiers and real feature/format names (DATEV, GoBD-Z3) kept.
+
+### Notes
+- **journalExport stays German** (GoBD-Z3 is a German standard; its field descriptions serve a
+  German auditor) — the dropped "translate to English" idea became the US export above instead.
+- **Deferred** (does not block the green build): the `ledger.ts` orchestrator split (a
+  taste/structure decision), per-kind schemas for the remaining pack kinds, and the US
+  account-number sign-off.
+
 ## 0.4.0 — 2026-06-24
 
 The **us-pack** (United States) — the second complete jurisdiction pack and the first real
