@@ -62,7 +62,7 @@ export class TenantFactory {
         ? packPolicy.taxRoundingGranularity
         : undefined;
 
-    // Mappings (balance sheet/P&L/EÜR) from the resolved pack into the tenant's registry —
+    // Mappings (balance sheet/P&L/cash-basis) from the resolved pack into the tenant's registry —
     // otherwise balanceSheet/incomeStatement do not find the mappings (pack-path parity with the inline path).
     const mappings = MappingRegistry.fromRuleModules(
       Array.isArray(this.ruleModules.mappings) ? this.ruleModules.mappings : [],

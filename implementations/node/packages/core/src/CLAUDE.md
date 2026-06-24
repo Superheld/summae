@@ -47,15 +47,17 @@ stayed as the **orchestrator** in `ledger/`. Each slice green (typecheck/lint/te
 + `make cross`), PHP + Node 1:1. `records/` may reference the substrate (data layer); the
 substrate boundary (lint/arch test) forbids `policies/` + upper layers.
 
-## Gated — not solvable with folders
+## Gated — tax seam resolved (A1), the rest still method-level
 
-- **In `policies/expansion/` socket and DE paradigm are fused**: `tax-service.ts` branches
-  on `reverse_charge`/`intra_community_supply`. Separating that hangs on the open
-  **closed/open** decision (see „target model vs. status" below). The folder shows the
-  layer, **not** the seam within it.
-- **`ledger.ts` (orchestrator in `ledger/`) fuses internally** post (substrate) + settle/reverse
-  (expansion) + close (constraint) into *one* class — the **method** disentanglement is the
-  closed/open-gated surgery, separate from the (done) directory split.
+- **The tax-mechanism seam is now an addressable registry** (A1, byte-identical): `tax-service.ts`
+  delegates to `tax-mechanisms.ts` (`mechanismFor` → `Standard`/`ReverseCharge`/`IntraCommunitySupply`
+  strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal with a
+  lenient fallback, so the **closed/open** decision (may composition register mechanisms from *outside* the
+  core?) is **not** prejudged — that part stays open. A new mechanism (e.g. `exempt`) is now just a fourth
+  registered strategy.
+- **`ledger.ts` (orchestrator in `ledger/`) still fuses internally** post (substrate) + settle/reverse
+  (expansion) + close (constraint) into *one* class — the **method** disentanglement (surgery B) is
+  separate and still pending.
 
 ## Engine bundle & target model vs. status
 

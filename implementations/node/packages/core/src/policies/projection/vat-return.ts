@@ -6,6 +6,7 @@ import type {
   VoucherRepository,
 } from '../../port.js';
 import { AccountNumber } from '../../substrate/account-number.js';
+import { mechanismFor } from '../expansion/tax/tax-mechanisms.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
@@ -79,7 +80,7 @@ export class VatReturnProjection {
       for (const entry of this.journal.all()) {
         let taxDate: CalendarDate;
         if (entry.reverses !== null) {
-          // F-011: § 17 correction counts by its own posting date.
+          // F-011: a tax correction counts by its own posting date.
           taxDate = entry.entryDate;
         } else {
           const voucher = this.vouchers.byId(entry.voucherId);
@@ -124,7 +125,7 @@ export class VatReturnProjection {
       if (version.baseReportingKey !== null) {
         directions.set(
           version.baseReportingKey,
-          version.mechanism === 'reverse_charge' ? 'input' : this.accountDirection(version.taxAccount),
+          mechanismFor(version.mechanism).vatReturnDirection ?? this.accountDirection(version.taxAccount),
         );
       }
     }

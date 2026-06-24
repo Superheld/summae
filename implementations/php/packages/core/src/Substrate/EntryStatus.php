@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Substrate;
 
 /**
- * GoBD lifecycle: entered (correctable with audit) -> finalized
+ * Record lifecycle: entered (correctable with audit) -> finalized
  * (immutable, afterwards only reversal).
  */
 enum EntryStatus: string

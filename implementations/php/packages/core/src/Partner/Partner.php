@@ -8,7 +8,7 @@ use Summae\Core\Substrate\Uuid;
 
 /**
  * Business partner (datenformat.md v0.4) — deliberately lean, no CRM:
- * covers OP-per-partner, intra-community supply proof (VAT ID GoBD-fixed on the transaction),
+ * covers OP-per-partner, intra-community supply proof (VAT ID fixed on the transaction),
  * EC sales list basis and DATEV master-data export.
  */
 final class Partner implements \JsonSerializable

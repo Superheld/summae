@@ -30,7 +30,7 @@ export function isAccountType(value: unknown): value is AccountType {
 
 export type AccountStatus = 'active' | 'locked';
 
-/** GoBD lifecycle: entered (correctable) → finalized (only reversal). */
+/** Record lifecycle: entered (correctable) → finalized (only reversal). */
 export type EntryStatus = 'entered' | 'finalized';
 
 export type PeriodStatus = 'open' | 'closed';
@@ -43,7 +43,7 @@ export type OpenItemStatus = 'open' | 'partially_settled' | 'settled';
 
 /**
  * Settlement with difference (api.md G2): cash discount, bad debt, minor difference.
- * The difference must be visible as posting line(s) (§ 17 UStG).
+ * The difference must be materialized as explicit posting line(s).
  */
 export type SettlementDifferenceKind = 'discount' | 'bad_debt' | 'minor';
 

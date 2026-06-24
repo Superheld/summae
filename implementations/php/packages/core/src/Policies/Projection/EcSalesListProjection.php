@@ -10,10 +10,11 @@ use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 
 /**
  * EC sales list basis (v0.4, SF-21): intra-community supplies per
- * VAT ID and period — from reporting-key tags of the igL codes,
+ * VAT ID and period — from reporting-key tags of the intra-community-supply codes,
  * partner assignment via the voucher.
  */
 final readonly class EcSalesListProjection
@@ -38,7 +39,7 @@ final readonly class EcSalesListProjection
 
         $intraCommunityKeys = [];
         foreach ($this->registry->allVersions() as $version) {
-            if ($version->mechanism === 'intra_community_supply' && $version->reportingKey !== null) {
+            if (TaxMechanisms::mechanismFor($version->mechanism)->affectsEcSalesList() && $version->reportingKey !== null) {
                 $intraCommunityKeys[$version->reportingKey] = true;
             }
         }

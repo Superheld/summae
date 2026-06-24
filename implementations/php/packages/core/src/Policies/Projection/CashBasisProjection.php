@@ -24,7 +24,7 @@ use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
 
 /**
- * Cash-basis accounting (EÜR) as a projection over the double-entry journal — rules R1–R7
+ * Cash-basis accounting as a projection over the double-entry journal — rules R1–R7
  * (euer-projektions-beweis.md, validated by the prototype):
  *
  * R1 Cash effect via money accounts; categories on open-item settlement
@@ -168,7 +168,7 @@ final readonly class CashBasisProjection
         return $bucket;
     }
 
-    /** Cash-basis accounting is bound to the calendar year (§ 4 Abs. 3 EStG). */
+    /** Cash-basis accounting is bound to the calendar year. */
     private function assertCalendarYearFiscalYears(int $year): void
     {
         $start = CalendarDate::of(sprintf('%04d-01-01', $year));

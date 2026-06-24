@@ -1,4 +1,5 @@
 import { DomainError } from '../domain-error.js';
+import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
 
 /**
  * Pack resolver (`resolvePack`) — pure, side-effect-free resolution of a
@@ -211,7 +212,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       if (taxAccount !== null && !accountNumbers.has(taxAccount)) {
         throw new DomainError('E_PACK_UNRESOLVED_REF', `taxAccount without account: ${taxAccount} (I1)`);
       }
-      if (asString(version.mechanism) === 'reverse_charge') {
+      if (mechanismFor(asString(version.mechanism) ?? 'standard').requiresInputTaxAccount) {
         const inputTaxAccount = asString(version.inputTaxAccount);
         if (inputTaxAccount !== null && !accountNumbers.has(inputTaxAccount)) {
           throw new DomainError('E_PACK_UNRESOLVED_REF', `inputTaxAccount without account: ${inputTaxAccount} (I1)`);

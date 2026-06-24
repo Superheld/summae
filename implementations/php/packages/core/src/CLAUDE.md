@@ -47,15 +47,17 @@ stayed as the **orchestrator** in `Ledger/`. Each slice green (PHPStan/PHPUnit +
 `make cross`), PHP + Node 1:1. `Records/` may reference the substrate (data layer); the
 substrate boundary (lint/arch test) forbids `Policies/` + upper layers.
 
-## Gated — not solvable with folders
+## Gated — tax seam resolved (A1), the rest still method-level
 
-- **In `Policies/Expansion/` socket and DE paradigm are fused**: `TaxService.php` branches
-  on `reverse_charge`/`intra_community_supply`. Separating that hangs on the open
-  **closed/open** decision (see „target model vs. status" below). The folder shows the
-  layer, **not** the seam within it.
-- **`Ledger.php` (orchestrator in `Ledger/`) fuses internally** post (substrate) + settle/reverse
-  (expansion) + close (constraint) into *one* class — the **method** disentanglement is the
-  closed/open-gated surgery, separate from the (done) directory split.
+- **The tax-mechanism seam is now an addressable registry** (A1, byte-identical): `TaxService.php`
+  delegates to `TaxMechanisms::mechanismFor` (`Standard`/`ReverseCharge`/`IntraCommunitySupply`
+  strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal with a
+  lenient fallback, so the **closed/open** decision (may composition register mechanisms from *outside* the
+  core?) is **not** prejudged — that part stays open. A new mechanism (e.g. `exempt`) is now just a fourth
+  registered strategy.
+- **`Ledger.php` (orchestrator in `Ledger/`) still fuses internally** post (substrate) + settle/reverse
+  (expansion) + close (constraint) into *one* class — the **method** disentanglement (surgery B) is
+  separate and still pending.
 
 ## Engine bundle & target model vs. status
 

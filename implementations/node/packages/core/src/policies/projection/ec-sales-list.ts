@@ -2,10 +2,11 @@ import type { JournalRepository, PartnerRepository, VoucherRepository } from '..
 import { Money } from '../../substrate/money.js';
 import type { Currency } from '../../substrate/currency.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
+import { mechanismFor } from '../expansion/tax/tax-mechanisms.js';
 
 /**
  * EC sales list basis (v0.4, SF-21): intra-community supplies per VAT ID and
- * period — from reporting-key tags of the igL codes, partner via the voucher.
+ * period — from reporting-key tags of the intra-community-supply codes, partner via the voucher.
  */
 export class EcSalesListProjection {
   constructor(
@@ -22,7 +23,7 @@ export class EcSalesListProjection {
 
     const intraCommunityKeys = new Set<string>();
     for (const version of this.registry.allVersions()) {
-      if (version.mechanism === 'intra_community_supply' && version.reportingKey !== null) {
+      if (mechanismFor(version.mechanism).affectsEcSalesList && version.reportingKey !== null) {
         intraCommunityKeys.add(version.reportingKey);
       }
     }

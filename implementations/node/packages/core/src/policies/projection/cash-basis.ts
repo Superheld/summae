@@ -19,7 +19,7 @@ import type { JournalEntry } from '../../substrate/journal-entry.js';
 const NON_PROFIT_SUBTYPES = new Set(['bank', 'cash', 'transit', 'ar', 'ap']);
 
 /**
- * Cash-basis accounting (EÜR) as a projection over the double-entry journal — rules R1–R7
+ * Cash-basis accounting as a projection over the double-entry journal — rules R1–R7
  * (euer-projektions-beweis.md). Cash effect via money accounts, OP link on
  * settlement (proportional), 10-day rule, VAT cash-effective, R7 includeNonCash.
  * Bound to the calendar year: a deviating FY → E_CASHBASIS_DEVIATING_FISCAL_YEAR.

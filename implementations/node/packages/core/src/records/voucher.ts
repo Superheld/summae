@@ -3,7 +3,7 @@ import type { Uuid } from '../substrate/uuid.js';
 
 /**
  * Voucher (ledger-modell.md aggregate 4): exists before/without a posting, several
- * postings can reference it. Metadata for EÜR/VAT (due, recurring,
+ * postings can reference it. Metadata for cash-basis/tax projections (due, recurring,
  * economicYear, serviceDate/servicePeriod, partnerId, kind …).
  */
 export interface VoucherProps {

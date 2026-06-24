@@ -92,4 +92,44 @@ final class SubstrateBoundaryTest extends TestCase
                 . implode("\n", $violations),
         );
     }
+
+    /**
+     * The same axis, for code comments: the law-free core must not cite a jurisdiction's
+     * statutes (the litmus test "does your code cite a statute -> wrong layer"). A statute
+     * citation is provenance that belongs in the pack docs, not in the substrate/policies.
+     * Matches "§ 17 UStG", "§ 4 Abs. 3 EStG" etc. — NOT doc-section refs like
+     * "determinismus.md §3" (no statute keyword follows). Locks in the comment cleanup.
+     */
+    public function testCoreCitesNoStatutes(): void
+    {
+        $srcDir = dirname(__DIR__, 2) . '/src';
+        $statute = '/§\s*\d+[a-z]?\s*(Abs\.?|Nr\.?|UStG|EStG|HGB|BGB|AO|GewStG|KStG)/u';
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($srcDir, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        $violations = [];
+        foreach ($iterator as $file) {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $contents = file_get_contents($file->getPathname());
+            if ($contents === false) {
+                continue;
+            }
+            foreach (explode("\n", $contents) as $number => $line) {
+                if (preg_match($statute, $line) === 1) {
+                    $violations[] = $file->getFilename() . ':' . ($number + 1) . ' cites a statute';
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $violations,
+            "The law-free core must not cite jurisdiction statutes (provenance belongs in the pack):\n"
+                . implode("\n", $violations),
+        );
+    }
 }

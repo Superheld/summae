@@ -9,6 +9,7 @@ use Brick\Math\RoundingMode;
 use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\Side;
+use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\OpenItemRepository;
@@ -113,10 +114,10 @@ final readonly class VatReturnProjection
         } else {
             foreach ($this->journal->all() as $entry) {
                 // v0.4: accrual assignment follows the supply date (fallback voucher date).
-                // F-011: exception reversal/§17 correction. A reversing
+                // F-011: exception reversal/tax correction. A reversing
                 // posting inherits the original's voucher (reverse() copies voucherId)
                 // and thus its supply date — but belongs in the VAT-return period
-                // in which the correction is posted (§ 17 Abs. 1 S. 7 UStG), not
+                // in which the correction is posted, not
                 // retroactively in the original period. Hence: by its own posting date.
                 if ($entry->reverses !== null) {
                     $taxDate = $entry->entryDate;
@@ -145,7 +146,7 @@ final readonly class VatReturnProjection
         $payload = $zero;
 
         // Touched reporting keys appear even at 0.00 (neutralization
-        // visible, § 17 cases); never-touched ones are absent.
+        // visible, tax-correction cases); never-touched ones are absent.
         foreach ($keys as $key => $amounts) {
             // Official VAT-return convention: round base down to full euros (reporting-key sum).
             $flooredBase = Money::fromCalculation(
@@ -190,9 +191,8 @@ final readonly class VatReturnProjection
 
             if ($version->baseReportingKey !== null) {
                 // Base reporting key follows the supply direction of the main position.
-                $directions[$version->baseReportingKey] = $version->mechanism === 'reverse_charge'
-                    ? 'input'
-                    : $this->accountDirection($version->taxAccount);
+                $directions[$version->baseReportingKey] = TaxMechanisms::mechanismFor($version->mechanism)->vatReturnDirection()
+                    ?? $this->accountDirection($version->taxAccount);
             }
         }
 
@@ -202,7 +202,7 @@ final readonly class VatReturnProjection
     private function accountDirection(string $accountNumber): string
     {
         if ($accountNumber === '') {
-            return 'output'; // tax-exempt reporting keys (igL) without a tax account
+            return 'output'; // tax-exempt reporting keys (intra-community supply) without a tax account
         }
 
         $account = $this->accounts->byNumber(AccountNumber::of($accountNumber));
@@ -214,7 +214,7 @@ final readonly class VatReturnProjection
      * Contributions of a posting per reporting key. Tax lines provide the tax
      * (sign-correct by side) and the tax base from the
      * taxTag.baseMoney (signed — corrections carry a negative base,
-     * e.g. cash discount/bad debt § 17). Only when NO tax line
+     * e.g. cash discount/bad debt). Only when NO tax line
      * provides a base (e.g. base reporting key under reverse charge),
      * the base comes from the tagged non-tax lines.
      *

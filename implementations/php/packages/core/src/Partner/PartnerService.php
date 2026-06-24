@@ -15,7 +15,7 @@ use Summae\Core\Substrate\Uuid;
 
 /**
  * Partner operations (api.md v0.4): createPartner / updatePartner,
- * both with audit trail (master-data changes are GoBD-relevant).
+ * both with audit trail (master-data changes are audit-relevant).
  */
 final readonly class PartnerService
 {
