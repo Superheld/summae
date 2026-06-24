@@ -161,7 +161,6 @@ final readonly class TaxService
             strcmp($versions[$a]->taxAccount, $versions[$b]->taxAccount));
 
         $taxLines = [];
-        $taxTotal = Money::zero($this->baseCurrency);
         $grossTotal = $netTotal;
         /** @var array<string, array<string, mixed>> $baseTags tag per code for the net lines */
         $baseTags = [];
@@ -179,40 +178,19 @@ final readonly class TaxService
             );
 
             $mainSide = $direction === 'output' ? 'credit' : 'debit';
-
-            if ($version->mechanism === 'intra_community_supply') {
-                // intra-community supply: tax-free — no tax line, but
-                // reporting-key tag on the base (recapitulative-statement basis, v0.4).
-                $baseTags[$code] = $this->tag($code, $version, $version->reportingKey, $base);
-                continue;
+            $tag = fn (?string $reportingKey): array => $this->tag($code, $version, $reportingKey, $base);
+            $contribution = TaxMechanisms::mechanismFor($version->mechanism)->contribute(
+                $version,
+                $tax,
+                $mainSide,
+                $tag,
+                Money::zero($this->baseCurrency),
+            );
+            foreach ($contribution['taxLines'] as $line) {
+                $taxLines[] = $line;
             }
-
-            if ($version->mechanism === 'reverse_charge') {
-                // Reverse charge: VAT and input tax at once, each its own reporting key; payable = net.
-                $taxLines[] = [
-                    'account' => $version->taxAccount,
-                    'side' => 'credit',
-                    'money' => $tax->jsonSerialize(),
-                    'taxTag' => $this->tag($code, $version, $version->reportingKey, $base),
-                ];
-                $taxLines[] = [
-                    'account' => $version->inputTaxAccount ?? $version->taxAccount,
-                    'side' => 'debit',
-                    'money' => $tax->jsonSerialize(),
-                    'taxTag' => $this->tag($code, $version, $version->inputReportingKey, $base),
-                ];
-                $baseTags[$code] = $this->tag($code, $version, $version->baseReportingKey ?? $version->reportingKey, $base);
-            } else {
-                $taxLines[] = [
-                    'account' => $version->taxAccount,
-                    'side' => $mainSide,
-                    'money' => $tax->jsonSerialize(),
-                    'taxTag' => $this->tag($code, $version, $version->reportingKey, $base),
-                ];
-                $baseTags[$code] = $this->tag($code, $version, $version->reportingKey, $base);
-                $taxTotal = $taxTotal->add($tax);
-                $grossTotal = $grossTotal->add($tax);
-            }
+            $baseTags[$code] = $contribution['baseTag'];
+            $grossTotal = $grossTotal->add($contribution['grossDelta']);
         }
 
         return [

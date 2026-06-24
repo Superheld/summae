@@ -8,6 +8,7 @@ import { Money } from '../../../substrate/money.js';
 import type { TaxCodeRegistry } from './tax-code-registry.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 import type { TaxProfile } from './tax-profile.js';
+import { mechanismFor } from './tax-mechanisms.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -146,35 +147,16 @@ export class TaxService {
         this.baseCurrency,
       );
 
-      if (version.mechanism === 'intra_community_supply') {
-        baseTags.set(code, this.tag(code, version, version.reportingKey, base));
-        continue;
-      }
-
-      if (version.mechanism === 'reverse_charge') {
-        taxLines.push({
-          account: version.taxAccount,
-          side: 'credit',
-          money: tax.toJSON(),
-          taxTag: this.tag(code, version, version.reportingKey, base),
-        });
-        taxLines.push({
-          account: version.inputTaxAccount ?? version.taxAccount,
-          side: 'debit',
-          money: tax.toJSON(),
-          taxTag: this.tag(code, version, version.inputReportingKey, base),
-        });
-        baseTags.set(code, this.tag(code, version, version.baseReportingKey ?? version.reportingKey, base));
-      } else {
-        taxLines.push({
-          account: version.taxAccount,
-          side: sideFor,
-          money: tax.toJSON(),
-          taxTag: this.tag(code, version, version.reportingKey, base),
-        });
-        baseTags.set(code, this.tag(code, version, version.reportingKey, base));
-        grossTotal = grossTotal.add(tax);
-      }
+      const contribution = mechanismFor(version.mechanism).contribute({
+        version,
+        tax,
+        outputSide: sideFor,
+        tag: (reportingKey) => this.tag(code, version, reportingKey, base),
+        zero: Money.zero(this.baseCurrency),
+      });
+      for (const line of contribution.taxLines) taxLines.push(line);
+      baseTags.set(code, contribution.baseTag);
+      grossTotal = grossTotal.add(contribution.grossDelta);
     }
 
     return {
