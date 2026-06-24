@@ -74,9 +74,22 @@ class IntraCommunitySupplyMechanism implements TaxMechanism {
   }
 }
 
+/**
+ * Exempt supply: tax-free — no tax line, base tagged for reporting. Mechanically like an
+ * intra-community supply but a distinct mechanism, so projections that single out IC supplies
+ * (the EC sales list) do not pick it up. Lets an exempt code post without a rejected 0.00 tax
+ * line (the reason a plain rate-0 standard code could not — NF-004/F-010).
+ */
+class ExemptMechanism implements TaxMechanism {
+  contribute({ version, tag, zero }: MechanismContext): MechanismContribution {
+    return { taxLines: [], baseTag: tag(version.reportingKey), grossDelta: zero };
+  }
+}
+
 const REGISTRY: Record<string, TaxMechanism> = {
   reverse_charge: new ReverseChargeMechanism(),
   intra_community_supply: new IntraCommunitySupplyMechanism(),
+  exempt: new ExemptMechanism(),
 };
 const STANDARD: TaxMechanism = new StandardMechanism();
 
