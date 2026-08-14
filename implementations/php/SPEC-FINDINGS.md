@@ -236,12 +236,13 @@ They deliberately keep **one shared number in both files** instead of the older 
 **Full analysis, assessment and proposed directions: `implementations/node/SPEC-FINDINGS.md`.**
 Summary and the PHP sites:
 
-- **NF-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately.**
-  `VatReturnProjection.php:72-112`: entries *with* an open item contribute per settlement,
-  entries *without* one contribute directly — a reversal has no open item of its own. Reversing an
-  unpaid incoming invoice therefore claims the full input tax while the original still waits for a
-  payment that will never come. The accrual path has an explicit rule for this case (`F-011`,
-  `VatReturnProjection.php:117`); the cash path has no counterpart.
+- **NF-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately — ✅ FIXED
+  2026-08-15.** The direct-contribution loop in `VatReturnProjection.php` now also skips an entry
+  that *reverses* an entry carrying open items: its tax follows the reversed entry's settlements
+  instead of counting as a cash movement. Reversals of genuinely cash-effective entries still count
+  directly, at their own date. **Still open:** the settled-then-reversed case (tax stays declared
+  until a refund is posted vs. corrected at the reversal's date, the `F-011` reading) — no fixture
+  pins either.
 - **NF-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
   `CashBasisProjection.php:63` defaults a missing `year` to `0`, then builds
   `CalendarDate::of('0000-01-01')` in `assertCalendarYearFiscalYears`. Not a `DomainError`, so the
@@ -251,5 +252,12 @@ Summary and the PHP sites:
   `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
   opposite of what happened, and the only error a tax-free configuration hits on a normal report.
   Current behaviour pinned in `docs/handbuch/examples/scenarios/default.json`.
+- **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
+  counter-entry but does not touch the open items the reversed entry created: the trial balance
+  shows the payable account at `0.00` while `openItems` still reports it open and settleable.
+  Found while fixing NF-005; distinct from it and not its cause. A cancelled open item must keep
+  its settlement history (dropping it would rewrite filed VAT periods), and whether it disappears
+  or gains a terminal `cancelled` status is a **data-format** decision. Documented, not changed.
 
-Each needs a spec decision (NF-007 an append to the error catalogue) before either language moves.
+Each still-open item needs a spec decision (NF-007 an append to the error catalogue, NF-008 a
+data-format decision) before either language moves.
