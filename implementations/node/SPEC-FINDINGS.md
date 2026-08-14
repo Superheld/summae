@@ -94,7 +94,13 @@ neutral pass-through unless the pack's cash-basis mapping explicitly maps the ta
 (would also drop the hard-coded German strings). Behavior change with DE-fixture ripple →
 own job, human decision. Applies to PHP too.
 
-## NF-004 — `EXEMPT` (rate-0 standard) cannot be posted: 0.00 tax line rejected
+## NF-004 — `EXEMPT` (rate-0 standard) cannot be posted: 0.00 tax line rejected — ✅ RESOLVED
+
+> **Resolved in 0.5.0 (2026-06-24).** The proposal below was built: `exempt` is now a
+> registered tax mechanism (`tax-mechanisms.ts`) that tags the base and emits **no** tax
+> line, and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in
+> the return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
+> (`docs/handbuch/examples/scenarios/us.json`). Original finding kept for the record:
 
 **Finding (2026-06-24).** The us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`)
 emits a 0.00 tax line on the tax account. `expandTax` returns it fine (proven by

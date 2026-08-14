@@ -202,7 +202,13 @@ Format per finding:
   cash-basis mapping maps the tax accounts; drop the hard-coded German strings). Behavior change with
   DE-fixture ripple → own job, human decision. Applies to Node too.
 
-## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected
+## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected — ✅ RESOLVED
+
+> **Resolved in 0.5.0 (2026-06-24).** The proposal below was built: `exempt` is now a
+> registered tax mechanism (`TaxMechanisms`) that tags the base and emits **no** tax line,
+> and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in the
+> return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
+> (`docs/handbuch/examples/scenarios/us.json`). Original finding kept for the record:
 
 - **Job:** us-pack conformance audit (2026-06-24)
 - **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
@@ -214,3 +220,36 @@ Format per finding:
 - **Proposal:** add an `exempt` mechanism (base tag only, no tax line) — analogous to
   `intra_community_supply` — so exempt sales post cleanly and show in the return (open decision E).
   Engine addition → own job. Applies to Node too.
+
+---
+
+## Cross-language findings (NF-005 … NF-007)
+
+The three findings below were found while walking the CLI for the handbook (2026-08-14) and are
+**identical in PHP and Node** — same code path, same result, so cross-language equivalence holds
+and they are model/spec questions rather than parity defects.
+
+They deliberately keep **one shared number in both files** instead of the older double numbering
+(NF-002 ↔ F-008, NF-003 ↔ F-009, NF-004 ↔ F-010), which made the same finding look like two.
+`F-011` is *not* reused here: that number belongs to the knowledge base's own finding list.
+
+**Full analysis, assessment and proposed directions: `implementations/node/SPEC-FINDINGS.md`.**
+Summary and the PHP sites:
+
+- **NF-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately.**
+  `VatReturnProjection.php:72-112`: entries *with* an open item contribute per settlement,
+  entries *without* one contribute directly — a reversal has no open item of its own. Reversing an
+  unpaid incoming invoice therefore claims the full input tax while the original still waits for a
+  payment that will never come. The accrual path has an explicit rule for this case (`F-011`,
+  `VatReturnProjection.php:117`); the cash path has no counterpart.
+- **NF-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
+  `CashBasisProjection.php:63` defaults a missing `year` to `0`, then builds
+  `CalendarDate::of('0000-01-01')` in `assertCalendarYearFiscalYears`. Not a `DomainError`, so the
+  CLI prints a stack trace instead of its documented JSON error line. Realistic trigger: every
+  other projection except `vatReturn` takes `fiscalYear`.
+- **NF-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
+  `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
+  opposite of what happened, and the only error a tax-free configuration hits on a normal report.
+  Current behaviour pinned in `docs/handbuch/examples/scenarios/default.json`.
+
+Each needs a spec decision (NF-007 an append to the error catalogue) before either language moves.
