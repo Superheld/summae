@@ -107,6 +107,17 @@ final readonly class VatReturnProjection
                     continue;
                 }
 
+                // NF-005: this loop's premise is "no open item => the money moved at posting
+                // time" (a cash sale). A reversal has no open item of its own, but it is not a
+                // cash movement either. When the entry it reverses carries open items, its tax
+                // already follows those items' settlements above — counting it here would
+                // declare a correction for money that never moved: reversing an unpaid invoice
+                // would claim back tax that was never due. Reversals of genuinely cash-effective
+                // entries (target without open items) still count here, at their own date.
+                if ($entry->reverses !== null && $this->openItems->byOriginEntry($entry->reverses) !== []) {
+                    continue;
+                }
+
                 foreach ($this->entryContributions($entry, $directions) as $key => $contribution) {
                     $add((string) $key, $contribution['base'], $contribution['tax']);
                 }

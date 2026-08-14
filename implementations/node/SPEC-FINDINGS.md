@@ -115,7 +115,26 @@ intra-community supply via a dedicated `intra_community_supply` mechanism (base 
 0.00 line). **Proposal:** add an `exempt` mechanism (tag the base, emit no tax line), then
 exempt sales post cleanly and show up in the return. Engine addition → own job. Applies to PHP too.
 
-## NF-005 — Cash-basis VAT: the reversal of an *unsettled* open item counts immediately
+## NF-005 — Cash-basis VAT: the reversal of an *unsettled* open item counts immediately — ✅ FIXED
+
+> **Fixed 2026-08-15 (both languages, `vat-return.ts` / `VatReturnProjection.php`).** The
+> direct-contribution loop now also skips an entry that *reverses* an entry carrying open
+> items. Its premise is "no open item ⇒ the money moved at posting time"; a reversal has no
+> open item of its own but is not a cash movement either, so its tax follows the reversed
+> entry's settlements instead. Reversals of genuinely cash-effective entries (target without
+> open items) still count directly, at their own posting date — unchanged.
+>
+> Chosen because it is the part **both** candidate semantics agree on: an invoice that was
+> never paid and then reversed contributes nothing either way. Pinned by the `de` walkthrough
+> scenario (`docs/handbuch/examples/scenarios/de.json`, VAT-return step: key `66` must be
+> absent); verified to fail without the fix. All 86 fixtures stay green in both languages,
+> SF-15 cross-test 45/45 both directions — nothing existing pinned this case.
+>
+> **Still open (narrower than the original finding):** an invoice that *was* settled and is
+> then reversed. The fix leaves the tax declared until a refund is posted ("follow the
+> money"); the alternative corrects it at the reversal's own date (the §17 / F-011 reading
+> used on the accrual path). No fixture pins either. Needs a normative fixture in the
+> knowledge base before the behaviour is relied upon. Original finding:
 
 **Finding (2026-08-14, CLI walkthrough for the handbook).** With
 `taxProfile.taxationMethod = "cash"` the VAT return has two paths
@@ -208,3 +227,33 @@ pins the current behaviour so a future fix is a visible, deliberate change. A ne
 code (`E_MAPPING_UNKNOWN`) would be an append to the error catalogue and therefore
 to the exit-code table — catalogue changes are append-only, so this needs a spec
 decision first. Applies to PHP too.
+
+## NF-008 — A reversal leaves the reversed entry's open items standing
+
+**Finding (2026-08-15, while fixing NF-005).** `reverse` posts a full counter-entry but does
+**not** touch the open items the reversed entry created. The two views of the same fact then
+contradict each other:
+
+```
+postVoucher ER-1  VSt19  net 200.00, counterAccount 3000 (ap)  → open item payable 238.00
+reverse     ER-1
+report trialBalance → account 3000: balance "0.00"          (the liability is gone)
+report openItems    → payable 238.00, remaining 238.00, status "open"   (it is not)
+```
+
+The ledger says the debt does not exist; the open-item list still offers it for settlement. It
+can be settled against a payment that has no economic basis, and it inflates any
+receivables/payables ageing built on `openItems`.
+
+**Assessment.** Distinct from [NF-005] and *not* its cause — fixing this alone would not have
+changed the VAT return, and fixing NF-005 does not clear the stale item. Identical in both
+languages. The plausible behaviour is that a reversal cancels the open items of the entry it
+reverses while **keeping their settlement history** (any settlements already made must keep
+contributing to past VAT returns — silently dropping them would rewrite filed periods).
+
+Whether a cancelled open item disappears from `openItems` or shows a distinct terminal status
+(`cancelled` alongside `settled`) is a **data-format decision**: `status` is part of the
+serialized shape, so a new value is an append to the format. Needs a spec decision plus a
+normative fixture.
+
+**Resolution.** Documented, not changed.
