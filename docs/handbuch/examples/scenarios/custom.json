@@ -1,0 +1,141 @@
+{
+  "id": "custom",
+  "description": "Free configuration: own chart of accounts, own tax code, own mapping — no shipped pack involved.",
+  "init": { "rules": "custom-rules.json", "currency": "EUR" },
+  "expect": {
+    "initialized": true,
+    "created.accounts": 6,
+    "created.fiscalYears": 1
+  },
+  "steps": [
+    {
+      "name": "an invoice with a self-defined 5 % tax code",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "F-01", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10",
+        "text": "Fee",
+        "taxCode": "TAX5",
+        "direction": "output",
+        "netLines": [{ "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } }],
+        "counterAccount": "1100"
+      },
+      "capture": { "receivable": "openItemsCreated[0].id" },
+      "expect": {
+        "grossTotal.amount": "1050.00",
+        "entry.lines[2].account": "2100",
+        "entry.lines[2].money.amount": "50.00",
+        "entry.lines[1].taxTag.code": "TAX5",
+        "entry.lines[1].taxTag.reportingKey": "K1"
+      }
+    },
+    {
+      "name": "an account the chart does not have is refused",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "F-02", "voucherDate": "2026-02-11" } },
+      "capture": { "strayVoucher": "id" },
+      "expect": { "voucherNumber": "F-02" }
+    },
+    {
+      "name": "posting to an unknown account",
+      "op": "post",
+      "input": {
+        "voucherId": "$strayVoucher",
+        "entryDate": "2026-02-11",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "9999", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expectError": "E_ACCOUNT_UNKNOWN"
+    },
+    {
+      "name": "payment voucher",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "B-01", "voucherDate": "2026-03-05" } },
+      "capture": { "paymentVoucher": "id" },
+      "expect": { "voucherNumber": "B-01" }
+    },
+    {
+      "name": "payment with a cash discount as an explicit settlement difference",
+      "op": "post",
+      "input": {
+        "voucherId": "$paymentVoucher",
+        "entryDate": "2026-03-05",
+        "text": "Payment F-01 less discount",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "1029.00", "currency": "EUR" } },
+          { "account": "5000", "side": "debit", "money": { "amount": "21.00", "currency": "EUR" } },
+          { "account": "1100", "side": "credit", "money": { "amount": "1050.00", "currency": "EUR" } }
+        ]
+      },
+      "capture": { "paymentEntry": "id" },
+      "expect": { "sequenceNumber": 2 }
+    },
+    {
+      "name": "settle with a discount difference — the item closes at zero",
+      "op": "settle",
+      "input": {
+        "entryId": "$paymentEntry",
+        "allocations": [
+          {
+            "openItemId": "$receivable",
+            "money": { "amount": "1050.00", "currency": "EUR" },
+            "difference": { "money": { "amount": "21.00", "currency": "EUR" }, "kind": "discount" }
+          }
+        ]
+      },
+      "expect": {
+        "openItems[0].status": "settled",
+        "openItems[0].remaining.amount": "0.00",
+        "openItems[0].settlements[0].difference.kind": "discount"
+      }
+    },
+    {
+      "name": "own mapping drives the income statement",
+      "report": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "my-pnl" },
+      "expect": {
+        "positions[0].label": "Fees earned",
+        "positions[0].amount": "1000.00",
+        "positions[1].amount": "-21.00",
+        "netIncome": "979.00"
+      }
+    },
+    {
+      "name": "own reporting key shows up in the return",
+      "report": "vatReturn",
+      "params": { "year": 2026, "quarter": 1 },
+      "expect": { "keys.K1.base": "1000.00", "keys.K1.tax": "50.00", "payload.amount": "50.00" }
+    },
+    {
+      "name": "finalize and close the year",
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-12-31" },
+      "expect": { "finalizedCount": 2 }
+    },
+    {
+      "name": "close all twelve periods",
+      "repeat": { "over": "period", "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": "$period" },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "close the fiscal year",
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "export works on a self-built configuration exactly as on a shipped pack",
+      "report": "journalExport",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "manifest.formatVersion": "0.4",
+        "manifest.streams": ["journal", "accounts", "vouchers", "auditLog"],
+        "journal.allFinalized": true
+      }
+    }
+  ]
+}

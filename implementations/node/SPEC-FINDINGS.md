@@ -174,3 +174,31 @@ code path in both languages.
 **Resolution.** Documented, not changed. Needs a decision on how missing
 projection parameters report at all (new `E_*` code vs. reusing an existing one)
 before either language moves. Applies to PHP too.
+
+## NF-007 — A missing mapping reports `E_MAPPING_OVERLAP`
+
+**Finding (2026-08-14, walkthrough scenarios).** `incomeStatement` and `balanceSheet`
+require a `mapping` parameter. When it is absent or names a mapping the tenant has
+not loaded, both raise `E_MAPPING_OVERLAP` — a code whose name says the opposite of
+what happened (`income-statement.ts:30`, `balance-sheet.ts:32`; PHP
+`IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49`):
+
+```
+summae report incomeStatement --params '{"fiscalYear":2026}'      # default pack, no mapping module
+  → {"error":"E_MAPPING_OVERLAP","message":"Mapping \"\" is not loaded"}
+```
+
+The empty `""` in the message shows the second half: a *missing* parameter is not
+distinguished from an *unknown* one.
+
+**Assessment.** The error catalogue has no code for "required projection parameter
+missing" and none for "mapping unknown"; `E_MAPPING_OVERLAP` is documented as the
+overlap error of `importMapping`. Reusing it here makes an operator debug the wrong
+thing — and it is the *only* error a tax-free configuration (default pack) hits on a
+normal report. Identical in both languages, so no parity issue.
+
+**Resolution.** Documented, not changed; the walkthrough scenario `default.json`
+pins the current behaviour so a future fix is a visible, deliberate change. A new
+code (`E_MAPPING_UNKNOWN`) would be an append to the error catalogue and therefore
+to the exit-code table — catalogue changes are append-only, so this needs a spec
+decision first. Applies to PHP too.

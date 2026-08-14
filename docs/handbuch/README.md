@@ -614,6 +614,12 @@ and tax lines are produced automatically.
 Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
 
+> **A tax code is required in practice.** `taxCode` is formally optional, but a
+> net line without one — and without a pack default — is rejected with
+> `E_TAXCODE_UNKNOWN` ("line without tax code (no default set)"). A
+> configuration that carries no tax codes at all (e.g. `--pack default`)
+> therefore posts via `createVoucher` + `post` rather than `postVoucher`.
+
 ```json
 // input
 { "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-02-10" },

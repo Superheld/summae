@@ -15,6 +15,15 @@ cd implementations/node && SUMMAE="npx tsx packages/cli/src/summae.ts" \
   bash ../../docs/handbuch/examples/cli-walkthrough.sh
 ```
 
+> **This page is gated.** The same lifecycle exists as data in
+> [`examples/scenarios/`](examples/scenarios/README.md) — one scenario per
+> configuration we ship (`de`, `us`, `default`, and a free `rules.json`) — and
+> runs in **both** implementations' test suites with its numbers pinned. If the
+> engine stops behaving as described here, a build goes red rather than the
+> documentation quietly going stale. The other three configurations are not
+> written out below; read their scenario files for the differences (US sales
+> tax and use tax, the tax-free base, your own chart of accounts).
+
 **Who this is for.** Developers evaluating summae, and **AI agents driving it**.
 The CLI is deliberately the smallest useful surface: three commands, JSON in,
 JSON out, one stable exit code per error. That makes it the easiest way to

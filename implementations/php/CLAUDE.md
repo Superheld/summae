@@ -61,6 +61,10 @@ over the full suite **+ coverage gate** core lines ≥ 88 % via `coverage-gate.p
 conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
 byte-identical double run.
 
+`make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
+which drive the CLI through a full lifecycle per shipped configuration from the shared
+`docs/handbuch/examples/scenarios/*.json` — the same files the Node `walkthrough.test.ts` reads.
+
 ## Deeper: `docs/`
 
 - `docs/architektur.md` — three packages, framework-free core, hexagonal/ports,

@@ -182,5 +182,11 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligati
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.
 3. **NF-6 (concurrency) and NF-7 (performance)** have their dedicated per-implementation tests (above).
+4. **The user documentation is gated.** The walkthrough scenarios
+   (`docs/handbuch/examples/scenarios/*.json` — one per *shipped configuration*: each pack plus a free
+   `rules.json`) drive a complete lifecycle through the **CLI** in both languages with their numbers
+   pinned. They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
+   and the documented parameter names. **Ship a new pack ⇒ add a scenario** (a guard test fails
+   otherwise). Documentation that stops being true must turn a build red, not rot on the page.
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.

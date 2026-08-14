@@ -1,0 +1,187 @@
+{
+  "id": "default",
+  "description": "Default pack: a neutral chart of accounts and nothing else — no tax codes, no mappings. Proves the substrate carries a full lifecycle without any jurisdiction.",
+  "init": { "pack": "default", "currency": "EUR", "firstFiscalYear": 2026 },
+  "expect": {
+    "initialized": true,
+    "created.accounts": 32,
+    "created.fiscalYears": 1
+  },
+  "steps": [
+    {
+      "name": "postVoucher needs a tax code — without one (and without a pack default) it is refused, so a tax-free pack posts via createVoucher + post",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "R-1", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10",
+        "text": "Service",
+        "netLines": [{ "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } }],
+        "counterAccount": "1400"
+      },
+      "expectError": "E_TAXCODE_UNKNOWN"
+    },
+    {
+      "name": "referencing a tax code the pack does not carry is refused the same way",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "R-2", "voucherDate": "2026-02-11" },
+        "entryDate": "2026-02-11",
+        "taxCode": "USt19",
+        "netLines": [{ "account": "4000", "money": { "amount": "100.00", "currency": "EUR" } }],
+        "counterAccount": "1400"
+      },
+      "expectError": "E_TAXCODE_UNKNOWN"
+    },
+    {
+      "name": "invoice voucher",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "R-1", "voucherDate": "2026-02-10" } },
+      "capture": { "invoiceVoucher": "id" },
+      "expect": { "voucherNumber": "R-1" }
+    },
+    {
+      "name": "the sale as an explicit two-line posting — the open item still appears by itself",
+      "op": "post",
+      "input": {
+        "voucherId": "$invoiceVoucher",
+        "entryDate": "2026-02-10",
+        "text": "Service",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "capture": { "receivable": "openItemsCreated[0].id" },
+      "expect": {
+        "sequenceNumber": 1,
+        "lines[0].taxTag": null,
+        "openItemsCreated[0].kind": "receivable",
+        "openItemsCreated[0].money.amount": "1000.00"
+      }
+    },
+    {
+      "name": "payment voucher",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "B-1", "voucherDate": "2026-03-05" } },
+      "capture": { "paymentVoucher": "id" },
+      "expect": { "voucherNumber": "B-1" }
+    },
+    {
+      "name": "payment posting",
+      "op": "post",
+      "input": {
+        "voucherId": "$paymentVoucher",
+        "entryDate": "2026-03-05",
+        "text": "Payment received R-1",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "capture": { "paymentEntry": "id" },
+      "expect": { "sequenceNumber": 2 }
+    },
+    {
+      "name": "partial settlement leaves the item open",
+      "op": "settle",
+      "input": {
+        "entryId": "$paymentEntry",
+        "allocations": [
+          { "openItemId": "$receivable", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "openItems[0].status": "partially_settled",
+        "openItems[0].remaining.amount": "600.00"
+      }
+    },
+    {
+      "name": "settling more than is left is refused",
+      "op": "settle",
+      "input": {
+        "entryId": "$paymentEntry",
+        "allocations": [
+          { "openItemId": "$receivable", "money": { "amount": "900.00", "currency": "EUR" } }
+        ]
+      },
+      "expectError": "E_SETTLEMENT_EXCEEDS_ITEM"
+    },
+    {
+      "name": "the rest of the payment",
+      "op": "settle",
+      "input": {
+        "entryId": "$paymentEntry",
+        "allocations": [
+          { "openItemId": "$receivable", "money": { "amount": "600.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "openItems[0].status": "settled", "openItems[0].remaining.amount": "0.00" }
+    },
+    {
+      "name": "locked accounts refuse postings",
+      "op": "lockAccount",
+      "input": { "number": "4000" },
+      "expect": { "status": "locked" }
+    },
+    {
+      "name": "posting to the locked account",
+      "op": "post",
+      "input": {
+        "voucherId": "$paymentVoucher",
+        "entryDate": "2026-03-06",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expectError": "E_ACCOUNT_LOCKED"
+    },
+    {
+      "name": "trial balance without any jurisdiction data",
+      "report": "trialBalance",
+      "params": { "fiscalYear": 2026 },
+      "expect": { "rows[0].account": "1200", "rows[0].balance": "1000.00" }
+    },
+    {
+      "name": "no tax codes means an empty VAT return, not a failure",
+      "report": "vatReturn",
+      "params": { "year": 2026, "quarter": 1 },
+      "expect": { "keys": {}, "payload.amount": "0.00" }
+    },
+    {
+      "name": "a statement without a mapping module fails — ⚠ the error code says OVERLAP, see SPEC-FINDINGS NF-007",
+      "report": "incomeStatement",
+      "params": { "fiscalYear": 2026 },
+      "expectError": "E_MAPPING_OVERLAP"
+    },
+    {
+      "name": "finalize and close",
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-12-31" },
+      "expect": { "finalizedCount": 2 }
+    },
+    {
+      "name": "close all twelve periods",
+      "repeat": { "over": "period", "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": "$period" },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "close the fiscal year",
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "the export works without any pack data beyond the chart of accounts",
+      "report": "journalExport",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "manifest.formatVersion": "0.4",
+        "manifest.baseCurrency": "EUR",
+        "journal.allFinalized": true
+      }
+    }
+  ]
+}

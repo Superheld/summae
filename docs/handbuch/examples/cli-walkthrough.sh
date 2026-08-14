@@ -79,6 +79,7 @@ s report accountSheet     --params '{"account":"1200","fiscalYear":2026}' | jq -
 s report incomeStatement  --params '{"fiscalYear":2026,"mapping":"de-guv"}' | jq -c '{netIncome}'
 s report balanceSheet     --params '{"fiscalYear":2026,"mapping":"de-bilanz"}' | jq -c '{assetsTotal, liabilitiesAndEquityTotal}'
 s report vatReturn        --params '{"year":2026,"quarter":1}' | jq -c .          # year + quarter, NOT fiscalYear/period
+s report ecSalesList      --params '{"year":2026,"quarter":1}' | jq -c .          # intra-community supplies only
 s report cashBasisReport  --params '{"year":2026}' | jq -c .                      # year, NOT fiscalYear
 
 echo "== 7. close: finalize → periods in order → fiscal year ==" >&2
