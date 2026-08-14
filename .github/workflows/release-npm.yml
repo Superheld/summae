@@ -1,11 +1,11 @@
 name: Release npm
 
-# Veröffentlicht die öffentlichen Node-Pakete (@superheld/summae-core, -knex, -cli)
-# auf npmjs.com — `pnpm -r publish` in Abhängigkeitsreihenfolge (runner ist private).
-# Auslöser: Git-Tag v* (z. B. v0.1.0) oder manuell.
-# Voraussetzung: Repository-Secret NPM_TOKEN (npm Automation-Token mit
-# Publish-Recht für den @superheld-Scope). Einmalig setzen, danach turnkey:
-# Tag pushen → CI baut und publiziert.
+# Publishes the public Node packages (@superheld/summae-core, -knex, -cli) to
+# npmjs.com — `pnpm -r publish` in dependency order (runner is private).
+# Trigger: git tag v* (e.g. v0.1.0) or manually.
+# Requires the repository secret NPM_TOKEN (npm automation token with publish
+# rights for the @superheld scope). Set once, turnkey after that:
+# push a tag → CI builds and publishes.
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Nur testen (npm publish --dry-run)'
+        description: 'Dry run only (npm publish --dry-run)'
         type: boolean
         default: true
 
@@ -25,13 +25,13 @@ jobs:
       run:
         working-directory: implementations/node
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'

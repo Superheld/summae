@@ -1,0 +1,189 @@
+{
+  "id": "us",
+  "description": "US pack: accrual, sales tax + use tax (reverse charge) + exempt sales, AICPA ADS export.",
+  "init": { "pack": "us", "currency": "USD", "firstFiscalYear": 2026 },
+  "expect": {
+    "initialized": true,
+    "baseCurrency": "USD",
+    "created.accounts": 35,
+    "created.fiscalYears": 1
+  },
+  "steps": [
+    {
+      "name": "taxable sale: 7 % sales tax onto Sales Tax Payable",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "INV-1001", "voucherDate": "2026-02-10" },
+        "entryDate": "2026-02-10",
+        "text": "Consulting services",
+        "taxCode": "SALETAX",
+        "direction": "output",
+        "netLines": [{ "account": "4000", "money": { "amount": "1000.00", "currency": "USD" } }],
+        "counterAccount": "1200"
+      },
+      "capture": { "invoiceEntry": "entry.id", "receivable": "openItemsCreated[0].id" },
+      "expect": {
+        "grossTotal.amount": "1070.00",
+        "entry.lines[0].account": "1200",
+        "entry.lines[0].money.amount": "1070.00",
+        "entry.lines[2].account": "2100",
+        "entry.lines[2].money.amount": "70.00",
+        "entry.lines[1].taxTag.reportingKey": "TAXABLE_SALES",
+        "openItemsCreated[0].kind": "receivable"
+      }
+    },
+    {
+      "name": "exempt sale posts cleanly — no 0.00 tax line (the reason `exempt` is its own mechanism)",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "INV-1002", "voucherDate": "2026-02-14" },
+        "entryDate": "2026-02-14",
+        "text": "Resale — exemption certificate on file",
+        "taxCode": "EXEMPT",
+        "direction": "output",
+        "netLines": [{ "account": "4100", "money": { "amount": "500.00", "currency": "USD" } }],
+        "counterAccount": "1200"
+      },
+      "expect": {
+        "grossTotal.amount": "500.00",
+        "taxLines": [],
+        "entry.lines[1].taxTag.reportingKey": "EXEMPT_SALES"
+      }
+    },
+    {
+      "name": "payment voucher",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "DEP-001", "voucherDate": "2026-03-05" } },
+      "capture": { "paymentVoucher": "id" },
+      "expect": { "voucherNumber": "DEP-001" }
+    },
+    {
+      "name": "deposit into checking",
+      "op": "post",
+      "input": {
+        "voucherId": "$paymentVoucher",
+        "entryDate": "2026-03-05",
+        "text": "Payment received INV-1001",
+        "lines": [
+          { "account": "1010", "side": "debit", "money": { "amount": "1070.00", "currency": "USD" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "1070.00", "currency": "USD" } }
+        ]
+      },
+      "capture": { "paymentEntry": "id" },
+      "expect": { "periodRef.period": 3 }
+    },
+    {
+      "name": "settle the receivable in full",
+      "op": "settle",
+      "input": {
+        "entryId": "$paymentEntry",
+        "allocations": [
+          { "openItemId": "$receivable", "money": { "amount": "1070.00", "currency": "USD" } }
+        ]
+      },
+      "expect": { "openItems[0].status": "settled", "openItems[0].remaining.amount": "0.00" }
+    },
+    {
+      "name": "use tax (reverse charge): two tax lines, payable and expense, gross stays at net",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "BILL-2001", "voucherDate": "2026-03-12" },
+        "entryDate": "2026-03-12",
+        "text": "Out-of-state purchase, no sales tax charged",
+        "taxCode": "USETAX",
+        "direction": "input",
+        "netLines": [{ "account": "6000", "money": { "amount": "300.00", "currency": "USD" } }],
+        "counterAccount": "2000"
+      },
+      "capture": { "useTaxEntry": "entry.id" },
+      "expect": {
+        "grossTotal.amount": "300.00",
+        "taxLines[0].account": "2110",
+        "taxLines[0].side": "credit",
+        "taxLines[0].money.amount": "21.00",
+        "taxLines[1].account": "6200",
+        "taxLines[1].side": "debit",
+        "taxLines[1].money.amount": "21.00"
+      }
+    },
+    {
+      "name": "unknown tax code is refused",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "BILL-2002", "voucherDate": "2026-03-13" },
+        "entryDate": "2026-03-13",
+        "taxCode": "VAT19",
+        "direction": "output",
+        "netLines": [{ "account": "4000", "money": { "amount": "100.00", "currency": "USD" } }],
+        "counterAccount": "1200"
+      },
+      "expectError": "E_TAXCODE_UNKNOWN"
+    },
+    {
+      "name": "reversal of the use-tax bill",
+      "op": "reverse",
+      "input": { "entryId": "$useTaxEntry", "entryDate": "2026-03-20", "text": "Reversal BILL-2001" },
+      "expect": { "reverses": "$useTaxEntry", "lines[0].money.amount": "-300.00" }
+    },
+    {
+      "name": "US-GAAP income statement",
+      "report": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "us-gaap-income-statement" },
+      "expect": { "netIncome": "1500.00" }
+    },
+    {
+      "name": "US-GAAP balance sheet balances",
+      "report": "balanceSheet",
+      "params": { "fiscalYear": 2026, "mapping": "us-gaap-balance-sheet" },
+      "expect": { "assetsTotal": "1570.00", "liabilitiesAndEquityTotal": "1570.00" }
+    },
+    {
+      "name": "accrual: sales tax counts by posting date, not by payment",
+      "report": "vatReturn",
+      "params": { "year": 2026, "quarter": 1 },
+      "expect": {
+        "keys.TAXABLE_SALES.base": "1000.00",
+        "keys.TAXABLE_SALES.tax": "70.00",
+        "keys.EXEMPT_SALES.base": "500.00"
+      }
+    },
+    {
+      "name": "exempt sales stay out of the EC sales list (that is what separates `exempt` from IC supply)",
+      "report": "ecSalesList",
+      "params": { "year": 2026, "quarter": 1 },
+      "expect": { "rows": [] }
+    },
+    {
+      "name": "finalize and close",
+      "op": "finalize",
+      "input": { "finalizeUntil": "2026-12-31" },
+      "expect": { "finalizedCount": 5 }
+    },
+    {
+      "name": "close all twelve periods",
+      "repeat": { "over": "period", "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": "$period" },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "close the fiscal year",
+      "op": "closeFiscalYear",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "status": "closed" }
+    },
+    {
+      "name": "AICPA Audit Data Standard export — signed amounts, no debit/credit indicator",
+      "report": "auditDataExport",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "standard": "aicpa-ads-gl",
+        "currency": "USD",
+        "journals[0].source": "INV-1001",
+        "journals[0].reversalIndicator": false,
+        "journals[0].glLineItems[0].glAccountNumber": "1200",
+        "journals[0].glLineItems[0].transactionAmount": "1070.00"
+      }
+    }
+  ]
+}

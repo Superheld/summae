@@ -8,6 +8,11 @@ the **PHP implementation is the reference**, Node mirrors it name-for-name.
 > The package READMEs are deliberately thin and point here — the complete
 > description lives only in this handbook.
 
+> **Looking for a worked example rather than a reference?** The
+> [CLI walkthrough](cli-walkthrough.md) runs the whole lifecycle — workspace,
+> invoice, payment, settlement, reversal, reports, period and year close,
+> export — with real output at every step.
+
 **Contents**
 
 1. [Overview & mental model](#1-overview--mental-model)
@@ -214,7 +219,11 @@ summae init --name "Example Ltd" --pack de --first-fiscal-year 2026 --dir ./acco
 summae init --name "Example Ltd" --currency EUR --rules rules.json --dir ./accounting
 ```
 
-`--pack de` (or `--pack default`) loads the pack from the **pack library**
+Shipped packs: **`de`** (Germany), **`us`** (United States), **`default`**
+(account-less base). `--currency` is *not* derived from the pack — it defaults
+to `EUR` regardless, so `--pack us` wants `--currency USD` alongside it.
+
+`--pack de` (or `--pack us` / `--pack default`) loads the pack from the **pack library**
 (`pack-library/`; overridable with `--pack-library <dir>`), resolves it, and
 creates the chart of accounts, tax codes, mappings, depreciation rules, and
 policy in *one* step — the chart of accounts thus comes as a **pack choice**,
@@ -350,6 +359,11 @@ mapping hit no accounts?) and **fails loudly** (`E_PACK_UNRESOLVED_REF` /
 self-contained** — all modules in their own folder, unique IDs, no shared
 `modules/`. Full template: `pack-library/de-pack/`.
 
+Every module and manifest in the pack library is additionally **validated
+against `testsuite/schema/format.schema.json`** in both languages — a misspelled
+field or an undeclared key fails loudly instead of being silently ignored.
+Validation runs in the test runners, so the core stays framework-free.
+
 ### `profiles[]`
 
 | Field | Type | Required | Meaning |
@@ -401,7 +415,7 @@ A code bundles time-staggered versions.
 | `versions[].rate` | string (decimal) | — | tax rate, e.g. `"19.00"`; default `"0"` |
 | `versions[].taxAccount` | string | — | tax account |
 | `versions[].reportingKey` | string\|null | — | VAT-return key (e.g. `"81"`, `"66"`, `"41"`) |
-| `versions[].mechanism` | string | — | default `"standard"`; used: `intra_community_supply`, `reverse_charge` |
+| `versions[].mechanism` | string | — | default `"standard"`; see the mechanism table below |
 | `versions[].inputTaxAccount` | string\|null | — | input-tax account (e.g. reverse charge) |
 | `versions[].inputReportingKey` | string\|null | — | input-tax key |
 | `versions[].baseReportingKey` | string\|null | — | tax-base key |
@@ -416,6 +430,28 @@ A code bundles time-staggered versions.
 ```
 
 Accessing an undefined key → `E_TAXCODE_UNKNOWN`.
+
+#### Tax mechanisms
+
+A **mechanism** is the law-free strategy that turns one tax code's net base into
+tax line(s), a base tag, and a gross delta. The pack only *selects* one per tax
+code — it carries no code of its own. Four are registered:
+
+| `mechanism` | Tax lines | Gross | Notable |
+|---|---|---|---|
+| `standard` (default) | one, on the output/input side | net + tax | the ordinary case |
+| `reverse_charge` | two — VAT (credit) *and* input tax (debit), each with its own key | net (unchanged) | requires `inputTaxAccount`; counts as `input` in the VAT return |
+| `intra_community_supply` | none — base tagged only | net | feeds the **EC sales list** |
+| `exempt` | none — base tagged only | net | mechanically like IC supply, but deliberately a *separate* mechanism so the EC sales list does **not** pick it up |
+
+Why `exempt` exists as its own mechanism rather than a rate-0 `standard` code: a
+0.00 tax line is rejected on posting (`E_ENTRY_INVALID_AMOUNT`), so an exempt
+sale could be previewed with `expandTax` but never recorded in the journal. The
+mechanism emits no tax line at all and posts cleanly.
+
+> **Unknown mechanism names fall back to `standard`** rather than raising. The
+> registry is core-internal today; whether composition may register mechanisms
+> from outside is an open architecture decision (`core/src/CLAUDE.md`).
 
 ### `taxProfile` / `defaults`
 
@@ -578,6 +614,12 @@ and tax lines are produced automatically.
 Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
 
+> **A tax code is required in practice.** `taxCode` is formally optional, but a
+> net line without one — and without a pack default — is rejected with
+> `E_TAXCODE_UNKNOWN` ("line without tax code (no default set)"). A
+> configuration that carries no tax codes at all (e.g. `--pack default`)
+> therefore posts via `createVoucher` + `post` rather than `postVoucher`.
+
 ```json
 // input
 { "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-02-10" },
@@ -586,6 +628,26 @@ Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
   "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ],
   "counterAccount": "1200" }
 // → grossTotal: {"amount":"1190.00","currency":"EUR"} (net 1000 + 19% VAT)
+```
+
+#### createVoucher
+
+Creates a voucher **without** posting — the precursor to `post`, which requires
+an existing `voucherId`. Takes the same `voucher` object as `postVoucher`
+(fields nested under `voucher`, **not** at the top level).
+
+| Field | Type | Required | Meaning |
+|------|-----|---------|-----------|
+| `voucher.voucherNumber` | string | no (default `""`) | voucher number |
+| `voucher.voucherDate` | string (date) | **yes** | missing/invalid → `E_ENTRY_NO_VOUCHER` |
+| `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
+| `voucher.due`, `serviceDate`, `servicePeriod.{from,to}`, `kind`, `issuer`, `economicYear`, `recurring` | — | no | optional voucher attributes |
+
+Output: `{ "id": <uuid>, "voucherNumber": <string> }`.
+
+```json
+{ "voucher": { "voucherNumber": "BK-001", "voucherDate": "2026-03-05" } }
+// → { "id": "01a0…", "voucherNumber": "BK-001" }
 ```
 
 #### correct
@@ -865,6 +927,13 @@ from the journal on every call. Orderings by Unicode codepoints resp.
 (`"178.50"`) or as a Money object — noted below. `asOf`/`throughPeriod` enable
 as-of evaluations.
 
+> ⚠ **Period parameters are not uniform.** Most projections take `fiscalYear`,
+> but **`vatReturn` takes `year` + `quarter`** and **`cashBasisReport` takes
+> `year`**. Passing the wrong name is not an error: you get an empty or
+> whole-year result that looks plausible. `incomeStatement` and `balanceSheet`
+> additionally *require* `mapping`. Cheat sheet:
+> [CLI walkthrough § 12](cli-walkthrough.md#12-parameter-cheat-sheet).
+
 ### trialBalance — trial balance
 
 `fiscalYear` (yes), `throughPeriod` (no, default all), `includeZeroBalances`
@@ -1009,6 +1078,42 @@ tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
 SHA-256 over RFC-8785-canonicalized rows per stream. The audit trail is always
 part of the export.
+
+### auditDataExport — AICPA Audit Data Standard (US)
+
+The **US counterpart** to `journalExport`: the US has no statutory GL export
+format, so the voluntary AICPA **Audit Data Standard (General Ledger)** is what
+a US auditor expects. Field names follow the official AICPA-ADS/AuditData-API
+schema.
+
+`fiscalYear` (no; missing = the whole journal), `asOf` (no; default = latest
+posting date in scope). Output: `standard` (`"aicpa-ads-gl"`), `currency`, and
+three ADS streams:
+
+| Stream | ADS name | Content |
+|---|---|---|
+| `journals` | GLDetail | entries + `glLineItems[]` |
+| `trialBalance` | GLAccountBalance | beginning/ending balances per account |
+| `accounts` | chart of accounts | account master data |
+
+⚠ **Line amounts are signed** — debit positive, credit negative. ADS has no
+debit/credit indicator, unlike `datevExport` (`debitCredit: "S"/"H"`) and
+`journalExport`.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "standard": "aicpa-ads-gl", "currency": "EUR",
+  "journals": [ { "journalId": "01a0…", "effectiveDate": "2026-02-10", "fiscalYear": 2026, "period": 2,
+    "jeHeaderDescription": "Consulting February", "source": "AR-001", "enteredDate": "…",
+    "reversalIndicator": false, "reversalJournalId": null,
+    "glLineItems": [ { "glAccountNumber": "1400", "journalIdLineNumber": "01a0…-1",
+      "jeLineDescription": "Consulting February", "transactionAmount": "1190.00" } ] } ],
+  "trialBalance": [ … ], "accounts": [ … ] }
+```
+
+Pick the export by jurisdiction, not by preference: `journalExport` (GoBD Z3)
+and `datevExport` are German works with German field descriptions;
+`auditDataExport` is the US work. They are not translations of each other.
 
 ### datevExport — DATEV export
 
@@ -1199,6 +1304,10 @@ reproducible, testable, and interchangeable between implementations.
 
 ## 11. Further reading
 
+- **[CLI walkthrough](cli-walkthrough.md)** — the same material task-first:
+  empty directory → invoice → payment/settlement → reversal → reports → period
+  and year close → export, as one runnable sequence. Start here if you want to
+  *do* something; come back to this handbook for the field-level detail.
 - **Compatibility contract:** `testsuite/` (fixtures + schema) — the normative
   source against which every implementation is checked byte-identically.
 - **PHP developer docs** (architecture, workflow, conformance):

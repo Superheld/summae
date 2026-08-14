@@ -54,6 +54,10 @@ green **incl. coverage thresholds** (core, `vitest.config.ts`: lines 88 / branch
 funcs 90 / stmts 85 — fixed in the run via `coverage.enabled`) · `pnpm fixtures --strict`
 (all fixtures green + byte-identical double run).
 
+`pnpm test` includes the **walkthrough scenarios** (`packages/cli/test/walkthrough.test.ts`),
+which drive the CLI through a full lifecycle per shipped configuration from the shared
+`docs/handbuch/examples/scenarios/*.json` — the same files the PHP `WalkthroughTest` reads.
+
 ## Publish
 
 `@superheld/summae-core` is on npm. Dev exports point to the TS source

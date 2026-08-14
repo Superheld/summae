@@ -3,6 +3,54 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.5.1 — 2026-08-15
+
+Documentation release: no API change, no behaviour change. The user documentation gained a
+task-oriented half and — more importantly — stopped being able to rot: the walkthrough now runs
+in both implementations' green gates, one scenario per shipped configuration.
+
+### Added — CLI walkthrough (`docs/handbuch/cli-walkthrough.md`)
+- Task-first companion to the handbook reference: empty directory to closed fiscal year —
+  workspace and pack choice, outgoing invoice with tax expansion, payment and settlement,
+  reversal, every report shape, `finalize`/`closePeriod`/`closeFiscalYear`, the three exports,
+  error handling with exit codes, and a parameter cheat sheet. Every output in it is real CLI
+  output. Written for developers **and** for AI agents driving the CLI, which is the surface
+  with the smallest automation footprint (three commands, JSON in, JSON out).
+- A copy-pasteable companion script, `docs/handbuch/examples/cli-walkthrough.sh`.
+
+### Added — the documentation is gated
+- **Walkthrough scenarios** (`docs/handbuch/examples/scenarios/*.json`): one complete lifecycle
+  per configuration we ship — `de`, `us`, `default`, and a free `rules.json` — including the
+  error paths (unbalanced, already reversed, period out of order, locked account, closed period,
+  settlement exceeding the item) with their exit codes.
+- Both implementations read the **same** scenario files and pin the **same** expectations
+  (`walkthrough.test.ts` / `WalkthroughTest.php`) — the shared-oracle mechanism applied to the
+  CLI. Covers what the conformance fixtures cannot reach: the CLI surface, the workspace, the
+  pack library, the documented parameter names.
+- Two guards: every shipped pack must have a scenario, and every operation the `de` scenario
+  pins must appear in the example script. **Shipping a pack now means shipping a scenario.**
+
+### Changed
+- Handbook caught up to 0.5.0: `auditDataExport` (AICPA ADS, three GL streams, signed amounts),
+  the four tax mechanisms as a table with the rationale for `exempt`, the `us` pack, pack-format
+  schema validation, and a warning that period parameters are not uniform across projections.
+- `createVoucher` documented for the first time (§ 6.2) — the operation a plain `post` needs.
+- CI actions bumped off the deprecated Node 20 runtime (checkout v7, setup-node v7,
+  pnpm/action-setup v6); workflow step names and comments translated to English.
+
+### Findings (documented, deliberately not fixed)
+- **NF-005** — cash-basis VAT: reversing an *unsettled* open item counts immediately while the
+  original still waits for a payment that will never come, so an unpaid-then-cancelled invoice
+  yields an input-tax refund. Identical in PHP and Node, so a model question, not a parity
+  defect; the accrual path has an explicit rule (F-011), the cash path has no counterpart.
+- **NF-006** — `cashBasisReport` without `year` raises an uncaught `InvalidValue` instead of a
+  `DomainError`, breaking the CLI's own JSON-output contract. The trigger is realistic: every
+  other projection except `vatReturn` takes `fiscalYear`.
+- **NF-007** — a missing or unknown mapping reports `E_MAPPING_OVERLAP`, a code that says the
+  opposite of what happened. Current behaviour pinned in `default.json` so a fix is deliberate.
+
+Each needs a spec decision (or an append to the error catalogue) before either language moves.
+
 ## 0.5.0 — 2026-06-24
 
 US reach and a hardened core. A new US export (AICPA Audit Data Standard), an `exempt`

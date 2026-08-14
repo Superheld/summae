@@ -11,7 +11,7 @@ jobs:
       run:
         working-directory: implementations/php
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -29,10 +29,10 @@ jobs:
       - name: PHPUnit
         run: vendor/bin/phpunit
 
-      - name: Konformitäts-Fixtures gegen In-Memory-Kern (strict)
+      - name: Conformance fixtures against the in-memory core (strict)
         run: php runner/bin/run-fixtures.php --strict
 
-      - name: Konformitäts-Fixtures gegen Database-Adapter (strict, SQLite)
+      - name: Conformance fixtures against the database adapter (strict, SQLite)
         run: php runner/bin/run-fixtures.php --strict --subject=database
 
   node:
@@ -41,11 +41,11 @@ jobs:
       run:
         working-directory: implementations/node
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install
@@ -56,25 +56,25 @@ jobs:
         run: pnpm lint
       - name: Vitest
         run: pnpm test
-      - name: Konformitäts-Fixtures gegen In-Memory-Kern (strict)
+      - name: Conformance fixtures against the in-memory core (strict)
         run: pnpm fixtures --strict
-      - name: Konformitäts-Fixtures gegen Database-Adapter (strict, SQLite)
+      - name: Conformance fixtures against the database adapter (strict, SQLite)
         run: pnpm fixtures --subject=database --strict
 
-  # SF-15: geteilte DB über die Sprachgrenze — PHP schreibt SQLite, Node liest.
+  # SF-15: shared database across the language boundary — PHP writes SQLite, Node reads.
   cross:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           extensions: bcmath
           coverage: none
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Composer install
@@ -83,15 +83,15 @@ jobs:
       - name: pnpm install
         working-directory: implementations/node
         run: pnpm install --frozen-lockfile
-      - name: PHP schreibt SQLite-Bestände (+ Oracle)
+      - name: PHP writes SQLite datasets (+ oracle)
         working-directory: implementations/php
         run: php runner/bin/cross-export.php --dir=${{ github.workspace }}/.cross-dbs
-      - name: Node schreibt SQLite-Bestände (+ Oracle)
+      - name: Node writes SQLite datasets (+ oracle)
         working-directory: implementations/node
         run: pnpm exec tsx runner/bin/cross-write.ts --dir=${{ github.workspace }}/.cross-dbs
-      - name: PHP liest Node-DBs (Ergebnis als php-actual)
+      - name: PHP reads the Node databases (result as php-actual)
         working-directory: implementations/php
         run: php runner/bin/cross-read.php --dir=${{ github.workspace }}/.cross-dbs
-      - name: Node vergleicht journalExport in BEIDEN Richtungen
+      - name: Node compares journalExport in BOTH directions
         working-directory: implementations/node
         run: pnpm exec tsx runner/bin/cross-read.ts --dir=${{ github.workspace }}/.cross-dbs
