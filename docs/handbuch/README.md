@@ -8,6 +8,11 @@ the **PHP implementation is the reference**, Node mirrors it name-for-name.
 > The package READMEs are deliberately thin and point here — the complete
 > description lives only in this handbook.
 
+> **Looking for a worked example rather than a reference?** The
+> [CLI walkthrough](cli-walkthrough.md) runs the whole lifecycle — workspace,
+> invoice, payment, settlement, reversal, reports, period and year close,
+> export — with real output at every step.
+
 **Contents**
 
 1. [Overview & mental model](#1-overview--mental-model)
@@ -586,6 +591,26 @@ Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
   "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ],
   "counterAccount": "1200" }
 // → grossTotal: {"amount":"1190.00","currency":"EUR"} (net 1000 + 19% VAT)
+```
+
+#### createVoucher
+
+Creates a voucher **without** posting — the precursor to `post`, which requires
+an existing `voucherId`. Takes the same `voucher` object as `postVoucher`
+(fields nested under `voucher`, **not** at the top level).
+
+| Field | Type | Required | Meaning |
+|------|-----|---------|-----------|
+| `voucher.voucherNumber` | string | no (default `""`) | voucher number |
+| `voucher.voucherDate` | string (date) | **yes** | missing/invalid → `E_ENTRY_NO_VOUCHER` |
+| `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
+| `voucher.due`, `serviceDate`, `servicePeriod.{from,to}`, `kind`, `issuer`, `economicYear`, `recurring` | — | no | optional voucher attributes |
+
+Output: `{ "id": <uuid>, "voucherNumber": <string> }`.
+
+```json
+{ "voucher": { "voucherNumber": "BK-001", "voucherDate": "2026-03-05" } }
+// → { "id": "01a0…", "voucherNumber": "BK-001" }
 ```
 
 #### correct
@@ -1199,6 +1224,10 @@ reproducible, testable, and interchangeable between implementations.
 
 ## 11. Further reading
 
+- **[CLI walkthrough](cli-walkthrough.md)** — the same material task-first:
+  empty directory → invoice → payment/settlement → reversal → reports → period
+  and year close → export, as one runnable sequence. Start here if you want to
+  *do* something; come back to this handbook for the field-level detail.
 - **Compatibility contract:** `testsuite/` (fixtures + schema) — the normative
   source against which every implementation is checked byte-identically.
 - **PHP developer docs** (architecture, workflow, conformance):
