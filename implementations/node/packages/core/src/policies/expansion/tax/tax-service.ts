@@ -29,6 +29,28 @@ interface NetLine {
  * half-up ONCE. Version selection by service/voucher date.
  * Small-business exemption: no tax lines, gross = net.
  */
+
+/**
+ * A tax line of 0.00 is dropped rather than forced through.
+ *
+ * The substrate forbids zero amounts, and rightly so — but a 1-cent invoice at 19 % legitimately
+ * rounds to no tax at all, and the caller was told `E_ENTRY_INVALID_AMOUNT` on a line they never
+ * wrote. Below 0.03 net nothing could be booked, which is a boundary nobody would predict and
+ * that does not exist in the subject matter. The base stays on the net line's taxTag, so the VAT
+ * return still reports it; only the tax is zero, which it is.
+ */
+function withoutZeroTaxLines(
+  lines: Array<Record<string, unknown>>,
+  currency: Currency,
+): Array<Record<string, unknown>> {
+  return lines.filter((line) => {
+    const money = line.money;
+    if (typeof money !== 'object' || money === null) return true;
+    const amount = (money as Record<string, unknown>).amount;
+    return typeof amount !== 'string' || !Money.of(amount, currency).isZero();
+  });
+}
+
 export class TaxService {
   constructor(
     private readonly baseCurrency: Currency,
@@ -133,7 +155,7 @@ export class TaxService {
           money: line.money.toJSON(),
           taxTag: lineTags[index] ?? null,
         })),
-        taxLines,
+        taxLines: withoutZeroTaxLines(taxLines, this.baseCurrency),
         grossTotal: grossTotal.toJSON(),
       };
     }
@@ -176,7 +198,7 @@ export class TaxService {
         money: line.money.toJSON(),
         taxTag: baseTags.get(line.code) ?? null,
       })),
-      taxLines,
+      taxLines: withoutZeroTaxLines(taxLines, this.baseCurrency),
       grossTotal: grossTotal.toJSON(),
     };
   }
