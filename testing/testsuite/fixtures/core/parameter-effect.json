@@ -229,7 +229,7 @@
       "expect": {
         "comment": "Positivfall: das einzige Format, das es gibt",
         "manifest": {
-          "formatVersion": "0.4"
+          "formatVersion": "0.6"
         }
       }
     },
@@ -241,7 +241,7 @@
       "expect": {
         "comment": "Positivfall: abwesend bedeutet weiterhin gobd-z3",
         "manifest": {
-          "formatVersion": "0.4"
+          "formatVersion": "0.6"
         }
       }
     },

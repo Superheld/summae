@@ -179,7 +179,7 @@
       "report": "journalExport",
       "params": { "fiscalYear": 2026 },
       "expect": {
-        "manifest.formatVersion": "0.4",
+        "manifest.formatVersion": "0.6",
         "manifest.baseCurrency": "EUR",
         "journal.allFinalized": true
       }

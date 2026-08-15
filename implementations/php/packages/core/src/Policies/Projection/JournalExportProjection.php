@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\Substrate\FormatVersion;
 use Summae\Core\DomainError;
 use Summae\Core\Records\AuditRecord;
 use Summae\Core\Substrate\JournalEntry;
@@ -37,7 +38,6 @@ final readonly class JournalExportProjection
      */
     private const array FORMATS = ['gobd-z3'];
 
-    private const string FORMAT_VERSION = '0.4';
 
     public function __construct(
         private Uuid $tenantId,
@@ -117,7 +117,7 @@ final readonly class JournalExportProjection
         return [
             'manifest' => [
                 // Schema $id stays 0.4 (additive fields); content-wise v0.5.
-                'formatVersion' => self::FORMAT_VERSION,
+                'formatVersion' => FormatVersion::CURRENT,
                 'tenantId' => $this->tenantId->value,
                 'tenantName' => $this->tenantName,
                 'baseCurrency' => $this->baseCurrency->code,

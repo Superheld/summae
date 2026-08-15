@@ -1,4 +1,5 @@
 import { DomainError, rejectedValue } from '../../domain-error.js';
+import { FORMAT_VERSION } from '../../substrate/format-version.js';
 import { createHash } from 'node:crypto';
 import { canonicalJson } from '../../substrate/canonical-json.js';
 import type { Clock } from '../../substrate/clock.js';
@@ -14,7 +15,6 @@ import type {
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import { integerOrNull } from './parameters.js';
 
-const FORMAT_VERSION = '0.4';
 const LINE_FIELDS = ['accountId', 'side', 'money', 'dimensions', 'taxTag'] as const;
 
 function withoutNulls(row: Record<string, unknown>): Record<string, unknown> {

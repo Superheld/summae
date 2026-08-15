@@ -459,7 +459,7 @@ plus a field catalogue describing every column — that is what makes the export
 self-describing for an auditor:
 
 ```json
-{"manifest":{"formatVersion":"0.4","tenantId":"…","tenantName":"Mustermann Consulting","baseCurrency":"EUR",
+{"manifest":{"formatVersion":"0.6","tenantId":"…","tenantName":"Mustermann Consulting","baseCurrency":"EUR",
   "exportedAt":"…","hashAlgorithm":"sha256","streams":["journal","accounts","vouchers","auditLog"],
   "contentHashes":{"journal":"ad3bb48f…","accounts":"17d2706c…","vouchers":"55234373…","auditLog":"c9a321c2…"}},
  "fieldCatalogIncluded":true,"fieldCatalog":{"journal":[{"name":"id","type":"uuid","meaning":"Eindeutige Buchungs-ID"}, …]}}
