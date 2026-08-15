@@ -35,5 +35,10 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
   that drives it through the API and pins the expected result. A shipped-but-untested capability is a
   **gate-gap finding, not "done"** (root `CLAUDE.md`, quality gate). When auditing an existing pack, the
   question is: *is every legally-expected effect proven by a fixture?* — if not, that gap is the work.
+- **Shipping a pack also means shipping its walkthrough scenario.** Fixtures prove the *engine*; a
+  scenario (`testing/scenarios/walkthrough/<pack>.json`) proves the **CLI** a user actually types — one
+  full lifecycle with its numbers pinned. A guard test compares the set of shipped packs against the
+  set of scenarios, so a pack without one turns the build red in **both** languages; complete fixtures
+  will not save you. Format: `testing/scenarios/README.md`.
 
 Writing a pack by hand (skeletons per `kind`, manifest): handbook `docs/handbuch/README.md`.

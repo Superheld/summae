@@ -62,6 +62,11 @@ cli 87 / runner 82, `packages/laravel` excluded because it has no tests of its o
 conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
 byte-identical double run.
 
+⚠ **Working on `packages/laravel`? A green `make test` proves nothing about it.** The adapter has
+no unit tests at all; it is exercised only end-to-end — via the conformance suite with
+`--subject=database` and via the SF-15 cross test (`make cross`). Run **both** after touching it,
+and expect a failure there to tell you *that* something broke, not *what*.
+
 `make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
 `testing/scenarios/walkthrough/*.json`, plus the regression guards in `testing/scenarios/regression/` — the same
