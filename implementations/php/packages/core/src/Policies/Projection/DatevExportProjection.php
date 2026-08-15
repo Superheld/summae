@@ -55,7 +55,7 @@ final readonly class DatevExportProjection
                 throw new DomainError(
                     'E_INPUT_INVALID',
                     'datevExport: "kind" must be entries, accounts or partners',
-                    ['kind' => is_scalar($rawKind) ? (string) $rawKind : null],
+                    ['kind' => DomainError::rejectedValue($rawKind)],
                 );
             }
 

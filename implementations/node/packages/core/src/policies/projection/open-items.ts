@@ -1,4 +1,4 @@
-import { DomainError } from '../../domain-error.js';
+import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { JournalRepository, OpenItemRepository, VoucherRepository } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { OpenItem } from '../../records/open-item.js';
@@ -25,7 +25,7 @@ export class OpenItemsProjection {
       kind = parseOpenItemKind(params.kind);
       if (kind === null) {
         throw new DomainError('E_INPUT_INVALID', 'openItems: "kind" must be "receivable" or "payable"', {
-          kind: String(params.kind),
+          kind: rejectedValue(params.kind),
         });
       }
     }

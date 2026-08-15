@@ -54,6 +54,9 @@ use Summae\Core\Policies\Expansion\Settlement;
  */
 final readonly class Ledger
 {
+    /** 2^53-1 — the largest integer Node can represent exactly (Number.MAX_SAFE_INTEGER). */
+    private const int MAX_EXACT_INT = 9007199254740991;
+
     public function __construct(
         private Currency $baseCurrency,
         private AccountRepository $accounts,
@@ -555,15 +558,18 @@ final readonly class Ledger
         // in Node, so a whole-valued float counts as the same input in both languages.
         $rawYear = $input['year'] ?? null;
 
-        if (is_float($rawYear) && $rawYear === floor($rawYear) && abs($rawYear) < (float) PHP_INT_MAX) {
+        // Bounded at 2^53-1 (Node's Number.isSafeInteger), not at PHP_INT_MAX: an int this side
+        // can hold but Node cannot represent exactly would be accepted here and rejected there —
+        // same input, different answer, which is the one thing the equivalence policy forbids.
+        if (is_float($rawYear) && $rawYear === floor($rawYear) && abs($rawYear) <= self::MAX_EXACT_INT) {
             $rawYear = (int) $rawYear;
         }
 
-        if (!is_int($rawYear) || $rawYear <= 0) {
+        if (!is_int($rawYear) || $rawYear <= 0 || $rawYear > self::MAX_EXACT_INT) {
             throw new DomainError(
                 'E_INPUT_INVALID',
                 'createFiscalYear requires "year" as a positive whole number',
-                ['year' => is_scalar($rawYear) ? (string) $rawYear : null],
+                ['year' => DomainError::rejectedValue($rawYear)],
             );
         }
 

@@ -1,4 +1,4 @@
-import { DomainError } from '../domain-error.js';
+import { DomainError, rejectedValue } from '../domain-error.js';
 import type {
   AccountRepository,
   AuditTrail,
@@ -444,9 +444,12 @@ export class Ledger {
     // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
     // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
     const rawYear = input.year;
-    if (typeof rawYear !== 'number' || !Number.isInteger(rawYear) || rawYear <= 0) {
+    // Safe integer, not just integer: `1e21` passes Number.isInteger but is beyond what the
+    // PHP side can hold as an int, so it was accepted here and rejected there — same input,
+    // different answer, which is the one thing the equivalence policy does not allow.
+    if (typeof rawYear !== 'number' || !Number.isSafeInteger(rawYear) || rawYear <= 0) {
       throw new DomainError('E_INPUT_INVALID', 'createFiscalYear requires "year" as a positive whole number', {
-        year: rawYear === undefined ? null : String(rawYear),
+        year: rejectedValue(rawYear),
       });
     }
     const year = rawYear;

@@ -1,4 +1,4 @@
-import { DomainError } from '../../domain-error.js';
+import { DomainError, rejectedValue } from '../../domain-error.js';
 import type {
   AccountRepository,
   JournalRepository,
@@ -43,7 +43,7 @@ export class DatevExportProjection {
     if (rawKind !== undefined && rawKind !== null) {
       if (typeof rawKind !== 'string' || !DATEV_KINDS.has(rawKind)) {
         throw new DomainError('E_INPUT_INVALID', 'datevExport: "kind" must be entries, accounts or partners', {
-          kind: String(rawKind),
+          kind: rejectedValue(rawKind),
         });
       }
       kind = rawKind;

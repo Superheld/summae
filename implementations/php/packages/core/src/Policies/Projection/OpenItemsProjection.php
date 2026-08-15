@@ -46,7 +46,7 @@ final readonly class OpenItemsProjection
                 throw new DomainError(
                     'E_INPUT_INVALID',
                     'openItems: "kind" must be "receivable" or "payable"',
-                    ['kind' => is_scalar($rawKind) ? (string) $rawKind : null],
+                    ['kind' => DomainError::rejectedValue($rawKind)],
                 );
             }
         }
