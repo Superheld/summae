@@ -174,7 +174,7 @@ requirement **without** a test is itself a finding (belongs on the gate-gap list
 **Contracts get their own validating test — nothing is silently swallowed.** Behavioral
 fixture coverage is necessary but not sufficient: every *contract surface* must have a test
 that fails loudly when the contract is broken, so authoring mistakes can't slip through
-unnoticed (a misspelled field, an undeclared key, a routing gap). Four obligations:
+unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligations:
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
    streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
@@ -190,5 +190,12 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Four obligatio
    the workspace, the pack library, and the documented parameter names. **Ship a new pack ⇒ add a
    scenario** (a guard test fails otherwise). Documentation that stops being true must turn a build
    red, not rot on the page. **Where every kind of test lives and which one to write: `testing/README.md`.**
+5. **The projection parameter contract is data, not code.** `testing/testsuite/schema/api-parameters.json`
+   declares every accepted parameter with its type; the dispatcher validates against it *before*
+   routing. An undeclared parameter is `E_INPUT_INVALID`, never silently ignored; a declared one of
+   the wrong type is rejected, never coerced; an absent one keeps its documented default. The core
+   reads no files, so each language carries the table as a constant — and a test per language asserts
+   the constant equals that file, which is what makes drift impossible. **Adding a parameter means
+   editing the declaration in the knowledge base**, not the constant.
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.
