@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\DomainError;
 use Summae\Core\Substrate\EntryLine;
 use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Partner\Partner;
@@ -25,6 +26,8 @@ use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
  */
 final readonly class DatevExportProjection
 {
+    private const KINDS = ['entries', 'accounts', 'partners'];
+
     public function __construct(
         private JournalRepository $journal,
         private AccountRepository $accounts,
@@ -41,7 +44,23 @@ final readonly class DatevExportProjection
      */
     public function compute(array $params): array
     {
-        $kind = is_string($params['kind'] ?? null) ? $params['kind'] : 'entries';
+        // Every unknown kind fell through to the postings export but was echoed back under the
+        // label the caller sent: asking for "accounts" and typing "account" produced a file that
+        // announced itself as accounts and contained postings. Absent still means "entries".
+        $rawKind = $params['kind'] ?? null;
+        $kind = 'entries';
+
+        if ($rawKind !== null) {
+            if (!is_string($rawKind) || !in_array($rawKind, self::KINDS, true)) {
+                throw new DomainError(
+                    'E_INPUT_INVALID',
+                    'datevExport: "kind" must be entries, accounts or partners',
+                    ['kind' => is_scalar($rawKind) ? (string) $rawKind : null],
+                );
+            }
+
+            $kind = $rawKind;
+        }
 
         $rows = match ($kind) {
             'accounts' => $this->accountRows(),

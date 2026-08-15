@@ -1,3 +1,4 @@
+import { DomainError } from '../../domain-error.js';
 import type {
   AccountRepository,
   JournalRepository,
@@ -9,6 +10,7 @@ import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 
 const TAX_SUBTYPES = new Set(['tax_in', 'tax_out']);
+const DATEV_KINDS: ReadonlySet<string> = new Set(['entries', 'accounts', 'partners']);
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
@@ -33,7 +35,19 @@ export class DatevExportProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const kind = typeof params.kind === 'string' ? params.kind : 'entries';
+    // Every unknown kind fell through to the postings export but was echoed back under the
+    // label the caller sent: asking for "accounts" and typing "account" produced a file that
+    // announced itself as accounts and contained postings. Absent still means "entries".
+    const rawKind = params.kind;
+    let kind = 'entries';
+    if (rawKind !== undefined && rawKind !== null) {
+      if (typeof rawKind !== 'string' || !DATEV_KINDS.has(rawKind)) {
+        throw new DomainError('E_INPUT_INVALID', 'datevExport: "kind" must be entries, accounts or partners', {
+          kind: String(rawKind),
+        });
+      }
+      kind = rawKind;
+    }
     const rows =
       kind === 'accounts' ? this.accountRows() : kind === 'partners' ? this.partnerRows() : this.entryRows(params);
     return { kind, rows, rowCount: rows.length };

@@ -322,6 +322,34 @@ final readonly class Ledger
 
         $changes = [];
 
+        // Reading both fields leniently made every unrecognized field a silent no-op that still
+        // returned the entry as a SUCCESS payload: `txt` instead of `text` looked like a correction
+        // that had happened. A correction that changes nothing was never asked for — say so instead
+        // of confirming a change nobody made.
+        $hasText = ($input['text'] ?? null) !== null;
+        $hasLines = ($input['lines'] ?? null) !== null;
+
+        if (!$hasText && !$hasLines) {
+            $fields = array_keys($input);
+            sort($fields);
+
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'correct requires "text" or "lines" — nothing to change',
+                ['fields' => implode(',', $fields)],
+            );
+        }
+
+        if ($hasText && !is_string($input['text'])) {
+            throw new DomainError('E_INPUT_INVALID', 'correct: "text" must be a string');
+        }
+
+        // A JSON object decodes to an associative array here but is not an array in Node —
+        // requiring a list keeps both languages judging the same input the same way.
+        if ($hasLines && (!is_array($input['lines']) || !array_is_list($input['lines']))) {
+            throw new DomainError('E_INPUT_INVALID', 'correct: "lines" must be an array');
+        }
+
         if (is_string($input['text'] ?? null) && $input['text'] !== $entry->text()) {
             $changes['text'] = ['from' => $entry->text(), 'to' => $input['text']];
             $entry->changeText($input['text']);
@@ -519,7 +547,27 @@ final readonly class Ledger
      */
     public function createFiscalYear(array $input): FiscalYear
     {
-        $year = is_int($input['year'] ?? null) ? $input['year'] : 0;
+        // Anything that was not an int became year 0 — a quoted "2027" from a JSON caller
+        // created a fiscal year nobody could address again: every later report for 2027 came back
+        // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
+        // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
+        // JSON knows no int/float split: `2027.0` arrives as a float here and as a plain number
+        // in Node, so a whole-valued float counts as the same input in both languages.
+        $rawYear = $input['year'] ?? null;
+
+        if (is_float($rawYear) && $rawYear === floor($rawYear) && abs($rawYear) < (float) PHP_INT_MAX) {
+            $rawYear = (int) $rawYear;
+        }
+
+        if (!is_int($rawYear) || $rawYear <= 0) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'createFiscalYear requires "year" as a positive whole number',
+                ['year' => is_scalar($rawYear) ? (string) $rawYear : null],
+            );
+        }
+
+        $year = $rawYear;
         $start = $this->parseEntryDate($input['start'] ?? null);
         $end = $this->parseEntryDate($input['end'] ?? null);
 

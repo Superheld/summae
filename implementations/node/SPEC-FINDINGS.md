@@ -446,10 +446,10 @@ value is `E_INPUT_INVALID`. Pinned in `scenarios/regression/regressions.json` to
 positive cases — the default still works, and lower-case `"input"` still books the right way
 round.
 
-## Round 1 backlog — probed, confirmed, not yet fixed
+## Round 1 backlog — probed and confirmed (R-5 … R-7 fixed, the rest open)
 
 Found by two adversarial probing agents on 2026-08-15 and reproduced by hand. Recorded here so
-they are not lost; none is fixed yet.
+they are not lost; R-5 … R-7 are fixed (see below), the rest is still open.
 
 | # | Defect | Class |
 |---|---|---|
@@ -457,9 +457,9 @@ they are not lost; none is fixed yet.
 | R-2 | `auditDataExport` carries P&L accounts across fiscal years, `trialBalance` does not — the ADS balance stream and the trial balance disagree per account (identical in both languages, so byte-parity cannot catch it) | logic |
 | R-3 | `correct` rewrites an entry's lines and leaves the open item it created untouched (same family as NF-008) | logic |
 | R-4 | `importMapping` reports `imported: true` but the CLI rebuilds the registry from `summae.json` on every invocation and never writes back — the documented import→report flow cannot work | persistence |
-| R-5 | `createFiscalYear` coerces a non-numeric `year` to 0 and creates the year anyway; `2027.5` and `-5` are accepted too | input validation |
-| R-6 | `correct` with a misspelled field is a silent no-op that returns success | input validation |
-| R-7 | `openItems` ignores an invalid `kind` and returns everything; `datevExport` returns the entries export under a bogus `kind` label | input validation |
+| R-5 | `createFiscalYear` coerces a non-numeric `year` to 0 and creates the year anyway; `2027.5` and `-5` are accepted too | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| R-6 | `correct` with a misspelled field is a silent no-op that returns success | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| R-7 | `openItems` ignores an invalid `kind` and returns everything; `datevExport` returns the entries export under a bogus `kind` label | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | R-8 | `init` is not atomic: a failure after the workspace is written leaves a half-built, non-re-initialisable directory. `--first-fiscal-year` is not validated (`""` → year 0000) | CLI |
 | R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | CLI |
 | R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | CLI |
@@ -467,8 +467,16 @@ they are not lost; none is fixed yet.
 | R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | see NF-014 |
 
 Most of R-5 … R-7 are the same shape: `typeof x === 'T' ? x : <default>` used as validation, which
-cannot tell "absent" from "wrong". With `E_INPUT_INVALID` now available they can be closed in one
-sweep rather than patched individually.
+cannot tell "absent" from "wrong". With `E_INPUT_INVALID` available they were closed in one sweep
+rather than patched individually.
+
+**Resolution of R-5 … R-7 (2026-08-15).** Absent keeps its documented default everywhere — no
+`kind` still means "no filter", no `datevExport.kind` still means `entries`. A *present* value that
+is not a valid value is now `E_INPUT_INVALID` (exit 45): a `year` that is not a positive whole
+number, an `openItems`/`datevExport` `kind` outside its enumeration, and a `correct` call that
+carries neither `text` nor `lines` (which is what a misspelled `txt` amounts to). Pinned in
+`scenarios/regression/input-validation.json`, each rejection paired with a positive case so the
+guards cannot forbid too much.
 
 ## NF-014 — accounts outside a mapping's ranges vanish from the income statement
 

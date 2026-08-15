@@ -281,6 +281,24 @@ export class Ledger {
     const entry = this.requireEntry(input.entryId);
     const changes: AuditChanges = {};
 
+    // Reading both fields leniently made every unrecognized field a silent no-op that still
+    // returned the entry as a SUCCESS payload: `txt` instead of `text` looked like a correction
+    // that had happened. A correction that changes nothing was never asked for — say so instead
+    // of confirming a change nobody made.
+    const hasText = input.text !== undefined && input.text !== null;
+    const hasLines = input.lines !== undefined && input.lines !== null;
+    if (!hasText && !hasLines) {
+      throw new DomainError('E_INPUT_INVALID', 'correct requires "text" or "lines" — nothing to change', {
+        fields: Object.keys(input).sort().join(','),
+      });
+    }
+    if (hasText && typeof input.text !== 'string') {
+      throw new DomainError('E_INPUT_INVALID', 'correct: "text" must be a string');
+    }
+    if (hasLines && !Array.isArray(input.lines)) {
+      throw new DomainError('E_INPUT_INVALID', 'correct: "lines" must be an array');
+    }
+
     const text = asString(input.text);
     if (text !== null && text !== entry.text()) {
       changes.text = { from: entry.text(), to: text };
@@ -421,7 +439,17 @@ export class Ledger {
   }
 
   createFiscalYear(input: Record<string, unknown>): FiscalYear {
-    const year = typeof input.year === 'number' ? input.year : 0;
+    // Anything that was not a number became year 0 — a quoted `"2027"` from a JSON caller
+    // created a fiscal year nobody could address again: every later report for 2027 came back
+    // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
+    // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
+    const rawYear = input.year;
+    if (typeof rawYear !== 'number' || !Number.isInteger(rawYear) || rawYear <= 0) {
+      throw new DomainError('E_INPUT_INVALID', 'createFiscalYear requires "year" as a positive whole number', {
+        year: rawYear === undefined ? null : String(rawYear),
+      });
+    }
+    const year = rawYear;
     const start = this.parseEntryDate(input.start);
     const end = this.parseEntryDate(input.end);
 

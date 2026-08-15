@@ -50,7 +50,8 @@ a short file.
 | **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
 
 **Genuinely open today: F-004 (pool period), NF-008, NF-014 and the NF-005 remainder**, plus the
-"Round 1 backlog" (R-1 … R-12) in `implementations/node/SPEC-FINDINGS.md`.
+open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
+R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
 
 Format per finding:
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\DomainError;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Port\JournalRepository;
@@ -32,7 +33,23 @@ final readonly class OpenItemsProjection
     public function compute(array $params): array
     {
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
-        $kind = is_string($params['kind'] ?? null) ? OpenItemKind::tryFrom($params['kind']) : null;
+        // An unparseable kind used to fall back to "no filter", so a mistyped filter widened the
+        // result instead of narrowing it: a payment run asking for payables got receivables mixed
+        // in and would have paid them out. Absent still means "no filter" — a wrong value must not.
+        $kind = null;
+        $rawKind = $params['kind'] ?? null;
+
+        if ($rawKind !== null) {
+            $kind = is_string($rawKind) ? OpenItemKind::tryFrom($rawKind) : null;
+
+            if ($kind === null) {
+                throw new DomainError(
+                    'E_INPUT_INVALID',
+                    'openItems: "kind" must be "receivable" or "payable"',
+                    ['kind' => is_scalar($rawKind) ? (string) $rawKind : null],
+                );
+            }
+        }
         $partnerId = is_string($params['partnerId'] ?? null) ? $params['partnerId'] : null;
 
         $open = [];
