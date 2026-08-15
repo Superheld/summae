@@ -19,6 +19,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
 
 **Genuinely open today: NF-006, NF-007, NF-008 and the NF-005 remainder** (plus F-004's
 hard-coded low-value-asset pool period, recorded on the PHP side).
@@ -276,3 +277,40 @@ serialized shape, so a new value is an append to the format. Needs a spec decisi
 normative fixture.
 
 **Resolution.** Documented, not changed.
+
+## NF-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
+
+**Finding (2026-08-15, probing the CLI error boundary).** The same string was valid in one
+engine and invalid in the other, in the **substrate** — the layer that is meant to be frozen
+and is bound by the top quality policy:
+
+| input | PHP | Node (before) |
+|---|---|---|
+| `0000-01-01` | accepted | `InvalidValue` |
+| `0001-01-01` | accepted | `InvalidValue` |
+| `0099-12-31` | accepted | `InvalidValue` |
+
+**Cause.** Node validated by round-tripping through `new Date(Date.UTC(year, month-1, day))`.
+`Date.UTC` maps years 0–99 onto **1900+year** (a JavaScript legacy rule), so `0000-01-01`
+became `1900-01-01`, the round-trip failed, and the date was rejected. The boundary was not a
+design decision — it was a host quirk leaking into a value object. `lastDayOfMonth()` and
+`firstDayOfNextMonth()` used the same helper and were wrong in the same band.
+
+How it surfaced: `cashBasisReport` defaults a missing `year` to `0` and builds `0000-01-01`
+(NF-006), which crashed in Node and returned an empty report in PHP. The crash was hiding a
+divergence.
+
+**Resolution.** Node's `CalendarDate` no longer uses the host `Date` at all — validation and
+month arithmetic are done with an explicit days-per-month table and the Gregorian leap rule
+(`calendar-date.ts`). This **widens** Node to match PHP (nothing that was valid became
+invalid), and it removes the whole class of `Date`-quirk divergences from the substrate.
+
+Verified identical in both languages across the accepted/rejected tables and the month
+arithmetic, including `0050-02-29` (year 50 is not a leap year), `0100-02-29`, `1900-02-29`
+and the December rollover. Pinned by `calendar-date.test.ts` / `CalendarDateTest.php`, which
+carry the **same tables** — 34 cases each. All 86 fixtures green in both languages against
+both subjects, SF-15 cross-test 45/45 both directions.
+
+**Note.** This does **not** resolve NF-006: with the divergence gone, both engines now return
+an empty cash-basis report for a missing `year` instead of one crashing. Consistent, still a
+silent wrong answer — the missing-parameter question stands.

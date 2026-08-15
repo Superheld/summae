@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Cli\Command;
 
+use Summae\Cli\ErrorOutput;
 use Summae\Cli\PackLibrary;
 use Summae\Cli\Workspace;
 use Symfony\Component\Console\Command\Command;
@@ -38,6 +39,16 @@ final class InitCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        try {
+            return $this->createWorkspace($input, $output);
+        } catch (\Throwable $e) {
+            return ErrorOutput::report($output, $e);
+        }
+    }
+
+    /** The command body — extracted so `execute` can wrap it in the error boundary. */
+    private function createWorkspace(InputInterface $input, OutputInterface $output): int
     {
         $directory = is_string($input->getOption('dir')) ? $input->getOption('dir') : '.';
         $name = is_string($input->getOption('name')) ? $input->getOption('name') : 'Mandant';

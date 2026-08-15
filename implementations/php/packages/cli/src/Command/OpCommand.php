@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Summae\Cli\Command;
 
-use Summae\Cli\ExitCodes;
+use Summae\Cli\ErrorOutput;
 use Summae\Cli\Workspace;
 use Summae\Core\Composition\TenantOperations;
-use Summae\Core\DomainError;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -44,14 +43,8 @@ final class OpCommand extends Command
             $payload = $this->payload($input);
             $tenant = Workspace::in($directory)->tenant();
             $result = (new TenantOperations($tenant))->execute($operation, $payload);
-        } catch (DomainError $e) {
-            $output->writeln(json_encode([
-                'error' => $e->errorCode,
-                'message' => $e->getMessage(),
-                'details' => $e->details === [] ? new \stdClass() : $e->details,
-            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-
-            return ExitCodes::for($e->errorCode);
+        } catch (\Throwable $e) {
+            return ErrorOutput::report($output, $e);
         }
 
         $output->writeln(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));

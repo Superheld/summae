@@ -41,6 +41,7 @@ a short file.
 | NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
 
 **Genuinely open today: F-004 (pool period), NF-006, NF-007, NF-008, and the NF-005 remainder.**
 
@@ -335,3 +336,12 @@ Summary and the PHP sites:
 
 Each still-open item needs a spec decision (NF-007 an append to the error catalogue, NF-008 a
 data-format decision) before either language moves.
+
+- **NF-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
+  2026-08-15.** A substrate-level equivalence break: Node validated by round-tripping through
+  `Date.UTC(year, …)`, which maps years 0–99 onto 1900+year, so `0000-01-01`…`0099-12-31` were
+  rejected there and accepted here. **PHP is unchanged** — Node was widened to match it by
+  dropping the host `Date` from the value object entirely (explicit days-per-month table +
+  Gregorian leap rule). Pinned by `CalendarDateTest` and Node's `calendar-date.test.ts`, which
+  carry the **same** accepted/rejected tables (34 cases each). Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
