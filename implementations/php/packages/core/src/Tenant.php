@@ -104,6 +104,7 @@ final readonly class Tenant
             $dimensions,
             $clock,
             $ids,
+            $taxCodes,
         );
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity);

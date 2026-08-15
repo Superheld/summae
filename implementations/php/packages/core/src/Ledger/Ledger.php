@@ -37,6 +37,7 @@ use Summae\Core\Records\AuditRecord;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
 
 /**
@@ -64,6 +65,9 @@ final readonly class Ledger
         private DimensionRegistry $dimensions,
         private Clock $clock,
         private IdGenerator $ids,
+        /** Null = unwired; treated as an EMPTY registry, so a caller-supplied tax tag is
+         *  rejected rather than waved through — same behaviour as Node's default. */
+        private ?TaxCodeRegistry $taxCodes = null,
     ) {
     }
 
@@ -702,8 +706,16 @@ final readonly class Ledger
             $dimensions[] = DimensionValue::of($rawDimension['type'], $rawDimension['code']);
         }
 
+        // A caller-supplied taxTag must name a REGISTERED tax code. The VAT return is built
+        // from these tags, never from account numbers, so an unvalidated tag writes straight
+        // into statutory output: `post` used to accept {"code":"MADEUP","reportingKey":"4711"}
+        // and the invented key showed up as a line of the return. `postVoucher` always went
+        // through the registry; the direct `post` path did not.
         /** @var array<string, mixed>|null $taxTag */
         $taxTag = is_array($rawLine['taxTag'] ?? null) ? $rawLine['taxTag'] : null;
+        if ($taxTag !== null && is_string($taxTag['code'] ?? null) && $taxTag['code'] !== '') {
+            ($this->taxCodes ?? TaxCodeRegistry::empty())->get($taxTag['code']);
+        }
 
         return [
             'account' => $account,

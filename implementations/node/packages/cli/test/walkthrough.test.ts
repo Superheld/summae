@@ -165,9 +165,14 @@ test('every shipped pack has a scenario', () => {
     .filter((entry) => entry.isDirectory() && entry.name.endsWith('-pack'))
     .map((entry) => entry.name.replace(/-pack$/, ''))
     .sort();
-  const covered = scenarios()
-    .map((scenario) => scenario.init.pack)
-    .filter((pack): pack is string => typeof pack === 'string')
-    .sort();
+  // A pack may back several scenarios (the lifecycle one plus regression guards), so
+  // compare the SET of covered packs, not the list.
+  const covered = [
+    ...new Set(
+      scenarios()
+        .map((scenario) => scenario.init.pack)
+        .filter((pack): pack is string => typeof pack === 'string'),
+    ),
+  ].sort();
   expect(covered, 'a pack without a walkthrough scenario is an untested offer').toStrictEqual(packs);
 });
