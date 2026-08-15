@@ -1,0 +1,122 @@
+{
+  "fixture": "input-invalid",
+  "description": "v0.5.2/E_INPUT_INVALID: ein übergebener Parameter ist vorhanden, aber kein gültiger Wert — Aufruferfehler, kein interner Fehler. Deckt die drei Formen ab: unbekannter Aufzählungswert (direction), fehlender Pflichtparameter (cashBasisReport.year, accountSheet.account), unbekannte Mapping-Kennung. Abgegrenzt von den spezifischeren Codes: unbekanntes Konto bleibt E_ACCOUNT_UNKNOWN, unbekannter Steuerschlüssel bleibt E_TAXCODE_UNKNOWN. Befunde NF-006, NF-007, NF-013.",
+  "covers": ["F-IO-003"],
+  "setup": {
+    "tenant": {
+      "name": "Eingabe GmbH",
+      "baseCurrency": "EUR",
+      "taxProfile": { "taxationMethod": "cash" }
+    },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "3000", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "1776", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" },
+      { "number": "6000", "name": "Aufwand", "type": "expense" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [{ "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }],
+    "taxCodes": [
+      {
+        "code": "VSt19",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "19.00",
+            "taxAccount": "1776",
+            "reportingKey": "66"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-1", "voucherDate": "2026-03-12" },
+        "entryDate": "2026-03-12",
+        "text": "direction mit Großbuchstaben",
+        "taxCode": "VSt19",
+        "direction": "Input",
+        "netLines": [{ "account": "6000", "money": { "amount": "200.00", "currency": "EUR" } }],
+        "counterAccount": "3000"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "comment": "NF-013: alles außer exakt \"input\" fiel auf \"output\" durch und buchte spiegelverkehrt — Aufwand im Haben, Verbindlichkeit im Soll"
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-2", "voucherDate": "2026-03-13" },
+        "entryDate": "2026-03-13",
+        "text": "korrektes direction bucht weiterhin",
+        "taxCode": "VSt19",
+        "direction": "input",
+        "netLines": [{ "account": "6000", "money": { "amount": "200.00", "currency": "EUR" } }],
+        "counterAccount": "3000"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": { "amount": "238.00", "currency": "EUR" },
+          "comment": "Positivfall: der Guard verbietet nicht zu viel"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-1", "voucherDate": "2026-03-14" },
+        "entryDate": "2026-03-14",
+        "text": "fehlendes direction bleibt output (dokumentierter Standard)",
+        "taxCode": "VSt19",
+        "netLines": [{ "account": "8400", "money": { "amount": "100.00", "currency": "EUR" } }],
+        "counterAccount": "1400"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": { "amount": "119.00", "currency": "EUR" },
+          "comment": "Abwesend ≠ falsch: der Standardwert bleibt erhalten"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "comment": "NF-006: Pflichtparameter heißt year, nicht fiscalYear — vorher Absturz (Node) bzw. leerer Bericht (PHP)"
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "comment": "NF-007: fehlendes mapping ist ein Aufruferfehler, keine Überlappung (vorher E_MAPPING_OVERLAP)"
+      }
+    },
+    {
+      "name": "accountSheet",
+      "params": { "account": "1200" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "comment": "fehlendes fiscalYear lieferte vorher ein leeres, autoritativ aussehendes Kontoblatt inklusive Kontoname"
+      }
+    },
+    {
+      "name": "accountSheet",
+      "params": { "account": "9999", "fiscalYear": 2026 },
+      "expect": {
+        "error": "E_ACCOUNT_UNKNOWN",
+        "comment": "Abgrenzung: ein unbekanntes Konto bleibt beim spezifischeren Code"
+      }
+    }
+  ]
+}

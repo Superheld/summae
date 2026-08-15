@@ -383,10 +383,10 @@ data-format decision) before either language moves.
   `direction` still defaults to `'output'`; a wrong value is now `E_INPUT_INVALID`.
 - **`E_INPUT_INVALID` (exit 45) added to the catalogue** for "a parameter is present but not valid
   input". In use in `TaxService`, `CashBasisProjection`, `AccountSheetProjection`,
-  `IncomeStatementProjection`, `BalanceSheetProjection`. ⚠ The normative entry in
-  `fehlerkatalog.md` and a conformance fixture still have to be written in the knowledge base —
-  `testsuite/` is mirrored read-only, so the code currently lives in the implementations and the
-  regression scenarios only.
+  `IncomeStatementProjection`, `BalanceSheetProjection`. The normative entry
+  (`50-spezifikation/fehlerkatalog.md`, section `E_INPUT`) and the conformance fixture
+  (`core/input-invalid.json`) were written in the knowledge base and mirrored via `make sync` —
+  green in both languages on the first run.
 - **NF-014 — accounts outside a mapping's ranges vanish from the income statement** while
   `balanceSheet`'s result position still counts them, so the two statements disagree. Not a limit
   on how many accounts you may create (there is none) — a gap between chart and mapping. Full

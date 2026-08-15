@@ -111,6 +111,22 @@ sind vollständig abgedeckt; von den 4 Pack-Codes haben `E_PACK_UNRESOLVED_REF` 
 
 Hinweis: `runDepreciation` auf bereits gelaufene Periode ist **kein Fehler** (idempotent, `alreadyRun: true`) — bewusste Abweichung, siehe `api.md`.
 
+## E_INPUT — Eingabe (v0.5.2)
+
+| Code | Invariante | Fixture |
+|---|---|---|
+| `E_INPUT_INVALID` | ein übergebener Parameter/Feld ist **vorhanden, aber kein gültiger Wert** — Pflichtparameter fehlt, falscher Typ, unbekannter Aufzählungswert, unbekannte Mapping-Kennung | input-invalid |
+
+Abgrenzung: `E_INPUT_INVALID` ist ein **Aufruferfehler**, kein interner Fehler. Vorher
+endeten diese Fälle entweder als ungefangene `InvalidValue` (Stacktrace bzw. `E_UNEXPECTED`
+mit Exit 1 — für einen automatisierten Aufrufer nicht von einem summae-Bug unterscheidbar)
+oder wurden still auf einen plausiblen Standardwert gezogen, was zu falschen Zahlen ohne
+jede Fehlermeldung führte (Befunde NF-006, NF-007, NF-013).
+
+Wo ein **spezifischerer** Code existiert, hat dieser Vorrang: ein unbekanntes Konto bleibt
+`E_ACCOUNT_UNKNOWN`, ein unbekannter Steuerschlüssel `E_TAXCODE_UNKNOWN`. `E_INPUT_INVALID`
+greift nur, wenn die Eingabe schon als Eingabe unbrauchbar ist.
+
 ## Konventionen
 
 Fehler tragen strukturierte Details (`code`, `message` (implementierungsfrei formulierbar), `details`-Objekt mit den beteiligten IDs/Werten). Die Fixture prüft nur `code` — Wortlaut ist frei.

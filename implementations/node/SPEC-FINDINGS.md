@@ -419,9 +419,12 @@ Appended to both exit-code tables, so no existing exit code moved. In use at:
 `tax-service` (`direction`), `cash-basis` (`year`, unknown `mapping`), `account-sheet`
 (`account`, `fiscalYear`), `income-statement` and `balance-sheet` (missing/unknown `mapping`).
 
-> ⚠ **Still to do in the knowledge base:** the normative entry in `fehlerkatalog.md` plus a
-> conformance fixture. `testsuite/` is mirrored read-only, so both implementations and the
-> regression scenarios carry the code today while the normative source does not yet.
+**Normative source: done.** The catalogue entry was written in the knowledge base
+(`50-spezifikation/fehlerkatalog.md`, section `E_INPUT` with the delimitation rule: where a more
+specific code exists it wins — an unknown account stays `E_ACCOUNT_UNKNOWN`, an unknown tax code
+stays `E_TAXCODE_UNKNOWN`), and the conformance fixture `core/input-invalid.json` covers all three
+forms plus two positive cases, mirrored here via `make sync`. Green in both languages on the first
+run (87/87 `--strict`).
 
 ## NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED
 
