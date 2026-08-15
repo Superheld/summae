@@ -114,10 +114,10 @@ summae init --name "Mustermann Consulting" --pack de --first-fiscal-year 2026 --
 ```
 
 ```json
-{"initialized":true,"tenant":"Mustermann Consulting","baseCurrency":"EUR","created":{"accounts":40,"fiscalYears":1}}
+{"initialized":true,"tenant":"Mustermann Consulting","baseCurrency":"EUR","created":{"accounts":41,"fiscalYears":1}}
 ```
 
-That single call resolved the `de` pack, created 40 accounts and the fiscal
+That single call resolved the `de` pack, created 41 accounts and the fiscal
 year 2026 with its twelve monthly periods. Two files now exist:
 
 | File | Content |
