@@ -36,8 +36,8 @@ final readonly class TrialBalanceProjection
      */
     public function compute(array $params): array
     {
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : 0;
-        $throughPeriod = is_int($params['throughPeriod'] ?? null) ? $params['throughPeriod'] : PHP_INT_MAX;
+        $fiscalYear = Parameters::integerOr($params['fiscalYear'] ?? null, 0);
+        $throughPeriod = Parameters::integerOr($params['throughPeriod'] ?? null, PHP_INT_MAX);
         $includeZeroBalances = ($params['includeZeroBalances'] ?? false) === true;
 
         $zero = Money::zero($this->baseCurrency);

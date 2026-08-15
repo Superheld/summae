@@ -105,6 +105,11 @@ final readonly class TenantOperations
     {
         $tenant = $this->tenant;
 
+        // The parameter contract is checked here, before routing: one place instead of one check
+        // per projection, and the same place in both languages. Projections below therefore read
+        // parameters that are either absent or of the declared type.
+        ProjectionParameters::validate($name, $params);
+
         return match ($name) {
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal))
                 ->compute($params),

@@ -15,6 +15,7 @@ import { OpenItemsProjection } from '../policies/projection/open-items.js';
 import { TrialBalanceProjection } from '../policies/projection/trial-balance.js';
 import { VatReturnProjection } from '../policies/projection/vat-return.js';
 import { PostVoucherService } from './post-voucher-service.js';
+import { validateProjectionParams } from './projection-parameters.js';
 import type { Tenant } from './tenant.js';
 
 /** Plain-JSON serialization via toJSON() (like PHP's json_encode/decode). */
@@ -115,6 +116,11 @@ export class TenantOperations {
 
   project(name: string, params: Record<string, unknown>): Record<string, unknown> {
     const tenant = this.tenant;
+
+    // The parameter contract is checked here, before routing: one place instead of one check
+    // per projection, and the same place in both languages. Projections below therefore read
+    // parameters that are either absent or of the declared type.
+    validateProjectionParams(name, params);
 
     switch (name) {
       case 'trialBalance':

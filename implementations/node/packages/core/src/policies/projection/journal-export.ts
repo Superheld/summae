@@ -11,6 +11,7 @@ import type {
   VoucherRepository,
 } from '../../port.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
+import { integerOrNull } from './parameters.js';
 
 const FORMAT_VERSION = '0.4';
 const LINE_FIELDS = ['accountId', 'side', 'money', 'dimensions', 'taxTag'] as const;
@@ -38,7 +39,7 @@ export class JournalExportProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
+    const fiscalYear = integerOrNull(params.fiscalYear);
     const entries = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
 
     const streams: Record<string, unknown[]> = {

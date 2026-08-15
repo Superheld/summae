@@ -116,6 +116,11 @@ export { TaxService } from './policies/expansion/tax/tax-service.js';
 // Komposition
 export { Tenant } from './composition/tenant.js';
 export { TenantOperations } from './composition/tenant-operations.js';
+export {
+  PROJECTION_PARAMETERS,
+  validateProjectionParams,
+  type ParameterSpec,
+} from './composition/projection-parameters.js';
 export { PostVoucherService } from './composition/post-voucher-service.js';
 export { TenantFactory } from './composition/tenant-factory.js';
 export {

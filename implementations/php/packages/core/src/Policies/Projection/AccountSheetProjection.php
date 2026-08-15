@@ -38,14 +38,22 @@ final readonly class AccountSheetProjection
         // empty ledger — the resolved account name next to "0.00" reads as a verified statement
         // about the account, not as "you forgot a parameter".
         if (!is_string($params['account'] ?? null) || $params['account'] === '') {
-            throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "account"');
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'accountSheet requires the parameter "account"',
+                ['account' => DomainError::rejectedValue($params['account'] ?? null)],
+            );
         }
-        if (!is_int($params['fiscalYear'] ?? null)) {
-            throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "fiscalYear"');
+        if (Parameters::asInteger($params['fiscalYear'] ?? null) === null) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'accountSheet requires the parameter "fiscalYear"',
+                ['fiscalYear' => DomainError::rejectedValue($params['fiscalYear'] ?? null)],
+            );
         }
         $number = $params['account'];
-        $fiscalYear = $params['fiscalYear'];
-        $throughPeriod = is_int($params['throughPeriod'] ?? null) ? $params['throughPeriod'] : PHP_INT_MAX;
+        $fiscalYear = Parameters::integerOr($params['fiscalYear'], 0);
+        $throughPeriod = Parameters::integerOr($params['throughPeriod'] ?? null, PHP_INT_MAX);
 
         $account = $this->accounts->byNumber(AccountNumber::of($number));
         if ($account === null) {

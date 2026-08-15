@@ -63,10 +63,10 @@ final readonly class CashBasisProjection
         // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
         // throw an uncaught InvalidValue, here it returned an empty report (NF-006/NF-009). Both
         // were wrong in the same place — a missing required parameter must say so.
-        if (!is_int($params['year'] ?? null)) {
+        if (Parameters::asInteger($params['year'] ?? null) === null) {
             throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"');
         }
-        $year = $params['year'];
+        $year = Parameters::integerOr($params['year'], 0);
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
         // An unknown mapping used to be ignored here while incomeStatement/balanceSheet threw on
         // the same value — same parameter, same registry, two behaviours.

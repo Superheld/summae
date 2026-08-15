@@ -92,3 +92,4 @@ xx-2-allocate-scale3
 xx-3-purchase-no-input-tax
 xx-4-open-item-lifecycle-scale3
 input-invalid
+parameter-contract

@@ -82,9 +82,9 @@ final readonly class DatevExportProjection
      */
     private function entryRows(array $params): array
     {
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : null;
-        $fromPeriod = is_int($params['fromPeriod'] ?? null) ? $params['fromPeriod'] : 1;
-        $throughPeriod = is_int($params['throughPeriod'] ?? null) ? $params['throughPeriod'] : PHP_INT_MAX;
+        $fiscalYear = Parameters::integerOrNull($params['fiscalYear'] ?? null);
+        $fromPeriod = Parameters::integerOr($params['fromPeriod'] ?? null, 1);
+        $throughPeriod = Parameters::integerOr($params['throughPeriod'] ?? null, PHP_INT_MAX);
 
         $entries = $fiscalYear === null ? $this->journal->all() : $this->journal->forFiscalYear($fiscalYear);
         $rows = [];

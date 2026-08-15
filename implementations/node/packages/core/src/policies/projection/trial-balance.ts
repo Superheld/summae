@@ -2,6 +2,7 @@ import type { AccountRepository, JournalRepository } from '../../port.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
+import { integerOr } from './parameters.js';
 
 interface Totals {
   opening: Money;
@@ -25,9 +26,8 @@ export class TrialBalanceProjection {
   ) {}
 
   compute(params: Record<string, unknown>): { rows: Array<Record<string, string>> } {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : 0;
-    const throughPeriod =
-      typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
+    const fiscalYear = integerOr(params.fiscalYear, 0);
+    const throughPeriod = integerOr(params.throughPeriod, Number.MAX_SAFE_INTEGER);
     const includeZeroBalances = params.includeZeroBalances === true;
 
     const zero = Money.zero(this.baseCurrency);
