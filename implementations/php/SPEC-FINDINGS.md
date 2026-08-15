@@ -17,6 +17,33 @@ next most plausible behavior.
 >
 > The detail entries below remain as history.
 
+## Status at a glance
+
+Re-verified against the code on 2026-08-15 — the per-finding headings below now carry their
+status, so scanning the list no longer suggests open work that is long done. Resolved entries
+keep their original text under the resolution note: why a decision was made is worth more than
+a short file.
+
+| Finding | Status |
+|---|---|
+| F-001 unknown `voucherId` | ✅ `E_VOUCHER_UNKNOWN` + `core/voucher-unknown.json` |
+| F-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
+| F-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
+| F-004 asset posting accounts | ⚠ **partly** — accounts came via the `assetAccounts` pack module; the **pool period is still hard-coded** |
+| F-005 journalExport manifest streams | ✅ `formatVersion 0.4`, `auditLog` always included |
+| F-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
+| F-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
+| F-008 `includeNonCash` missing from the schema | ✅ schema extended |
+| F-009 `cashBasisReport` German VAT passthrough | ✅ resolved |
+| F-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
+| F-CROSS-001 timestamp serialization | ✅ resolved |
+| NF-005 cash-basis reversal | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
+| NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
+| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+
+**Genuinely open today: F-004 (pool period), NF-006, NF-007, NF-008, and the NF-005 remainder.**
+
 Format per finding:
 
 ```
@@ -30,7 +57,11 @@ Format per finding:
 
 ---
 
-## F-001: No error code for unknown voucherId
+## F-001: No error code for unknown voucherId — ✅ RESOLVED
+
+> **Resolved.** The proposed dedicated code was introduced: `E_VOUCHER_UNKNOWN` is in the
+> error catalogue and in the exit-code table (`ExitCodes.php` / `exit-codes.ts`), and
+> `testsuite/fixtures/core/voucher-unknown.json` pins it. Original finding:
 
 - **Job:** JOB-003
 - **What:** `E_ENTRY_NO_VOUCHER` is defined as "voucherId missing". For a
@@ -41,7 +72,11 @@ Format per finding:
 - **Proposal:** either pin it down explicitly that way or introduce a dedicated code
   `E_VOUCHER_UNKNOWN` + fixture.
 
-## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog
+## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog — ✅ RESOLVED
+
+> **Resolved in spec v0.5.** The code was dropped from the spec rather than added to the
+> catalogue: `reverse` is status-independent, which is what the implementation already did.
+> Original finding:
 
 - **Job:** JOB-003
 - **What:** api.md lists `E_ENTRY_NOT_FINALIZED`* for `reverse` (with footnote
@@ -54,7 +89,28 @@ Format per finding:
 - **Proposal:** resolve the footnote in api.md — remove the line from the error
   column or define the behavior for `entered` explicitly.
 
-## F-004: Account resolution for asset postings not specified
+## F-004: Account resolution for asset postings not specified — ⚠ PARTLY RESOLVED
+
+> **Accounts: resolved.** The proposed keys became a pack module of their own — `kind:
+> assetAccounts` (`pack-library/de-pack/assets/`, `pack-library/us-pack/assets/`) supplies the
+> acquisition counter account, the depreciation expense account and the low-value-asset
+> account as pack data, not as a name-matching fallback.
+>
+> **Still open — the low-value-asset *pool period* is hard-coded.** `asset-service.ts:70-72`
+> (`AssetService.php` likewise) writes off a pooled asset over a **fixed 5 years at 1/5 each**,
+> tagged `FINDING:` in the source. Five years is German law (§ 6 Abs. 2a EStG,
+> GWG-Sammelposten) sitting in the expansion code — the litmus test from the root `CLAUDE.md`
+> says a rule that cites a statute belongs in the pack as data. The statute-citation guard did
+> not catch it because the source names no paragraph. Needs a field on the depreciation module
+> (knowledge base: schema + fixture) before the code can read it from the pack.
+>
+> No pack is *currently* mis-served: the pool route only fires when a threshold declares both
+> `poolMin` and `poolMax`, and only `de-pack` does (`250.01`–`1000.00`); `us-pack` has both
+> `null`, so it never takes the route. The gap is expressive, not yet a wrong number — the pack
+> can switch the pool on and off but cannot say **over how long**, so any future jurisdiction
+> with a pooled de-minimis rule would inherit Germany's five years.
+>
+> Original finding:
 
 - **Job:** JOB-009
 - **What:** acquireAsset/runDepreciation generate postings, but neither spec
@@ -67,7 +123,12 @@ Format per finding:
   the single bank account, expense account by name part ("AfA"/"GWG").
 - **Proposal:** add the keys to the rule-module spec; add fixtures.
 
-## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other
+## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other — ✅ RESOLVED
+
+> **Resolved.** The contradiction is gone: `testsuite/fixtures/io/journal-export-z3.json` now
+> expects `formatVersion "0.4"` and `streams: [journal, accounts, vouchers, auditLog]` — the
+> audit trail is always part of the export — and the schema declares `streams`/`hashAlgorithm`.
+> Original finding:
 
 - **Job:** JOB-011
 - **What:** journal-export-z3 expects exactly [journal, accounts, vouchers]
@@ -83,7 +144,11 @@ Format per finding:
   (auditLog always, formatVersion current), extend the schema manifest with
   streams/hashAlgorithm.
 
-## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog
+## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog — ✅ RESOLVED
+
+> **Resolved.** The proposed code was added: `E_COSTING_RUN_UNKNOWN` is in the catalogue and
+> the exit-code table, pinned by `testsuite/fixtures/costing/costing-run-unknown.json`.
+> Original finding:
 
 - **Job:** JOB-010
 - **What:** releaseCosting/costAllocationSheet with an unknown runId has
@@ -92,7 +157,11 @@ Format per finding:
   E_OPENITEM_UNKNOWN).
 - **Proposal:** add it to the error catalog + fixture.
 
-## F-007: balanceSheet side assignment by root order
+## F-007: balanceSheet side assignment by root order — ✅ RESOLVED
+
+> **Resolved.** The proposed explicit field was introduced instead of relying on root order:
+> `format.schema.json` `$defs/mappingPosition` declares `side: assets|liabilitiesAndEquity`
+> at the root node, and `BalanceSheetProjection` / `balance-sheet.ts` read it. Original finding:
 
 - **Job:** JOB-008
 - **What:** the spec does not define which mapping root is assets and
@@ -101,7 +170,12 @@ Format per finding:
   all others = liabilities-and-equity (credit−debit).
 - **Proposal:** `side: assets|liabilitiesAndEquity` on the mapping root node.
 
-## F-003: No error code for "fiscal-year close with non-finalized postings"
+## F-003: No error code for "fiscal-year close with non-finalized postings" — ✅ RESOLVED
+
+> **Resolved.** The proposed dedicated code was introduced rather than reusing
+> `E_PERIOD_OUT_OF_ORDER`: `E_FISCALYEAR_UNFINALIZED_ENTRIES` is in the catalogue and the
+> exit-code table, pinned by `testsuite/fixtures/core/fiscalyear-close-guard.json`.
+> Original finding:
 
 - **Job:** JOB-003
 - **What:** api.md requires for `closeFiscalYear` that "all postings are

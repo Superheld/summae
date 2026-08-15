@@ -4,7 +4,26 @@ Documented contradictions between spec / fixture / model (root `CLAUDE.md`:
 "don't guess, don't bend the fixture, but document and build on with the
 next-most-plausible behavior").
 
-## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest
+## Status at a glance
+
+Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-…` findings:
+`implementations/php/SPEC-FINDINGS.md` (that file carries the shared status table).
+
+| Finding | Status |
+|---|---|
+| NF-001 pack draft fixture `defaults` | ✅ draft completed at the source |
+| NF-002 `includeNonCash` missing from the schema | ✅ schema extended |
+| NF-003 `cashBasisReport` German VAT passthrough | ✅ resolved |
+| NF-004 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
+| NF-005 cash-basis reversal counts immediately | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
+| NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
+| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+
+**Genuinely open today: NF-006, NF-007, NF-008 and the NF-005 remainder** (plus F-004's
+hard-coded low-value-asset pool period, recorded on the PHP side).
+
+## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
 **Finding (2026-06-21, Gate-1 pack conformance).** The draft fixture
 `testsuite/fixtures/pack/de-composed-equals-de/tenant-from-de-complete-posts-identically.json`
