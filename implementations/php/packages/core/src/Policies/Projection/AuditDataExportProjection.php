@@ -104,6 +104,18 @@ final readonly class AuditDataExportProjection
     {
         $beginning = $this->signedSums($prior);
         $ending = $this->signedSums([...$prior, ...$current]);
+        // Income accounts start the fiscal year at zero (api.md: balance accounts cumulative,
+        // income accounts per fiscal year). Carrying their prior turnover into this stream made it
+        // disagree with trialBalance per account — two reports over the same books, side by side on
+        // an auditor's desk, with different numbers.
+        $currentOnly = $this->signedSums($current);
+
+        /** @var array<string, bool> $carrying */
+        $carrying = [];
+        foreach ($this->accounts->all() as $account) {
+            $carrying[$account->number->value] = $account->type->isBalanceCarrying();
+        }
+
         $numbers = array_keys($ending);
         sort($numbers, SORT_STRING);
         $zero = Money::zero($this->baseCurrency);
@@ -115,8 +127,10 @@ final readonly class AuditDataExportProjection
                 'glAccountNumber' => $number,
                 'balanceAsOfDate' => $asOf,
                 'fiscalYear' => $fiscalYear,
-                'amountBeginning' => ($beginning[$number] ?? $zero)->amountAsString(),
-                'amountEnding' => ($ending[$number] ?? $zero)->amountAsString(),
+                'amountBeginning' => (($carrying[$number] ?? true) ? ($beginning[$number] ?? $zero) : $zero)->amountAsString(),
+                'amountEnding' => (($carrying[$number] ?? true)
+                    ? ($ending[$number] ?? $zero)
+                    : ($currentOnly[$number] ?? $zero))->amountAsString(),
                 'amountCurrency' => $this->baseCurrency->code,
             ];
         }

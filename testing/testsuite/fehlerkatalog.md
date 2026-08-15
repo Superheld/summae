@@ -138,6 +138,17 @@ Wo ein **spezifischerer** Code existiert, hat dieser Vorrang: ein unbekanntes Ko
 `E_ACCOUNT_UNKNOWN`, ein unbekannter Steuerschlüssel `E_TAXCODE_UNKNOWN`. `E_INPUT_INVALID`
 greift nur, wenn die Eingabe schon als Eingabe unbrauchbar ist.
 
+## E_WORKSPACE (CLI-Arbeitsverzeichnis, v0.6)
+
+| Code | Invariante | Fixture |
+|---|---|---|
+| `E_WORKSPACE_INVALID` | `summae.json` ist lesbar, aber ein Pflichtfeld fehlt oder ist unbrauchbar (`tenantId`, `name`, `baseCurrency`) | CLI-Test (kein Fixture: nur über die CLI erreichbar) |
+
+Die Arbeitsdatei ist ein Vertrag, keine Anregung. Vorher wurde jedes Feld auf einen Standardwert
+gezogen und die `tenantId` neu erzeugt, wenn sie fehlte — die CLI öffnete dieselbe Datenbank unter
+einer anderen Identität und meldete ein leeres Hauptbuch. Von „die Bücher sind leer" war das für
+niemanden zu unterscheiden. Befund R-9.
+
 ## Konventionen
 
 Fehler tragen strukturierte Details (`code`, `message` (implementierungsfrei formulierbar), `details`-Objekt mit den beteiligten IDs/Werten). Die Fixture prüft nur `code` — Wortlaut ist frei.

@@ -2,6 +2,7 @@ import type { AccountRepository, JournalRepository, VoucherRepository } from '..
 import type { Currency } from '../../substrate/currency.js';
 import type { EntryLine } from '../../substrate/entry-line.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
+import { isBalanceCarrying } from '../../substrate/types.js';
 import { Money } from '../../substrate/money.js';
 import { integerOrNull } from './parameters.js';
 
@@ -79,16 +80,28 @@ export class AuditDataExportProjection {
   ): Array<Record<string, unknown>> {
     const beginning = this.signedSums(prior);
     const ending = this.signedSums([...prior, ...current]);
+    // Income accounts start the fiscal year at zero (api.md: balance accounts cumulative, income
+    // accounts per fiscal year). Carrying their prior turnover into this stream made it disagree
+    // with trialBalance per account — two reports over the same books, side by side on an
+    // auditor's desk, with different numbers.
+    const currentOnly = this.signedSums(current);
+    const carrying = new Map<string, boolean>(
+      this.accounts.all().map((account) => [account.number.value, isBalanceCarrying(account.type)]),
+    );
+
     const numbers = [...ending.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     const zero = Money.zero(this.baseCurrency);
-    return numbers.map((number) => ({
-      glAccountNumber: number,
-      balanceAsOfDate: asOf,
-      fiscalYear,
-      amountBeginning: (beginning.get(number) ?? zero).amountAsString(),
-      amountEnding: (ending.get(number) ?? zero).amountAsString(),
-      amountCurrency: this.baseCurrency.code,
-    }));
+    return numbers.map((number) => {
+      const isCarrying = carrying.get(number) ?? true;
+      return {
+        glAccountNumber: number,
+        balanceAsOfDate: asOf,
+        fiscalYear,
+        amountBeginning: (isCarrying ? (beginning.get(number) ?? zero) : zero).amountAsString(),
+        amountEnding: (isCarrying ? (ending.get(number) ?? zero) : (currentOnly.get(number) ?? zero)).amountAsString(),
+        amountCurrency: this.baseCurrency.code,
+      };
+    });
   }
 
   private signedSums(entries: JournalEntry[]): Map<string, Money> {
