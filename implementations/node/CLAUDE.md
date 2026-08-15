@@ -56,7 +56,8 @@ funcs 90 / stmts 85 — fixed in the run via `coverage.enabled`) · `pnpm fixtur
 
 `pnpm test` includes the **walkthrough scenarios** (`packages/cli/test/walkthrough.test.ts`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`docs/handbuch/examples/scenarios/*.json` — the same files the PHP `WalkthroughTest` reads.
+`docs/handbuch/examples/scenarios/*.json`, plus the regression guards in `regression-scenarios/`
+— the same files the PHP `WalkthroughTest` reads.
 
 ## Publish
 

@@ -48,6 +48,11 @@ final class ExitCodes
         'E_COSTING_CYCLE',
         'E_MAPPING_OVERLAP',
         'E_NOT_IMPLEMENTED',
+        // Appended 2026-08-15. A supplied parameter or field is present but not valid input —
+        // a caller mistake, not an internal failure. Before this code the same situations either
+        // escaped as an uncaught InvalidValue (stack trace, then E_UNEXPECTED/exit 1, indistinguishable
+        // from a summae bug) or were silently coerced into a plausible default.
+        'E_INPUT_INVALID',
     ];
 
     private function __construct()

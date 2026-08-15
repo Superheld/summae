@@ -23,7 +23,11 @@ use Symfony\Component\Console\Output\BufferedOutput;
  */
 final class WalkthroughTest extends TestCase
 {
-    private const SCENARIO_DIR = __DIR__ . '/../../../../../docs/handbuch/examples/scenarios';
+    private const REPO_ROOT = __DIR__ . '/../../../../..';
+    /** The documentation in executable form. */
+    private const SCENARIO_DIR = self::REPO_ROOT . '/docs/handbuch/examples/scenarios';
+    /** Fixed defects, pinned so they cannot come back — adversarial input lives here, not in the docs. */
+    private const REGRESSION_DIR = self::REPO_ROOT . '/regression-scenarios';
 
     /**
      * @return array<string, array{string}>
@@ -43,7 +47,24 @@ final class WalkthroughTest extends TestCase
      */
     private static function scenarioFiles(): array
     {
-        $files = glob(self::SCENARIO_DIR . '/*.json');
+        return [...self::filesIn(self::SCENARIO_DIR), ...self::filesIn(self::REGRESSION_DIR)];
+    }
+
+    /**
+     * Documentation scenarios only — the pack-coverage guard asks what we SHIP, and a
+     * regression scenario is not an offer to a user.
+     *
+     * @return list<string>
+     */
+    private static function documentedScenarioFiles(): array
+    {
+        return self::filesIn(self::SCENARIO_DIR);
+    }
+
+    /** @return list<string> */
+    private static function filesIn(string $directory): array
+    {
+        $files = glob($directory . '/*.json');
         $files = is_array($files) ? $files : [];
         $files = array_values(array_filter(
             $files,
@@ -194,7 +215,7 @@ final class WalkthroughTest extends TestCase
 
     public function testEveryShippedPackHasAScenario(): void
     {
-        $dirs = glob(__DIR__ . '/../../../../../pack-library/*-pack', GLOB_ONLYDIR);
+        $dirs = glob(self::REPO_ROOT . '/pack-library/*-pack', GLOB_ONLYDIR);
         $packs = array_map(
             static fn (string $dir): string => (string) preg_replace('/-pack$/', '', basename($dir)),
             is_array($dirs) ? $dirs : [],
@@ -202,7 +223,7 @@ final class WalkthroughTest extends TestCase
         sort($packs);
 
         $covered = [];
-        foreach (self::scenarioFiles() as $file) {
+        foreach (self::documentedScenarioFiles() as $file) {
             /** @var array<string, mixed> $scenario */
             $scenario = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
             $init = is_array($scenario['init'] ?? null) ? $scenario['init'] : [];

@@ -55,7 +55,19 @@ final readonly class TaxService
         $date = is_string($input['serviceDate'] ?? null)
             ? $this->parseDate($input['serviceDate'])
             : $this->parseDate($input['date'] ?? null);
-        $direction = ($input['direction'] ?? null) === 'input' ? 'input' : 'output';
+        // A silent default here booked an incoming invoice fully inverted: "Input" with a
+        // capital I (or any typo) fell through to "output", so the expense was credited and the
+        // payable debited — a valid-looking, mirror-image posting that nothing downstream flags.
+        // Absent stays "output" (the documented default); a WRONG value is a caller mistake.
+        $rawDirection = $input['direction'] ?? null;
+        if ($rawDirection !== null && $rawDirection !== 'input' && $rawDirection !== 'output') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'direction must be "input" or "output"',
+                ['direction' => is_scalar($rawDirection) ? (string) $rawDirection : 'non-scalar'],
+            );
+        }
+        $direction = $rawDirection === 'input' ? 'input' : 'output';
         $defaultCode = is_string($input['taxCode'] ?? null) ? $input['taxCode'] : null;
 
         $rawLines = is_array($input['netLines'] ?? null) ? array_values($input['netLines']) : [];

@@ -18,7 +18,9 @@ cd implementations/node && SUMMAE="npx tsx packages/cli/src/summae.ts" \
 > **This page is gated.** The same lifecycle exists as data in
 > [`examples/scenarios/`](examples/scenarios/README.md) — one scenario per
 > configuration we ship (`de`, `us`, `default`, and a free `rules.json`) — and
-> runs in **both** implementations' test suites with its numbers pinned. If the
+> runs in **both** implementations' test suites with its numbers pinned.
+> (Guards for *fixed defects* use the same machinery but live in
+> `regression-scenarios/` at the repo root, so this page stays exemplary.) If the
 > engine stops behaving as described here, a build goes red rather than the
 > documentation quietly going stale. The other three configurations are not
 > written out below; read their scenario files for the differences (US sales

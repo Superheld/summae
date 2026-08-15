@@ -60,9 +60,28 @@ final readonly class CashBasisProjection
      */
     public function compute(array $params): array
     {
-        $year = is_int($params['year'] ?? null) ? $params['year'] : 0;
+        // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
+        // throw an uncaught InvalidValue, here it returned an empty report (NF-006/NF-009). Both
+        // were wrong in the same place — a missing required parameter must say so.
+        if (!is_int($params['year'] ?? null)) {
+            throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"');
+        }
+        $year = $params['year'];
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
-        $mapping = is_string($params['mapping'] ?? null) ? $this->mappings->byId($params['mapping']) : null;
+        // An unknown mapping used to be ignored here while incomeStatement/balanceSheet threw on
+        // the same value — same parameter, same registry, two behaviours.
+        $mapping = null;
+        if (($params['mapping'] ?? null) !== null) {
+            $mappingId = is_string($params['mapping']) ? $params['mapping'] : '';
+            $mapping = $this->mappings->byId($mappingId);
+            if ($mapping === null) {
+                throw new DomainError(
+                    'E_INPUT_INVALID',
+                    sprintf('mapping "%s" is not loaded', $mappingId),
+                    ['mapping' => $mappingId],
+                );
+            }
+        }
 
         $this->assertCalendarYearFiscalYears($year);
 

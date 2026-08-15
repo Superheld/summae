@@ -40,7 +40,11 @@ export class BalanceSheetProjection {
 
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" is not loaded`);
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        mappingId === '' ? 'balanceSheet requires the parameter "mapping"' : `mapping "${mappingId}" is not loaded`,
+        { mapping: mappingId },
+      );
     }
 
     const zero = Money.zero(this.baseCurrency);

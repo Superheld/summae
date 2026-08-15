@@ -34,8 +34,17 @@ final readonly class AccountSheetProjection
      */
     public function compute(array $params): array
     {
-        $number = is_string($params['account'] ?? null) ? $params['account'] : '';
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : 0;
+        // Both are documented as required. Defaulting them produced an authoritative-looking
+        // empty ledger — the resolved account name next to "0.00" reads as a verified statement
+        // about the account, not as "you forgot a parameter".
+        if (!is_string($params['account'] ?? null) || $params['account'] === '') {
+            throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "account"');
+        }
+        if (!is_int($params['fiscalYear'] ?? null)) {
+            throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "fiscalYear"');
+        }
+        $number = $params['account'];
+        $fiscalYear = $params['fiscalYear'];
         $throughPeriod = is_int($params['throughPeriod'] ?? null) ? $params['throughPeriod'] : PHP_INT_MAX;
 
         $account = $this->accounts->byNumber(AccountNumber::of($number));

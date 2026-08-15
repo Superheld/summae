@@ -42,8 +42,17 @@ final readonly class IncomeStatementProjection
         $throughPeriod = is_int($params['throughPeriod'] ?? null) ? $params['throughPeriod'] : PHP_INT_MAX;
         $mappingId = is_string($params['mapping'] ?? null) ? $params['mapping'] : '';
 
+        // A missing or unknown mapping is a caller mistake, not an overlap: reporting it as
+        // E_MAPPING_OVERLAP (the code for two positions claiming the same account) sent operators
+        // hunting the wrong thing, and an omitted parameter produced 'Mapping "" is not loaded'.
         $mapping = $this->mappings->byId($mappingId)
-            ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" is not loaded', $mappingId));
+            ?? throw new DomainError(
+                'E_INPUT_INVALID',
+                $mappingId === ''
+                    ? 'incomeStatement requires the parameter "mapping"'
+                    : sprintf('mapping "%s" is not loaded', $mappingId),
+                ['mapping' => $mappingId],
+            );
 
         $zero = Money::zero($this->baseCurrency);
         /** @var array<string, Money> $amounts key -> amount */
