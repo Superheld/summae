@@ -487,7 +487,7 @@ they are not lost; R-5 … R-7 are fixed (see below), the rest is still open.
 | R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | CLI |
 | R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | CLI |
 | R-11 | a 1–2 cent invoice with 19 % VAT is unbookable: the derived tax line rounds to 0.00 and is then rejected by the "amount > 0" rule | domain gap |
-| R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | see NF-014 |
+| R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | ✅ fixed 2026-08-15 via NF-014 (`_unassigned` + `gapWarnings[]`) |
 
 Most of R-5 … R-7 are the same shape: `typeof x === 'T' ? x : <default>` used as validation, which
 cannot tell "absent" from "wrong". With `E_INPUT_INVALID` available they were closed in one sweep

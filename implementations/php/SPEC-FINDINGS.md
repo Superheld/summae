@@ -30,7 +30,7 @@ a short file.
 | F-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
 | F-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
 | F-004 asset posting accounts | ⚠ **partly** — accounts came via the `assetAccounts` pack module; the **pool period is still hard-coded** |
-| F-005 journalExport manifest streams | ✅ `formatVersion 0.4`, `auditLog` always included |
+| F-005 journalExport manifest streams | ✅ `auditLog` always included; `formatVersion` follows the spec version (0.6 since 2026-08-16, guarded against drift) |
 | F-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
 | F-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
 | F-008 `includeNonCash` missing from the schema | ✅ schema extended |
@@ -49,10 +49,10 @@ a short file.
 | NF-017 an unmapped balance account made the balance sheet stop balancing | **RESOLVED 2026-08-15** — `_unassigned` per section + `gapWarnings[]` (fixture `balance-sheet-gap`) |
 | NF-014 accounts outside a mapping vanish from the income statement | **RESOLVED 2026-08-15** — `_unassigned` + `gapWarnings[]` (fixture `income-statement-gap`) |
 | NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
-| NF-016 four declared parameters that no implementation reads | **OPEN** — see `implementations/node/SPEC-FINDINGS.md` |
-| **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
+| NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
+| **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-015, NF-016 and the NF-005 remainder**, plus the
+**Genuinely open today: F-004 (pool period), NF-008, NF-015 and the NF-005 remainder**, plus the
 open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
 R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
 
