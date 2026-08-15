@@ -31,12 +31,34 @@ final readonly class Money implements \JsonSerializable, \Stringable
     }
 
     /**
+     * The amount format of the data format (`format.schema.json`
+     * `$defs/money/properties/amount`) — the SAME expression lives in Node's `money.ts`.
+     * No exponent notation, no leading `+`, digits required on both sides of the point.
+     */
+    private const string AMOUNT_FORMAT = '/^-?\d+(\.\d{1,4})?$/';
+
+    /**
      * Exact amount on the currency scale. More decimal places than the
      * currency allows is an error — nothing is ever silently rounded here.
      */
     public static function of(string $amount, Currency|string $currency): self
     {
         $currency = $currency instanceof Currency ? $currency : Currency::of($currency);
+
+        // The string must match the DATA FORMAT (format.schema.json
+        // $defs/money/properties/amount), not merely be something brick/math can parse.
+        // The library is more permissive than the format: it read "1e3" as 1000.00 and
+        // "1.5e+21" as a booking of 1.5 sextillion, and it accepted a leading "+" that
+        // Node rejected. An amount that would not survive a round-trip through the
+        // exported format has no business entering the journal.
+        if (preg_match(self::AMOUNT_FORMAT, $amount) !== 1) {
+            throw new InvalidValue(sprintf(
+                'Invalid amount "%s" for currency %s (scale %d)',
+                $amount,
+                $currency->code,
+                $currency->scale,
+            ));
+        }
 
         try {
             $decimal = BigDecimal::of($amount);

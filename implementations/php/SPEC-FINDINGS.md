@@ -42,6 +42,7 @@ a short file.
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
+| NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 
 **Genuinely open today: F-004 (pool period), NF-006, NF-007, NF-008, and the NF-005 remainder.**
 
@@ -344,4 +345,13 @@ data-format decision) before either language moves.
   dropping the host `Date` from the value object entirely (explicit days-per-month table +
   Gregorian leap rule). Pinned by `CalendarDateTest` and Node's `calendar-date.test.ts`, which
   carry the **same** accepted/rejected tables (34 cases each). Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED 2026-08-15.**
+  Validation went straight to `brick/math`, which parses far more than
+  `format.schema.json` `$defs/money/properties/amount` (`^-?\d+(\.\d{1,4})?$`) allows:
+  `"1e3"` booked as `1000.00`, `"1.5e+21"` as `1500000000000000000000.00`, `"10."` and
+  `".5"` likewise — and `"+10.00"` was accepted here while Node rejected it, a second
+  substrate divergence after NF-009. `Money::of` now matches the string against the
+  data-format expression before parsing; `fromCalculation` is untouched. Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.

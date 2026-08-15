@@ -6,6 +6,13 @@ import { CurrencyMismatch, InvalidValue } from './errors.js';
 // (NOT banker's). big.js `roundHalfUp` (=1) rounds away-from-zero.
 const HALF_UP = Big.roundHalfUp;
 
+/**
+ * The amount format of the data format (`format.schema.json`
+ * `$defs/money/properties/amount`) — the SAME expression lives in PHP's `Money`.
+ * No exponent notation, no leading `+`, digits required on both sides of the point.
+ */
+const AMOUNT_FORMAT = /^-?\d+(\.\d{1,4})?$/;
+
 /** Decimal places of a Big value (big.js holds coefficient `c` + exponent `e`). */
 function decimalPlaces(value: Big): number {
   return Math.max(0, value.c.length - value.e - 1);
@@ -33,9 +40,19 @@ export class Money {
   /**
    * Exact amount on the currency scale. More decimal places than the currency
    * allows is an error — nothing is ever silently rounded here.
+   *
+   * The string must match the **data format** (`format.schema.json`
+   * `$defs/money/properties/amount`), not merely be something the decimal library
+   * can parse. The library is more permissive than the format: it read `"1e3"` as
+   * 1000.00 and `"1.5e+21"` as a booking of 1.5 sextillion, and it disagreed
+   * across languages on a leading `+`. An amount that would not survive a
+   * round-trip through the exported format has no business entering the journal.
    */
   static of(amount: string, currency: Currency | string): Money {
     const cur = Money.currencyOf(currency);
+    if (!AMOUNT_FORMAT.test(amount)) {
+      throw new InvalidValue(`Invalid amount "${amount}" for currency ${cur.code} (scale ${cur.scale})`);
+    }
     let value: Big;
     try {
       value = new Big(amount);
