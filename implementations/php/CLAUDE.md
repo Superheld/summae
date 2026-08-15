@@ -63,8 +63,8 @@ byte-identical double run.
 
 `make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`docs/handbuch/examples/scenarios/*.json`, plus the regression guards in `regression-scenarios/`
-— the same files the Node `walkthrough.test.ts` reads.
+`scenarios/walkthrough/*.json`, plus the regression guards in `scenarios/regression/` — the same
+files the Node `walkthrough.test.ts` reads. Test landscape: `TESTING.md`.
 
 ## Deeper: `docs/`
 

@@ -16,15 +16,15 @@ import { run } from '../src/cli.js';
  * runner drives the *core* with a fixed clock; this drives the *binary* the docs
  * tell people to type. A documented behaviour that stops being true fails here.
  *
- * Format + scenario list: `docs/handbuch/examples/scenarios/README.md`.
+ * Format + scenario list: `scenarios/README.md`; the whole test landscape: `TESTING.md`.
  * The PHP `WalkthroughTest` reads the SAME files and pins the same expectations.
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
-/** The documentation in executable form. */
-const scenarioDir = join(repoRoot, 'docs/handbuch/examples/scenarios');
-/** Fixed defects, pinned so they cannot come back — adversarial input lives here, not in the docs. */
-const regressionDir = join(repoRoot, 'regression-scenarios');
+/** The documentation in executable form — one per shipped configuration. */
+const scenarioDir = join(repoRoot, 'scenarios/walkthrough');
+/** Fixed defects, pinned so they cannot come back — adversarial input lives here only. */
+const regressionDir = join(repoRoot, 'scenarios/regression');
 
 interface Step {
   name: string;
@@ -164,7 +164,7 @@ test('the copy-pasteable example script shows every operation the de scenario pi
   // Two artefacts describe the same walkthrough: the shell script a reader copies from,
   // and de.json which the gate checks. This couples them — an operation that gains
   // coverage in the scenario but never appears in the script is a documentation hole.
-  const source = readFileSync(resolve(scenarioDir, '../cli-walkthrough.sh'), 'utf8');
+  const source = readFileSync(join(repoRoot, 'docs/handbuch/examples/cli-walkthrough.sh'), 'utf8');
   const de = documentedScenarios().find((scenario) => scenario.id === 'de');
   const used = new Set(de?.steps.flatMap((step) => (step.op ? [`op ${step.op}`] : [`report ${step.report ?? ''}`])));
 

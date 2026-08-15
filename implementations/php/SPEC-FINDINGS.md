@@ -290,7 +290,7 @@ Format per finding:
 > registered tax mechanism (`TaxMechanisms`) that tags the base and emits **no** tax line,
 > and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in the
 > return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
-> (`docs/handbuch/examples/scenarios/us.json`). Original finding kept for the record:
+> (`scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 - **Job:** us-pack conformance audit (2026-06-24)
 - **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
@@ -333,7 +333,7 @@ Summary and the PHP sites:
 - **NF-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
   `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
   opposite of what happened, and the only error a tax-free configuration hits on a normal report.
-  Current behaviour pinned in `docs/handbuch/examples/scenarios/default.json`.
+  Current behaviour pinned in `scenarios/walkthrough/default.json`.
 - **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
   counter-entry but does not touch the open items the reversed entry created: the trial balance
   shows the payable account at `0.00` while `openItems` still reports it open and settleable.
