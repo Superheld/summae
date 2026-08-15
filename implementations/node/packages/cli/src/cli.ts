@@ -115,36 +115,74 @@ export function buildProgram(): Command {
   return program;
 }
 
+
+/**
+ * `--first-fiscal-year` went through `Number()` unchecked: `""` became 0 and the workspace was
+ * created for the year 0000, which nothing could address afterwards.
+ */
+function parseFirstFiscalYear(raw: string | undefined): number | null {
+  if (raw === undefined) return null;
+  const year = Number(raw);
+  if (raw.trim() === '' || !Number.isSafeInteger(year) || year <= 0) {
+    throw new DomainError('E_INPUT_INVALID', 'init: --first-fiscal-year must be a positive whole number', {
+      firstFiscalYear: raw,
+    });
+  }
+  return year;
+}
+
 /** The init command's body — extracted so the command can wrap it in the error boundary. */
 function initialize(opts: InitOptions): void {
+    // The help calls them alternatives; the code took the pack branch and dropped --rules without
+    // a word, so "pack plus my own accounts" silently became "pack".
+    if (typeof opts.pack === 'string' && typeof opts.rules === 'string') {
+      throw new DomainError('E_INPUT_INVALID', 'init: --pack and --rules are alternatives — pass one of them', {
+        pack: opts.pack,
+        rules: opts.rules,
+      });
+    }
+
+    const firstFiscalYear = parseFirstFiscalYear(opts.firstFiscalYear);
+
     let rules: Record<string, unknown>;
     if (typeof opts.pack === 'string') {
       rules = packToRules(opts.pack, opts.packLibrary ?? defaultPackLibraryDir);
-      if (typeof opts.firstFiscalYear === 'string') {
-        const y = String(Number(opts.firstFiscalYear)).padStart(4, '0');
-        rules.fiscalYears = [{ year: Number(opts.firstFiscalYear), start: `${y}-01-01`, end: `${y}-12-31` }];
+      if (firstFiscalYear !== null) {
+        const y = String(firstFiscalYear).padStart(4, '0');
+        rules.fiscalYears = [{ year: firstFiscalYear, start: `${y}-01-01`, end: `${y}-12-31` }];
       }
     } else {
       rules = typeof opts.rules === 'string' ? parseJson(`@${opts.rules}`) : {};
     }
+
     const workspace = Workspace.in(opts.dir);
     workspace.initialize(opts.name, opts.currency, rules);
 
     // SF-01: create master data from the rules file directly — immediately postable.
-    const ops = new TenantOperations(workspace.tenant());
+    // Everything past this point can still fail on the rules file's content, and a workspace is
+    // already on disk. Without the rollback below, one bad account left a config and a database
+    // behind and every retry answered "Workspace already exists": a dead-end directory whose only
+    // way out is deleting files by hand.
     const created = { accounts: 0, fiscalYears: 0 };
-    for (const account of Array.isArray(rules.accounts) ? rules.accounts : []) {
-      if (account !== null && typeof account === 'object') {
-        ops.execute('createAccount', account as Record<string, unknown>);
-        created.accounts++;
+    try {
+      const ops = new TenantOperations(workspace.tenant());
+      for (const account of Array.isArray(rules.accounts) ? rules.accounts : []) {
+        if (account !== null && typeof account === 'object') {
+          ops.execute('createAccount', account as Record<string, unknown>);
+          created.accounts++;
+        }
       }
-    }
-    for (const fiscalYear of Array.isArray(rules.fiscalYears) ? rules.fiscalYears : []) {
-      if (fiscalYear !== null && typeof fiscalYear === 'object') {
-        ops.execute('createFiscalYear', fiscalYear as Record<string, unknown>);
-        created.fiscalYears++;
+      for (const fiscalYear of Array.isArray(rules.fiscalYears) ? rules.fiscalYears : []) {
+        if (fiscalYear !== null && typeof fiscalYear === 'object') {
+          ops.execute('createFiscalYear', fiscalYear as Record<string, unknown>);
+          created.fiscalYears++;
+        }
       }
+    } catch (error) {
+      workspace.discard();
+      throw error;
     }
+
     emit({ initialized: true, tenant: opts.name, baseCurrency: opts.currency, created });
 }
 
