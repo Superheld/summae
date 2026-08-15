@@ -20,6 +20,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
+| NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 
 **Genuinely open today: NF-006, NF-007, NF-008 and the NF-005 remainder** (plus F-004's
 hard-coded low-value-asset pool period, recorded on the PHP side).
@@ -314,3 +315,36 @@ both subjects, SF-15 cross-test 45/45 both directions.
 **Note.** This does **not** resolve NF-006: with the divergence gone, both engines now return
 an empty cash-basis report for a missing `year` instead of one crashing. Consistent, still a
 silent wrong answer — the missing-parameter question stands.
+
+## NF-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED
+
+**Finding (2026-08-15, probing malformed write input).** `Money.of` validated by handing the
+string to the decimal library (`big.js` / `brick/math`) and checking the resulting scale. The
+libraries parse considerably more than the **data format** allows
+(`format.schema.json` `$defs/money/properties/amount` = `^-?\d+(\.\d{1,4})?$`), so amounts that
+can never be exported were accepted into the journal:
+
+| amount | before | data format |
+|---|---|---|
+| `"1e3"` | booked as `1000.00` | invalid |
+| `"1E3"` | booked as `1000.00` | invalid |
+| `"1.5e+21"` | **booked as `1500000000000000000000.00`** | invalid |
+| `"10."` | booked as `10.00` | invalid |
+| `".5"` | booked as `0.50` | invalid |
+| `"+10.00"` | **PHP: `10.00` · Node: rejected** | invalid |
+
+Two defects in one. **Silent acceptance:** an app that formats amounts with
+`String(number)` emits exponent notation for very large or very small values, and 1.5
+sextillion euros went into the journal without complaint. **Cross-language divergence:** a
+leading `+` was accepted by PHP and rejected by Node — the same class as [NF-009], again in the
+substrate.
+
+**Resolution.** `Money.of` now checks the string against the data-format expression *before*
+handing it to the decimal library, in both languages, with the expression written out in each.
+`Money.fromCalculation` is untouched — it takes a decimal value, not a user string, and is the
+only path on which Money rounds.
+
+The schema was the arbiter here, not taste: it already declared the format, and both engines
+were simply not enforcing what the exported data promises. Pinned by the same accepted/rejected
+tables in `money.test.ts` and `MoneyTest.php`. All 86 fixtures green in both languages against
+both subjects, SF-15 cross 45/45 both directions — no fixture used any of the loose forms.

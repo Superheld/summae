@@ -201,4 +201,72 @@ final class MoneyTest extends TestCase
             Money::of('1234.56', 'EUR')->jsonSerialize(),
         );
     }
+
+    /**
+     * The amount string must match the DATA FORMAT (`format.schema.json`
+     * `$defs/money/properties/amount` = `^-?\d+(\.\d{1,4})?$`), not merely be something
+     * brick/math can parse. The decimal library was more permissive than the format:
+     * `"1e3"` became 1000.00 and `"1.5e+21"` a booking of 1.5 sextillion, silently. A
+     * leading `+` additionally diverged — PHP accepted it, Node did not.
+     *
+     * **The SAME two tables live in the Node `money.test.ts`.** An amount that would not
+     * survive a round-trip through the exported format must not enter the journal.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function acceptedAmountProvider(): array
+    {
+        return self::amountCases(['0', '0.00', '10', '10.5', '10.00', '-10.00', '-0.01', '1000000.50']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function rejectedAmountProvider(): array
+    {
+        return self::amountCases([
+            '1e3',      // exponent notation — booked as 1000.00 before
+            '1E3',
+            '1.5e+21',  // booked as 1500000000000000000000.00 before
+            '1e-7',
+            '+10.00',   // accepted here, rejected by Node before — a cross-language split
+            '.5',       // no digit before the point
+            '10.',      // no digit after the point
+            ' 10.00',
+            '10.00 ',
+            '1,50',
+            '1_000',
+            '0x10',
+            'NaN',
+            'Infinity',
+            '-',
+            '',
+            '10.005',   // beyond the EUR scale — must not be silently rounded
+        ]);
+    }
+
+    /**
+     * @param list<string> $values
+     * @return array<string, array{string}>
+     */
+    private static function amountCases(array $values): array
+    {
+        $cases = [];
+        foreach ($values as $value) {
+            $cases[$value === '' ? '(empty)' : $value] = [$value];
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('acceptedAmountProvider')]
+    public function testOfAcceptsTheDataFormat(string $value): void
+    {
+        self::assertNotSame('', Money::of($value, 'EUR')->amountAsString());
+    }
+
+    #[DataProvider('rejectedAmountProvider')]
+    public function testOfRejectsAnythingOutsideTheDataFormat(string $value): void
+    {
+        $this->expectException(InvalidValue::class);
+        Money::of($value, 'EUR');
+    }
 }
