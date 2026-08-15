@@ -457,6 +457,19 @@ final readonly class Ledger
         }
 
         if (is_array($input['lines'] ?? null)) {
+            // Rewriting the lines used to leave the open items derived from them untouched, so the
+            // subledger went on naming an amount, an account and a due date from a posting that no
+            // longer existed — the same silent split between ledger and subledger as R-1, from the
+            // other side. The text stays correctable; for amounts the GoBD-conform path is reversal
+            // and a fresh posting, which keeps both books together.
+            if ($this->openItems->byOriginEntry($entry->id) !== []) {
+                throw new DomainError(
+                    'E_ENTRY_HAS_OPEN_ITEMS',
+                    'correct: this entry produced open items — correct the text, or reverse and post anew',
+                    ['entryId' => $entry->id->value],
+                );
+            }
+
             /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
             $parsed = [];
             if (count($input['lines']) < 2) {

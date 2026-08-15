@@ -58,6 +58,9 @@ final class ExitCodes
         // regenerated, so a damaged summae.json opened the same database under a different identity
         // and reported an empty ledger — indistinguishable from books never written (R-9).
         'E_WORKSPACE_INVALID',
+        // Appended 2026-08-16 (R-3): correcting the LINES of an entry that produced open items
+        // would leave the subledger describing a posting that no longer exists.
+        'E_ENTRY_HAS_OPEN_ITEMS',
     ];
 
     private function __construct()

@@ -14,6 +14,7 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | `E_ENTRY_FINALIZED` | Korrekturversuch nach Festschreibung (F-CORE-002) | finalize-reverse-period |
 | `E_ENTRY_ALREADY_REVERSED` | Doppelstorno | finalize-reverse-period |
 | `E_ENTRY_UNKNOWN` | entryId existiert nicht | post-malformed |
+| `E_ENTRY_HAS_OPEN_ITEMS` | Zeilen-Korrektur an einer Buchung, aus der offene Posten entstanden sind (v0.6) | correct-open-items |
 
 ## E_PERIOD / E_FISCALYEAR
 
@@ -33,6 +34,13 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | `E_ACCOUNT_LOCKED` | Konto gesperrt | post-and-invariants |
 | `E_ACCOUNT_NUMBER_TAKEN` | Kontonummer doppelt (Repository-Kontrakt) | accounts-and-import |
 | `E_COA_FORMAT_INVALID` | Kontenrahmen-Import nicht parsebar | accounts-and-import |
+
+
+`E_ENTRY_HAS_OPEN_ITEMS`: `correct` schrieb die Zeilen um und ließ den daraus entstandenen
+offenen Posten unangetastet — Betrag, Konto und Fälligkeit im Nebenbuch stammten danach aus einer
+Buchung, die es so nicht mehr gab, ohne jeden Hinweis. Der **Text** einer solchen Buchung bleibt
+korrigierbar; für Beträge ist der GoBD-konforme Weg ohnehin Storno und Neubuchung, und der hält
+Haupt- und Nebenbuch beisammen. Befund R-3, verwandt mit NF-008.
 
 ## E_SETTLEMENT / E_OPENITEM
 
