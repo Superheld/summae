@@ -88,6 +88,33 @@ export class Workspace {
     }
   }
 
+  /**
+   * Write an imported mapping into the workspace file.
+   *
+   * Mappings live in a registry that is rebuilt from `summae.json` on every invocation, so an
+   * import that only touched the registry was gone the moment the process ended: `imported: true`
+   * followed by a report that behaved as though nothing had been imported. Called only after the
+   * import succeeded, so a rejected mapping is never stored.
+   */
+  rememberMapping(mapping: Record<string, unknown>): void {
+    const config = JSON.parse(readFileSync(this.configPath(), 'utf8')) as Record<string, unknown>;
+    const rules = isRecord(config.rules) ? config.rules : {};
+    const ruleModules = isRecord(rules.ruleModules) ? rules.ruleModules : {};
+    const mappings = Array.isArray(ruleModules.mappings) ? [...ruleModules.mappings] : [];
+
+    // Replace by id rather than append: importing the same id twice must update it, not leave two
+    // mappings behind that the next load would read as overlapping.
+    const id = typeof mapping.id === 'string' ? mapping.id : null;
+    const index = mappings.findIndex((m) => isRecord(m) && m.id === id);
+    if (index === -1) mappings.push(mapping);
+    else mappings[index] = mapping;
+
+    ruleModules.mappings = mappings;
+    rules.ruleModules = ruleModules;
+    config.rules = rules;
+    writeFileSync(this.configPath(), `${JSON.stringify(config, null, 2)}\n`);
+  }
+
   tenant(): Tenant {
     if (!this.exists()) {
       throw new Error(`No workspace in ${this.directory} — run \`summae init\` first`);

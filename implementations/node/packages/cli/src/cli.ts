@@ -91,7 +91,17 @@ export function buildProgram(): Command {
     .action((operation: string, opts: CommonOptions & { input: string }) => {
       try {
         const payload = parseJson(opts.input);
-        emit(new TenantOperations(Workspace.in(opts.dir).tenant()).execute(operation, payload));
+        const workspace = Workspace.in(opts.dir);
+        const result = new TenantOperations(workspace.tenant()).execute(operation, payload);
+
+        // The ledger persists itself through the database adapter; a mapping does not — it lives
+        // in a registry rebuilt from summae.json on every call, so the import has to be written
+        // back or it is forgotten the moment this process ends (R-4).
+        if (operation === 'importMapping' && isRecord(payload.mapping)) {
+          workspace.rememberMapping(payload.mapping);
+        }
+
+        emit(result);
       } catch (error) {
         reportError(error);
       }
@@ -129,6 +139,10 @@ function parseFirstFiscalYear(raw: string | undefined): number | null {
     });
   }
   return year;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** The init command's body — extracted so the command can wrap it in the error boundary. */
