@@ -126,7 +126,7 @@ own job, human decision. Applies to PHP too.
 > registered tax mechanism (`tax-mechanisms.ts`) that tags the base and emits **no** tax
 > line, and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in
 > the return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
-> (`docs/handbuch/examples/scenarios/us.json`). Original finding kept for the record:
+> (`scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 **Finding (2026-06-24).** The us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`)
 emits a 0.00 tax line on the tax account. `expandTax` returns it fine (proven by
@@ -152,7 +152,7 @@ exempt sales post cleanly and show up in the return. Engine addition → own job
 >
 > Chosen because it is the part **both** candidate semantics agree on: an invoice that was
 > never paid and then reversed contributes nothing either way. Pinned by the `de` walkthrough
-> scenario (`docs/handbuch/examples/scenarios/de.json`, VAT-return step: key `66` must be
+> scenario (`scenarios/walkthrough/de.json`, VAT-return step: key `66` must be
 > absent); verified to fail without the fix. All 86 fixtures stay green in both languages,
 > SF-15 cross-test 45/45 both directions — nothing existing pinned this case.
 >
@@ -381,7 +381,7 @@ the ledger in both languages; PHP needed it in **two** places, because
 `DatabaseTenantFactory.php` duplicates the ledger construction that `Tenant.php` also does —
 Node has a single construction path. That duplication is worth removing separately.
 
-Pinned by `docs/handbuch/examples/scenarios/regressions.json` (fabricated code rejected with
+Pinned by `scenarios/walkthrough/regressions.json` (fabricated code rejected with
 exit 32; a tag naming a *registered* code still posts, so the guard checks the registry rather
 than forbidding tags).
 
@@ -442,7 +442,7 @@ payable debited. The lines carry a valid `taxTag`, so nothing downstream flags i
 posting looks entirely ordinary in every report.
 
 **Resolution.** An absent `direction` still defaults to `"output"` (documented); a **wrong**
-value is `E_INPUT_INVALID`. Pinned in `regression-scenarios/regressions.json` together with both
+value is `E_INPUT_INVALID`. Pinned in `scenarios/regression/regressions.json` together with both
 positive cases — the default still works, and lower-case `"input"` still books the right way
 round.
 

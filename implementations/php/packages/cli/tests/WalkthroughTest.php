@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
  * (de / us / default / free `rules.json`), each a complete lifecycle: workspace →
  * postings → settlement → reversal → reports → close → export.
  *
- * Reads the SAME `docs/handbuch/examples/scenarios/*.json` as the Node
+ * Reads the SAME `scenarios/` files as the Node
  * `walkthrough.test.ts` and pins the same expectations — the shared-oracle
  * mechanism applied to the CLI surface. What this covers that the conformance
  * suite cannot: the CLI itself, the workspace, the pack library, and the
@@ -24,10 +24,10 @@ use Symfony\Component\Console\Output\BufferedOutput;
 final class WalkthroughTest extends TestCase
 {
     private const REPO_ROOT = __DIR__ . '/../../../../..';
-    /** The documentation in executable form. */
-    private const SCENARIO_DIR = self::REPO_ROOT . '/docs/handbuch/examples/scenarios';
-    /** Fixed defects, pinned so they cannot come back — adversarial input lives here, not in the docs. */
-    private const REGRESSION_DIR = self::REPO_ROOT . '/regression-scenarios';
+    /** The documentation in executable form — one per shipped configuration. */
+    private const SCENARIO_DIR = self::REPO_ROOT . '/scenarios/walkthrough';
+    /** Fixed defects, pinned so they cannot come back — adversarial input lives here only. */
+    private const REGRESSION_DIR = self::REPO_ROOT . '/scenarios/regression';
 
     /**
      * @return array<string, array{string}>
