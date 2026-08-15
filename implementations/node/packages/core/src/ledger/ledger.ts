@@ -216,6 +216,8 @@ export class Ledger {
       });
     }
 
+    this.assertEntryCoversAllocations(entry, plan);
+
     const affected: OpenItem[] = [];
     for (const step of plan) {
       const before = step.item.remaining().amountAsString();
@@ -228,6 +230,79 @@ export class Ledger {
     }
 
     return affected;
+  }
+
+
+  /**
+   * R-1: an allocation may not claim more than the settling entry actually books against the open
+   * item's account.
+   *
+   * The only bound used to be the item's remaining amount, so a 500.00 payment could close a
+   * 1190.00 receivable in full. The general ledger then carries a 690.00 receivable the subledger
+   * no longer knows about — permanently, and with nothing to point at it — and under cash-basis
+   * taxation the VAT return declares tax as collected that never arrived.
+   *
+   * The bound is the entry's NET REDUCING movement on that account, not its total: a payment with
+   * a discount books the full receivable against the receivables account and carries the
+   * difference as its own line, so those settlements stay valid. Settlements already recorded
+   * against this same entry count against the same budget — otherwise the check could be walked
+   * around by settling twice.
+   */
+  private assertEntryCoversAllocations(
+    entry: JournalEntry,
+    plan: Array<{ item: OpenItem; settlement: Settlement }>,
+  ): void {
+    const zero = Money.zero(this.baseCurrency);
+
+    // What this entry moves per account, signed so that a positive value reduces a receivable.
+    const movement = new Map<string, Money>();
+    for (const line of entry.lines()) {
+      const account = this.accounts.byId(line.accountId);
+      if (account === null) continue;
+      const key = account.number.value;
+      const signed = line.side === 'credit' ? line.money : line.money.negate();
+      movement.set(key, (movement.get(key) ?? zero).add(signed));
+    }
+
+    // Already claimed against this entry by an earlier settle call.
+    const claimed = new Map<string, Money>();
+    const addClaim = (item: OpenItem, amount: Money): void => {
+      const account = this.accountOfOpenItem(item);
+      if (account === null) return;
+      const asReduction = item.kind === 'payable' ? amount.negate() : amount;
+      claimed.set(account, (claimed.get(account) ?? zero).add(asReduction));
+    };
+
+    for (const item of this.openItems.all()) {
+      for (const settlement of item.settlements()) {
+        if (settlement.entryId.value === entry.id.value) addClaim(item, settlement.money);
+      }
+    }
+    for (const step of plan) {
+      addClaim(step.item, step.settlement.money);
+    }
+
+    for (const [account, needed] of claimed) {
+      const available = movement.get(account) ?? zero;
+      // Compared in the reducing direction: `needed` is already signed that way, and so is
+      // `available`, because a payable is reduced by a debit and a receivable by a credit.
+      if (needed.abs().compareTo(available.abs()) > 0 || needed.isPositive() !== available.isPositive()) {
+        throw new DomainError(
+          'E_SETTLEMENT_EXCEEDS_ENTRY',
+          `Allocations against account ${account} claim ${needed.abs().amountAsString()}, ` +
+            `but the entry moves ${available.abs().amountAsString()} there`,
+          { account, claimed: needed.abs().amountAsString(), available: available.abs().amountAsString() },
+        );
+      }
+    }
+  }
+
+  /** The account an open item sits on — its origin posting's line. */
+  private accountOfOpenItem(item: OpenItem): string | null {
+    const origin = this.journal.byId(item.originEntryId);
+    const line = origin?.lines()[item.originLineIndex];
+    if (line === undefined) return null;
+    return this.accounts.byId(line.accountId)?.number.value ?? null;
   }
 
   private parseSettlementMoney(raw: unknown, label: string): Money {

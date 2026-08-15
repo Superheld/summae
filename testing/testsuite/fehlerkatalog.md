@@ -39,8 +39,19 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_SETTLEMENT_EXCEEDS_ITEM` | Σ Ausgleiche > OP-Betrag | open-items-settlement |
+| `E_SETTLEMENT_EXCEEDS_ENTRY` | Σ Ausgleiche gegen ein Konto > was die ausgleichende Buchung auf diesem Konto tatsächlich bewegt (v0.6) | settlement-bound |
 | `E_SETTLEMENT_DIFFERENCE_INVALID` | `difference.kind` unbekannt, Betrag ≤ 0 oder > Restbetrag (v0.3) | settlement-discount |
 | `E_OPENITEM_UNKNOWN` | openItemId existiert nicht | open-items-settlement |
+
+Abgrenzung der beiden `EXCEEDS`-Codes: `…_ITEM` schaut auf den **Posten** („du willst mehr
+ausgleichen, als offen ist"), `…_ENTRY` auf die **Buchung** („du willst mehr ausgleichen, als
+diese Zahlung überhaupt bewegt hat"). Beides sind Aufruferfehler und beide sind nötig — ohne den
+zweiten kann eine Teilzahlung von 500,00 einen Posten über 1.190,00 vollständig schließen: das
+Hauptbuch führt danach dauerhaft eine Forderung, die die OP-Liste nicht mehr kennt, und bei
+Ist-Versteuerung wird Steuer als vereinnahmt gemeldet, die nie geflossen ist. Die Schranke ist die
+**Netto-Minderung** des Kontos durch die Buchung, nicht die Buchungssumme: eine Zahlung mit Skonto
+bucht den vollen Forderungsbetrag gegen die Forderung, die Differenz ist Teil des Ausgleichs und
+nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 
 ## E_CASHBASIS
 

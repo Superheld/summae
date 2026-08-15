@@ -109,9 +109,14 @@ final class OpenItemsTest extends LedgerTestCase
         ], entryDate: '2026-04-01'));
         $item = $invoice->openItemsCreated[0];
 
+        // The discount is a LINE of the settling entry, not something added on top of it
+        // (api.md: "die Differenz selbst MUSS als Buchungszeile(n) in der ausgleichenden Buchung
+        // enthalten sein"). Booking only the net 1166.20 and then settling 1190.00 is what
+        // E_SETTLEMENT_EXCEEDS_ENTRY now rejects — the scaffolding here was not spec-conform.
         $payment = $ledger->post($this->draft([
             ['1200', 'debit', '1166.20'],
-            ['1400', 'credit', '1166.20'],
+            ['8400', 'debit', '23.80'],
+            ['1400', 'credit', '1190.00'],
         ], entryDate: '2026-04-09'))->entry;
 
         // Unknown difference kind.

@@ -97,3 +97,4 @@ income-statement-gap
 balance-sheet-gap
 de-wertpapierdepot
 parameter-effect
+settlement-bound
