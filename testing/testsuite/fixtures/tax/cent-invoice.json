@@ -1,0 +1,191 @@
+{
+  "fixture": "cent-invoice",
+  "description": "R-11: eine Rechnung über 0,01 oder 0,02 netto war mit 19 % nicht buchbar. Die abgeleitete Steuerzeile rundet auf 0,00, und die Substrat-Regel Betrag > 0 wies sie ab — mit E_ENTRY_INVALID_AMOUNT auf einer Zeile, die der Aufrufer nie geschrieben hat. Ab 0,03 netto ging es, darunter nicht: eine Grenze, die niemand vorhergesagt hätte und die es fachlich nicht gibt. Kleinstbeträge kommen real vor (Nachbelastungen, Rundungsrechnungen, Mikroabrechnungen). Die Steuerzeile entfällt jetzt, wenn die Steuer null ist, statt eine Nullzeile zu erzwingen oder die Buchung zu verweigern: die Buchung geht auf, die Bemessungsgrundlage steht weiterhin am taxTag der Erlöszeile und wird gemeldet, der Steuerbetrag ist null — was er auch ist.",
+  "covers": [
+    "F-TAX-001"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Kleinstbetrag GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse 19%",
+        "type": "revenue"
+      },
+      {
+        "number": "1776",
+        "name": "USt 19%",
+        "type": "liability",
+        "subtype": "tax_out"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "taxCodes": [
+      {
+        "code": "USt19",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "19.00",
+            "taxAccount": "1776",
+            "reportingKey": "81"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "AR-1",
+          "voucherDate": "2026-03-01"
+        },
+        "entryDate": "2026-03-01",
+        "text": "ein Cent",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "8400",
+            "money": {
+              "amount": "0.01",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "1400"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": {
+            "amount": "0.01",
+            "currency": "EUR"
+          },
+          "comment": "0,01 * 19 % = 0,0019 -> 0,00 Steuer; brutto = netto, keine Steuerzeile"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "AR-2",
+          "voucherDate": "2026-03-02"
+        },
+        "entryDate": "2026-03-02",
+        "text": "zwei Cent",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "8400",
+            "money": {
+              "amount": "0.02",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "1400"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": {
+            "amount": "0.02",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "AR-3",
+          "voucherDate": "2026-03-03"
+        },
+        "entryDate": "2026-03-03",
+        "text": "drei Cent",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "8400",
+            "money": {
+              "amount": "0.03",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "1400"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": {
+            "amount": "0.04",
+            "currency": "EUR"
+          },
+          "comment": "Positivfall an der Grenze: 0,0057 rundet auf 0,01, die Steuerzeile bleibt"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "0,01 + 0,02 + 0,03 = 0,06 Erlös, 0,01 Steuer, 0,07 Forderung",
+        "rows": [
+          {
+            "account": "1400",
+            "balance": "0.07"
+          },
+          {
+            "account": "1776",
+            "balance": "-0.01"
+          },
+          {
+            "account": "8400",
+            "balance": "-0.06"
+          }
+        ]
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": {
+        "year": 2026,
+        "quarter": 1
+      },
+      "expect": {
+        "comment": "Die Bemessungsgrundlage der Cent-Rechnungen geht nicht verloren, nur die Steuer ist null",
+        "keys": {
+          "81": {
+            "base": "0.00",
+            "tax": "0.01"
+          }
+        }
+      }
+    }
+  ]
+}

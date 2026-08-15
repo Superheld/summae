@@ -1,0 +1,156 @@
+{
+  "fixture": "audit-data-export-fiscal-year",
+  "description": "R-2: der ADS-Saldenstrom und die Summenbilanz widersprachen sich pro Konto. auditDataExport summierte für amountBeginning und amountEnding ausnahmslos alles Frühere mit — auch auf Erfolgskonten, die laut api.md im neuen Geschäftsjahr bei null starten (Erfolgskonten je Geschäftsjahr). Für 2027 wies der Export also einen Erlös von 3.000,00 aus, 1.000,00 aus 2026 plus 2.000,00 aus 2027, während trialBalance für dasselbe Jahr 2.000,00 zeigte. Zwei Berichte über denselben Bestand, für einen Prüfer nebeneinander lesbar, mit verschiedenen Zahlen. Bestandskonten bleiben kumulativ — das ist bei ihnen richtig, weil es keine Eröffnungsbuchungen gibt.",
+  "covers": [
+    "F-IO-009"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Zweijahr GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      },
+      {
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "A-2026",
+        "voucherDate": "2026-06-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "A-2027",
+        "voucherDate": "2027-06-01"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01",
+        "voucherId": "$V1",
+        "text": "Erlös 2026",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Vorjahr"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-06-01",
+        "voucherId": "$V2",
+        "text": "Erlös 2027",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "2000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "2000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "laufendes Jahr"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2027
+      },
+      "expect": {
+        "comment": "Referenz: das Erfolgskonto zeigt nur 2027, das Bestandskonto kumulativ",
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "3000.00"
+          },
+          {
+            "account": "8400",
+            "balance": "-2000.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "auditDataExport",
+      "params": {
+        "fiscalYear": 2027
+      },
+      "expect": {
+        "comment": "Der Saldenstrom muss dasselbe sagen: Erlöse beginnen 2027 bei 0,00 und enden bei -2.000,00; die Bank bleibt kumulativ.",
+        "trialBalance": [
+          {
+            "glAccountNumber": "1200",
+            "amountBeginning": "1000.00",
+            "amountEnding": "3000.00"
+          },
+          {
+            "glAccountNumber": "8400",
+            "amountBeginning": "0.00",
+            "amountEnding": "-2000.00"
+          }
+        ]
+      }
+    }
+  ]
+}

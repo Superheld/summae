@@ -41,8 +41,18 @@ final class OpCommand extends Command
 
         try {
             $payload = $this->payload($input);
-            $tenant = Workspace::in($directory)->tenant();
+            $workspace = Workspace::in($directory);
+            $tenant = $workspace->tenant();
             $result = (new TenantOperations($tenant))->execute($operation, $payload);
+
+            // The ledger persists itself through the database adapter; a mapping does not — it
+            // lives in a registry rebuilt from summae.json on every call, so the import has to be
+            // written back or it is forgotten the moment this process ends (R-4).
+            if ($operation === 'importMapping' && is_array($payload['mapping'] ?? null)) {
+                /** @var array<string, mixed> $mapping */
+                $mapping = $payload['mapping'];
+                $workspace->rememberMapping($mapping);
+            }
         } catch (\Throwable $e) {
             return ErrorOutput::report($output, $e);
         }

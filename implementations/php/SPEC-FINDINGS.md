@@ -52,9 +52,11 @@ a short file.
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-015 and the NF-005 remainder**, plus the
-open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
-R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
+**Genuinely open today: F-004 (pool period), NF-008, NF-015 and the NF-005 remainder.**
+
+The **entire Round 1 backlog (R-1 … R-12) is closed** as of 2026-08-16 — the twelve defects the
+two adversarial probing agents turned up on 2026-08-15. Per-item write-ups:
+`implementations/node/SPEC-FINDINGS.md`.
 
 Format per finding:
 

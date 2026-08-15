@@ -241,6 +241,8 @@ final readonly class Ledger
             ];
         }
 
+        $this->assertEntryCoversAllocations($entry, $plan);
+
         $affected = [];
 
         foreach ($plan as $step) {
@@ -254,6 +256,102 @@ final readonly class Ledger
         }
 
         return $affected;
+    }
+
+
+    /**
+     * R-1: an allocation may not claim more than the settling entry actually books against the
+     * open item's account.
+     *
+     * The only bound used to be the item's remaining amount, so a 500.00 payment could close a
+     * 1190.00 receivable in full. The general ledger then carries a 690.00 receivable the
+     * subledger no longer knows about — permanently, and with nothing to point at it — and under
+     * cash-basis taxation the VAT return declares tax as collected that never arrived.
+     *
+     * The bound is the entry's NET REDUCING movement on that account, not its total: a payment
+     * with a discount books the full receivable against the receivables account and carries the
+     * difference as its own line, so those settlements stay valid. Settlements already recorded
+     * against this same entry count against the same budget — otherwise the check could be walked
+     * around by settling twice.
+     *
+     * @param list<array{item: OpenItem, settlement: Settlement}> $plan
+     */
+    private function assertEntryCoversAllocations(JournalEntry $entry, array $plan): void
+    {
+        $zero = Money::zero($this->baseCurrency);
+
+        // What this entry moves per account, signed so that a positive value reduces a receivable.
+        /** @var array<string, Money> $movement */
+        $movement = [];
+        foreach ($entry->lines() as $line) {
+            $account = $this->accounts->byId($line->accountId);
+            if ($account === null) {
+                continue;
+            }
+
+            $key = $account->number->value;
+            $signed = $line->side === Side::Credit ? $line->money : $line->money->negate();
+            $movement[$key] = ($movement[$key] ?? $zero)->add($signed);
+        }
+
+        /** @var array<string, Money> $claimed */
+        $claimed = [];
+        $addClaim = function (OpenItem $item, Money $amount) use (&$claimed, $zero): void {
+            $account = $this->accountOfOpenItem($item);
+            if ($account === null) {
+                return;
+            }
+
+            $asReduction = $item->kind === OpenItemKind::Payable ? $amount->negate() : $amount;
+            $claimed[$account] = ($claimed[$account] ?? $zero)->add($asReduction);
+        };
+
+        // Already claimed against this entry by an earlier settle call.
+        foreach ($this->openItems->all() as $item) {
+            foreach ($item->settlements() as $settlement) {
+                if ($settlement->entryId->value === $entry->id->value) {
+                    $addClaim($item, $settlement->money);
+                }
+            }
+        }
+
+        foreach ($plan as $step) {
+            $addClaim($step['item'], $step['settlement']->money);
+        }
+
+        foreach ($claimed as $account => $needed) {
+            $available = $movement[$account] ?? $zero;
+            // Compared in the reducing direction: `needed` is already signed that way, and so is
+            // `available`, because a payable is reduced by a debit and a receivable by a credit.
+            if ($needed->abs()->compareTo($available->abs()) > 0 || $needed->isPositive() !== $available->isPositive()) {
+                throw new DomainError(
+                    'E_SETTLEMENT_EXCEEDS_ENTRY',
+                    sprintf(
+                        'Allocations against account %s claim %s, but the entry moves %s there',
+                        $account,
+                        $needed->abs()->amountAsString(),
+                        $available->abs()->amountAsString(),
+                    ),
+                    [
+                        'account' => $account,
+                        'claimed' => $needed->abs()->amountAsString(),
+                        'available' => $available->abs()->amountAsString(),
+                    ],
+                );
+            }
+        }
+    }
+
+    /** The account an open item sits on — its origin posting's line. */
+    private function accountOfOpenItem(OpenItem $item): ?string
+    {
+        $origin = $this->journal->byId($item->originEntryId);
+        $line = $origin?->lines()[$item->originLineIndex] ?? null;
+        if ($line === null) {
+            return null;
+        }
+
+        return $this->accounts->byId($line->accountId)?->number->value;
     }
 
     private function parseSettlementMoney(mixed $raw, string $label): Money
@@ -359,6 +457,19 @@ final readonly class Ledger
         }
 
         if (is_array($input['lines'] ?? null)) {
+            // Rewriting the lines used to leave the open items derived from them untouched, so the
+            // subledger went on naming an amount, an account and a due date from a posting that no
+            // longer existed — the same silent split between ledger and subledger as R-1, from the
+            // other side. The text stays correctable; for amounts the GoBD-conform path is reversal
+            // and a fresh posting, which keeps both books together.
+            if ($this->openItems->byOriginEntry($entry->id) !== []) {
+                throw new DomainError(
+                    'E_ENTRY_HAS_OPEN_ITEMS',
+                    'correct: this entry produced open items — correct the text, or reverse and post anew',
+                    ['entryId' => $entry->id->value],
+                );
+            }
+
             /** @var list<array{account: string, side: Side, money: Money, dimensions: list<DimensionValue>, taxTag: array<string, mixed>|null}> $parsed */
             $parsed = [];
             if (count($input['lines']) < 2) {

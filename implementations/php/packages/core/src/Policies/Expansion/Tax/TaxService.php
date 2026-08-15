@@ -162,7 +162,7 @@ final readonly class TaxService
 
             return [
                 'netLines' => $resultNetLines,
-                'taxLines' => $taxLines,
+                'taxLines' => $this->withoutZeroTaxLines($taxLines),
                 'grossTotal' => $grossTotal->jsonSerialize(),
             ];
         }
@@ -212,7 +212,7 @@ final readonly class TaxService
                 'money' => $line['money']->jsonSerialize(),
                 'taxTag' => $baseTags[$line['code']] ?? null,
             ], $netLines),
-            'taxLines' => $taxLines,
+            'taxLines' => $this->withoutZeroTaxLines($taxLines),
             'grossTotal' => $grossTotal->jsonSerialize(),
         ];
     }
@@ -283,4 +283,34 @@ final readonly class TaxService
             throw new DomainError('E_ENTRY_INVALID_AMOUNT', sprintf('invalid amount "%s"', $amount));
         }
     }
+
+    /**
+     * A tax line of 0.00 is dropped rather than forced through.
+     *
+     * The substrate forbids zero amounts, and rightly so — but a 1-cent invoice at 19 % legitimately
+     * rounds to no tax at all, and the caller was told E_ENTRY_INVALID_AMOUNT on a line they never
+     * wrote. Below 0.03 net nothing could be booked, which is a boundary nobody would predict and
+     * that does not exist in the subject matter. The base stays on the net line's taxTag, so the VAT
+     * return still reports it; only the tax is zero, which it is.
+     *
+     * @param list<array<string, mixed>> $lines
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withoutZeroTaxLines(array $lines): array
+    {
+        $kept = [];
+        foreach ($lines as $line) {
+            $money = $line['money'] ?? null;
+            $amount = is_array($money) ? ($money['amount'] ?? null) : null;
+            if (is_string($amount) && Money::of($amount, $this->baseCurrency)->isZero()) {
+                continue;
+            }
+
+            $kept[] = $line;
+        }
+
+        return $kept;
+    }
+
 }

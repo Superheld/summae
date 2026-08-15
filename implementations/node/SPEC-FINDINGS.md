@@ -25,11 +25,11 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
-| **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ⚠ knowledge base entry still to be written |
+| **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: NF-008, NF-016 and the NF-005 remainder** (plus F-004's hard-coded
-low-value-asset pool period and NF-015's untested Laravel adapter, both recorded on the PHP side), and the further defects listed under "Round 1 backlog" at
-the end of this file.
+**Genuinely open today: NF-008 and the NF-005 remainder** (plus F-004's hard-coded
+low-value-asset pool period and NF-015's untested Laravel adapter, both recorded on the PHP side). The "Round 1 backlog" at the end of this file is
+closed in full as of 2026-08-16.
 
 ## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
@@ -469,24 +469,25 @@ than code: **implement** it, or **retire** it in a new fixture (fixtures are app
 existing ones are not bent). Deliberately left as-is here; the flag is what keeps the gap
 readable in the meantime.
 
-## Round 1 backlog — probed and confirmed (R-5 … R-7 fixed, the rest open)
+## Round 1 backlog — probed, confirmed, and closed (2026-08-16)
 
-Found by two adversarial probing agents on 2026-08-15 and reproduced by hand. Recorded here so
-they are not lost; R-5 … R-7 are fixed (see below), the rest is still open.
+Found by two adversarial probing agents on 2026-08-15 and reproduced by hand before being
+recorded. All twelve are closed: R-5 … R-7 on 2026-08-15, the remaining nine on 2026-08-16. Each
+carries a fixture or a CLI test that fails loudly if it comes back.
 
 | # | Defect | Class |
 |---|---|---|
-| R-1 | `settle` accepts an allocation larger than the settling entry actually books: GL keeps a 690.00 receivable while the subledger is empty, and cash-basis VAT declares 190.00 collected when 500.00 arrived | write-side invariant missing |
-| R-2 | `auditDataExport` carries P&L accounts across fiscal years, `trialBalance` does not — the ADS balance stream and the trial balance disagree per account (identical in both languages, so byte-parity cannot catch it) | logic |
-| R-3 | `correct` rewrites an entry's lines and leaves the open item it created untouched (same family as NF-008) | logic |
-| R-4 | `importMapping` reports `imported: true` but the CLI rebuilds the registry from `summae.json` on every invocation and never writes back — the documented import→report flow cannot work | persistence |
+| R-1 | `settle` accepts an allocation larger than the settling entry actually books: GL keeps a 690.00 receivable while the subledger is empty, and cash-basis VAT declares 190.00 collected when 500.00 arrived | ✅ fixed 2026-08-16 — `E_SETTLEMENT_EXCEEDS_ENTRY` + fixture `settlement-bound` |
+| R-2 | `auditDataExport` carries P&L accounts across fiscal years, `trialBalance` does not — the ADS balance stream and the trial balance disagree per account (identical in both languages, so byte-parity cannot catch it) | ✅ fixed 2026-08-16 — income accounts scoped per fiscal year (`audit-data-export-fiscal-year`) |
+| R-3 | `correct` rewrites an entry's lines and leaves the open item it created untouched (same family as NF-008) | ✅ fixed 2026-08-16 — `E_ENTRY_HAS_OPEN_ITEMS` + fixture `correct-open-items` |
+| R-4 | `importMapping` reports `imported: true` but the CLI rebuilds the registry from `summae.json` on every invocation and never writes back — the documented import→report flow cannot work | ✅ fixed 2026-08-16 — the import is written back into the workspace (CLI tests) |
 | R-5 | `createFiscalYear` coerces a non-numeric `year` to 0 and creates the year anyway; `2027.5` and `-5` are accepted too | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | R-6 | `correct` with a misspelled field is a silent no-op that returns success | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | R-7 | `openItems` ignores an invalid `kind` and returns everything; `datevExport` returns the entries export under a bogus `kind` label | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| R-8 | `init` is not atomic: a failure after the workspace is written leaves a half-built, non-re-initialisable directory. `--first-fiscal-year` is not validated (`""` → year 0000) | CLI |
-| R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | CLI |
-| R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | CLI |
-| R-11 | a 1–2 cent invoice with 19 % VAT is unbookable: the derived tax line rounds to 0.00 and is then rejected by the "amount > 0" rule | domain gap |
+| R-8 | `init` is not atomic: a failure after the workspace is written leaves a half-built, non-re-initialisable directory. `--first-fiscal-year` is not validated (`""` → year 0000) | ✅ fixed 2026-08-16 — validated year + rollback on failure (CLI tests) |
+| R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | ✅ fixed 2026-08-16 — `E_WORKSPACE_INVALID` instead of defaulting (CLI tests) |
+| R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | ✅ fixed 2026-08-16 — `--pack` and `--rules` together are rejected (CLI tests) |
+| R-11 | a 1–2 cent invoice with 19 % VAT is unbookable: the derived tax line rounds to 0.00 and is then rejected by the "amount > 0" rule | ✅ fixed 2026-08-16 — a zero tax line is dropped, not forced (`cent-invoice`) |
 | R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | ✅ fixed 2026-08-15 via NF-014 (`_unassigned` + `gapWarnings[]`) |
 
 Most of R-5 … R-7 are the same shape: `typeof x === 'T' ? x : <default>` used as validation, which
