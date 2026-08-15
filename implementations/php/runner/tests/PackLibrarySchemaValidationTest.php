@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Quality-gate obligation 1: every shipped pack-library module + manifest is validated
- * against testsuite/schema/format.schema.json — the same schema SchemaValidationTest
+ * against testing/testsuite/schema/format.schema.json — the same schema SchemaValidationTest
  * validates journalExport streams against, now extended to the pack format (mirrors the
  * Node pack-library-schema test). A field the engine reads but the schema does not
  * declare is a finding (the NF-002/F-008 class), not a convenience.
@@ -25,7 +25,7 @@ final class PackLibrarySchemaValidationTest extends TestCase
 {
     public function testPackLibraryFilesValidateAgainstSchema(): void
     {
-        $schemaPath = dirname(__DIR__, 4) . '/testsuite/schema/format.schema.json';
+        $schemaPath = dirname(__DIR__, 4) . '/testing/testsuite/schema/format.schema.json';
         self::assertFileExists($schemaPath);
         $schemaJson = file_get_contents($schemaPath);
         self::assertIsString($schemaJson);

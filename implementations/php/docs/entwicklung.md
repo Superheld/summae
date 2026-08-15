@@ -25,9 +25,11 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 
 - **PHPStan level max**, no errors (`vendor/bin/phpstan analyse`).
 - **PHPUnit** (`vendor/bin/phpunit`), including the `ConformanceTest` over the
-  full suite, **plus the coverage gate**: core lines ≥ 88 %, enforced by
-  `runner/bin/coverage-gate.php` (pcov is in the image). `make test` runs all of
-  this.
+  full suite, **plus the coverage gate**: one line floor per package (core 91 %,
+  cli 87 %, runner 82 %), enforced by `runner/bin/coverage-gate.php` (pcov is in the
+  image), which also fails when a package is measured without a floor or listed with
+  a floor but missing from the report. `packages/laravel` is excluded — it has no
+  tests of its own (SPEC-FINDINGS NF-015). `make test` runs all of this.
 - **Conformance suite strict** against both subjects:
   `php runner/bin/run-fixtures.php --strict` and `--strict --subject=database`
   — all fixtures green **and** the double run byte-identical.

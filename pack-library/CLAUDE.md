@@ -1,7 +1,7 @@
 # CLAUDE.md — `pack-library/` (pack authors)
 
 Here live the shipped **packs** — the **plugs** of the three policy kinds, never core code/law.
-Product data, **no tests** (conformance fixtures live in `testsuite/`).
+Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 
 > **The source is an internal repository**, mirrored into this repo via `make sync` (`rsync --delete`)
 > — **never edit the folder in the repo directly**, the next sync overwrites it.
@@ -31,9 +31,14 @@ Product data, **no tests** (conformance fixtures live in `testsuite/`).
 - **Tests ship with the pack — building a pack means building its fixtures, in the same change.** Every
   capability the pack offers, **especially every legally-expected one** (tax collection, self-assessment,
   exemption/threshold, the tax **return/filing**, depreciation thresholds, cash-basis, balance-sheet &
-  income-statement structure), is proven by a conformance fixture under `testsuite/fixtures/pack/<pack>/`
+  income-statement structure), is proven by a conformance fixture under `testing/testsuite/fixtures/pack/<pack>/`
   that drives it through the API and pins the expected result. A shipped-but-untested capability is a
   **gate-gap finding, not "done"** (root `CLAUDE.md`, quality gate). When auditing an existing pack, the
   question is: *is every legally-expected effect proven by a fixture?* — if not, that gap is the work.
+- **Shipping a pack also means shipping its walkthrough scenario.** Fixtures prove the *engine*; a
+  scenario (`testing/scenarios/walkthrough/<pack>.json`) proves the **CLI** a user actually types — one
+  full lifecycle with its numbers pinned. A guard test compares the set of shipped packs against the
+  set of scenarios, so a pack without one turns the build red in **both** languages; complete fixtures
+  will not save you. Format: `testing/scenarios/README.md`.
 
 Writing a pack by hand (skeletons per `kind`, manifest): handbook `docs/handbuch/README.md`.

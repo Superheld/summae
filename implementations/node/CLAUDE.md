@@ -1,7 +1,7 @@
 # CLAUDE.md — Node/TypeScript implementation
 
 Language-specific rules and commands for `implementations/node/`. Project-wide rules
-(iron invariants, quality policy, `testsuite/` read-only, Git) are in the
+(iron invariants, quality policy, `testing/testsuite/` read-only, Git) are in the
 root `CLAUDE.md`.
 
 **Status:** domain core (`packages/core`) complete against the in-memory port. Persistence adapter
@@ -50,13 +50,15 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 ## Definition of Green (here)
 
 `pnpm typecheck` + `pnpm lint` clean (counterpart to „PHPStan level max") · `pnpm test`
-green **incl. coverage thresholds** (core, `vitest.config.ts`: lines 88 / branches 70 /
-funcs 90 / stmts 85 — fixed in the run via `coverage.enabled`) · `pnpm fixtures --strict`
+green **incl. coverage thresholds per package** (`vitest.config.ts`, fixed in the run via
+`coverage.enabled`; lines: core 92 / cli 91 / knex 84 / runner 91 — one floor per package,
+just below the measured value, may only rise) · `pnpm fixtures --strict`
 (all fixtures green + byte-identical double run).
 
 `pnpm test` includes the **walkthrough scenarios** (`packages/cli/test/walkthrough.test.ts`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`docs/handbuch/examples/scenarios/*.json` — the same files the PHP `WalkthroughTest` reads.
+`testing/scenarios/walkthrough/*.json`, plus the regression guards in `testing/scenarios/regression/` — the same
+files the PHP `WalkthroughTest` reads. Test landscape: `testing/README.md`.
 
 ## Publish
 

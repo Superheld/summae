@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
  * (de / us / default / free `rules.json`), each a complete lifecycle: workspace →
  * postings → settlement → reversal → reports → close → export.
  *
- * Reads the SAME `docs/handbuch/examples/scenarios/*.json` as the Node
+ * Reads the SAME `scenarios/` files as the Node
  * `walkthrough.test.ts` and pins the same expectations — the shared-oracle
  * mechanism applied to the CLI surface. What this covers that the conformance
  * suite cannot: the CLI itself, the workspace, the pack library, and the
@@ -23,7 +23,11 @@ use Symfony\Component\Console\Output\BufferedOutput;
  */
 final class WalkthroughTest extends TestCase
 {
-    private const SCENARIO_DIR = __DIR__ . '/../../../../../docs/handbuch/examples/scenarios';
+    private const REPO_ROOT = __DIR__ . '/../../../../..';
+    /** The documentation in executable form — one per shipped configuration. */
+    private const SCENARIO_DIR = self::REPO_ROOT . '/testing/scenarios/walkthrough';
+    /** Fixed defects, pinned so they cannot come back — adversarial input lives here only. */
+    private const REGRESSION_DIR = self::REPO_ROOT . '/testing/scenarios/regression';
 
     /**
      * @return array<string, array{string}>
@@ -43,7 +47,24 @@ final class WalkthroughTest extends TestCase
      */
     private static function scenarioFiles(): array
     {
-        $files = glob(self::SCENARIO_DIR . '/*.json');
+        return [...self::filesIn(self::SCENARIO_DIR), ...self::filesIn(self::REGRESSION_DIR)];
+    }
+
+    /**
+     * Documentation scenarios only — the pack-coverage guard asks what we SHIP, and a
+     * regression scenario is not an offer to a user.
+     *
+     * @return list<string>
+     */
+    private static function documentedScenarioFiles(): array
+    {
+        return self::filesIn(self::SCENARIO_DIR);
+    }
+
+    /** @return list<string> */
+    private static function filesIn(string $directory): array
+    {
+        $files = glob($directory . '/*.json');
         $files = is_array($files) ? $files : [];
         $files = array_values(array_filter(
             $files,
@@ -194,7 +215,7 @@ final class WalkthroughTest extends TestCase
 
     public function testEveryShippedPackHasAScenario(): void
     {
-        $dirs = glob(__DIR__ . '/../../../../../pack-library/*-pack', GLOB_ONLYDIR);
+        $dirs = glob(self::REPO_ROOT . '/pack-library/*-pack', GLOB_ONLYDIR);
         $packs = array_map(
             static fn (string $dir): string => (string) preg_replace('/-pack$/', '', basename($dir)),
             is_array($dirs) ? $dirs : [],
@@ -202,7 +223,7 @@ final class WalkthroughTest extends TestCase
         sort($packs);
 
         $covered = [];
-        foreach (self::scenarioFiles() as $file) {
+        foreach (self::documentedScenarioFiles() as $file) {
             /** @var array<string, mixed> $scenario */
             $scenario = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
             $init = is_array($scenario['init'] ?? null) ? $scenario['init'] : [];
@@ -210,6 +231,9 @@ final class WalkthroughTest extends TestCase
                 $covered[] = $init['pack'];
             }
         }
+        // A pack may back several scenarios (the lifecycle one plus regression guards), so
+        // compare the SET of covered packs, not the list.
+        $covered = array_values(array_unique($covered));
         sort($covered);
 
         self::assertSame($packs, $covered, 'a pack without a walkthrough scenario is an untested offer');

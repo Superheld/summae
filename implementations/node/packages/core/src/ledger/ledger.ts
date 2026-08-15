@@ -1,4 +1,4 @@
-import { DomainError } from '../domain-error.js';
+import { DomainError, rejectedValue } from '../domain-error.js';
 import type {
   AccountRepository,
   AuditTrail,
@@ -19,6 +19,7 @@ import { PeriodRef } from '../substrate/period-ref.js';
 import { Uuid } from '../substrate/uuid.js';
 import { Account } from '../substrate/account.js';
 import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
+import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { EntryLine } from '../substrate/entry-line.js';
 import { FiscalYear } from '../substrate/fiscal-year.js';
@@ -73,6 +74,7 @@ export class Ledger {
     private readonly dimensions: DimensionRegistry,
     private readonly clock: Clock,
     private readonly ids: IdGenerator,
+    private readonly taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
   ) {}
 
   post(input: Record<string, unknown>): PostResult {
@@ -279,6 +281,24 @@ export class Ledger {
     const entry = this.requireEntry(input.entryId);
     const changes: AuditChanges = {};
 
+    // Reading both fields leniently made every unrecognized field a silent no-op that still
+    // returned the entry as a SUCCESS payload: `txt` instead of `text` looked like a correction
+    // that had happened. A correction that changes nothing was never asked for — say so instead
+    // of confirming a change nobody made.
+    const hasText = input.text !== undefined && input.text !== null;
+    const hasLines = input.lines !== undefined && input.lines !== null;
+    if (!hasText && !hasLines) {
+      throw new DomainError('E_INPUT_INVALID', 'correct requires "text" or "lines" — nothing to change', {
+        fields: Object.keys(input).sort().join(','),
+      });
+    }
+    if (hasText && typeof input.text !== 'string') {
+      throw new DomainError('E_INPUT_INVALID', 'correct: "text" must be a string');
+    }
+    if (hasLines && !Array.isArray(input.lines)) {
+      throw new DomainError('E_INPUT_INVALID', 'correct: "lines" must be an array');
+    }
+
     const text = asString(input.text);
     if (text !== null && text !== entry.text()) {
       changes.text = { from: entry.text(), to: text };
@@ -419,7 +439,20 @@ export class Ledger {
   }
 
   createFiscalYear(input: Record<string, unknown>): FiscalYear {
-    const year = typeof input.year === 'number' ? input.year : 0;
+    // Anything that was not a number became year 0 — a quoted `"2027"` from a JSON caller
+    // created a fiscal year nobody could address again: every later report for 2027 came back
+    // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
+    // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
+    const rawYear = input.year;
+    // Safe integer, not just integer: `1e21` passes Number.isInteger but is beyond what the
+    // PHP side can hold as an int, so it was accepted here and rejected there — same input,
+    // different answer, which is the one thing the equivalence policy does not allow.
+    if (typeof rawYear !== 'number' || !Number.isSafeInteger(rawYear) || rawYear <= 0) {
+      throw new DomainError('E_INPUT_INVALID', 'createFiscalYear requires "year" as a positive whole number', {
+        year: rejectedValue(rawYear),
+      });
+    }
+    const year = rawYear;
     const start = this.parseEntryDate(input.start);
     const end = this.parseEntryDate(input.end);
 
@@ -574,7 +607,15 @@ export class Ledger {
       dimensions.push(DimensionValue.of(rawDimension.type, rawDimension.code));
     }
 
+    // A caller-supplied taxTag must name a REGISTERED tax code. The VAT return is built
+    // from these tags, never from account numbers, so an unvalidated tag writes straight
+    // into statutory output: `post` used to accept `{"code":"MADEUP","reportingKey":"4711"}`
+    // and the invented key showed up as a line of the return. `postVoucher` always went
+    // through the registry; the direct `post` path did not.
     const taxTag = isRecord(rawLine.taxTag) ? rawLine.taxTag : null;
+    if (taxTag !== null && typeof taxTag.code === 'string' && taxTag.code !== '') {
+      this.taxCodes.get(taxTag.code);
+    }
 
     return { account, side, money: parsedMoney, dimensions, taxTag };
   }

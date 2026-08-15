@@ -1,3 +1,4 @@
+import { DomainError, rejectedValue } from '../../domain-error.js';
 import type {
   AccountRepository,
   JournalRepository,
@@ -7,8 +8,10 @@ import type {
 import type { EntryLine } from '../../substrate/entry-line.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
+import { integerOr, integerOrNull } from './parameters.js';
 
 const TAX_SUBTYPES = new Set(['tax_in', 'tax_out']);
+const DATEV_KINDS: ReadonlySet<string> = new Set(['entries', 'accounts', 'partners']);
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
@@ -33,16 +36,28 @@ export class DatevExportProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const kind = typeof params.kind === 'string' ? params.kind : 'entries';
+    // Every unknown kind fell through to the postings export but was echoed back under the
+    // label the caller sent: asking for "accounts" and typing "account" produced a file that
+    // announced itself as accounts and contained postings. Absent still means "entries".
+    const rawKind = params.kind;
+    let kind = 'entries';
+    if (rawKind !== undefined && rawKind !== null) {
+      if (typeof rawKind !== 'string' || !DATEV_KINDS.has(rawKind)) {
+        throw new DomainError('E_INPUT_INVALID', 'datevExport: "kind" must be entries, accounts or partners', {
+          kind: rejectedValue(rawKind),
+        });
+      }
+      kind = rawKind;
+    }
     const rows =
       kind === 'accounts' ? this.accountRows() : kind === 'partners' ? this.partnerRows() : this.entryRows(params);
     return { kind, rows, rowCount: rows.length };
   }
 
   private entryRows(params: Record<string, unknown>): Array<Record<string, unknown>> {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
-    const fromPeriod = typeof params.fromPeriod === 'number' ? params.fromPeriod : 1;
-    const throughPeriod = typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
+    const fiscalYear = integerOrNull(params.fiscalYear);
+    const fromPeriod = integerOr(params.fromPeriod, 1);
+    const throughPeriod = integerOr(params.throughPeriod, Number.MAX_SAFE_INTEGER);
 
     const entries = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
     const rows: Array<Record<string, unknown>> = [];

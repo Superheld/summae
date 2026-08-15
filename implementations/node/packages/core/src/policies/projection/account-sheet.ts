@@ -1,9 +1,10 @@
-import { DomainError } from '../../domain-error.js';
+import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
 import { AccountNumber } from '../../substrate/account-number.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
+import { integerOr, isIntegerParam } from './parameters.js';
 
 /**
  * Account sheet: all movements of an account in the fiscal year with a running balance.
@@ -18,10 +19,22 @@ export class AccountSheetProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const number = typeof params.account === 'string' ? params.account : '';
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : 0;
-    const throughPeriod =
-      typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
+    // Both are documented as required. Defaulting them produced an authoritative-looking
+    // empty ledger — the resolved account name next to "0.00" reads as a verified statement
+    // about the account, not as "you forgot a parameter".
+    if (typeof params.account !== 'string' || params.account === '') {
+      throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "account"', {
+        account: rejectedValue(params.account),
+      });
+    }
+    if (!isIntegerParam(params.fiscalYear)) {
+      throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "fiscalYear"', {
+        fiscalYear: rejectedValue(params.fiscalYear),
+      });
+    }
+    const number = params.account;
+    const fiscalYear = params.fiscalYear;
+    const throughPeriod = integerOr(params.throughPeriod, Number.MAX_SAFE_INTEGER);
 
     const account = this.accounts.byNumber(AccountNumber.of(number));
     if (account === null) {

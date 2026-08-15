@@ -53,7 +53,17 @@ export class TaxService {
       typeof input.serviceDate === 'string'
         ? this.parseDate(input.serviceDate)
         : this.parseDate(input.date);
-    const direction = input.direction === 'input' ? 'input' : 'output';
+    // A silent default here booked an incoming invoice fully inverted: `"Input"` with a
+    // capital I (or any typo) fell through to "output", so the expense was credited and the
+    // payable debited — a valid-looking, mirror-image posting that nothing downstream flags.
+    // Absent stays "output" (the documented default); a WRONG value is a caller mistake.
+    const rawDirection = input.direction;
+    if (rawDirection !== undefined && rawDirection !== null && rawDirection !== 'input' && rawDirection !== 'output') {
+      throw new DomainError('E_INPUT_INVALID', `direction must be "input" or "output"`, {
+        direction: String(rawDirection),
+      });
+    }
+    const direction = rawDirection === 'input' ? 'input' : 'output';
     const defaultCode = asString(input.taxCode);
 
     const rawLines = Array.isArray(input.netLines) ? input.netLines : [];

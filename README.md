@@ -7,7 +7,7 @@ implementation, **not** an application. Multiple language implementations with a
 
 ```
 summae/
-├── testsuite/              The compatibility contract: fixtures/ + schema/
+├── testing/testsuite/              The compatibility contract: fixtures/ + schema/
 │                           (authoritative for all implementations)
 ├── implementations/
 │   ├── php/                PHP implementation  (core · laravel · cli)
@@ -16,7 +16,7 @@ summae/
 └── Makefile                Orchestration
 ```
 
-Both implementations run against the **same `testsuite/`** and produce
+Both implementations run against the **same `testing/testsuite/`** and produce
 byte-identical results — that is the heart of the promise.
 
 ## Installation
@@ -60,9 +60,9 @@ Only the framework adapter is named per framework; core and CLI stay uniform.
 [Handbook](docs/handbuch/README.md). **Contributors** start with the respective
 developer docs.
 
-## The compatibility contract (`testsuite/`)
+## The compatibility contract (`testing/testsuite/`)
 
-`testsuite/fixtures/**.json` + `testsuite/schema/` are the normative source:
+`testing/testsuite/fixtures/**.json` + `testing/testsuite/schema/` are the normative source:
 every implementation must satisfy all fixtures byte-identically and
 deterministically. Fixtures are **append-only** — a behavior change becomes a
 new fixture; existing ones are never silently edited.
@@ -70,7 +70,7 @@ new fixture; existing ones are never silently edited.
 > **Maintainer note:** The authoring home of the fixtures lives in a separate,
 > internal knowledge base. `bin/sync-testsuite.sh` (or `make sync`) mirrors them
 > here — a one-way street, for maintainers only. Consumers and CI never need
-> this: the committed `testsuite/` is self-contained and authoritative.
+> this: the committed `testing/testsuite/` is self-contained and authoritative.
 
 ## Quick test
 

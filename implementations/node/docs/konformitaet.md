@@ -9,12 +9,12 @@ identical data format**. "Identical" is checkable: a language-neutral **fixture 
 against PHP comes out byte-identical.
 
 The fixtures are the normative source. They live in the knowledge base and are mirrored
-into `testsuite/` via `make sync` (one-way street). **Never edit here** — see
+into `testing/testsuite/` via `make sync` (one-way street). **Never edit here** — see
 "SPEC-FINDINGS" below.
 
 ## How the runner works
 
-`runner/` implements the contract (`testsuite/README.md`):
+`runner/` implements the contract (`testing/testsuite/README.md`):
 
 1. Build a fresh in-memory tenant from `setup`.
 2. Run `steps` in order; `expect.result` by **subset comparison** (only the given
@@ -56,7 +56,7 @@ From `determinismus.md` in the knowledge base — each has its own fixtures:
 ## Status
 
 Core fixtures green strict against in-memory **and** database (better-sqlite3), double run
-deterministic. The pack fixtures (`testsuite/fixtures/pack/`) check the v0.6 pack composition
+deterministic. The pack fixtures (`testing/testsuite/fixtures/pack/`) check the v0.6 pack composition
 (resolver + loader). The cross-test `make cross` confirms `journalExport` byte-identical PHP↔Node in
 both directions. (Concrete counts drift — they come from `pnpm fixtures` / `make cross`, not
 from this document.)

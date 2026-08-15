@@ -9,12 +9,12 @@ implementation counts as conformant when **all fixtures are green** and a
 **complete double run yields byte-identical** results.
 
 The fixtures are the normative source. They live in the knowledge base and are
-mirrored into `testsuite/` via `make sync` (one-way street). **Never edit here**
+mirrored into `testing/testsuite/` via `make sync` (one-way street). **Never edit here**
 — see "SPEC-FINDINGS" below.
 
 ## How the runner works
 
-`runner/` implements the contract (`testsuite/README.md`):
+`runner/` implements the contract (`testing/testsuite/README.md`):
 
 1. Build a fresh in-memory tenant from `setup`.
 2. Run `steps` in order; `expect.result` by **subset comparison** (only the
@@ -55,9 +55,9 @@ From `determinismus.md` of the knowledge base — each has its own fixtures:
 
 - The full conformance suite runs green `--strict` against in-memory **and**
   database (SQLite + Postgres), double run deterministic. The pack fixtures
-  (`testsuite/fixtures/pack/`) check the v0.6 pack composition (resolver) — Gate 1.
+  (`testing/testsuite/fixtures/pack/`) check the v0.6 pack composition (resolver) — Gate 1.
   (Fixture counts drift — the live number comes from `make fixtures`, not from this doc.)
-- Exports additionally validate against `testsuite/schema/format.schema.json`
+- Exports additionally validate against `testing/testsuite/schema/format.schema.json`
   (JSON Schema draft 2020-12).
 - Spec status: v0.5 (data format). The loop implementation → findings → spec →
   retrofit was run through fully once (F-001…F-007).

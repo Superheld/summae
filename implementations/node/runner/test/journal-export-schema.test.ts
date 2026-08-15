@@ -7,13 +7,13 @@ import { CoreSubject } from '../src/subject/core-subject.js';
 
 /**
  * Cross-language equivalence (top quality policy): the PHP runner has validated journalExport
- * streams against testsuite/schema/format.schema.json since JOB-011 (SchemaValidationTest); the
+ * streams against testing/testsuite/schema/format.schema.json since JOB-011 (SchemaValidationTest); the
  * Node runner had no schema validation at all. This is the mirror — the same export streams +
  * manifest, validated against the same schema definitions. journalExport is byte-identical across
  * the language boundary (SF-15), so what validates in PHP must validate here; this guard keeps it so.
  */
 const here = dirname(fileURLToPath(import.meta.url));
-const schemaPath = join(here, '..', '..', '..', '..', 'testsuite', 'schema', 'format.schema.json');
+const schemaPath = join(here, '..', '..', '..', '..', 'testing', 'testsuite', 'schema', 'format.schema.json');
 
 function rows(data: unknown, stream: string): Array<Record<string, unknown>> {
   if (data === null || typeof data !== 'object') return [];

@@ -14,6 +14,7 @@ import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { OpenItem } from '../../records/open-item.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 import type { TaxProfile } from '../expansion/tax/tax-profile.js';
+import { integerOr } from './parameters.js';
 
 interface KeyAmount {
   base: Money;
@@ -43,8 +44,8 @@ export class VatReturnProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const year = typeof params.year === 'number' ? params.year : 0;
-    const quarter = typeof params.quarter === 'number' ? params.quarter : 0;
+    const year = integerOr(params.year, 0);
+    const quarter = integerOr(params.quarter, 0);
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
 
     const zero = Money.zero(this.baseCurrency);
@@ -72,6 +73,16 @@ export class VatReturnProjection {
         if (!this.inQuarter(entry.entryDate, year, quarter)) continue;
         if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
         if (this.openItems.byOriginEntry(entry.id).length > 0) continue;
+        // NF-005: this loop's premise is "no open item ⇒ the money moved at posting time"
+        // (a cash sale). A reversal has no open item of its own, but it is not a cash
+        // movement either. When the entry it reverses carries open items, its tax already
+        // follows those items' settlements above — counting it here would declare a
+        // correction for money that never moved: reversing an unpaid invoice would claim
+        // back tax that was never due. Reversals of genuinely cash-effective entries
+        // (target without open items) still count here, at their own posting date.
+        if (entry.reverses !== null && this.openItems.byOriginEntry(entry.reverses).length > 0) {
+          continue;
+        }
         for (const [key, contribution] of this.entryContributions(entry, directions)) {
           add(key, contribution.base, contribution.tax);
         }

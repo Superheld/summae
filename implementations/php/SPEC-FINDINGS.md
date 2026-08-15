@@ -17,6 +17,44 @@ next most plausible behavior.
 >
 > The detail entries below remain as history.
 
+## Status at a glance
+
+Re-verified against the code on 2026-08-15 — the per-finding headings below now carry their
+status, so scanning the list no longer suggests open work that is long done. Resolved entries
+keep their original text under the resolution note: why a decision was made is worth more than
+a short file.
+
+| Finding | Status |
+|---|---|
+| F-001 unknown `voucherId` | ✅ `E_VOUCHER_UNKNOWN` + `core/voucher-unknown.json` |
+| F-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
+| F-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
+| F-004 asset posting accounts | ⚠ **partly** — accounts came via the `assetAccounts` pack module; the **pool period is still hard-coded** |
+| F-005 journalExport manifest streams | ✅ `formatVersion 0.4`, `auditLog` always included |
+| F-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
+| F-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
+| F-008 `includeNonCash` missing from the schema | ✅ schema extended |
+| F-009 `cashBasisReport` German VAT passthrough | ✅ resolved |
+| F-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
+| F-CROSS-001 timestamp serialization | ✅ resolved |
+| NF-005 cash-basis reversal | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
+| NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
+| NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
+| NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
+| NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
+| NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-014 accounts outside a mapping vanish from the income statement | **OPEN** |
+| NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
+| NF-016 four declared parameters that no implementation reads | **OPEN** — see `implementations/node/SPEC-FINDINGS.md` |
+| **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
+
+**Genuinely open today: F-004 (pool period), NF-008, NF-014, NF-015, NF-016 and the NF-005 remainder**, plus the
+open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
+R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
+
 Format per finding:
 
 ```
@@ -30,7 +68,11 @@ Format per finding:
 
 ---
 
-## F-001: No error code for unknown voucherId
+## F-001: No error code for unknown voucherId — ✅ RESOLVED
+
+> **Resolved.** The proposed dedicated code was introduced: `E_VOUCHER_UNKNOWN` is in the
+> error catalogue and in the exit-code table (`ExitCodes.php` / `exit-codes.ts`), and
+> `testing/testsuite/fixtures/core/voucher-unknown.json` pins it. Original finding:
 
 - **Job:** JOB-003
 - **What:** `E_ENTRY_NO_VOUCHER` is defined as "voucherId missing". For a
@@ -41,7 +83,11 @@ Format per finding:
 - **Proposal:** either pin it down explicitly that way or introduce a dedicated code
   `E_VOUCHER_UNKNOWN` + fixture.
 
-## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog
+## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog — ✅ RESOLVED
+
+> **Resolved in spec v0.5.** The code was dropped from the spec rather than added to the
+> catalogue: `reverse` is status-independent, which is what the implementation already did.
+> Original finding:
 
 - **Job:** JOB-003
 - **What:** api.md lists `E_ENTRY_NOT_FINALIZED`* for `reverse` (with footnote
@@ -54,7 +100,28 @@ Format per finding:
 - **Proposal:** resolve the footnote in api.md — remove the line from the error
   column or define the behavior for `entered` explicitly.
 
-## F-004: Account resolution for asset postings not specified
+## F-004: Account resolution for asset postings not specified — ⚠ PARTLY RESOLVED
+
+> **Accounts: resolved.** The proposed keys became a pack module of their own — `kind:
+> assetAccounts` (`pack-library/de-pack/assets/`, `pack-library/us-pack/assets/`) supplies the
+> acquisition counter account, the depreciation expense account and the low-value-asset
+> account as pack data, not as a name-matching fallback.
+>
+> **Still open — the low-value-asset *pool period* is hard-coded.** `asset-service.ts:70-72`
+> (`AssetService.php` likewise) writes off a pooled asset over a **fixed 5 years at 1/5 each**,
+> tagged `FINDING:` in the source. Five years is German law (§ 6 Abs. 2a EStG,
+> GWG-Sammelposten) sitting in the expansion code — the litmus test from the root `CLAUDE.md`
+> says a rule that cites a statute belongs in the pack as data. The statute-citation guard did
+> not catch it because the source names no paragraph. Needs a field on the depreciation module
+> (knowledge base: schema + fixture) before the code can read it from the pack.
+>
+> No pack is *currently* mis-served: the pool route only fires when a threshold declares both
+> `poolMin` and `poolMax`, and only `de-pack` does (`250.01`–`1000.00`); `us-pack` has both
+> `null`, so it never takes the route. The gap is expressive, not yet a wrong number — the pack
+> can switch the pool on and off but cannot say **over how long**, so any future jurisdiction
+> with a pooled de-minimis rule would inherit Germany's five years.
+>
+> Original finding:
 
 - **Job:** JOB-009
 - **What:** acquireAsset/runDepreciation generate postings, but neither spec
@@ -67,7 +134,12 @@ Format per finding:
   the single bank account, expense account by name part ("AfA"/"GWG").
 - **Proposal:** add the keys to the rule-module spec; add fixtures.
 
-## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other
+## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other — ✅ RESOLVED
+
+> **Resolved.** The contradiction is gone: `testing/testsuite/fixtures/io/journal-export-z3.json` now
+> expects `formatVersion "0.4"` and `streams: [journal, accounts, vouchers, auditLog]` — the
+> audit trail is always part of the export — and the schema declares `streams`/`hashAlgorithm`.
+> Original finding:
 
 - **Job:** JOB-011
 - **What:** journal-export-z3 expects exactly [journal, accounts, vouchers]
@@ -83,7 +155,11 @@ Format per finding:
   (auditLog always, formatVersion current), extend the schema manifest with
   streams/hashAlgorithm.
 
-## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog
+## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog — ✅ RESOLVED
+
+> **Resolved.** The proposed code was added: `E_COSTING_RUN_UNKNOWN` is in the catalogue and
+> the exit-code table, pinned by `testing/testsuite/fixtures/costing/costing-run-unknown.json`.
+> Original finding:
 
 - **Job:** JOB-010
 - **What:** releaseCosting/costAllocationSheet with an unknown runId has
@@ -92,7 +168,11 @@ Format per finding:
   E_OPENITEM_UNKNOWN).
 - **Proposal:** add it to the error catalog + fixture.
 
-## F-007: balanceSheet side assignment by root order
+## F-007: balanceSheet side assignment by root order — ✅ RESOLVED
+
+> **Resolved.** The proposed explicit field was introduced instead of relying on root order:
+> `format.schema.json` `$defs/mappingPosition` declares `side: assets|liabilitiesAndEquity`
+> at the root node, and `BalanceSheetProjection` / `balance-sheet.ts` read it. Original finding:
 
 - **Job:** JOB-008
 - **What:** the spec does not define which mapping root is assets and
@@ -101,7 +181,12 @@ Format per finding:
   all others = liabilities-and-equity (credit−debit).
 - **Proposal:** `side: assets|liabilitiesAndEquity` on the mapping root node.
 
-## F-003: No error code for "fiscal-year close with non-finalized postings"
+## F-003: No error code for "fiscal-year close with non-finalized postings" — ✅ RESOLVED
+
+> **Resolved.** The proposed dedicated code was introduced rather than reusing
+> `E_PERIOD_OUT_OF_ORDER`: `E_FISCALYEAR_UNFINALIZED_ENTRIES` is in the catalogue and the
+> exit-code table, pinned by `testing/testsuite/fixtures/core/fiscalyear-close-guard.json`.
+> Original finding:
 
 - **Job:** JOB-003
 - **What:** api.md requires for `closeFiscalYear` that "all postings are
@@ -162,10 +247,10 @@ Format per finding:
   R7: non-cash categories such as depreciation count without a cash flow). The us-pack
   module 5 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
   on its depreciation line (L13) per the module spec. But the normative
-  `testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+  `testing/testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
   `includeNonCash` and carries `additionalProperties: false` — by the schema the field
   is illegal on a mapping position.
-- **Where:** `testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
+- **Where:** `testing/testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
   `pack-library/us-pack/mappings/us-schedule-c.json`; core Mapping importer +
   `CashBasisProjection`.
 - **Chosen behavior:** shipped `us-schedule-c-2026` with `includeNonCash: true` per the
@@ -202,7 +287,13 @@ Format per finding:
   cash-basis mapping maps the tax accounts; drop the hard-coded German strings). Behavior change with
   DE-fixture ripple → own job, human decision. Applies to Node too.
 
-## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected
+## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected — ✅ RESOLVED
+
+> **Resolved in 0.5.0 (2026-06-24).** The proposal below was built: `exempt` is now a
+> registered tax mechanism (`TaxMechanisms`) that tags the base and emits **no** tax line,
+> and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in the
+> return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
+> (`testing/scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 - **Job:** us-pack conformance audit (2026-06-24)
 - **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
@@ -214,3 +305,115 @@ Format per finding:
 - **Proposal:** add an `exempt` mechanism (base tag only, no tax line) — analogous to
   `intra_community_supply` — so exempt sales post cleanly and show in the return (open decision E).
   Engine addition → own job. Applies to Node too.
+
+---
+
+## Cross-language findings (NF-005 … NF-007)
+
+The three findings below were found while walking the CLI for the handbook (2026-08-14) and are
+**identical in PHP and Node** — same code path, same result, so cross-language equivalence holds
+and they are model/spec questions rather than parity defects.
+
+They deliberately keep **one shared number in both files** instead of the older double numbering
+(NF-002 ↔ F-008, NF-003 ↔ F-009, NF-004 ↔ F-010), which made the same finding look like two.
+`F-011` is *not* reused here: that number belongs to the knowledge base's own finding list.
+
+**Full analysis, assessment and proposed directions: `implementations/node/SPEC-FINDINGS.md`.**
+Summary and the PHP sites:
+
+- **NF-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately — ✅ FIXED
+  2026-08-15.** The direct-contribution loop in `VatReturnProjection.php` now also skips an entry
+  that *reverses* an entry carrying open items: its tax follows the reversed entry's settlements
+  instead of counting as a cash movement. Reversals of genuinely cash-effective entries still count
+  directly, at their own date. **Still open:** the settled-then-reversed case (tax stays declared
+  until a refund is posted vs. corrected at the reversal's date, the `F-011` reading) — no fixture
+  pins either.
+- **NF-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
+  `CashBasisProjection.php:63` defaults a missing `year` to `0`, then builds
+  `CalendarDate::of('0000-01-01')` in `assertCalendarYearFiscalYears`. Not a `DomainError`, so the
+  CLI prints a stack trace instead of its documented JSON error line. Realistic trigger: every
+  other projection except `vatReturn` takes `fiscalYear`.
+- **NF-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
+  `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
+  opposite of what happened, and the only error a tax-free configuration hits on a normal report.
+  Current behaviour pinned in `testing/scenarios/walkthrough/default.json`.
+- **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
+  counter-entry but does not touch the open items the reversed entry created: the trial balance
+  shows the payable account at `0.00` while `openItems` still reports it open and settleable.
+  Found while fixing NF-005; distinct from it and not its cause. A cancelled open item must keep
+  its settlement history (dropping it would rewrite filed VAT periods), and whether it disappears
+  or gains a terminal `cancelled` status is a **data-format** decision. Documented, not changed.
+
+Each still-open item needs a spec decision (NF-007 an append to the error catalogue, NF-008 a
+data-format decision) before either language moves.
+
+- **NF-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
+  2026-08-15.** A substrate-level equivalence break: Node validated by round-tripping through
+  `Date.UTC(year, …)`, which maps years 0–99 onto 1900+year, so `0000-01-01`…`0099-12-31` were
+  rejected there and accepted here. **PHP is unchanged** — Node was widened to match it by
+  dropping the host `Date` from the value object entirely (explicit days-per-month table +
+  Gregorian leap rule). Pinned by `CalendarDateTest` and Node's `calendar-date.test.ts`, which
+  carry the **same** accepted/rejected tables (34 cases each). Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED 2026-08-15.**
+  Validation went straight to `brick/math`, which parses far more than
+  `format.schema.json` `$defs/money/properties/amount` (`^-?\d+(\.\d{1,4})?$`) allows:
+  `"1e3"` booked as `1000.00`, `"1.5e+21"` as `1500000000000000000000.00`, `"10."` and
+  `".5"` likewise — and `"+10.00"` was accepted here while Node rejected it, a second
+  substrate divergence after NF-009. `Money::of` now matches the string against the
+  data-format expression before parsing; `fromCalculation` is untouched. Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
+  2026-08-15.** `Ledger.php:706` stored whatever the caller sent; the VAT return is built from
+  those tags, so an invented `reportingKey` became a line of a statutory return at exit 0.
+  A tag whose `code` is set must now resolve in the `TaxCodeRegistry` (`E_TAXCODE_UNKNOWN`,
+  existing code). **PHP needed the registry wired in twice** — `DatabaseTenantFactory.php:78`
+  duplicates the ledger construction from `Tenant.php:96`, where Node has one path; worth
+  removing that duplication separately.
+- **NF-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED 2026-08-15.** Two different
+  years returned byte-identical sheets, while the cheat sheet and the gated scenarios both
+  passed the parameter. It now scopes cumulatively ("as at the end of year N"); mirroring
+  trialBalance's G1 rule was tried first and left the sheet unbalanced by exactly the prior
+  year's result, because summae writes no closing entries. Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED 2026-08-15.**
+  `TaxService.php:58` treated anything that was not exactly `'input'` as an output voucher, so
+  `"Input"` with a capital I credited the expense and debited the payable — the mirror image of
+  the correct booking, carrying a valid tax tag so nothing downstream flagged it. An absent
+  `direction` still defaults to `'output'`; a wrong value is now `E_INPUT_INVALID`.
+- **`E_INPUT_INVALID` (exit 45) added to the catalogue** for "a parameter is present but not valid
+  input". In use in `TaxService`, `CashBasisProjection`, `AccountSheetProjection`,
+  `IncomeStatementProjection`, `BalanceSheetProjection`. The normative entry
+  (`50-spezifikation/fehlerkatalog.md`, section `E_INPUT`) and the conformance fixture
+  (`core/input-invalid.json`) were written in the knowledge base and mirrored via `make sync` —
+  green in both languages on the first run.
+- **NF-014 — accounts outside a mapping's ranges vanish from the income statement** while
+  `balanceSheet`'s result position still counts them, so the two statements disagree. Not a limit
+  on how many accounts you may create (there is none) — a gap between chart and mapping. Full
+  write-up: `implementations/node/SPEC-FINDINGS.md`.
+
+## NF-015: `packages/laravel` has no tests of its own — gate gap
+
+- **Job:** chore/coverage-all-packages (2026-08-15)
+- **What:** the persistence adapter is the one package with no test suite. `packages/laravel/tests/`
+  contains a single `.gitkeep`; `phpunit.xml.dist` declares a `laravel` testsuite that therefore
+  runs zero tests. Root `CLAUDE.md` calls a contract surface without its own guard a gate-gap
+  finding — this is one, and it sits on the surface that writes and reads the shared data format.
+- **Where:** `implementations/php/packages/laravel/` (src ~534 statements), `phpunit.xml.dist`,
+  `runner/bin/coverage-gate.php`
+- **Chosen behavior:** the package is **excluded** from the coverage source set and carries **no
+  floor**, with the reason stated at both places. Measuring it would pin a number nobody
+  maintains: it does get ~79 % line coverage today, but purely as a side effect of the conformance
+  runner's `database` subject and the cross-test driving it — coverage that no test in this
+  package asserts anything about, and that would silently move whenever those suites change.
+  Excluding it keeps the gate honest; the gap stays visible here instead of hiding inside a
+  green percentage.
+- **Proposal:** give the adapter its own suite (repository round-trips per aggregate, the JSON
+  columns of the `summae_*` tables, tenant scoping) and then add a `laravel` floor to
+  `coverage-gate.php` — the floors are a ratchet, so the number can only rise after that.
+  Deliberately **not** done here: it is a test-writing job, not a gate-wiring one. Node has no
+  counterpart — `packages/knex` has no tests of its own either, but is covered through the CLI
+  package's tests and does carry a floor there.

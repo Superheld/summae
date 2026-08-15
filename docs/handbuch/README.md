@@ -360,7 +360,7 @@ self-contained** — all modules in their own folder, unique IDs, no shared
 `modules/`. Full template: `pack-library/de-pack/`.
 
 Every module and manifest in the pack library is additionally **validated
-against `testsuite/schema/format.schema.json`** in both languages — a misspelled
+against `testing/testsuite/schema/format.schema.json`** in both languages — a misspelled
 field or an undeclared key fails loudly instead of being silently ignored.
 Validation runs in the test runners, so the core stays framework-free.
 
@@ -1308,7 +1308,7 @@ reproducible, testable, and interchangeable between implementations.
   empty directory → invoice → payment/settlement → reversal → reports → period
   and year close → export, as one runnable sequence. Start here if you want to
   *do* something; come back to this handbook for the field-level detail.
-- **Compatibility contract:** `testsuite/` (fixtures + schema) — the normative
+- **Compatibility contract:** `testing/testsuite/` (fixtures + schema) — the normative
   source against which every implementation is checked byte-identically.
 - **PHP developer docs** (architecture, workflow, conformance):
   [implementations/php/docs/](../../implementations/php/docs/README.md).

@@ -1,7 +1,7 @@
 # summae — Node/TypeScript implementation
 
 Second runtime alongside the PHP reference, against the **same contract**: the same
-conformance suite (`testsuite/` in the repo root), identical data format,
+conformance suite (`testing/testsuite/` in the repo root), identical data format,
 byte-identical determinism. The goal is full parity and, ultimately,
 cross-compatibility with the PHP data.
 
@@ -30,7 +30,7 @@ implementations/node/
 
 CLI and persistence adapter (NestJS/Express, Prisma/Knex) arrive from **M4** on as
 their own packages. The **test suite is not copied here** — runner and tests
-read the shared `testsuite/` in the repo root.
+read the shared `testing/testsuite/` in the repo root.
 
 ## Commands
 

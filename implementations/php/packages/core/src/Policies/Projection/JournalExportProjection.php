@@ -51,7 +51,7 @@ final readonly class JournalExportProjection
      */
     public function compute(array $params): array
     {
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : null;
+        $fiscalYear = Parameters::integerOrNull($params['fiscalYear'] ?? null);
 
         $entries = $fiscalYear === null ? $this->journal->all() : $this->journal->forFiscalYear($fiscalYear);
 

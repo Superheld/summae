@@ -20,11 +20,16 @@
             <directory>runner/tests</directory>
         </testsuite>
     </testsuites>
-    <!-- Coverage-Gate misst den Fachkern (packages/core/src). Adapter (laravel-DB) und
-         cli sind integrations-/cross-getestet, nicht unit — daher nicht im Coverage-Floor. -->
+    <!-- The coverage gate measures every package that has tests, each with its own floor
+         (runner/bin/coverage-gate.php). packages/laravel is deliberately absent: it has no
+         tests of its own (packages/laravel/tests/ holds nothing but a .gitkeep), so any
+         number it produced would be a side effect of other suites. Known gap, recorded as
+         NF-015 in SPEC-FINDINGS.md — to be closed by writing tests, not by measuring it. -->
     <source>
         <include>
             <directory>packages/core/src</directory>
+            <directory>packages/cli/src</directory>
+            <directory>runner/src</directory>
         </include>
     </source>
 </phpunit>

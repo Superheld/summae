@@ -1,7 +1,7 @@
 # CLAUDE.md — PHP implementation
 
 Language-specific rules and commands for `implementations/php/`. Project-wide rules
-(iron invariants, quality policy, `testsuite/` read-only, Git) are in the
+(iron invariants, quality policy, `testing/testsuite/` read-only, Git) are in the
 root `CLAUDE.md`.
 
 ## Commands
@@ -16,7 +16,7 @@ make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
 make fixtures   # conformance suite against the in-memory core
 make test       # PHPUnit only
 make stan       # PHPStan level max only
-make sync       # mirror testsuite/ from the knowledge base (one-way)
+make sync       # mirror testing/testsuite/ from the knowledge base (one-way)
 make shell      # shell in the PHP container
 ```
 
@@ -57,13 +57,20 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 ## Definition of Green (here)
 
 PHPStan level max without errors · `make test` green (**PHPUnit incl. `ConformanceTest`**
-over the full suite **+ coverage gate** core lines ≥ 88 % via `coverage-gate.php`) ·
+over the full suite **+ coverage gate per package** via `coverage-gate.php`: lines core 91 /
+cli 87 / runner 82, `packages/laravel` excluded because it has no tests of its own — NF-015) ·
 conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
 byte-identical double run.
 
+⚠ **Working on `packages/laravel`? A green `make test` proves nothing about it.** The adapter has
+no unit tests at all; it is exercised only end-to-end — via the conformance suite with
+`--subject=database` and via the SF-15 cross test (`make cross`). Run **both** after touching it,
+and expect a failure there to tell you *that* something broke, not *what*.
+
 `make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`docs/handbuch/examples/scenarios/*.json` — the same files the Node `walkthrough.test.ts` reads.
+`testing/scenarios/walkthrough/*.json`, plus the regression guards in `testing/scenarios/regression/` — the same
+files the Node `walkthrough.test.ts` reads. Test landscape: `testing/README.md`.
 
 ## Deeper: `docs/`
 

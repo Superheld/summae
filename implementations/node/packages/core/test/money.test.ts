@@ -120,3 +120,44 @@ describe('Money — serialization (datenformat.md)', () => {
     expect(Money.of('1234.56', 'EUR').toJSON()).toEqual({ amount: '1234.56', currency: 'EUR' });
   });
 });
+
+/**
+ * The amount string must match the DATA FORMAT (`format.schema.json`
+ * `$defs/money/properties/amount` = `^-?\d+(\.\d{1,4})?$`), not merely be something
+ * big.js can parse. The decimal library was more permissive than the format:
+ * `"1e3"` became 1000.00 and `"1.5e+21"` a booking of 1.5 sextillion, silently. A
+ * leading `+` additionally diverged — PHP accepted it, Node did not.
+ *
+ * **The SAME two tables live in the PHP `MoneyTest`.** An amount that would not
+ * survive a round-trip through the exported format must not enter the journal.
+ */
+describe('Money.of — accepts exactly the data format', () => {
+  const ACCEPTED = ['0', '0.00', '10', '10.5', '10.00', '-10.00', '-0.01', '1000000.50'] as const;
+  const REJECTED = [
+    '1e3', // exponent notation — booked as 1000.00 before
+    '1E3',
+    '1.5e+21', // booked as 1500000000000000000000.00 before
+    '1e-7',
+    '+10.00', // accepted by PHP, rejected by Node before — a cross-language split
+    '.5', // no digit before the point
+    '10.', // no digit after the point
+    ' 10.00',
+    '10.00 ',
+    '1,50',
+    '1_000',
+    '0x10',
+    'NaN',
+    'Infinity',
+    '-',
+    '',
+    '10.005', // beyond the EUR scale — must not be silently rounded
+  ] as const;
+
+  it.each(ACCEPTED)('accepts %s', (value) => {
+    expect(() => Money.of(value, 'EUR')).not.toThrow();
+  });
+
+  it.each(REJECTED)('rejects %s', (value) => {
+    expect(() => Money.of(value, 'EUR')).toThrow();
+  });
+});

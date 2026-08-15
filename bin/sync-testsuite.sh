@@ -26,19 +26,19 @@ if [[ -z "$SRC" || ! -d "$SRC" ]]; then
     exit 1
 fi
 
-rsync -a --delete "$SRC"/ testsuite/
+rsync -a --delete "$SRC"/ testing/testsuite/
 
 # Maschinenlesbares Schema (normative Ableitung) mitführen
 SCHEMA_SRC="$(dirname "$SRC")/50-spezifikation/schema"
 if [[ -d "$SCHEMA_SRC" ]]; then
-    rsync -a --delete "$SCHEMA_SRC"/ testsuite/schema/
+    rsync -a --delete "$SCHEMA_SRC"/ testing/testsuite/schema/
 fi
 
 # Fehlerkatalog (normativ) mitführen, damit validate.py die Code-Abdeckung
 # auch im Spiegel prüft (sonst nur in der Wissensbasis auffindbar).
 KATALOG_SRC="$(dirname "$SRC")/50-spezifikation/fehlerkatalog.md"
 if [[ -f "$KATALOG_SRC" ]]; then
-    cp "$KATALOG_SRC" testsuite/fehlerkatalog.md
+    cp "$KATALOG_SRC" testing/testsuite/fehlerkatalog.md
 fi
 
 # Ausgelieferte Pack-Bibliothek (wählbare Packs + wiederverwendbare Module)
@@ -50,4 +50,4 @@ if [[ -d "$PACKLIB_SRC" ]]; then
 fi
 
 echo "Testsuite synchronisiert aus: $SRC"
-echo "Fixtures: $(find testsuite/fixtures -name '*.json' | wc -l | tr -d ' ')"
+echo "Fixtures: $(find testing/testsuite/fixtures -name '*.json' | wc -l | tr -d ' ')"

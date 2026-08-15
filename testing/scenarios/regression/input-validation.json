@@ -1,0 +1,103 @@
+{
+  "id": "input-validation",
+  "description": "R-5/R-6/R-7: parameters that are present but not valid values must be rejected, not silently coerced into a plausible default. Each negative step is paired with a positive one so a fix cannot forbid too much.",
+  "init": { "pack": "de", "currency": "EUR", "firstFiscalYear": 2026 },
+  "expect": { "initialized": true, "created.fiscalYears": 1 },
+  "steps": [
+    {
+      "name": "R-5: createFiscalYear with a QUOTED year silently became year 0 — every later report for 2027 then returned an empty result, one quoting mistake away",
+      "op": "createFiscalYear",
+      "input": { "year": "2027", "start": "2027-01-01", "end": "2027-12-31" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-5: a fractional year is not a fiscal year either",
+      "op": "createFiscalYear",
+      "input": { "year": 2028.5, "start": "2028-01-01", "end": "2028-12-31" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-5: nor is a negative one",
+      "op": "createFiscalYear",
+      "input": { "year": -5, "start": "2028-01-01", "end": "2028-12-31" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-5 positive: a proper integer year still creates the year with its twelve periods",
+      "op": "createFiscalYear",
+      "input": { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      "expect": { "year": 2027, "periodCount": 12 }
+    },
+    {
+      "name": "an invoice, so there is something in the open-item list to filter",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-1", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01",
+        "text": "invoice",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [{ "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } }],
+        "counterAccount": "1400"
+      },
+      "capture": { "invoiceEntry": "entry.id" },
+      "expect": { "openItemsCreated[0].kind": "receivable" }
+    },
+    {
+      "name": "R-7 positive: a valid kind filters",
+      "report": "openItems",
+      "params": { "kind": "receivable" },
+      "expect": { "items[0].kind": "receivable" }
+    },
+    {
+      "name": "R-7: an invalid kind used to mean NO FILTER — a payment run asking for payables got receivables mixed in",
+      "report": "openItems",
+      "params": { "kind": "bogus" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-7: a numerically typed kind is a caller mistake too",
+      "report": "openItems",
+      "params": { "kind": 123 },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-7 positive: datevExport with a valid kind",
+      "report": "datevExport",
+      "params": { "kind": "entries", "fiscalYear": 2026 },
+      "expect": { "kind": "entries" }
+    },
+    {
+      "name": "R-7: datevExport used to return the ENTRIES export under the bogus kind label — asking for \"accounts\" and typing \"account\" gave you postings",
+      "report": "datevExport",
+      "params": { "kind": "bogus", "fiscalYear": 2026 },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-6: correct with a misspelled field was a silent no-op that returned SUCCESS — an agent that gets one field name wrong receives a success payload for an entry it believes it just corrected",
+      "op": "correct",
+      "input": { "entryId": "$invoiceEntry", "txt": "changed" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-6: correct with neither text nor lines changes nothing and must say so",
+      "op": "correct",
+      "input": { "entryId": "$invoiceEntry" },
+      "expectError": "E_INPUT_INVALID",
+      "expectExitCode": 45
+    },
+    {
+      "name": "R-6 positive: a correctly spelled text still corrects",
+      "op": "correct",
+      "input": { "entryId": "$invoiceEntry", "text": "corrected text" },
+      "expect": { "text": "corrected text" }
+    }
+  ]
+}

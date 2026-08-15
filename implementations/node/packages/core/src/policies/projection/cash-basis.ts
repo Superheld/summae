@@ -15,6 +15,7 @@ import { Money } from '../../substrate/money.js';
 import type { Account } from '../../substrate/account.js';
 import type { EntryLine } from '../../substrate/entry-line.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
+import { isIntegerParam } from './parameters.js';
 
 const NON_PROFIT_SUBTYPES = new Set(['bank', 'cash', 'transit', 'ar', 'ap']);
 
@@ -36,9 +37,27 @@ export class CashBasisProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const year = typeof params.year === 'number' ? params.year : 0;
+    // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
+    // throw an uncaught InvalidValue, in PHP it returned an empty report (NF-006/NF-009). Both
+    // were wrong in the same place — a missing required parameter must say so.
+    if (!isIntegerParam(params.year)) {
+      throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"', {
+        year: params.year === undefined ? null : String(params.year),
+      });
+    }
+    const year = params.year;
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
-    const mapping = typeof params.mapping === 'string' ? this.mappings.byId(params.mapping) : null;
+    // An unknown mapping used to be ignored here while incomeStatement/balanceSheet threw on
+    // the same value — same parameter, same registry, two behaviours.
+    let mapping = null;
+    if (params.mapping !== undefined && params.mapping !== null) {
+      mapping = typeof params.mapping === 'string' ? this.mappings.byId(params.mapping) : null;
+      if (mapping === null) {
+        throw new DomainError('E_INPUT_INVALID', `mapping "${String(params.mapping)}" is not loaded`, {
+          mapping: String(params.mapping),
+        });
+      }
+    }
 
     this.assertCalendarYearFiscalYears(year);
 

@@ -1,0 +1,179 @@
+{
+  "$comment": "Machine-readable parameter contract for the projections named in api.md. The prose there stays the narrative; this file is what the implementations check against. Both languages carry the same table as a constant in their core (the core reads no files by design) and a test in each language asserts the constant equals this file — so the two cannot drift apart.",
+  "formatVersion": "0.6",
+  "types": {
+    "integer": "a whole number. JSON knows no int/float split, so 2026 and 2026.0 are the same value and both are accepted; 2026.4 is a caller mistake, not a value to round into shape. Bounded to 2^53-1 so that both language runtimes represent it exactly.",
+    "string": "a non-empty string",
+    "date": "a zoneless calendar date, YYYY-MM-DD",
+    "boolean": "true or false"
+  },
+  "rules": {
+    "unknownParameter": "A parameter that is not declared here is rejected with E_INPUT_INVALID. Silently ignoring it turns a misspelled `fiscalYear` on vatReturn into a plausible annual figure where a quarter was asked for.",
+    "absentOptional": "An undeclared-as-required parameter that is absent keeps its documented default. Absent is not the same as wrong.",
+    "presentButInvalid": "A declared parameter present with a value of the wrong type is rejected with E_INPUT_INVALID — never coerced, never defaulted.",
+    "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is passed by existing fixtures but read by no implementation. It is declared so the fixtures stay green and so the gap is visible instead of hiding behind a tolerant reader — NOT because it works. Each one is recorded as a finding. Resolve it by implementing the parameter or by retiring it in a new fixture; do not quietly bend the existing fixture."
+  },
+  "projections": {
+    "trialBalance": {
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "throughPeriod": {
+        "type": "integer"
+      },
+      "includeZeroBalances": {
+        "type": "boolean"
+      }
+    },
+    "accountSheet": {
+      "account": {
+        "type": "string",
+        "required": true
+      },
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "throughPeriod": {
+        "type": "integer"
+      }
+    },
+    "balanceSheet": {
+      "mapping": {
+        "type": "string",
+        "required": true
+      },
+      "fiscalYear": {
+        "type": "integer"
+      },
+      "asOf": {
+        "type": "date"
+      },
+      "incomeMapping": {
+        "type": "string",
+        "acceptedWithoutEffect": true
+      }
+    },
+    "incomeStatement": {
+      "mapping": {
+        "type": "string",
+        "required": true
+      },
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "fromPeriod": {
+        "type": "integer"
+      },
+      "throughPeriod": {
+        "type": "integer"
+      }
+    },
+    "cashBasisReport": {
+      "year": {
+        "type": "integer",
+        "required": true
+      },
+      "mapping": {
+        "type": "string"
+      },
+      "asOf": {
+        "type": "date"
+      }
+    },
+    "vatReturn": {
+      "year": {
+        "type": "integer",
+        "required": true
+      },
+      "quarter": {
+        "type": "integer"
+      },
+      "asOf": {
+        "type": "date"
+      }
+    },
+    "ecSalesList": {
+      "year": {
+        "type": "integer",
+        "required": true
+      },
+      "quarter": {
+        "type": "integer"
+      }
+    },
+    "openItems": {
+      "kind": {
+        "type": "string"
+      },
+      "partnerId": {
+        "type": "string"
+      },
+      "asOf": {
+        "type": "date"
+      }
+    },
+    "assetRegister": {
+      "asOf": {
+        "type": "date"
+      }
+    },
+    "auditLog": {
+      "from": {
+        "type": "date"
+      },
+      "to": {
+        "type": "date"
+      }
+    },
+    "journalExport": {
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "format": {
+        "type": "string",
+        "acceptedWithoutEffect": true
+      }
+    },
+    "datevExport": {
+      "kind": {
+        "type": "string"
+      },
+      "fiscalYear": {
+        "type": "integer"
+      },
+      "fromPeriod": {
+        "type": "integer"
+      },
+      "throughPeriod": {
+        "type": "integer"
+      }
+    },
+    "auditDataExport": {
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "asOf": {
+        "type": "date"
+      }
+    },
+    "costAllocationSheet": {
+      "runId": {
+        "type": "string",
+        "required": true
+      },
+      "fiscalYear": {
+        "type": "integer",
+        "acceptedWithoutEffect": true
+      },
+      "period": {
+        "type": "integer",
+        "acceptedWithoutEffect": true
+      }
+    }
+  }
+}

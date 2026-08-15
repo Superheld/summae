@@ -13,7 +13,7 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run, byte-ident
 pnpm build         # tsup per package (ESM + CJS + .d.ts)
 ```
 
-`make sync` (repo root) updates `testsuite/` + the `pack-library/` from the knowledge base.
+`make sync` (repo root) updates `testing/testsuite/` + the `pack-library/` from the knowledge base.
 
 ## What must be green (= CI)
 

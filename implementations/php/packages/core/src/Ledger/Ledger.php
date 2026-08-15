@@ -37,6 +37,7 @@ use Summae\Core\Records\AuditRecord;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
 
 /**
@@ -53,6 +54,9 @@ use Summae\Core\Policies\Expansion\Settlement;
  */
 final readonly class Ledger
 {
+    /** 2^53-1 — the largest integer Node can represent exactly (Number.MAX_SAFE_INTEGER). */
+    private const int MAX_EXACT_INT = 9007199254740991;
+
     public function __construct(
         private Currency $baseCurrency,
         private AccountRepository $accounts,
@@ -64,6 +68,9 @@ final readonly class Ledger
         private DimensionRegistry $dimensions,
         private Clock $clock,
         private IdGenerator $ids,
+        /** Null = unwired; treated as an EMPTY registry, so a caller-supplied tax tag is
+         *  rejected rather than waved through — same behaviour as Node's default. */
+        private ?TaxCodeRegistry $taxCodes = null,
     ) {
     }
 
@@ -318,6 +325,34 @@ final readonly class Ledger
 
         $changes = [];
 
+        // Reading both fields leniently made every unrecognized field a silent no-op that still
+        // returned the entry as a SUCCESS payload: `txt` instead of `text` looked like a correction
+        // that had happened. A correction that changes nothing was never asked for — say so instead
+        // of confirming a change nobody made.
+        $hasText = ($input['text'] ?? null) !== null;
+        $hasLines = ($input['lines'] ?? null) !== null;
+
+        if (!$hasText && !$hasLines) {
+            $fields = array_keys($input);
+            sort($fields);
+
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'correct requires "text" or "lines" — nothing to change',
+                ['fields' => implode(',', $fields)],
+            );
+        }
+
+        if ($hasText && !is_string($input['text'])) {
+            throw new DomainError('E_INPUT_INVALID', 'correct: "text" must be a string');
+        }
+
+        // A JSON object decodes to an associative array here but is not an array in Node —
+        // requiring a list keeps both languages judging the same input the same way.
+        if ($hasLines && (!is_array($input['lines']) || !array_is_list($input['lines']))) {
+            throw new DomainError('E_INPUT_INVALID', 'correct: "lines" must be an array');
+        }
+
         if (is_string($input['text'] ?? null) && $input['text'] !== $entry->text()) {
             $changes['text'] = ['from' => $entry->text(), 'to' => $input['text']];
             $entry->changeText($input['text']);
@@ -515,7 +550,30 @@ final readonly class Ledger
      */
     public function createFiscalYear(array $input): FiscalYear
     {
-        $year = is_int($input['year'] ?? null) ? $input['year'] : 0;
+        // Anything that was not an int became year 0 — a quoted "2027" from a JSON caller
+        // created a fiscal year nobody could address again: every later report for 2027 came back
+        // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
+        // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
+        // JSON knows no int/float split: `2027.0` arrives as a float here and as a plain number
+        // in Node, so a whole-valued float counts as the same input in both languages.
+        $rawYear = $input['year'] ?? null;
+
+        // Bounded at 2^53-1 (Node's Number.isSafeInteger), not at PHP_INT_MAX: an int this side
+        // can hold but Node cannot represent exactly would be accepted here and rejected there —
+        // same input, different answer, which is the one thing the equivalence policy forbids.
+        if (is_float($rawYear) && $rawYear === floor($rawYear) && abs($rawYear) <= self::MAX_EXACT_INT) {
+            $rawYear = (int) $rawYear;
+        }
+
+        if (!is_int($rawYear) || $rawYear <= 0 || $rawYear > self::MAX_EXACT_INT) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'createFiscalYear requires "year" as a positive whole number',
+                ['year' => DomainError::rejectedValue($rawYear)],
+            );
+        }
+
+        $year = $rawYear;
         $start = $this->parseEntryDate($input['start'] ?? null);
         $end = $this->parseEntryDate($input['end'] ?? null);
 
@@ -702,8 +760,16 @@ final readonly class Ledger
             $dimensions[] = DimensionValue::of($rawDimension['type'], $rawDimension['code']);
         }
 
+        // A caller-supplied taxTag must name a REGISTERED tax code. The VAT return is built
+        // from these tags, never from account numbers, so an unvalidated tag writes straight
+        // into statutory output: `post` used to accept {"code":"MADEUP","reportingKey":"4711"}
+        // and the invented key showed up as a line of the return. `postVoucher` always went
+        // through the registry; the direct `post` path did not.
         /** @var array<string, mixed>|null $taxTag */
         $taxTag = is_array($rawLine['taxTag'] ?? null) ? $rawLine['taxTag'] : null;
+        if ($taxTag !== null && is_string($taxTag['code'] ?? null) && $taxTag['code'] !== '') {
+            ($this->taxCodes ?? TaxCodeRegistry::empty())->get($taxTag['code']);
+        }
 
         return [
             'account' => $account,

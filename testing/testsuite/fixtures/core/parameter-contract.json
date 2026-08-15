@@ -1,0 +1,156 @@
+{
+  "fixture": "parameter-contract",
+  "description": "The parameter contract of the projections (schema/api-parameters.json), pinned where it is actually decided: the same JSON call must produce the same report in every implementation. Three rules. (1) A whole number stays a whole number across the language boundary — JSON.parse('2026.0') yields the integer 2026 in Node while json_decode('2026.0') yields a float in PHP, so a serializer that writes 2026.0 used to get a correct VAT return in one language and an empty one in the other, without any error. (2) A fractional value is a caller mistake, not something to round into shape — 2026.4 is not a year, and whoever meant 'year 2026, period 4' has to say which. (3) An undeclared parameter is rejected instead of ignored, because a misspelled fiscalYear on vatReturn silently returned a plausible annual figure where a quarter was asked for. Absent keeps its documented default throughout: absent is not the same as wrong.",
+  "covers": ["F-IO-003"],
+  "setup": {
+    "tenant": {
+      "name": "Parameter GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [{ "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-900", "voucherDate": "2026-05-04", "kind": "invoice_out" }
+    ],
+    "taxCodes": [
+      {
+        "code": "USt19",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "19.00",
+            "taxAccount": "1776",
+            "reportingKey": "81"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-05-04",
+        "voucherId": "$V1",
+        "text": "Rechnung im zweiten Quartal",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": { "amount": "1190.00", "currency": "EUR" }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": { "amount": "1000.00", "currency": "EUR" }
+            }
+          },
+          {
+            "account": "1776",
+            "side": "credit",
+            "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": { "amount": "1000.00", "currency": "EUR" }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Buchungsstoff im zweiten Quartal, damit die Berichte unten etwas zu zeigen haben"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 2 },
+      "expect": {
+        "comment": "Referenzwert: so sieht die Meldung mit ganzzahligen Parametern aus",
+        "keys": { "81": { "base": "1000.00", "tax": "190.00" } }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026.0, "quarter": 2.0 },
+      "expect": {
+        "comment": "Kernfall: dieselbe Zahl, nur vom Serialisierer mit Nachkommastelle geschrieben. In Node lieferte das die korrekte Meldung, in PHP fiel year/quarter auf 0 zurück und die Meldung kam leer — ohne Fehler, ununterscheidbar von 'nichts zu erklären'.",
+        "keys": { "81": { "base": "1000.00", "tax": "190.00" } }
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026.0, "throughPeriod": 5.0 },
+      "expect": {
+        "comment": "throughPeriod war die schärfere Hälfte: Node begrenzte auf Periode 5, PHP fiel auf MAX_SAFE_INTEGER und gab das ganze Jahr aus — zwei verschiedene Zahlen unter derselben Überschrift",
+        "rows": [
+          { "account": "1400", "balance": "1190.00" },
+          { "account": "1776", "balance": "-190.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026.4, "quarter": 2 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "year": null },
+        "comment": "2026.4 ist kein Jahr. Wer 'Jahr 2026, Periode 4' meint, muss sich entscheiden — die Nachkommastelle wurde vorher weder gerundet noch abgeschnitten noch gemeldet, sie passte nur auf keine Buchung"
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 5.5 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "throughPeriod": null },
+        "comment": "gilt auch für optionale Parameter: abwesend behält den Standardwert, vorhanden-und-falsch nicht"
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "fiscalYear": 2026, "quarter": 2 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "parameter": "fiscalYear" },
+        "comment": "vatReturn heißt year/quarter, nicht fiscalYear. Der Zusatzparameter wurde stillschweigend ignoriert — wer ihn statt year schickte, bekam kommentarlos das ganze Jahr statt eines Quartals"
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "includeZeroBalance": true },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "parameter": "includeZeroBalance" },
+        "comment": "der Beinahe-Treffer: includeZeroBalances heißt es, im Singular tat es nichts"
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Positivfall zum Schluss: abwesende optionale Parameter behalten ihren dokumentierten Standardwert, der Wächter verbietet nicht zu viel",
+        "rows": [
+          { "account": "1400", "balance": "1190.00" },
+          { "account": "1776", "balance": "-190.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    }
+  ]
+}

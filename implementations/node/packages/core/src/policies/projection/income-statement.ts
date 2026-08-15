@@ -4,6 +4,7 @@ import type { AccountRepository, JournalRepository } from '../../port.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
+import { integerOr } from './parameters.js';
 
 /**
  * Income statement as a projection over a mapping (SF-09). Sign: credit − debit
@@ -19,15 +20,21 @@ export class IncomeStatementProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : 0;
-    const fromPeriod = typeof params.fromPeriod === 'number' ? params.fromPeriod : 1;
-    const throughPeriod =
-      typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
+    const fiscalYear = integerOr(params.fiscalYear, 0);
+    const fromPeriod = integerOr(params.fromPeriod, 1);
+    const throughPeriod = integerOr(params.throughPeriod, Number.MAX_SAFE_INTEGER);
     const mappingId = typeof params.mapping === 'string' ? params.mapping : '';
 
+    // A missing or unknown mapping is a caller mistake, not an overlap: reporting it as
+    // E_MAPPING_OVERLAP (the code for two positions claiming the same account) sent operators
+    // hunting the wrong thing, and an omitted parameter produced `Mapping "" is not loaded`.
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" is not loaded`);
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        mappingId === '' ? 'incomeStatement requires the parameter "mapping"' : `mapping "${mappingId}" is not loaded`,
+        { mapping: mappingId },
+      );
     }
 
     const zero = Money.zero(this.baseCurrency);

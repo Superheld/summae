@@ -1,3 +1,4 @@
+import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { JournalRepository, OpenItemRepository, VoucherRepository } from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { OpenItem } from '../../records/open-item.js';
@@ -16,7 +17,18 @@ export class OpenItemsProjection {
 
   compute(params: Record<string, unknown>): { items: Array<Record<string, unknown>> } {
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
-    const kind = parseOpenItemKind(params.kind);
+    // An unparseable kind used to fall back to "no filter", so a mistyped filter widened the
+    // result instead of narrowing it: a payment run asking for payables got receivables mixed
+    // in and would have paid them out. Absent still means "no filter" — a wrong value must not.
+    let kind = null;
+    if (params.kind !== undefined && params.kind !== null) {
+      kind = parseOpenItemKind(params.kind);
+      if (kind === null) {
+        throw new DomainError('E_INPUT_INVALID', 'openItems: "kind" must be "receivable" or "payable"', {
+          kind: rejectedValue(params.kind),
+        });
+      }
+    }
     const partnerId = typeof params.partnerId === 'string' ? params.partnerId : null;
 
     const open = this.openItems.all().filter((item) => {

@@ -4,10 +4,37 @@ Documented contradictions between spec / fixture / model (root `CLAUDE.md`:
 "don't guess, don't bend the fixture, but document and build on with the
 next-most-plausible behavior").
 
-## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest
+## Status at a glance
+
+Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-…` findings:
+`implementations/php/SPEC-FINDINGS.md` (that file carries the shared status table).
+
+| Finding | Status |
+|---|---|
+| NF-001 pack draft fixture `defaults` | ✅ draft completed at the source |
+| NF-002 `includeNonCash` missing from the schema | ✅ schema extended |
+| NF-003 `cashBasisReport` German VAT passthrough | ✅ resolved |
+| NF-004 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
+| NF-005 cash-basis reversal counts immediately | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
+| NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
+| NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
+| NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
+| NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
+| NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
+| **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ⚠ knowledge base entry still to be written |
+
+**Genuinely open today: NF-008, NF-016 and the NF-005 remainder** (plus F-004's hard-coded
+low-value-asset pool period and NF-015's untested Laravel adapter, both recorded on the PHP side), and the further defects listed under "Round 1 backlog" at
+the end of this file.
+
+## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
 **Finding (2026-06-21, Gate-1 pack conformance).** The draft fixture
-`testsuite/fixtures/pack/de-composed-equals-de/tenant-from-de-complete-posts-identically.json`
+`testing/testsuite/fixtures/pack/de-composed-equals-de/tenant-from-de-complete-posts-identically.json`
 expects `createTenant.result.taxationMethod = "cash"`, but its manifest `de-mini-regression`
 carried **no** `defaults` object — neither the manifest nor the modules encode
 `taxationMethod` anywhere. By design the resolver derives `defaults`
@@ -42,7 +69,7 @@ position-level flag `includeNonCash` off the mapping leaf
 categories like depreciation count without a cash flow). The us-pack module 5
 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
 on its depreciation line (L13) per the module spec. But the normative
-`testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+`testing/testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
 `includeNonCash` and carries `additionalProperties: false` — so by the schema the
 field is illegal on a mapping position.
 
@@ -94,7 +121,13 @@ neutral pass-through unless the pack's cash-basis mapping explicitly maps the ta
 (would also drop the hard-coded German strings). Behavior change with DE-fixture ripple →
 own job, human decision. Applies to PHP too.
 
-## NF-004 — `EXEMPT` (rate-0 standard) cannot be posted: 0.00 tax line rejected
+## NF-004 — `EXEMPT` (rate-0 standard) cannot be posted: 0.00 tax line rejected — ✅ RESOLVED
+
+> **Resolved in 0.5.0 (2026-06-24).** The proposal below was built: `exempt` is now a
+> registered tax mechanism (`tax-mechanisms.ts`) that tags the base and emits **no** tax
+> line, and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in
+> the return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
+> (`testing/scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 **Finding (2026-06-24).** The us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`)
 emits a 0.00 tax line on the tax account. `expandTax` returns it fine (proven by
@@ -109,7 +142,26 @@ intra-community supply via a dedicated `intra_community_supply` mechanism (base 
 0.00 line). **Proposal:** add an `exempt` mechanism (tag the base, emit no tax line), then
 exempt sales post cleanly and show up in the return. Engine addition → own job. Applies to PHP too.
 
-## NF-005 — Cash-basis VAT: the reversal of an *unsettled* open item counts immediately
+## NF-005 — Cash-basis VAT: the reversal of an *unsettled* open item counts immediately — ✅ FIXED
+
+> **Fixed 2026-08-15 (both languages, `vat-return.ts` / `VatReturnProjection.php`).** The
+> direct-contribution loop now also skips an entry that *reverses* an entry carrying open
+> items. Its premise is "no open item ⇒ the money moved at posting time"; a reversal has no
+> open item of its own but is not a cash movement either, so its tax follows the reversed
+> entry's settlements instead. Reversals of genuinely cash-effective entries (target without
+> open items) still count directly, at their own posting date — unchanged.
+>
+> Chosen because it is the part **both** candidate semantics agree on: an invoice that was
+> never paid and then reversed contributes nothing either way. Pinned by the `de` walkthrough
+> scenario (`testing/scenarios/walkthrough/de.json`, VAT-return step: key `66` must be
+> absent); verified to fail without the fix. All 86 fixtures stay green in both languages,
+> SF-15 cross-test 45/45 both directions — nothing existing pinned this case.
+>
+> **Still open (narrower than the original finding):** an invoice that *was* settled and is
+> then reversed. The fix leaves the tax declared until a refund is posted ("follow the
+> money"); the alternative corrects it at the reversal's own date (the §17 / F-011 reading
+> used on the accrual path). No fixture pins either. Needs a normative fixture in the
+> knowledge base before the behaviour is relied upon. Original finding:
 
 **Finding (2026-08-14, CLI walkthrough for the handbook).** With
 `taxProfile.taxationMethod = "cash"` the VAT return has two paths
@@ -202,3 +254,283 @@ pins the current behaviour so a future fix is a visible, deliberate change. A ne
 code (`E_MAPPING_UNKNOWN`) would be an append to the error catalogue and therefore
 to the exit-code table — catalogue changes are append-only, so this needs a spec
 decision first. Applies to PHP too.
+
+## NF-008 — A reversal leaves the reversed entry's open items standing
+
+**Finding (2026-08-15, while fixing NF-005).** `reverse` posts a full counter-entry but does
+**not** touch the open items the reversed entry created. The two views of the same fact then
+contradict each other:
+
+```
+postVoucher ER-1  VSt19  net 200.00, counterAccount 3000 (ap)  → open item payable 238.00
+reverse     ER-1
+report trialBalance → account 3000: balance "0.00"          (the liability is gone)
+report openItems    → payable 238.00, remaining 238.00, status "open"   (it is not)
+```
+
+The ledger says the debt does not exist; the open-item list still offers it for settlement. It
+can be settled against a payment that has no economic basis, and it inflates any
+receivables/payables ageing built on `openItems`.
+
+**Assessment.** Distinct from [NF-005] and *not* its cause — fixing this alone would not have
+changed the VAT return, and fixing NF-005 does not clear the stale item. Identical in both
+languages. The plausible behaviour is that a reversal cancels the open items of the entry it
+reverses while **keeping their settlement history** (any settlements already made must keep
+contributing to past VAT returns — silently dropping them would rewrite filed periods).
+
+Whether a cancelled open item disappears from `openItems` or shows a distinct terminal status
+(`cancelled` alongside `settled`) is a **data-format decision**: `status` is part of the
+serialized shape, so a new value is an append to the format. Needs a spec decision plus a
+normative fixture.
+
+**Resolution.** Documented, not changed.
+
+## NF-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
+
+**Finding (2026-08-15, probing the CLI error boundary).** The same string was valid in one
+engine and invalid in the other, in the **substrate** — the layer that is meant to be frozen
+and is bound by the top quality policy:
+
+| input | PHP | Node (before) |
+|---|---|---|
+| `0000-01-01` | accepted | `InvalidValue` |
+| `0001-01-01` | accepted | `InvalidValue` |
+| `0099-12-31` | accepted | `InvalidValue` |
+
+**Cause.** Node validated by round-tripping through `new Date(Date.UTC(year, month-1, day))`.
+`Date.UTC` maps years 0–99 onto **1900+year** (a JavaScript legacy rule), so `0000-01-01`
+became `1900-01-01`, the round-trip failed, and the date was rejected. The boundary was not a
+design decision — it was a host quirk leaking into a value object. `lastDayOfMonth()` and
+`firstDayOfNextMonth()` used the same helper and were wrong in the same band.
+
+How it surfaced: `cashBasisReport` defaults a missing `year` to `0` and builds `0000-01-01`
+(NF-006), which crashed in Node and returned an empty report in PHP. The crash was hiding a
+divergence.
+
+**Resolution.** Node's `CalendarDate` no longer uses the host `Date` at all — validation and
+month arithmetic are done with an explicit days-per-month table and the Gregorian leap rule
+(`calendar-date.ts`). This **widens** Node to match PHP (nothing that was valid became
+invalid), and it removes the whole class of `Date`-quirk divergences from the substrate.
+
+Verified identical in both languages across the accepted/rejected tables and the month
+arithmetic, including `0050-02-29` (year 50 is not a leap year), `0100-02-29`, `1900-02-29`
+and the December rollover. Pinned by `calendar-date.test.ts` / `CalendarDateTest.php`, which
+carry the **same tables** — 34 cases each. All 86 fixtures green in both languages against
+both subjects, SF-15 cross-test 45/45 both directions.
+
+**Note.** This does **not** resolve NF-006: with the divergence gone, both engines now return
+an empty cash-basis report for a missing `year` instead of one crashing. Consistent, still a
+silent wrong answer — the missing-parameter question stands.
+
+## NF-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED
+
+**Finding (2026-08-15, probing malformed write input).** `Money.of` validated by handing the
+string to the decimal library (`big.js` / `brick/math`) and checking the resulting scale. The
+libraries parse considerably more than the **data format** allows
+(`format.schema.json` `$defs/money/properties/amount` = `^-?\d+(\.\d{1,4})?$`), so amounts that
+can never be exported were accepted into the journal:
+
+| amount | before | data format |
+|---|---|---|
+| `"1e3"` | booked as `1000.00` | invalid |
+| `"1E3"` | booked as `1000.00` | invalid |
+| `"1.5e+21"` | **booked as `1500000000000000000000.00`** | invalid |
+| `"10."` | booked as `10.00` | invalid |
+| `".5"` | booked as `0.50` | invalid |
+| `"+10.00"` | **PHP: `10.00` · Node: rejected** | invalid |
+
+Two defects in one. **Silent acceptance:** an app that formats amounts with
+`String(number)` emits exponent notation for very large or very small values, and 1.5
+sextillion euros went into the journal without complaint. **Cross-language divergence:** a
+leading `+` was accepted by PHP and rejected by Node — the same class as [NF-009], again in the
+substrate.
+
+**Resolution.** `Money.of` now checks the string against the data-format expression *before*
+handing it to the decimal library, in both languages, with the expression written out in each.
+`Money.fromCalculation` is untouched — it takes a decimal value, not a user string, and is the
+only path on which Money rounds.
+
+The schema was the arbiter here, not taste: it already declared the format, and both engines
+were simply not enforcing what the exported data promises. Pinned by the same accepted/rejected
+tables in `money.test.ts` and `MoneyTest.php`. All 86 fixtures green in both languages against
+both subjects, SF-15 cross 45/45 both directions — no fixture used any of the loose forms.
+
+## NF-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
+
+**Finding (2026-08-15, adversarial probing of the write path).** `postVoucher` builds tax tags
+through the `TaxCodeRegistry`, so a wrong code is `E_TAXCODE_UNKNOWN`. The direct `post` path
+took whatever the caller supplied (`ledger.ts:577` / `Ledger.php:706`: `isRecord(rawLine.taxTag)
+? rawLine.taxTag : null`) — no registry lookup, no check of `reportingKey`, `appliedVersion` or
+`baseMoney`. Stored verbatim, and the VAT return is built **from these tags, never from account
+numbers**:
+
+```
+op post --input '{… "taxTag":{"code":"MADEUP","reportingKey":"4711","baseMoney":{"amount":"999999.00", …}}}'
+  → exit 0
+report vatReturn --params '{"year":2026,"quarter":0}'
+  → {"keys":{"4711":{"base":"-1.00","tax":"0.00"}, …}}
+```
+
+An invented reporting key and an unregistered tax code became line items of a statutory return,
+at exit 0. The sharpest hole found in this round.
+
+**Resolution.** A caller-supplied tag whose `code` is a non-empty string must resolve in the
+`TaxCodeRegistry`; otherwise `E_TAXCODE_UNKNOWN` (the existing catalogue code — no append). Tags
+built internally by the tax expansion come from the registry and pass unchanged; `reverse`
+copies `EntryLine` objects and never goes through this path. The registry had to be wired into
+the ledger in both languages; PHP needed it in **two** places, because
+`DatabaseTenantFactory.php` duplicates the ledger construction that `Tenant.php` also does —
+Node has a single construction path. That duplication is worth removing separately.
+
+Pinned by `testing/scenarios/walkthrough/regressions.json` (fabricated code rejected with
+exit 32; a tag naming a *registered* code still posts, so the guard checks the registry rather
+than forbidding tags).
+
+## NF-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED
+
+**Finding (2026-08-15, probing the read path).** `balance-sheet.ts` read only `asOf` and
+`mapping`. `fiscalYear` was accepted and discarded, so **two different years returned
+byte-identical balance sheets** over a two-year journal. The handbook cheat sheet lists
+`balanceSheet` in the `fiscalYear` row, and — worse — the gated walkthrough scenarios pass
+`fiscalYear` to it (`de.json`, `us.json`), so the documentation endorsed a parameter that did
+nothing. The gate could not catch it: every scenario had exactly one fiscal year.
+
+**Resolution.** `fiscalYear` now scopes the projection **cumulatively** — everything up to and
+including that year, i.e. "as at the end of fiscal year N".
+
+The first attempt mirrored `trialBalance` (income accounts restart each year, G1) and produced
+a sheet that **did not balance** in year two: assets 3570.00 against equity+liabilities 2570.00,
+a hole exactly the size of the prior year's result. That is correct behaviour for a trial
+balance and wrong for a balance sheet, because summae deliberately writes **no closing entries**
+(`closeFiscalYear` is a pure status change), so a prior year's result was never carried into
+equity. Cumulative scoping keeps assets == liabilities+equity in every year, and for a system
+without closing entries the cumulative result *is* the equity delta.
+
+Pinned by `regressions.json`, the first scenario that spans two fiscal years — 2026 → 1190.00,
+2027 → 3570.00, both balancing.
+
+## E_INPUT_INVALID — new catalogue code (exit 45)
+
+**Added 2026-08-15.** A supplied parameter or field is **present but not valid input** — a caller
+mistake, not an internal failure. Before it, such situations either escaped as an uncaught
+`InvalidValue` (a stack trace, and since the CLI error boundary an `E_UNEXPECTED`/exit 1 that an
+agent cannot tell apart from a summae bug) or were silently coerced into a plausible default.
+
+Appended to both exit-code tables, so no existing exit code moved. In use at:
+`tax-service` (`direction`), `cash-basis` (`year`, unknown `mapping`), `account-sheet`
+(`account`, `fiscalYear`), `income-statement` and `balance-sheet` (missing/unknown `mapping`).
+
+**Normative source: done.** The catalogue entry was written in the knowledge base
+(`50-spezifikation/fehlerkatalog.md`, section `E_INPUT` with the delimitation rule: where a more
+specific code exists it wins — an unknown account stays `E_ACCOUNT_UNKNOWN`, an unknown tax code
+stays `E_TAXCODE_UNKNOWN`), and the conformance fixture `core/input-invalid.json` covers all three
+forms plus two positive cases, mirrored here via `make sync`. Green in both languages on the first
+run (87/87 `--strict`).
+
+## NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED
+
+**Finding (2026-08-15, adversarial probing).** `tax-service.ts:56` read
+`input.direction === 'input' ? 'input' : 'output'`. Anything that was not exactly `"input"` —
+`"Input"` with a capital I, `"INPUT"`, a typo, `null` — silently became an **output** voucher:
+
+```
+postVoucher … "taxCode":"VSt19","direction":"Input","netLines":[{"account":"6000", "200.00"}],"counterAccount":"3000"
+  → exit 0, lines: 3000 debit 238.00 · 6000 credit 200.00 · 1500 credit 38.00
+```
+
+The exact mirror of the correct booking: the expense credited, the input VAT credited, the
+payable debited. The lines carry a valid `taxTag`, so nothing downstream flags it, and the
+posting looks entirely ordinary in every report.
+
+**Resolution.** An absent `direction` still defaults to `"output"` (documented); a **wrong**
+value is `E_INPUT_INVALID`. Pinned in `testing/scenarios/regression/regressions.json` together with both
+positive cases — the default still works, and lower-case `"input"` still books the right way
+round.
+
+## NF-016 — four declared parameters that no implementation reads
+
+**Finding (2026-08-15, while implementing the projection parameter contract).** Building the
+contract made visible what a tolerant reader had hidden: four parameters are passed by existing
+fixtures and read by nobody. They are declared in
+`testing/testsuite/schema/api-parameters.json` with `acceptedWithoutEffect: true`, which is what
+keeps those fixtures green now that an undeclared parameter is rejected.
+
+| Projection | Parameter | What a caller would expect |
+|---|---|---|
+| `balanceSheet` | `incomeMapping` | the mapping used for the result position — today the sheet uses only `mapping` |
+| `journalExport` | `format` | a choice of output format — today there is exactly one (GoBD Z3) |
+| `costAllocationSheet` | `fiscalYear` | scoping the sheet to a year — today only `runId` selects |
+| `costAllocationSheet` | `period` | scoping the sheet to a period — same |
+
+**Assessment.** The flag is a marker, not a feature: it says "declared so it is visible", not
+"works". Each is a small trap of its own kind — a caller who passes `format: "csv"` gets Z3 and no
+word about it. The honest fix is one of two things per parameter, and both are decisions rather
+than code: **implement** it, or **retire** it in a new fixture (fixtures are append-only, so the
+existing ones are not bent). Deliberately left as-is here; the flag is what keeps the gap
+readable in the meantime.
+
+## Round 1 backlog — probed and confirmed (R-5 … R-7 fixed, the rest open)
+
+Found by two adversarial probing agents on 2026-08-15 and reproduced by hand. Recorded here so
+they are not lost; R-5 … R-7 are fixed (see below), the rest is still open.
+
+| # | Defect | Class |
+|---|---|---|
+| R-1 | `settle` accepts an allocation larger than the settling entry actually books: GL keeps a 690.00 receivable while the subledger is empty, and cash-basis VAT declares 190.00 collected when 500.00 arrived | write-side invariant missing |
+| R-2 | `auditDataExport` carries P&L accounts across fiscal years, `trialBalance` does not — the ADS balance stream and the trial balance disagree per account (identical in both languages, so byte-parity cannot catch it) | logic |
+| R-3 | `correct` rewrites an entry's lines and leaves the open item it created untouched (same family as NF-008) | logic |
+| R-4 | `importMapping` reports `imported: true` but the CLI rebuilds the registry from `summae.json` on every invocation and never writes back — the documented import→report flow cannot work | persistence |
+| R-5 | `createFiscalYear` coerces a non-numeric `year` to 0 and creates the year anyway; `2027.5` and `-5` are accepted too | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| R-6 | `correct` with a misspelled field is a silent no-op that returns success | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| R-7 | `openItems` ignores an invalid `kind` and returns everything; `datevExport` returns the entries export under a bogus `kind` label | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| R-8 | `init` is not atomic: a failure after the workspace is written leaves a half-built, non-re-initialisable directory. `--first-fiscal-year` is not validated (`""` → year 0000) | CLI |
+| R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | CLI |
+| R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | CLI |
+| R-11 | a 1–2 cent invoice with 19 % VAT is unbookable: the derived tax line rounds to 0.00 and is then rejected by the "amount > 0" rule | domain gap |
+| R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | see NF-014 |
+
+Most of R-5 … R-7 are the same shape: `typeof x === 'T' ? x : <default>` used as validation, which
+cannot tell "absent" from "wrong". With `E_INPUT_INVALID` available they were closed in one sweep
+rather than patched individually.
+
+**Resolution of R-5 … R-7 (2026-08-15).** Absent keeps its documented default everywhere — no
+`kind` still means "no filter", no `datevExport.kind` still means `entries`. A *present* value that
+is not a valid value is now `E_INPUT_INVALID` (exit 45): a `year` that is not a positive whole
+number, an `openItems`/`datevExport` `kind` outside its enumeration, and a `correct` call that
+carries neither `text` nor `lines` (which is what a misspelled `txt` amounts to). Pinned in
+`testing/scenarios/regression/input-validation.json`, each rejection paired with a positive case so the
+guards cannot forbid too much.
+
+## NF-014 — accounts outside a mapping's ranges vanish from the income statement
+
+**Finding (2026-08-15, answering "how many accounts can I create?").** There is no limit on the
+number of accounts (546 created without complaint, `importChartOfAccounts` took 500 in one call)
+and no assumption anywhere of a *single* bank account — several current accounts, call-money and
+fixed-term deposits all work as `subtype: "bank"`. But a chart of accounts is only half the
+story: **a mapping decides what a statement shows**, and an account outside every range is
+silently dropped.
+
+```
+createAccount 7100 (expense) · post 300.00 to it
+report incomeStatement --params '{"fiscalYear":2026,"mapping":"de-guv"}'
+  → {"positions":[],"netIncome":"0.00"}        ← the expense is not there
+report balanceSheet   --params '{"fiscalYear":2026,"mapping":"de-bilanz"}'
+  → P.A2 Jahresergebnis "-300.00"              ← but it IS in the result
+```
+
+`de-guv` covers 4000–4099, 4900–4999, 5000–5999, 6000–6099, 6300–6399, 6500–6599, 6700–6999 —
+everything else, including 4100–4899, 6100–6299 and anything ≥ 7000, is invisible to it. The
+shipped de chart of accounts fits entirely inside those ranges, so only **custom** accounts are
+affected. `balanceSheet` computes its result position from *all* non-balance-carrying accounts
+regardless of mapping, which is why the two statements disagree rather than both being wrong.
+
+A second, milder case: a securities depot placed at 1250 lands in "Kassenbestand und Guthaben bei
+Kreditinstituten", because `de-bilanz` maps 1200–1399 wholesale — a bank-balance line, not a
+financial asset.
+
+**Assessment.** Two separate questions. (a) Should a projection *warn* about accounts no position
+claims? `importMapping` already computes `gapWarnings`, so the machinery exists — surfacing it on
+`incomeStatement`/`balanceSheet` would make the hole visible without changing any number.
+(b) Should `balanceSheet`'s result position use the income-statement mapping instead of all
+non-balance-carrying accounts, so the two cannot drift apart? (b) changes numbers and needs a
+fixture. Documented, not changed.

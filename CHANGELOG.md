@@ -3,6 +3,106 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.6.0 — 2026-08-15
+
+A correctness release, and the first one that **rejects input earlier versions accepted**.
+Every fix below was found by building tests rather than by a bug report, and every one is
+pinned by a fixture or a scenario that fails loudly if it comes back. 88 conformance
+fixtures green in both languages, byte-identical double run, PHPStan level max.
+
+### Changed — breaking for callers who relied on lenient behaviour
+
+Until now a parameter that was present but not a valid value was quietly replaced by a
+default. That is the worst failure shape a reporting library can have: the answer looks
+authoritative and is wrong. All of it now raises `E_INPUT_INVALID` (exit code 45).
+
+- **A numeric parameter must be a whole number.** `{"year": 2026.4}` is a caller mistake,
+  not a value to round into shape — whoever meant "year 2026, period 4" has to say which.
+  `2026` and `2026.0` remain the same number: JSON draws no int/float distinction that
+  survives parsing, so a rule separating them could not be implemented identically in both
+  languages, which is the whole point.
+- **An undeclared parameter is rejected**, not ignored. A misspelled `fiscalYear` on
+  `vatReturn` used to return a plausible **annual** figure where a quarter was asked for;
+  `includeZeroBalance` (singular) was a flag that did nothing.
+- **A required parameter must be present.** `trialBalance` without `fiscalYear` returned
+  `{"rows":[]}` — the same shape empty books produce.
+- `createFiscalYear` requires a positive whole year; a quoted `"2027"` used to create year
+  0, addressable by nothing, so every later report for 2027 came back empty and plausible.
+- `correct` must say what it changes: an unrecognized field (`txt` for `text`) was a silent
+  no-op that still returned a **success** payload for a correction that never happened.
+- `openItems`/`datevExport` reject an unknown `kind` instead of falling back. The first
+  widened a filter instead of narrowing it — a payment run asking for payables got
+  receivables mixed in.
+
+Absent still means absent throughout: an optional parameter that is missing keeps its
+documented default. Only *present-and-wrong* is an error.
+
+### Fixed — cross-language divergences
+
+The shared oracle compares the error code and, until this release, nothing else. These
+slipped through 87 green fixtures in both languages simultaneously.
+
+- **The same JSON produced different reports.** `{"year": 2026.0, "quarter": 2.0}` — what a
+  serializer writes once a value has passed through a float type — gave Node a correct VAT
+  return and PHP an empty one, because every numeric parameter was read as
+  `typeof x === 'number'` there and `is_int()` here. 18 read sites per language, now one
+  check at the dispatcher. `throughPeriod` was worse than empty: Node limited the report to
+  the period asked for, PHP fell back to no limit, so the two printed different numbers
+  under the same heading.
+- **A fiscal year of `1e21` was created by Node and rejected by PHP** (`Number.isInteger`
+  accepts it, PHP's int does not reach that far). Both now bound at 2^53-1.
+- **Error `details` rendered differently per language** — `true` as `"1"` against `"true"`,
+  an object as `null` against `"[object Object]"`. Both now echo back only strings and safe
+  integers, the same line canonical JSON already draws, and drop the rest rather than
+  guessing at it.
+- **NF-009** `CalendarDate` disagreed on years 0000–0099 (host `Date` remaps two-digit
+  years); the substrate no longer touches the host date type at all.
+- **NF-010** `Money.of` enforces the data format instead of accepting whatever the decimal
+  library would parse.
+- **NF-011** a forged `taxTag` naming an unknown tax code was posted without complaint.
+- **NF-012** `balanceSheet` ignored `fiscalYear` and always reported everything.
+- **NF-013** any `direction` other than exactly `"input"` fell through to `"output"` and
+  posted the mirror image — expense credited, liability debited.
+
+### Fixed — model
+
+- **NF-005** cash-basis VAT: reversing an entry whose open items are still outstanding is not
+  a cash movement. An unpaid, cancelled invoice used to yield an input-tax refund for money
+  that never moved.
+- **NF-006 / NF-007** `cashBasisReport` without `year` raised an uncaught `InvalidValue`
+  (breaking the CLI's JSON contract), and a missing mapping reported `E_MAPPING_OVERLAP` — a
+  code stating the opposite of what happened. Both are `E_INPUT_INVALID` now.
+- Both CLIs have a JSON error boundary: an unexpected exception leaves as
+  `{"error":"E_UNEXPECTED",…}` instead of a stack trace on stdout.
+
+### Added
+
+- **`E_INPUT_INVALID`** (exit 45) — the caller-error code the cases above needed. Appended to
+  the catalogue; no existing code shifted.
+- **The projection parameter contract as data** — `testing/testsuite/schema/api-parameters.json`
+  declares 39 parameters over 14 projections with their types. The core reads no files by
+  design, so each language carries the table as a constant and a test per language asserts
+  the constant equals the file: drift is mechanically impossible rather than reviewed for.
+- **Per-package coverage floors** in both languages, replacing a single floor over the domain
+  core while four other packages went unmeasured. Floors ratchet upward only.
+- **One home for tests**: `testing/{testsuite,scenarios}` plus `testing/README.md`, which
+  answers where each kind of test lives and which kind to write for a given change.
+- Two conformance fixtures (`input-invalid`, `parameter-contract`) and two regression
+  scenarios covering the input-validation and reversal defects.
+
+### Findings (recorded, deliberately not fixed)
+
+- **NF-014** an account outside a mapping's ranges vanishes from `incomeStatement` while
+  `balanceSheet` still counts it. `gapWarnings[]` and the `_unassigned` catch-all exist at
+  mapping *import* and are missing in the projections themselves. Next in line.
+- **NF-015** `packages/laravel` has no tests of its own and is excluded from the coverage
+  gate; it is reached only end-to-end. A green `make test` proves nothing about it.
+- Three parameters are accepted and read by nobody (`journalExport.format`,
+  `balanceSheet.incomeMapping`, `costAllocationSheet.fiscalYear/period`). Declared as
+  `acceptedWithoutEffect` so the gap is visible instead of hiding behind a tolerant reader.
+- The **NF-005 remainder**: an item settled and *then* reversed still needs a spec decision —
+  leave the tax declared until a refund, or correct it at the reversal date.
+
 ## 0.5.1 — 2026-08-15
 
 Documentation release: no API change, no behaviour change. The user documentation gained a
@@ -19,7 +119,7 @@ in both implementations' green gates, one scenario per shipped configuration.
 - A copy-pasteable companion script, `docs/handbuch/examples/cli-walkthrough.sh`.
 
 ### Added — the documentation is gated
-- **Walkthrough scenarios** (`docs/handbuch/examples/scenarios/*.json`): one complete lifecycle
+- **Walkthrough scenarios** (`docs/handbuch/examples/scenarios/*.json`, moved to `testing/scenarios/` after 0.5.1): one complete lifecycle
   per configuration we ship — `de`, `us`, `default`, and a free `rules.json` — including the
   error paths (unbalanced, already reversed, period out of order, locked account, closed period,
   settlement exceeding the item) with their exit codes.
