@@ -180,6 +180,27 @@ final class CostingService
     {
         $run = $this->requireRun($params['runId'] ?? null);
 
+        // The run already fixes fiscal year and period. Passing them alongside was accepted and
+        // ignored, so a caller could ask for period 2, receive period 1's numbers, and have nothing
+        // in the answer to contradict them. If they are given, they have to agree.
+        $fiscalYear = $params['fiscalYear'] ?? null;
+        if ($fiscalYear !== null && $fiscalYear !== $run->period->fiscalYear) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('costAllocationSheet: the run belongs to fiscal year %d', $run->period->fiscalYear),
+                ['fiscalYear' => DomainError::rejectedValue($fiscalYear)],
+            );
+        }
+
+        $period = $params['period'] ?? null;
+        if ($period !== null && $period !== $run->period->period) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('costAllocationSheet: the run belongs to period %d', $run->period->period),
+                ['period' => DomainError::rejectedValue($period)],
+            );
+        }
+
         return [
             'runId' => $run->id->value,
             'status' => $run->status(),

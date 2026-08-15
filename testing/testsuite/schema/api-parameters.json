@@ -11,7 +11,7 @@
     "unknownParameter": "A parameter that is not declared here is rejected with E_INPUT_INVALID. Silently ignoring it turns a misspelled `fiscalYear` on vatReturn into a plausible annual figure where a quarter was asked for.",
     "absentOptional": "An undeclared-as-required parameter that is absent keeps its documented default. Absent is not the same as wrong.",
     "presentButInvalid": "A declared parameter present with a value of the wrong type is rejected with E_INPUT_INVALID — never coerced, never defaulted.",
-    "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is passed by existing fixtures but read by no implementation. It is declared so the fixtures stay green and so the gap is visible instead of hiding behind a tolerant reader — NOT because it works. Each one is recorded as a finding. Resolve it by implementing the parameter or by retiring it in a new fixture; do not quietly bend the existing fixture."
+    "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is declared but read by no implementation. It is declared so the gap is visible instead of hiding behind a tolerant reader — NOT because it works, and each one is recorded as a finding. Resolve it by giving the parameter an effect or by retiring it in a new fixture; do not quietly bend an existing one. As of 2026-08-16 exactly one remains: balanceSheet.incomeMapping, and there by decision — see the comment on it."
   },
   "projections": {
     "trialBalance": {
@@ -136,7 +136,7 @@
       },
       "format": {
         "type": "string",
-        "acceptedWithoutEffect": true
+        "$comment": "Exactly one value is valid: \"gobd-z3\". It selects nothing (there is no second journal format) but it guards the caller: an unknown value used to be ignored, so you received the Z3 stream under whatever label you had typed and could ship it to an auditor as something else. Absent means gobd-z3."
       }
     },
     "datevExport": {
@@ -169,11 +169,11 @@
       },
       "fiscalYear": {
         "type": "integer",
-        "acceptedWithoutEffect": true
+        "$comment": "Must agree with the run named by runId, which already fixes it. Accepted and ignored before, so asking for one period and receiving another's numbers left no trace in the answer."
       },
       "period": {
         "type": "integer",
-        "acceptedWithoutEffect": true
+        "$comment": "Must agree with the run named by runId — see fiscalYear."
       }
     }
   }

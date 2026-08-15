@@ -70,7 +70,7 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   },
   journalExport: {
     fiscalYear: { type: 'integer', required: true },
-    format: { type: 'string', acceptedWithoutEffect: true },
+    format: { type: 'string' },
   },
   datevExport: {
     kind: { type: 'string' },
@@ -84,8 +84,8 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   },
   costAllocationSheet: {
     runId: { type: 'string', required: true },
-    fiscalYear: { type: 'integer', acceptedWithoutEffect: true },
-    period: { type: 'integer', acceptedWithoutEffect: true },
+    fiscalYear: { type: 'integer' },
+    period: { type: 'integer' },
   },
 };
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\DomainError;
 use Summae\Core\Records\AuditRecord;
 use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Port\AccountRepository;
@@ -29,6 +30,13 @@ use Summae\Core\Substrate\Uuid;
  */
 final readonly class JournalExportProjection
 {
+    /**
+     * The only journal format there is. Declared as a list rather than inlined so adding a second
+     * one is a data change here, not a new branch: `format` exists to guard the caller's typo, and
+     * a parameter that silently accepts anything guards nothing.
+     */
+    private const array FORMATS = ['gobd-z3'];
+
     private const string FORMAT_VERSION = '0.4';
 
     public function __construct(
@@ -51,6 +59,17 @@ final readonly class JournalExportProjection
      */
     public function compute(array $params): array
     {
+        // Absent still means gobd-z3; a value that is present and unknown used to be ignored, so
+        // the caller got the Z3 stream under whatever label they had typed.
+        $format = $params['format'] ?? null;
+        if ($format !== null && (!is_string($format) || !in_array($format, self::FORMATS, true))) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'journalExport: "format" must be gobd-z3',
+                ['format' => DomainError::rejectedValue($format)],
+            );
+        }
+
         $fiscalYear = Parameters::integerOrNull($params['fiscalYear'] ?? null);
 
         $entries = $fiscalYear === null ? $this->journal->all() : $this->journal->forFiscalYear($fiscalYear);
