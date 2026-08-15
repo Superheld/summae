@@ -70,7 +70,7 @@ Format per finding:
 
 > **Resolved.** The proposed dedicated code was introduced: `E_VOUCHER_UNKNOWN` is in the
 > error catalogue and in the exit-code table (`ExitCodes.php` / `exit-codes.ts`), and
-> `testsuite/fixtures/core/voucher-unknown.json` pins it. Original finding:
+> `testing/testsuite/fixtures/core/voucher-unknown.json` pins it. Original finding:
 
 - **Job:** JOB-003
 - **What:** `E_ENTRY_NO_VOUCHER` is defined as "voucherId missing". For a
@@ -134,7 +134,7 @@ Format per finding:
 
 ## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other — ✅ RESOLVED
 
-> **Resolved.** The contradiction is gone: `testsuite/fixtures/io/journal-export-z3.json` now
+> **Resolved.** The contradiction is gone: `testing/testsuite/fixtures/io/journal-export-z3.json` now
 > expects `formatVersion "0.4"` and `streams: [journal, accounts, vouchers, auditLog]` — the
 > audit trail is always part of the export — and the schema declares `streams`/`hashAlgorithm`.
 > Original finding:
@@ -156,7 +156,7 @@ Format per finding:
 ## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog — ✅ RESOLVED
 
 > **Resolved.** The proposed code was added: `E_COSTING_RUN_UNKNOWN` is in the catalogue and
-> the exit-code table, pinned by `testsuite/fixtures/costing/costing-run-unknown.json`.
+> the exit-code table, pinned by `testing/testsuite/fixtures/costing/costing-run-unknown.json`.
 > Original finding:
 
 - **Job:** JOB-010
@@ -183,7 +183,7 @@ Format per finding:
 
 > **Resolved.** The proposed dedicated code was introduced rather than reusing
 > `E_PERIOD_OUT_OF_ORDER`: `E_FISCALYEAR_UNFINALIZED_ENTRIES` is in the catalogue and the
-> exit-code table, pinned by `testsuite/fixtures/core/fiscalyear-close-guard.json`.
+> exit-code table, pinned by `testing/testsuite/fixtures/core/fiscalyear-close-guard.json`.
 > Original finding:
 
 - **Job:** JOB-003
@@ -245,10 +245,10 @@ Format per finding:
   R7: non-cash categories such as depreciation count without a cash flow). The us-pack
   module 5 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
   on its depreciation line (L13) per the module spec. But the normative
-  `testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+  `testing/testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
   `includeNonCash` and carries `additionalProperties: false` — by the schema the field
   is illegal on a mapping position.
-- **Where:** `testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
+- **Where:** `testing/testsuite/schema/format.schema.json` (`$defs/mappingPosition`);
   `pack-library/us-pack/mappings/us-schedule-c.json`; core Mapping importer +
   `CashBasisProjection`.
 - **Chosen behavior:** shipped `us-schedule-c-2026` with `includeNonCash: true` per the
@@ -291,7 +291,7 @@ Format per finding:
 > registered tax mechanism (`TaxMechanisms`) that tags the base and emits **no** tax line,
 > and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in the
 > return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
-> (`scenarios/walkthrough/us.json`). Original finding kept for the record:
+> (`testing/scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 - **Job:** us-pack conformance audit (2026-06-24)
 - **What:** the us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`) emits a 0.00 tax line.
@@ -334,7 +334,7 @@ Summary and the PHP sites:
 - **NF-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
   `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
   opposite of what happened, and the only error a tax-free configuration hits on a normal report.
-  Current behaviour pinned in `scenarios/walkthrough/default.json`.
+  Current behaviour pinned in `testing/scenarios/walkthrough/default.json`.
 - **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
   counter-entry but does not touch the open items the reversed entry created: the trial balance
   shows the payable account at `0.00` while `openItems` still reports it open and settleable.

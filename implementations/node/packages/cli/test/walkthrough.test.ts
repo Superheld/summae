@@ -22,9 +22,9 @@ import { run } from '../src/cli.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 /** The documentation in executable form — one per shipped configuration. */
-const scenarioDir = join(repoRoot, 'scenarios/walkthrough');
+const scenarioDir = join(repoRoot, 'testing/scenarios/walkthrough');
 /** Fixed defects, pinned so they cannot come back — adversarial input lives here only. */
-const regressionDir = join(repoRoot, 'scenarios/regression');
+const regressionDir = join(repoRoot, 'testing/scenarios/regression');
 
 interface Step {
   name: string;

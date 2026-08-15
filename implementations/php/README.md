@@ -6,7 +6,7 @@ library. From a user's perspective a Composer package
 (`composer require superheld/summae-core`), optionally with the Laravel adapter
 (`composer require superheld/summae-laravel`).
 
-The normative source is the conformance suite (`testsuite/` at the repo root): every
+The normative source is the conformance suite (`testing/testsuite/` at the repo root): every
 implementation must satisfy all fixtures byte-identically and deterministically.
 
 ## Documentation
@@ -25,7 +25,7 @@ implementation must satisfy all fixtures byte-identically and deterministically.
 | `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, database adapter, migrations |
 | `packages/cli/` | `superheld/summae-cli` — CLI, JSON output |
 | `runner/` | fixture runner for the conformance suite |
-| `testsuite/` | copy of the conformance fixtures — **read-only** (maintainer: `make sync`) |
+| `testing/testsuite/` | copy of the conformance fixtures — **read-only** (maintainer: `make sync`) |
 | `SPEC-FINDINGS.md` | findings against spec/fixtures (escalation path) |
 
 ## Development

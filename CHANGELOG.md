@@ -19,7 +19,7 @@ in both implementations' green gates, one scenario per shipped configuration.
 - A copy-pasteable companion script, `docs/handbuch/examples/cli-walkthrough.sh`.
 
 ### Added — the documentation is gated
-- **Walkthrough scenarios** (`docs/handbuch/examples/scenarios/*.json`, moved to `scenarios/` after 0.5.1): one complete lifecycle
+- **Walkthrough scenarios** (`docs/handbuch/examples/scenarios/*.json`, moved to `testing/scenarios/` after 0.5.1): one complete lifecycle
   per configuration we ship — `de`, `us`, `default`, and a free `rules.json` — including the
   error paths (unbalanced, already reversed, period out of order, locked account, closed period,
   settlement exceeding the item) with their exit codes.

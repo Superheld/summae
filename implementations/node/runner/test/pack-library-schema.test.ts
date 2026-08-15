@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Quality-gate obligation 1: every shipped pack-library module + manifest is validated
- * against testsuite/schema/format.schema.json — the same schema the PHP runner already
+ * against testing/testsuite/schema/format.schema.json — the same schema the PHP runner already
  * validates journalExport streams against (SchemaValidationTest), now extended to the
  * pack format in both languages. A field the engine reads but the schema does not
  * declare is a finding (the NF-002/F-008 class), not a convenience.
@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const packLibraryDir = join(repoRoot, 'pack-library');
-const schemaPath = join(repoRoot, 'testsuite', 'schema', 'format.schema.json');
+const schemaPath = join(repoRoot, 'testing', 'testsuite', 'schema', 'format.schema.json');
 
 function jsonFiles(dir: string): string[] {
   const out: string[] = [];

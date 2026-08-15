@@ -33,7 +33,7 @@ the end of this file.
 ## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
 **Finding (2026-06-21, Gate-1 pack conformance).** The draft fixture
-`testsuite/fixtures/pack/de-composed-equals-de/tenant-from-de-complete-posts-identically.json`
+`testing/testsuite/fixtures/pack/de-composed-equals-de/tenant-from-de-complete-posts-identically.json`
 expects `createTenant.result.taxationMethod = "cash"`, but its manifest `de-mini-regression`
 carried **no** `defaults` object — neither the manifest nor the modules encode
 `taxationMethod` anywhere. By design the resolver derives `defaults`
@@ -68,7 +68,7 @@ position-level flag `includeNonCash` off the mapping leaf
 categories like depreciation count without a cash flow). The us-pack module 5
 (`us-schedule-c-2026`, kind `cash-basis-categories`) sets `includeNonCash: true`
 on its depreciation line (L13) per the module spec. But the normative
-`testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
+`testing/testsuite/schema/format.schema.json` `$defs/mappingPosition` does **not** declare
 `includeNonCash` and carries `additionalProperties: false` — so by the schema the
 field is illegal on a mapping position.
 
@@ -126,7 +126,7 @@ own job, human decision. Applies to PHP too.
 > registered tax mechanism (`tax-mechanisms.ts`) that tags the base and emits **no** tax
 > line, and the us-pack `EXEMPT` code selects it. Exempt sales post cleanly and appear in
 > the return. Pinned by the conformance fixtures and by the `us` walkthrough scenario
-> (`scenarios/walkthrough/us.json`). Original finding kept for the record:
+> (`testing/scenarios/walkthrough/us.json`). Original finding kept for the record:
 
 **Finding (2026-06-24).** The us-pack `EXEMPT` code (mechanism `standard`, rate `0.00`)
 emits a 0.00 tax line on the tax account. `expandTax` returns it fine (proven by
@@ -152,7 +152,7 @@ exempt sales post cleanly and show up in the return. Engine addition → own job
 >
 > Chosen because it is the part **both** candidate semantics agree on: an invoice that was
 > never paid and then reversed contributes nothing either way. Pinned by the `de` walkthrough
-> scenario (`scenarios/walkthrough/de.json`, VAT-return step: key `66` must be
+> scenario (`testing/scenarios/walkthrough/de.json`, VAT-return step: key `66` must be
 > absent); verified to fail without the fix. All 86 fixtures stay green in both languages,
 > SF-15 cross-test 45/45 both directions — nothing existing pinned this case.
 >
@@ -381,7 +381,7 @@ the ledger in both languages; PHP needed it in **two** places, because
 `DatabaseTenantFactory.php` duplicates the ledger construction that `Tenant.php` also does —
 Node has a single construction path. That duplication is worth removing separately.
 
-Pinned by `scenarios/walkthrough/regressions.json` (fabricated code rejected with
+Pinned by `testing/scenarios/walkthrough/regressions.json` (fabricated code rejected with
 exit 32; a tag naming a *registered* code still posts, so the guard checks the registry rather
 than forbidding tags).
 
@@ -442,7 +442,7 @@ payable debited. The lines carry a valid `taxTag`, so nothing downstream flags i
 posting looks entirely ordinary in every report.
 
 **Resolution.** An absent `direction` still defaults to `"output"` (documented); a **wrong**
-value is `E_INPUT_INVALID`. Pinned in `scenarios/regression/regressions.json` together with both
+value is `E_INPUT_INVALID`. Pinned in `testing/scenarios/regression/regressions.json` together with both
 positive cases — the default still works, and lower-case `"input"` still books the right way
 round.
 
@@ -475,7 +475,7 @@ rather than patched individually.
 is not a valid value is now `E_INPUT_INVALID` (exit 45): a `year` that is not a positive whole
 number, an `openItems`/`datevExport` `kind` outside its enumeration, and a `correct` call that
 carries neither `text` nor `lines` (which is what a misspelled `txt` amounts to). Pinned in
-`scenarios/regression/input-validation.json`, each rejection paired with a positive case so the
+`testing/scenarios/regression/input-validation.json`, each rejection paired with a positive case so the
 guards cannot forbid too much.
 
 ## NF-014 — accounts outside a mapping's ranges vanish from the income statement

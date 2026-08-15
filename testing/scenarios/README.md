@@ -1,11 +1,11 @@
-# scenarios/ — language-neutral CLI scenarios
+# testing/scenarios/ — language-neutral CLI scenarios
 
 One format, one runner, **both** implementations. Each file is a list of CLI calls with
 pinned expectations; the Node `walkthrough.test.ts` and the PHP `WalkthroughTest.php` read
 these very files, so a difference between the languages turns one of them red.
 
 ```
-scenarios/
+testing/scenarios/
   walkthrough/   the user documentation in executable form — one per shipped configuration
   regression/    fixed defects, pinned so they cannot come back
 ```
@@ -26,11 +26,11 @@ otherwise — a pack without one is an untested offer.
 
 ## What these cover that the conformance fixtures cannot
 
-`testsuite/` drives the **core** directly with a fixed clock. These drive the **binary** a
+`testing/testsuite/` drives the **core** directly with a fixed clock. These drive the **binary** a
 user types: the CLI surface, argument handling, the workspace files, pack-library loading,
 and the documented parameter names. Both are needed; neither replaces the other.
 
-Full picture of where tests live: [`../TESTING.md`](../TESTING.md).
+Full picture of where tests live: [`../README.md`](../README.md).
 
 ## Format
 

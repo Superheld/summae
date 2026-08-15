@@ -1,10 +1,28 @@
 # Where the tests live
 
-Four kinds of test, four homes. The split is not arbitrary — each kind answers a different
-question and is therefore owned by a different place. If you only want the short version:
+Everything test-related that is **not** a unit test lives in this folder:
 
-> **Unit tests sit next to the code, per language. Everything cross-language is data:
-> conformance fixtures come from the knowledge base, CLI scenarios live in `scenarios/`.**
+```
+testing/
+  README.md      this map
+  testsuite/     the conformance contract — MIRRORED, never edit here (§ 2)
+  scenarios/     CLI scenarios, language-neutral (§ 3)
+    walkthrough/   the handbook in executable form, one per shipped configuration
+    regression/    fixed defects, pinned so they cannot come back
+```
+
+Unit tests are the one exception, and they stay next to their code (§ 1) — vitest, PHPUnit
+and the coverage gates all resolve relative to the package, so a central folder would mean
+fighting both toolchains for nothing.
+
+So the short version:
+
+> **Unit tests sit next to the code, per language. Everything cross-language is data, and
+> all of that data is under `testing/`.**
+
+The one thing to remember before writing a file here: `testing/testsuite/` is a *mirror* of
+the knowledge base and gets overwritten wholesale by `make sync`. New scenarios go in
+`testing/scenarios/`; new fixtures are authored in the knowledge base. Details in § 2.
 
 ---
 
@@ -45,15 +63,15 @@ implementation is checked against it, which is how N languages stay equivalent w
 comparisons.
 
 - **Authored in:** `../70-testsuite/fixtures/**.json` (the knowledge base, next to the spec)
-- **Mirrored to:** `testsuite/` via `make sync` — `rsync --delete`
+- **Mirrored to:** `testing/testsuite/` via `make sync` — `rsync --delete`
 - **Run with:** `pnpm fixtures --strict` / `make fixtures`
 
 ⚠ **Never create or edit anything under `summae/testsuite/`.** The sync deletes whatever is
 not in the source, so work done there is lost at the next sync. A new fixture is written in
 the knowledge base and then synced.
 
-Also mirrored from the knowledge base: `testsuite/schema/` (from `50-spezifikation/schema/`),
-`testsuite/fehlerkatalog.md` (the error catalogue) and `pack-library/` (the shipped packs).
+Also mirrored from the knowledge base: `testing/testsuite/schema/` (from `50-spezifikation/schema/`),
+`testing/testsuite/fehlerkatalog.md` (the error catalogue) and `pack-library/` (the shipped packs).
 Same rule for all of them — the copy here is a mirror, not a source.
 
 The knowledge base is **not under version control**, so there is no undo. Adding a file is
@@ -62,15 +80,15 @@ safe; before changing an existing one, drop a copy into `../archiv/`.
 `runner/expected-green.txt` (per implementation) lists the fixtures that must stay green —
 a regression guard for CI independent of `--strict`.
 
-## 3. CLI scenarios — `scenarios/`, read by both languages
+## 3. CLI scenarios — `testing/scenarios/`, read by both languages
 
 Language-neutral JSON driving the actual CLI. They cover what the fixtures cannot reach: the
 binary a user types, argument handling, the workspace files, pack-library loading and the
 documented parameter names.
 
-- `scenarios/walkthrough/` — the handbook's CLI walkthrough in executable form, one per
+- `testing/scenarios/walkthrough/` — the handbook's CLI walkthrough in executable form, one per
   shipped configuration. **A new pack needs a new scenario**, enforced by a guard test.
-- `scenarios/regression/` — fixed defects, pinned so they cannot come back. Adversarial input
+- `testing/scenarios/regression/` — fixed defects, pinned so they cannot come back. Adversarial input
   belongs here and nowhere else.
 
 Both are executed by `packages/cli/test/walkthrough.test.ts` (Node) and
@@ -91,9 +109,9 @@ engines, one truth.
 |---|---|
 | a value object, a service, an internal rule | unit test, **both** languages (§ 1) |
 | a behaviour the data format or API promises | conformance fixture in the knowledge base (§ 2) |
-| something only reachable through the CLI | a scenario in `scenarios/` (§ 3) |
-| a fixed bug | `scenarios/regression/` (§ 3) — plus a unit test if it has a natural unit |
-| a new shipped pack | `scenarios/walkthrough/` (§ 3), or the guard test fails |
+| something only reachable through the CLI | a scenario in `testing/scenarios/` (§ 3) |
+| a fixed bug | `testing/scenarios/regression/` (§ 3) — plus a unit test if it has a natural unit |
+| a new shipped pack | `testing/scenarios/walkthrough/` (§ 3), or the guard test fails |
 | persistence or serialisation | the cross test (§ 4) |
 
 ## Definition of Green

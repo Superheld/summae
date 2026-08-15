@@ -25,9 +25,9 @@ final class WalkthroughTest extends TestCase
 {
     private const REPO_ROOT = __DIR__ . '/../../../../..';
     /** The documentation in executable form — one per shipped configuration. */
-    private const SCENARIO_DIR = self::REPO_ROOT . '/scenarios/walkthrough';
+    private const SCENARIO_DIR = self::REPO_ROOT . '/testing/scenarios/walkthrough';
     /** Fixed defects, pinned so they cannot come back — adversarial input lives here only. */
-    private const REGRESSION_DIR = self::REPO_ROOT . '/scenarios/regression';
+    private const REGRESSION_DIR = self::REPO_ROOT . '/testing/scenarios/regression';
 
     /**
      * @return array<string, array{string}>

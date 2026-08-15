@@ -1,7 +1,7 @@
 # CLAUDE.md — PHP implementation
 
 Language-specific rules and commands for `implementations/php/`. Project-wide rules
-(iron invariants, quality policy, `testsuite/` read-only, Git) are in the
+(iron invariants, quality policy, `testing/testsuite/` read-only, Git) are in the
 root `CLAUDE.md`.
 
 ## Commands
@@ -16,7 +16,7 @@ make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
 make fixtures   # conformance suite against the in-memory core
 make test       # PHPUnit only
 make stan       # PHPStan level max only
-make sync       # mirror testsuite/ from the knowledge base (one-way)
+make sync       # mirror testing/testsuite/ from the knowledge base (one-way)
 make shell      # shell in the PHP container
 ```
 
@@ -63,8 +63,8 @@ byte-identical double run.
 
 `make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`scenarios/walkthrough/*.json`, plus the regression guards in `scenarios/regression/` — the same
-files the Node `walkthrough.test.ts` reads. Test landscape: `TESTING.md`.
+`testing/scenarios/walkthrough/*.json`, plus the regression guards in `testing/scenarios/regression/` — the same
+files the Node `walkthrough.test.ts` reads. Test landscape: `testing/README.md`.
 
 ## Deeper: `docs/`
 

@@ -4,7 +4,7 @@ summae's **product data**: the selectable *packs* and the *modules* they are
 composed of. Maintained in an internal source, mirrored into the repo via
 `make sync` (`pack-library/`), and shipped with the library.
 
-> Not to be confused with the pack **fixtures** under `testsuite/fixtures/pack/` —
+> Not to be confused with the pack **fixtures** under `testing/testsuite/fixtures/pack/` —
 > those are *tests* that prove these packs resolve correctly. Here lives the *product*.
 
 ## Layout

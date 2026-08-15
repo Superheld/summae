@@ -46,7 +46,7 @@ the **domain logic**:
 
 ## Conformance — each module tests its requirements
 
-All fixtures under `testsuite/fixtures/pack/us-pack/` run **purely from this library** (no
+All fixtures under `testing/testsuite/fixtures/pack/us-pack/` run **purely from this library** (no
 inline) and are green in **PHP and Node** (`--strict`, byte-identical double run), against
 both the in-memory core and the database subject. Module → requirement → test:
 

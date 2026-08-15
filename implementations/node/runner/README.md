@@ -1,8 +1,8 @@
 # @superheld/summae-runner (Node)
 
-Conformance fixture runner: runs the shared test suite (`testsuite/` in the
+Conformance fixture runner: runs the shared test suite (`testing/testsuite/` in the
 repo root) against a **subject** and checks it against the runner contract
-(`testsuite/README.md`).
+(`testing/testsuite/README.md`).
 
 **Status:** all 45 fixtures green against the `CoreSubject` (@superheld/summae-core,
 in-memory ports), double run byte-deterministic.

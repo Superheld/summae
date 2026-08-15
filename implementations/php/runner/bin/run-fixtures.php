@@ -39,7 +39,7 @@ foreach (array_slice($argvList, 1) as $arg) {
 $factory = $subject === 'database' ? new DatabaseSubjectFactory() : new CoreSubjectFactory();
 printf("Subject: %s\n", $subject);
 
-$suite = (new SuiteRunner($factory))->run($root . '/testsuite/fixtures', $filter);
+$suite = (new SuiteRunner($factory))->run($root . '/testing/testsuite/fixtures', $filter);
 
 $colors = [
     FixtureStatus::Pass->value => "\033[32m",

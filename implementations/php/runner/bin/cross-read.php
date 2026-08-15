@@ -36,7 +36,7 @@ foreach (array_slice($argvList, 1) as $arg) {
 }
 
 $byName = [];
-foreach ((new FixtureLoader())->discover($root . '/testsuite/fixtures') as $fixture) {
+foreach ((new FixtureLoader())->discover($root . '/testing/testsuite/fixtures') as $fixture) {
     $byName[$fixture->name] = $fixture;
 }
 

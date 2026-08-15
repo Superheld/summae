@@ -7,7 +7,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // runner/src → repo root. Node reads the same **shared** testsuite/ as the
 // PHP runner (no per-impl drift); maintained one-way via bin/sync-testsuite.sh.
 export const repoRoot = resolve(here, '../../../..');
-export const fixturesDir = join(repoRoot, 'testsuite', 'fixtures');
+export const fixturesDir = join(repoRoot, 'testing', 'testsuite', 'fixtures');
 
 export interface Fixture {
   /** Name from the `fixture` field; fallback file name. */

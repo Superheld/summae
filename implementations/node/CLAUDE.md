@@ -1,7 +1,7 @@
 # CLAUDE.md — Node/TypeScript implementation
 
 Language-specific rules and commands for `implementations/node/`. Project-wide rules
-(iron invariants, quality policy, `testsuite/` read-only, Git) are in the
+(iron invariants, quality policy, `testing/testsuite/` read-only, Git) are in the
 root `CLAUDE.md`.
 
 **Status:** domain core (`packages/core`) complete against the in-memory port. Persistence adapter
@@ -56,8 +56,8 @@ funcs 90 / stmts 85 — fixed in the run via `coverage.enabled`) · `pnpm fixtur
 
 `pnpm test` includes the **walkthrough scenarios** (`packages/cli/test/walkthrough.test.ts`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared
-`scenarios/walkthrough/*.json`, plus the regression guards in `scenarios/regression/` — the same
-files the PHP `WalkthroughTest` reads. Test landscape: `TESTING.md`.
+`testing/scenarios/walkthrough/*.json`, plus the regression guards in `testing/scenarios/regression/` — the same
+files the PHP `WalkthroughTest` reads. Test landscape: `testing/README.md`.
 
 ## Publish
 

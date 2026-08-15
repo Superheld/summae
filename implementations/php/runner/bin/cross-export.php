@@ -36,7 +36,7 @@ if (!is_dir($dir) && !mkdir($dir, 0o777, true) && !is_dir($dir)) {
     exit(1);
 }
 
-$fixtures = (new FixtureLoader())->discover($root . '/testsuite/fixtures');
+$fixtures = (new FixtureLoader())->discover($root . '/testing/testsuite/fixtures');
 $written = 0;
 $skipped = 0;
 

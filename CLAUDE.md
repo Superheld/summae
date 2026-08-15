@@ -12,13 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **summae** is an embeddable accounting library (GoBD double-entry, cash-basis
 accounting (EÜR), VAT, fixed assets, cost accounting (KLR)) — **not an application**.
 Multiple language implementations are meant to have an *identical API and identical
-data format*; this is verified via a language-neutral conformance suite (`testsuite/`).
+data format*; this is verified via a language-neutral conformance suite (`testing/testsuite/`).
 
 Repo layout:
-- `testsuite/` — the compatibility contract: `fixtures/**.json` + `schema/`. Shared by all implementations.
+- `testing/` — **one home for every test that is not a unit test.** `testsuite/` = the compatibility contract (`fixtures/**.json` + `schema/`, shared by all implementations, mirrored read-only) · `scenarios/` = language-neutral CLI scenarios (`walkthrough/` + `regression/`). Unit tests are the exception and stay next to their code. Which kind to write where: `testing/README.md`.
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
-- `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
+- `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
 - `Makefile`, `compose.yaml`, `docker/` — Docker toolchain (currently drives the PHP side).
 
 ## Scope: capabilities, not workflows
@@ -111,12 +111,12 @@ fixture in both languages" + spec retrofit → `implementations/<language>/docs/
   `DeterministicIdGenerator`.
 - **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
 
-## testsuite/ is read-only
+## testing/testsuite/ is read-only
 
 Fixtures are the normative source and live in the **knowledge base** (sister repo
 „Rechnungswesen"). They are mirrored here via `make sync` (`rsync --delete` —
 whatever is here and not in the source gets deleted; **do not put your own files
-in `testsuite/`**) and **never edited here**. Fixtures are append-only:
+in `testing/testsuite/`**) and **never edited here**. Fixtures are append-only:
 behavior change = new fixture, never silent editing. Contradiction between
 spec/fixture/model → **do not guess, do not bend the fixture**, but document it in the
 `SPEC-FINDINGS.md` of the respective implementation and continue building with the
@@ -176,18 +176,18 @@ that fails loudly when the contract is broken, so authoring mistakes can't slip 
 unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligations:
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
    streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
-   `testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
+   `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
    does not declare is a finding (e.g. NF-002/F-008 `includeNonCash`), not a convenience.
 2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.
 3. **NF-6 (concurrency) and NF-7 (performance)** have their dedicated per-implementation tests (above).
-4. **The user documentation is gated.** The walkthrough scenarios (`scenarios/walkthrough/*.json` —
+4. **The user documentation is gated.** The walkthrough scenarios (`testing/scenarios/walkthrough/*.json` —
    one per *shipped configuration*: each pack plus a free `rules.json`) drive a complete lifecycle
    through the **CLI** in both languages with their numbers pinned; fixed defects are pinned the same
-   way in `scenarios/regression/`. **Ship a new pack ⇒ add a scenario** (a guard test fails otherwise).
+   way in `testing/scenarios/regression/`. **Ship a new pack ⇒ add a scenario** (a guard test fails otherwise).
    Documentation that stops being true must turn a build red, not rot on the page.
-   **Where every kind of test lives and which one to write: `TESTING.md`.** They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
+   **Where every kind of test lives and which one to write: `testing/README.md`.** They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
    and the documented parameter names. **Ship a new pack ⇒ add a scenario** (a guard test fails
    otherwise). Documentation that stops being true must turn a build red, not rot on the page.
 

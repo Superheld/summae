@@ -24,7 +24,7 @@ implements are listed above and proven by the conformance fixtures below.
 
 ## Conformance — each module tests its requirements
 
-All fixtures under `testsuite/fixtures/pack/de-pack/` run **purely from this library** (no
+All fixtures under `testing/testsuite/fixtures/pack/de-pack/` run **purely from this library** (no
 inline) and are green in **PHP and Node** (`--strict`, byte-identical double run). Module → requirement → test:
 
 | Module | Requirement | Test fixture |

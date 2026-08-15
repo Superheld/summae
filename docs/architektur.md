@@ -184,7 +184,7 @@ code:
 - ✅ **The DE pack runs without a core change** — effectively proven by the PHP
   reference.
 - ✅ **A fictitious test pack** (3-decimal currency, per-line rounding, no input-tax
-  deduction) is built as a fixture set (`testsuite/fixtures/pack/conformance-xx/`) —
+  deduction) is built as a fixture set (`testing/testsuite/fixtures/pack/conformance-xx/`) —
   the seam-proof of jurisdiction freedom thus exists as a conformance test.
 - 🔧 **Module registry, resolver, `E_PACK_*` codes, manifest format** — specified in
   Gate 1 (`_bauflow-pack-gate01/`, data format v0.6) and present as pack fixtures;

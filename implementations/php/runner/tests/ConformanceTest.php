@@ -19,10 +19,10 @@ final class ConformanceTest extends TestCase
     public function testExpectedGreenFixturesArePassing(): void
     {
         $implRoot = dirname(__DIR__, 2);   // implementations/php
-        $repoRoot = dirname(__DIR__, 4);   // repo root (shared testsuite/)
+        $repoRoot = dirname(__DIR__, 4);   // repo root (shared testing/testsuite/)
 
         $suite = (new SuiteRunner(new CoreSubjectFactory()))
-            ->run($repoRoot . '/testsuite/fixtures', null);
+            ->run($repoRoot . '/testing/testsuite/fixtures', null);
 
         self::assertSame([], $suite->determinismBreaks, 'Doppellauf nicht deterministisch');
 
