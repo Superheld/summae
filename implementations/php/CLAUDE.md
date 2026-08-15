@@ -57,7 +57,8 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 ## Definition of Green (here)
 
 PHPStan level max without errors · `make test` green (**PHPUnit incl. `ConformanceTest`**
-over the full suite **+ coverage gate** core lines ≥ 88 % via `coverage-gate.php`) ·
+over the full suite **+ coverage gate per package** via `coverage-gate.php`: lines core 91 /
+cli 87 / runner 82, `packages/laravel` excluded because it has no tests of its own — NF-015) ·
 conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
 byte-identical double run.
 

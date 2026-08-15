@@ -47,9 +47,10 @@ a short file.
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-014 accounts outside a mapping vanish from the income statement | **OPEN** |
+| NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
 | **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-014 and the NF-005 remainder**, plus the
+**Genuinely open today: F-004 (pool period), NF-008, NF-014, NF-015 and the NF-005 remainder**, plus the
 open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
 R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
 
@@ -392,3 +393,26 @@ data-format decision) before either language moves.
   `balanceSheet`'s result position still counts them, so the two statements disagree. Not a limit
   on how many accounts you may create (there is none) — a gap between chart and mapping. Full
   write-up: `implementations/node/SPEC-FINDINGS.md`.
+
+## NF-015: `packages/laravel` has no tests of its own — gate gap
+
+- **Job:** chore/coverage-all-packages (2026-08-15)
+- **What:** the persistence adapter is the one package with no test suite. `packages/laravel/tests/`
+  contains a single `.gitkeep`; `phpunit.xml.dist` declares a `laravel` testsuite that therefore
+  runs zero tests. Root `CLAUDE.md` calls a contract surface without its own guard a gate-gap
+  finding — this is one, and it sits on the surface that writes and reads the shared data format.
+- **Where:** `implementations/php/packages/laravel/` (src ~534 statements), `phpunit.xml.dist`,
+  `runner/bin/coverage-gate.php`
+- **Chosen behavior:** the package is **excluded** from the coverage source set and carries **no
+  floor**, with the reason stated at both places. Measuring it would pin a number nobody
+  maintains: it does get ~79 % line coverage today, but purely as a side effect of the conformance
+  runner's `database` subject and the cross-test driving it — coverage that no test in this
+  package asserts anything about, and that would silently move whenever those suites change.
+  Excluding it keeps the gate honest; the gap stays visible here instead of hiding inside a
+  green percentage.
+- **Proposal:** give the adapter its own suite (repository round-trips per aggregate, the JSON
+  columns of the `summae_*` tables, tenant scoping) and then add a `laravel` floor to
+  `coverage-gate.php` — the floors are a ratchet, so the number can only rise after that.
+  Deliberately **not** done here: it is a test-writing job, not a gate-wiring one. Node has no
+  counterpart — `packages/knex` has no tests of its own either, but is covered through the CLI
+  package's tests and does carry a floor there.

@@ -158,7 +158,8 @@ Two mechanisms, **one** principle:
 ## Definition of Green
 
 Each implementation is green by **its** rules (linter/typecheck/tests incl.
-**coverage floor** (core lines ≥ 88 %, fixed in the test run — may only rise) +
+**coverage floor per package** (fixed in the test run — every package that has tests
+carries its own floor, set just below what it measures; floors may only rise) +
 conformance suite `--strict` incl. byte-identical double run — details in the
 respective `implementations/<language>/CLAUDE.md`). Across languages additionally:
 every capability that exists in ≥ 2 implementations passes the cross-test —

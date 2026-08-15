@@ -116,8 +116,8 @@ engines, one truth.
 
 ## Definition of Green
 
-Per implementation: linter/typecheck, unit tests including the coverage floor (core lines
-≥ 88 %), and the conformance suite `--strict` (all fixtures green **and** a byte-identical
+Per implementation: linter/typecheck, unit tests including the coverage floors (one per
+package, just below the measured value, ratcheting upwards), and the conformance suite `--strict` (all fixtures green **and** a byte-identical
 double run) against both subjects. Across languages: every capability present in two
 implementations passes the cross test. Details per language in
 `implementations/<language>/CLAUDE.md`.

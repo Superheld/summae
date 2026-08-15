@@ -206,4 +206,4 @@ code:
 The **fictitious test pack is itself a conformance test** and thus falls under the
 top quality directive (`CLAUDE.md`: "every future jurisdiction") — the seam-proof of
 the decoupling belongs in the same language-neutral suite. Coverage is part of
-"green" (floor 88% lines).
+"green" (a line floor per package, not one shared number).
