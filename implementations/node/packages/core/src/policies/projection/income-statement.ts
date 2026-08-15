@@ -25,9 +25,16 @@ export class IncomeStatementProjection {
       typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
     const mappingId = typeof params.mapping === 'string' ? params.mapping : '';
 
+    // A missing or unknown mapping is a caller mistake, not an overlap: reporting it as
+    // E_MAPPING_OVERLAP (the code for two positions claiming the same account) sent operators
+    // hunting the wrong thing, and an omitted parameter produced `Mapping "" is not loaded`.
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError('E_MAPPING_OVERLAP', `Mapping "${mappingId}" is not loaded`);
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        mappingId === '' ? 'incomeStatement requires the parameter "mapping"' : `mapping "${mappingId}" is not loaded`,
+        { mapping: mappingId },
+      );
     }
 
     const zero = Money.zero(this.baseCurrency);

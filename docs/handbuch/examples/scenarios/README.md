@@ -65,6 +65,12 @@ cd implementations/node && pnpm vitest run packages/cli/test/walkthrough.test.ts
 cd implementations/php  && vendor/bin/phpunit packages/cli/tests/WalkthroughTest.php
 ```
 
+## What does NOT belong here
+
+Scenarios that pin a **fixed defect** live in [`regression-scenarios/`](../../../../regression-scenarios/README.md)
+at the repo root. Same format, same runner, different purpose: a page a reader copies from must stay
+exemplary, so forged tax tags and amounts in exponent notation belong in the guard, not in the docs.
+
 ## Adding a configuration
 
 Ship a new pack ⇒ add a scenario. The list above is meant to stay in step with

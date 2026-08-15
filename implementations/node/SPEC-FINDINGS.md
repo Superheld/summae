@@ -16,16 +16,19 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-003 `cashBasisReport` German VAT passthrough | ✅ resolved |
 | NF-004 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
 | NF-005 cash-basis reversal counts immediately | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
-| NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
-| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
+| NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
+| NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ⚠ knowledge base entry still to be written |
 
-**Genuinely open today: NF-006, NF-007, NF-008 and the NF-005 remainder** (plus F-004's
-hard-coded low-value-asset pool period, recorded on the PHP side).
+**Genuinely open today: NF-008 and the NF-005 remainder** (plus F-004's hard-coded low-value-asset
+pool period, recorded on the PHP side), and the further defects listed under "Round 1 backlog" at
+the end of this file.
 
 ## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
@@ -404,3 +407,96 @@ without closing entries the cumulative result *is* the equity delta.
 
 Pinned by `regressions.json`, the first scenario that spans two fiscal years — 2026 → 1190.00,
 2027 → 3570.00, both balancing.
+
+## E_INPUT_INVALID — new catalogue code (exit 45)
+
+**Added 2026-08-15.** A supplied parameter or field is **present but not valid input** — a caller
+mistake, not an internal failure. Before it, such situations either escaped as an uncaught
+`InvalidValue` (a stack trace, and since the CLI error boundary an `E_UNEXPECTED`/exit 1 that an
+agent cannot tell apart from a summae bug) or were silently coerced into a plausible default.
+
+Appended to both exit-code tables, so no existing exit code moved. In use at:
+`tax-service` (`direction`), `cash-basis` (`year`, unknown `mapping`), `account-sheet`
+(`account`, `fiscalYear`), `income-statement` and `balance-sheet` (missing/unknown `mapping`).
+
+> ⚠ **Still to do in the knowledge base:** the normative entry in `fehlerkatalog.md` plus a
+> conformance fixture. `testsuite/` is mirrored read-only, so both implementations and the
+> regression scenarios carry the code today while the normative source does not yet.
+
+## NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED
+
+**Finding (2026-08-15, adversarial probing).** `tax-service.ts:56` read
+`input.direction === 'input' ? 'input' : 'output'`. Anything that was not exactly `"input"` —
+`"Input"` with a capital I, `"INPUT"`, a typo, `null` — silently became an **output** voucher:
+
+```
+postVoucher … "taxCode":"VSt19","direction":"Input","netLines":[{"account":"6000", "200.00"}],"counterAccount":"3000"
+  → exit 0, lines: 3000 debit 238.00 · 6000 credit 200.00 · 1500 credit 38.00
+```
+
+The exact mirror of the correct booking: the expense credited, the input VAT credited, the
+payable debited. The lines carry a valid `taxTag`, so nothing downstream flags it, and the
+posting looks entirely ordinary in every report.
+
+**Resolution.** An absent `direction` still defaults to `"output"` (documented); a **wrong**
+value is `E_INPUT_INVALID`. Pinned in `regression-scenarios/regressions.json` together with both
+positive cases — the default still works, and lower-case `"input"` still books the right way
+round.
+
+## Round 1 backlog — probed, confirmed, not yet fixed
+
+Found by two adversarial probing agents on 2026-08-15 and reproduced by hand. Recorded here so
+they are not lost; none is fixed yet.
+
+| # | Defect | Class |
+|---|---|---|
+| R-1 | `settle` accepts an allocation larger than the settling entry actually books: GL keeps a 690.00 receivable while the subledger is empty, and cash-basis VAT declares 190.00 collected when 500.00 arrived | write-side invariant missing |
+| R-2 | `auditDataExport` carries P&L accounts across fiscal years, `trialBalance` does not — the ADS balance stream and the trial balance disagree per account (identical in both languages, so byte-parity cannot catch it) | logic |
+| R-3 | `correct` rewrites an entry's lines and leaves the open item it created untouched (same family as NF-008) | logic |
+| R-4 | `importMapping` reports `imported: true` but the CLI rebuilds the registry from `summae.json` on every invocation and never writes back — the documented import→report flow cannot work | persistence |
+| R-5 | `createFiscalYear` coerces a non-numeric `year` to 0 and creates the year anyway; `2027.5` and `-5` are accepted too | input validation |
+| R-6 | `correct` with a misspelled field is a silent no-op that returns success | input validation |
+| R-7 | `openItems` ignores an invalid `kind` and returns everything; `datevExport` returns the entries export under a bogus `kind` label | input validation |
+| R-8 | `init` is not atomic: a failure after the workspace is written leaves a half-built, non-re-initialisable directory. `--first-fiscal-year` is not validated (`""` → year 0000) | CLI |
+| R-9 | a corrupted-but-parseable `summae.json` silently yields an empty ledger, because `Workspace.tenant()` defaults every field and regenerates `tenantId` | CLI |
+| R-10 | `init --pack X --rules Y` silently drops `--rules`; the help calls them alternatives | CLI |
+| R-11 | a 1–2 cent invoice with 19 % VAT is unbookable: the derived tax line rounds to 0.00 and is then rejected by the "amount > 0" rule | domain gap |
+| R-12 | accounts outside the pack's mapping ranges vanish from `incomeStatement` while `balanceSheet`'s result position still counts them — the two reports then disagree | see NF-014 |
+
+Most of R-5 … R-7 are the same shape: `typeof x === 'T' ? x : <default>` used as validation, which
+cannot tell "absent" from "wrong". With `E_INPUT_INVALID` now available they can be closed in one
+sweep rather than patched individually.
+
+## NF-014 — accounts outside a mapping's ranges vanish from the income statement
+
+**Finding (2026-08-15, answering "how many accounts can I create?").** There is no limit on the
+number of accounts (546 created without complaint, `importChartOfAccounts` took 500 in one call)
+and no assumption anywhere of a *single* bank account — several current accounts, call-money and
+fixed-term deposits all work as `subtype: "bank"`. But a chart of accounts is only half the
+story: **a mapping decides what a statement shows**, and an account outside every range is
+silently dropped.
+
+```
+createAccount 7100 (expense) · post 300.00 to it
+report incomeStatement --params '{"fiscalYear":2026,"mapping":"de-guv"}'
+  → {"positions":[],"netIncome":"0.00"}        ← the expense is not there
+report balanceSheet   --params '{"fiscalYear":2026,"mapping":"de-bilanz"}'
+  → P.A2 Jahresergebnis "-300.00"              ← but it IS in the result
+```
+
+`de-guv` covers 4000–4099, 4900–4999, 5000–5999, 6000–6099, 6300–6399, 6500–6599, 6700–6999 —
+everything else, including 4100–4899, 6100–6299 and anything ≥ 7000, is invisible to it. The
+shipped de chart of accounts fits entirely inside those ranges, so only **custom** accounts are
+affected. `balanceSheet` computes its result position from *all* non-balance-carrying accounts
+regardless of mapping, which is why the two statements disagree rather than both being wrong.
+
+A second, milder case: a securities depot placed at 1250 lands in "Kassenbestand und Guthaben bei
+Kreditinstituten", because `de-bilanz` maps 1200–1399 wholesale — a bank-balance line, not a
+financial asset.
+
+**Assessment.** Two separate questions. (a) Should a projection *warn* about accounts no position
+claims? `importMapping` already computes `gapWarnings`, so the machinery exists — surfacing it on
+`incomeStatement`/`balanceSheet` would make the hole visible without changing any number.
+(b) Should `balanceSheet`'s result position use the income-statement mapping instead of all
+non-balance-carrying accounts, so the two cannot drift apart? (b) changes numbers and needs a
+fixture. Documented, not changed.

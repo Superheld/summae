@@ -20,7 +20,11 @@ import { run } from '../src/cli.js';
  * The PHP `WalkthroughTest` reads the SAME files and pins the same expectations.
  */
 
-const scenarioDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../docs/handbuch/examples/scenarios');
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
+/** The documentation in executable form. */
+const scenarioDir = join(repoRoot, 'docs/handbuch/examples/scenarios');
+/** Fixed defects, pinned so they cannot come back — adversarial input lives here, not in the docs. */
+const regressionDir = join(repoRoot, 'regression-scenarios');
 
 interface Step {
   name: string;
@@ -85,11 +89,20 @@ function substitute(value: unknown, captured: Map<string, unknown>): unknown {
   return value;
 }
 
-function scenarios(): Scenario[] {
-  return readdirSync(scenarioDir)
+function scenariosIn(directory: string): Scenario[] {
+  return readdirSync(directory)
     .filter((file) => file.endsWith('.json') && !file.endsWith('-rules.json'))
     .sort()
-    .map((file) => JSON.parse(readFileSync(join(scenarioDir, file), 'utf8')) as Scenario);
+    .map((file) => JSON.parse(readFileSync(join(directory, file), 'utf8')) as Scenario);
+}
+
+/** Documentation scenarios keep their own directory for the pack-coverage guard below. */
+function documentedScenarios(): Scenario[] {
+  return scenariosIn(scenarioDir);
+}
+
+function scenarios(): Scenario[] {
+  return [...documentedScenarios(), ...scenariosIn(regressionDir)];
 }
 
 describe('CLI walkthrough scenarios (the documentation, gated)', () => {
@@ -152,7 +165,7 @@ test('the copy-pasteable example script shows every operation the de scenario pi
   // and de.json which the gate checks. This couples them — an operation that gains
   // coverage in the scenario but never appears in the script is a documentation hole.
   const source = readFileSync(resolve(scenarioDir, '../cli-walkthrough.sh'), 'utf8');
-  const de = scenarios().find((scenario) => scenario.id === 'de');
+  const de = documentedScenarios().find((scenario) => scenario.id === 'de');
   const used = new Set(de?.steps.flatMap((step) => (step.op ? [`op ${step.op}`] : [`report ${step.report ?? ''}`])));
 
   const missing = [...used].filter((call) => !source.includes(call));
@@ -160,7 +173,7 @@ test('the copy-pasteable example script shows every operation the de scenario pi
 });
 
 test('every shipped pack has a scenario', () => {
-  const packDir = resolve(scenarioDir, '../../../../pack-library');
+  const packDir = join(repoRoot, 'pack-library');
   const packs = readdirSync(packDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && entry.name.endsWith('-pack'))
     .map((entry) => entry.name.replace(/-pack$/, ''))
@@ -169,7 +182,7 @@ test('every shipped pack has a scenario', () => {
   // compare the SET of covered packs, not the list.
   const covered = [
     ...new Set(
-      scenarios()
+      documentedScenarios()
         .map((scenario) => scenario.init.pack)
         .filter((pack): pack is string => typeof pack === 'string'),
     ),

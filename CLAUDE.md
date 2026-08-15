@@ -185,7 +185,8 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligati
 4. **The user documentation is gated.** The walkthrough scenarios
    (`docs/handbuch/examples/scenarios/*.json` — one per *shipped configuration*: each pack plus a free
    `rules.json`) drive a complete lifecycle through the **CLI** in both languages with their numbers
-   pinned. They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
+   pinned. Fixed defects are pinned the same way but live in **`regression-scenarios/`**, apart from the
+   docs: a page a reader copies from must stay exemplary, a regression guard must stay adversarial. They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
    and the documented parameter names. **Ship a new pack ⇒ add a scenario** (a guard test fails
    otherwise). Documentation that stops being true must turn a build red, not rot on the page.
 

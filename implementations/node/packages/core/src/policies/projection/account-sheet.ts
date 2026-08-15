@@ -18,8 +18,21 @@ export class AccountSheetProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const number = typeof params.account === 'string' ? params.account : '';
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : 0;
+    // Both are documented as required. Defaulting them produced an authoritative-looking
+    // empty ledger — the resolved account name next to "0.00" reads as a verified statement
+    // about the account, not as "you forgot a parameter".
+    if (typeof params.account !== 'string' || params.account === '') {
+      throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "account"', {
+        account: params.account === undefined ? null : String(params.account),
+      });
+    }
+    if (typeof params.fiscalYear !== 'number') {
+      throw new DomainError('E_INPUT_INVALID', 'accountSheet requires the parameter "fiscalYear"', {
+        fiscalYear: params.fiscalYear === undefined ? null : String(params.fiscalYear),
+      });
+    }
+    const number = params.account;
+    const fiscalYear = params.fiscalYear;
     const throughPeriod =
       typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
 

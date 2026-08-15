@@ -38,15 +38,19 @@ a short file.
 | F-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
 | F-CROSS-001 timestamp serialization | ✅ resolved |
 | NF-005 cash-basis reversal | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
-| NF-006 `cashBasisReport` without `year` crashes | **OPEN** — needs an error code for a missing parameter |
-| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | **OPEN** — needs a catalogue append |
+| NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
+| NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-014 accounts outside a mapping vanish from the income statement | **OPEN** |
+| **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
 
-**Genuinely open today: F-004 (pool period), NF-006, NF-007, NF-008, and the NF-005 remainder.**
+**Genuinely open today: F-004 (pool period), NF-008, NF-014 and the NF-005 remainder**, plus the
+"Round 1 backlog" (R-1 … R-12) in `implementations/node/SPEC-FINDINGS.md`.
 
 Format per finding:
 
@@ -371,3 +375,19 @@ data-format decision) before either language moves.
   trialBalance's G1 rule was tried first and left the sheet unbalanced by exactly the prior
   year's result, because summae writes no closing entries. Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED 2026-08-15.**
+  `TaxService.php:58` treated anything that was not exactly `'input'` as an output voucher, so
+  `"Input"` with a capital I credited the expense and debited the payable — the mirror image of
+  the correct booking, carrying a valid tax tag so nothing downstream flagged it. An absent
+  `direction` still defaults to `'output'`; a wrong value is now `E_INPUT_INVALID`.
+- **`E_INPUT_INVALID` (exit 45) added to the catalogue** for "a parameter is present but not valid
+  input". In use in `TaxService`, `CashBasisProjection`, `AccountSheetProjection`,
+  `IncomeStatementProjection`, `BalanceSheetProjection`. ⚠ The normative entry in
+  `fehlerkatalog.md` and a conformance fixture still have to be written in the knowledge base —
+  `testsuite/` is mirrored read-only, so the code currently lives in the implementations and the
+  regression scenarios only.
+- **NF-014 — accounts outside a mapping's ranges vanish from the income statement** while
+  `balanceSheet`'s result position still counts them, so the two statements disagree. Not a limit
+  on how many accounts you may create (there is none) — a gap between chart and mapping. Full
+  write-up: `implementations/node/SPEC-FINDINGS.md`.
