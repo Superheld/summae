@@ -29,6 +29,27 @@ const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
   projections: Record<string, Record<string, Record<string, unknown>>>;
 };
 
+/**
+ * `$comment` is documentation, not contract. It is stripped before comparing so a decision can be
+ * recorded on the parameter it concerns — which is where a later reader will look — instead of
+ * drifting into a file nobody opens. Everything else must match exactly.
+ */
+function withoutComments(
+  projections: Record<string, Record<string, Record<string, unknown>>>,
+): Record<string, Record<string, Record<string, unknown>>> {
+  return Object.fromEntries(
+    Object.entries(projections).map(([name, params]) => [
+      name,
+      Object.fromEntries(
+        Object.entries(params).map(([param, spec]) => [
+          param,
+          Object.fromEntries(Object.entries(spec).filter(([key]) => key !== '$comment')),
+        ]),
+      ),
+    ]),
+  );
+}
+
 function freshOps(): TenantOperations {
   const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
   const tenant = Tenant.inMemory('Parameters', Currency.of('EUR'), clock, new DeterministicIdGenerator(clock));
@@ -50,7 +71,7 @@ describe('projection parameter contract', () => {
   });
 
   it('declares every parameter with the same type and flags as the schema', () => {
-    expect(PROJECTION_PARAMETERS).toEqual(schema.projections);
+    expect(PROJECTION_PARAMETERS).toEqual(withoutComments(schema.projections));
   });
 
   it('rejects an undeclared parameter instead of ignoring it', () => {

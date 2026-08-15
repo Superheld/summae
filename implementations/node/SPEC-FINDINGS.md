@@ -503,6 +503,22 @@ guards cannot forbid too much.
 
 ## NF-014 — accounts outside a mapping's ranges vanish from the income statement
 
+> **RESOLVED 2026-08-15** (fixture `income-statement-gap`, both languages). The income statement
+> now routes an unmapped account into the catch-all position `_unassigned` and reports
+> `gapWarnings[]` naming the accounts that landed there — the treatment the error catalogue
+> already prescribes ("Mapping-Lücken sind kein Fehler: gapWarnings[] + Auffangposition") and
+> that `importMapping` already applied. The two statements agree again.
+>
+> `balanceSheet` was deliberately **not** changed. It sums income accounts by type, and that is
+> precisely what makes the balance-sheet identity hold *by construction* (api.md); deriving its
+> result position from a mapping instead would make the identity depend on the mapping being
+> complete. Which also settles `balanceSheet { incomeMapping }`: it stays declared and without
+> effect, because the position it would feed must not be mapping-dependent.
+>
+> The second case below — a depot at 1250 landing under bank balances — is **not** covered by
+> this fix. It is a de-pack range question (`de-bilanz` maps 1200–1399 wholesale), not an engine
+> one, and belongs to the pack.
+
 **Finding (2026-08-15, answering "how many accounts can I create?").** There is no limit on the
 number of accounts (546 created without complaint, `importChartOfAccounts` took 500 in one call)
 and no assumption anywhere of a *single* bank account — several current accounts, call-money and

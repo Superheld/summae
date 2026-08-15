@@ -46,12 +46,12 @@ a short file.
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-014 accounts outside a mapping vanish from the income statement | **OPEN** |
+| NF-014 accounts outside a mapping vanish from the income statement | **RESOLVED 2026-08-15** — `_unassigned` + `gapWarnings[]` (fixture `income-statement-gap`) |
 | NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
 | NF-016 four declared parameters that no implementation reads | **OPEN** — see `implementations/node/SPEC-FINDINGS.md` |
 | **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-014, NF-015, NF-016 and the NF-005 remainder**, plus the
+**Genuinely open today: F-004 (pool period), NF-008, NF-015, NF-016 and the NF-005 remainder**, plus the
 open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
 R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
 
@@ -390,10 +390,11 @@ data-format decision) before either language moves.
   (`50-spezifikation/fehlerkatalog.md`, section `E_INPUT`) and the conformance fixture
   (`core/input-invalid.json`) were written in the knowledge base and mirrored via `make sync` —
   green in both languages on the first run.
-- **NF-014 — accounts outside a mapping's ranges vanish from the income statement** while
-  `balanceSheet`'s result position still counts them, so the two statements disagree. Not a limit
-  on how many accounts you may create (there is none) — a gap between chart and mapping. Full
-  write-up: `implementations/node/SPEC-FINDINGS.md`.
+- **NF-014 — RESOLVED 2026-08-15.** An unmapped account no longer vanishes from the income
+  statement: it goes into the catch-all `_unassigned` and is named in `gapWarnings[]`, the
+  treatment the error catalogue prescribes and `importMapping` already applied. `balanceSheet`
+  stays as it was on purpose — its type-based sum is what makes the identity hold by
+  construction. Full write-up: `implementations/node/SPEC-FINDINGS.md`.
 
 ## NF-015: `packages/laravel` has no tests of its own — gate gap
 

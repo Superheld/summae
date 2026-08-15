@@ -11,6 +11,12 @@ import { integerOr } from './parameters.js';
  * (revenue positive, expense negative); netIncome = sum of the positions.
  * fromPeriod/throughPeriod restrict the range (monthly income statement as BWA basis).
  */
+/** Catch-all key, identical to the one importMapping already assigns (error catalogue). */
+const UNASSIGNED = '_unassigned';
+
+/** Neutral, jurisdiction-free — there is no mapping entry to take a label from. */
+const UNASSIGNED_LABEL = 'Unassigned';
+
 export class IncomeStatementProjection {
   constructor(
     private readonly baseCurrency: Currency,
@@ -40,6 +46,11 @@ export class IncomeStatementProjection {
     const zero = Money.zero(this.baseCurrency);
     const amounts = new Map<string, Money>();
     const touched = new Set<string>();
+    // Accounts the mapping does not cover. A gap is not an error (error catalogue: gapWarnings[]
+    // + catch-all, the same treatment importMapping gives it) — but it must not be silence
+    // either: the amount used to be dropped here while the balance sheet, which sums income
+    // accounts by type, kept counting it. Two reports, same money, different answers, no hint.
+    const gapAccounts = new Set<string>();
 
     for (const entry of this.journal.forFiscalYear(fiscalYear)) {
       const period = entry.periodRef.period;
@@ -49,10 +60,11 @@ export class IncomeStatementProjection {
         const account = this.accounts.byId(line.accountId);
         if (account === null || isBalanceCarrying(account.type)) continue;
         const leaf = mapping.leafFor(account.number.value);
-        if (leaf === null) continue;
+        const key = leaf?.key ?? UNASSIGNED;
+        if (leaf === null) gapAccounts.add(account.number.value);
         const signed = line.side === 'credit' ? line.money : line.money.negate();
-        amounts.set(leaf.key, (amounts.get(leaf.key) ?? zero).add(signed));
-        touched.add(leaf.key);
+        amounts.set(key, (amounts.get(key) ?? zero).add(signed));
+        touched.add(key);
       }
     }
 
@@ -66,6 +78,21 @@ export class IncomeStatementProjection {
       positions.push({ key: leaf.key, label: leaf.label, amount: amount.amountAsString() });
     }
 
-    return { positions, netIncome: netIncome.amountAsString() };
+    // The catch-all comes last and only when it carries something — an empty one would put a
+    // "nothing is missing" line into every report, which is noise rather than information.
+    const unassigned = amounts.get(UNASSIGNED) ?? zero;
+    if (touched.has(UNASSIGNED)) {
+      netIncome = netIncome.add(unassigned);
+      positions.push({ key: UNASSIGNED, label: UNASSIGNED_LABEL, amount: unassigned.amountAsString() });
+    }
+
+    // Sorted by account number (code points) so the list is deterministic; it names the accounts
+    // that actually contributed, which is what a reader of THIS report needs. Whether a mapping
+    // covers every account regardless of postings is importMapping's question, and it answers it.
+    const gapWarnings = [...gapAccounts]
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map((account) => ({ account, assignedTo: UNASSIGNED }));
+
+    return { positions, netIncome: netIncome.amountAsString(), gapWarnings };
   }
 }
