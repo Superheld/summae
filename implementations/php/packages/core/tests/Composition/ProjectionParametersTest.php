@@ -27,6 +27,27 @@ use Summae\Core\Tenant;
 final class ProjectionParametersTest extends TestCase
 {
     /**
+     * `$comment` is documentation, not contract. It is stripped before comparing so a decision can
+     * be recorded on the parameter it concerns — which is where a later reader will look — instead
+     * of drifting into a file nobody opens. Everything else must match exactly.
+     *
+     * @param array<string, array<string, array<string, mixed>>> $projections
+     *
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private function withoutComments(array $projections): array
+    {
+        foreach ($projections as $name => $params) {
+            foreach ($params as $param => $spec) {
+                unset($spec['$comment']);
+                $projections[$name][$param] = $spec;
+            }
+        }
+
+        return $projections;
+    }
+
+    /**
      * @return array<string, array<string, array<string, mixed>>>
      */
     private function schemaProjections(): array
@@ -81,7 +102,7 @@ final class ProjectionParametersTest extends TestCase
 
     public function testDeclaresEveryParameterWithTheSameTypeAndFlagsAsTheSchema(): void
     {
-        self::assertEquals($this->schemaProjections(), ProjectionParameters::PARAMETERS);
+        self::assertEquals($this->withoutComments($this->schemaProjections()), ProjectionParameters::PARAMETERS);
     }
 
     public function testRejectsAnUndeclaredParameterInsteadOfIgnoringIt(): void

@@ -1071,8 +1071,10 @@ tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
 
 ### journalExport — GoBD Z3 export
 
-`fiscalYear` (no; missing = the whole journal), `format` (no, not evaluated;
-`formatVersion` fixed at `"0.4"`). Output: `manifest` (`formatVersion`,
+`fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
+also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
+stream under a wrong label). The manifest's `formatVersion` always states the current
+data-format version, `"0.6"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =

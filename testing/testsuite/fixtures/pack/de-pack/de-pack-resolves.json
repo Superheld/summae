@@ -11,7 +11,7 @@
         "result": {
           "id": "de",
           "version": "2026.1",
-          "accountCount": 40,
+          "accountCount": 41,
           "assetAccounts": { "default": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "6500", "gwgExpenseAccount": "6510", "disposalProceedsAccount": "4900", "disposalLossAccount": "6900" } },
           "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
         }
@@ -20,7 +20,7 @@
     {
       "op": "createTenant",
       "input": { "name": "Mustermann GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 40, "taxationMethod": "cash" } }
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 41, "taxationMethod": "cash" } }
     },
     {
       "op": "postVoucher",

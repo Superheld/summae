@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Jahresgang GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 40 } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 41 } } },
 
     { "op": "postVoucher", "input": {
         "tenant": "$T1", "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-01-10" },

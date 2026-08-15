@@ -1,0 +1,133 @@
+{
+  "fixture": "income-statement-gap",
+  "description": "NF-014: an account outside the income mapping's ranges must not vanish. The income statement dropped it silently (`leafFor` returned null, the line was skipped) while the balance sheet kept counting it, because the balance sheet sums every income account by TYPE — which is what makes the identity hold by construction. The two reports therefore disagreed about the same money, and neither said so. The error catalogue settles the direction: a mapping gap is not an error but `gapWarnings[]` plus the catch-all position `_unassigned`, exactly as `importMapping` already handles it. With the catch-all in place both reports agree again, and the gap is stated instead of hidden. Account 9100 carries revenue and lies outside the mapping's 8000–8999 / 4000–4999; the whole point of the fixture is that it is a plain revenue account nobody thought to map.",
+  "covers": ["F-RP-002"],
+  "setup": {
+    "tenant": { "name": "Lücken GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "9100", "name": "Erlöse aus Nebengeschäften", "type": "revenue" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [{ "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "B-1", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "B-2", "voucherDate": "2026-03-02" },
+      { "id": "$V3", "voucherNumber": "B-3", "voucherDate": "2026-03-03" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        {
+          "id": "gap-guv",
+          "kind": "income-statement",
+          "version": "2026.1",
+          "positions": [
+            { "key": "1", "label": "Umsatzerlöse", "accounts": [{ "from": "8000", "to": "8999" }] },
+            { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "accounts": [{ "from": "4000", "to": "4999" }] }
+          ]
+        },
+        {
+          "id": "gap-bilanz",
+          "kind": "balance-sheet",
+          "version": "2026.1",
+          "positions": [
+            {
+              "key": "A",
+              "label": "Aktiva",
+              "side": "assets",
+              "children": [{ "key": "A.B", "label": "Guthaben bei Kreditinstituten", "accounts": [{ "from": "1200", "to": "1299" }] }]
+            },
+            {
+              "key": "P",
+              "label": "Passiva",
+              "side": "liabilitiesAndEquity",
+              "children": [{ "key": "P.EK", "label": "Eigenkapital (inkl. Jahresergebnis)", "accounts": [], "includesNetIncome": true }]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Erlös auf einem gemappten Konto",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "gemappt" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-02",
+        "voucherId": "$V2",
+        "text": "Erlös auf einem Konto, das niemand gemappt hat",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "250.00", "currency": "EUR" } },
+          { "account": "9100", "side": "credit", "money": { "amount": "250.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "NICHT gemappt — genau dieser Betrag verschwand" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-03",
+        "voucherId": "$V3",
+        "text": "Aufwand auf einem gemappten Konto",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "300.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "gemappt" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "gap-guv" },
+      "expect": {
+        "comment": "Die 250.00 landen in der Auffangposition statt im Nichts. netIncome 1000 + 250 − 300 = 950.00 — vorher 700.00, und die fehlenden 250 waren nirgends sichtbar.",
+        "positions": [
+          { "key": "1", "label": "Umsatzerlöse", "amount": "1000.00" },
+          { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "amount": "-300.00" },
+          { "key": "_unassigned", "label": "Unassigned", "amount": "250.00" }
+        ],
+        "netIncome": "950.00",
+        "gapWarnings": [{ "account": "9100", "assignedTo": "_unassigned" }]
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "gap-bilanz", "incomeMapping": "gap-guv" },
+      "expect": {
+        "comment": "Der Prüfstein: die Bilanz zählte die 250.00 immer schon mit (Summe über Kontotyp, daher geht sie by construction auf). Ihr Jahresergebnis 950.00 stimmt jetzt mit dem netIncome der GuV überein — vorher wichen die beiden Berichte um genau den unabgebildeten Betrag voneinander ab, ohne dass einer davon etwas sagte.",
+        "assets": [{ "key": "A.B", "amount": "950.00" }],
+        "assetsTotal": "950.00",
+        "liabilitiesAndEquity": [{ "key": "P.EK", "amount": "950.00" }],
+        "liabilitiesAndEquityTotal": "950.00"
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "fiscalYear": 2026, "mapping": "gap-guv", "throughPeriod": 3 },
+      "expect": {
+        "comment": "Die Auffangposition gehorcht dem Zeitraumfilter wie jede andere Position auch",
+        "positions": [
+          { "key": "1", "label": "Umsatzerlöse", "amount": "1000.00" },
+          { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "amount": "-300.00" },
+          { "key": "_unassigned", "label": "Unassigned", "amount": "250.00" }
+        ],
+        "netIncome": "950.00"
+      }
+    }
+  ]
+}
