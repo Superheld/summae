@@ -15,7 +15,7 @@
         { "key": "A", "label": "Aktiva", "side": "assets", "children": [
           { "key": "A.I", "label": "Anlagevermögen", "accounts": [ { "from": "0000", "to": "0999" } ] },
           { "key": "A.II", "label": "Forderungen und sonstige Vermögensgegenstände", "accounts": [ { "from": "1400", "to": "1599" } ] },
-          { "key": "A.III", "label": "Kassenbestand und Guthaben bei Kreditinstituten", "accounts": [ { "from": "1200", "to": "1399" } ] },
+          { "key": "A.III", "label": "Kassenbestand und Guthaben bei Kreditinstituten", "accounts": [ { "from": "1200", "to": "1249" }, { "from": "1300", "to": "1349" } ] },
           { "key": "A.IV", "label": "Rechnungsabgrenzungsposten", "accounts": [ { "from": "1900", "to": "1999" } ] }
         ] },
         { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [

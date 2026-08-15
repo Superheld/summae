@@ -1,0 +1,47 @@
+{
+  "fixture": "de-wertpapierdepot",
+  "description": "DE-Pack: ein Wertpapierdepot auf einem selbst angelegten Konto 1250 darf nicht als Bankguthaben ausgewiesen werden. de-bilanz bildete 1200–1399 pauschal auf 'Kassenbestand und Guthaben bei Kreditinstituten' ab, also landete jedes Konto dieser beiden Dekaden dort — auch eines, das nichts mit Liquidität zu tun hat, und zwar ohne jeden Hinweis. Der Rahmen hat 40 Konten und kennt keine Wertpapiere, deshalb ist eine selbst vergebene Nummer der realistische Fall. Die Liquiditätsposition erfasst jetzt 1200–1249 (Bank, Kasse) und 1300–1349 (Geldtransit) — die tatsächlich mitgelieferten Konten —, sodass 1250 in die Auffangposition _unassigned fällt: sichtbar statt falsch einsortiert, und die Bilanz geht weiterhin auf (NF-017). Wer die Position fachlich sauber ausweisen will, ergänzt in seinem eigenen Mapping einen HGB-Posten 'Wertpapiere' — das Pack schreibt ihm keine falsche Zeile mehr vor.",
+  "covers": ["F-CORE-015", "SF-10"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Depot GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } }
+    },
+    {
+      "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "1250", "name": "Wertpapierdepot", "type": "asset" },
+      "expect": { "result": { "number": "1250" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "WP-001", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01",
+        "text": "Wertpapierkauf vom Bankkonto",
+        "lines": [
+          { "account": "1250", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "5000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "Umschichtung: Bank raus, Depot rein" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "comment": "Die 5000.00 stehen unter _unassigned, NICHT unter A.III. Vorher zeigte A.III 0.00 (−5000 Bank +5000 Depot) und das Depot war als Bankguthaben ausgewiesen, ohne dass es irgendwo stand.",
+        "assets": [
+          { "key": "A.III", "label": "Kassenbestand und Guthaben bei Kreditinstituten", "amount": "-5000.00" },
+          { "key": "_unassigned", "label": "Unassigned", "amount": "5000.00" }
+        ],
+        "assetsTotal": "0.00",
+        "gapWarnings": [{ "account": "1250", "assignedTo": "_unassigned" }]
+      }
+    }
+  ]
+}
