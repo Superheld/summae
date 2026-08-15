@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\Policies\Projection\Mapping\Unassigned;
 use Summae\Core\DomainError;
 use Summae\Core\Substrate\Side;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
@@ -22,12 +23,6 @@ use Summae\Core\Substrate\Money;
  */
 final readonly class IncomeStatementProjection
 {
-    /** Catch-all key, identical to the one importMapping already assigns (error catalogue). */
-    private const string UNASSIGNED = '_unassigned';
-
-    /** Neutral, jurisdiction-free — there is no mapping entry to take a label from. */
-    private const string UNASSIGNED_LABEL = 'Unassigned';
-
     public function __construct(
         private Currency $baseCurrency,
         private AccountRepository $accounts,
@@ -85,7 +80,7 @@ final readonly class IncomeStatementProjection
                 }
 
                 $leaf = $mapping->leafFor($account->number->value);
-                $key = $leaf['key'] ?? self::UNASSIGNED;
+                $key = $leaf['key'] ?? Unassigned::KEY;
 
                 if ($leaf === null) {
                     $gapAccounts[$account->number->value] = true;
@@ -117,12 +112,12 @@ final readonly class IncomeStatementProjection
 
         // The catch-all comes last and only when it carries something — an empty one would put a
         // "nothing is missing" line into every report, which is noise rather than information.
-        if (isset($touched[self::UNASSIGNED])) {
-            $unassigned = $amounts[self::UNASSIGNED] ?? $zero;
+        if (isset($touched[Unassigned::KEY])) {
+            $unassigned = $amounts[Unassigned::KEY] ?? $zero;
             $netIncome = $netIncome->add($unassigned);
             $positions[] = [
-                'key' => self::UNASSIGNED,
-                'label' => self::UNASSIGNED_LABEL,
+                'key' => Unassigned::KEY,
+                'label' => Unassigned::LABEL,
                 'amount' => $unassigned->amountAsString(),
             ];
         }
@@ -138,7 +133,7 @@ final readonly class IncomeStatementProjection
 
         $gapWarnings = [];
         foreach ($gaps as $account) {
-            $gapWarnings[] = ['account' => $account, 'assignedTo' => self::UNASSIGNED];
+            $gapWarnings[] = ['account' => $account, 'assignedTo' => Unassigned::KEY];
         }
 
         return [

@@ -1,4 +1,5 @@
 import { DomainError } from '../../domain-error.js';
+import { UNASSIGNED, UNASSIGNED_LABEL } from './mapping/unassigned.js';
 import { leafMatches } from './mapping/mapping.js';
 import type { MappingRegistry } from './mapping/mapping-registry.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
@@ -52,6 +53,10 @@ export class BalanceSheetProjection {
     const debits = new Map<string, Money>();
     const credits = new Map<string, Money>();
     const touchedAccounts = new Set<string>();
+    // Which side an account belongs on when no position claims it. Taken from the account TYPE,
+    // which is jurisdiction-free and always present — the mapping cannot answer it, since the
+    // whole problem is that the mapping says nothing about this account.
+    const sectionOf = new Map<string, Section>();
     let netIncome = zero;
 
     for (const entry of this.journal.all()) {
@@ -69,6 +74,7 @@ export class BalanceSheetProjection {
         }
 
         const key = account.number.value;
+        sectionOf.set(key, account.type === 'asset' ? 'assets' : 'liabilitiesAndEquity');
         if (line.side === 'debit') debits.set(key, (debits.get(key) ?? zero).add(line.money));
         else credits.set(key, (credits.get(key) ?? zero).add(line.money));
         touchedAccounts.add(key);
@@ -78,6 +84,11 @@ export class BalanceSheetProjection {
     const allNumbers = new Set<string>([...debits.keys(), ...credits.keys()]);
     const sections: Record<Section, Array<Record<string, string>>> = { assets: [], liabilitiesAndEquity: [] };
     const totals: Record<Section, Money> = { assets: zero, liabilitiesAndEquity: zero };
+
+    // An account no position matches used to be visited by nobody: the loop below runs over the
+    // POSITIONS and pulls what each one matches, so an unmatched account landed in neither total
+    // and the sheet stopped balancing without saying so.
+    const unmatched = [...allNumbers].filter((number) => !mapping.leaves.some((leaf) => leafMatches(leaf, number)));
 
     for (const leaf of mapping.leaves) {
       const section: Section = leaf.side === 'liabilitiesAndEquity' ? 'liabilitiesAndEquity' : 'assets';
@@ -106,11 +117,35 @@ export class BalanceSheetProjection {
       totals[section] = totals[section].add(amount);
     }
 
+    // The catch-all per section, appended last and only when it carries something. Amounts follow
+    // the same sign rule as the section they land in, so the identity holds again.
+    for (const section of ['assets', 'liabilitiesAndEquity'] as const) {
+      let amount = zero;
+      let touched = false;
+
+      for (const number of unmatched) {
+        if ((sectionOf.get(number) ?? 'assets') !== section) continue;
+        const debit = debits.get(number) ?? zero;
+        const credit = credits.get(number) ?? zero;
+        amount = section === 'assets' ? amount.add(debit).subtract(credit) : amount.add(credit).subtract(debit);
+        touched = touched || touchedAccounts.has(number);
+      }
+
+      if (!touched) continue;
+      sections[section].push({ key: UNASSIGNED, label: UNASSIGNED_LABEL, amount: amount.amountAsString() });
+      totals[section] = totals[section].add(amount);
+    }
+
+    const gapWarnings = unmatched
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map((account) => ({ account, assignedTo: UNASSIGNED }));
+
     return {
       assets: sections.assets,
       assetsTotal: totals.assets.amountAsString(),
       liabilitiesAndEquity: sections.liabilitiesAndEquity,
       liabilitiesAndEquityTotal: totals.liabilitiesAndEquity.amountAsString(),
+      gapWarnings,
     };
   }
 }

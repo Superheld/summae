@@ -501,6 +501,41 @@ carries neither `text` nor `lines` (which is what a misspelled `txt` amounts to)
 `testing/scenarios/regression/input-validation.json`, each rejection paired with a positive case so the
 guards cannot forbid too much.
 
+## NF-017 — an unmapped balance account made the balance sheet stop balancing
+
+> **RESOLVED 2026-08-15** (fixture `balance-sheet-gap`, both languages).
+
+**Finding (2026-08-15, while fixing NF-014).** `balanceSheet` iterates over the mapping's
+**positions** and pulls the accounts each one matches. An account no position matches is therefore
+never visited: its amount lands in neither total, and the sheet silently fails to balance.
+
+```
+accounts 1200 (bank, mapped) · 2600 (securities, NOT mapped) · 3000 (payables, mapped)
+post 5000.00: 2600 debit / 3000 credit
+report balanceSheet
+  → assetsTotal "0.00"   liabilitiesAndEquityTotal "5000.00"     ← off by the whole amount
+  → positions: only P.V — the asset is not in the report at all
+```
+
+This is worse than NF-014, where the two statements merely disagreed. Here a single statement is
+internally inconsistent, and it is the statement whose defining property is that both sides match.
+
+**What `by construction` actually covers.** api.md promises the balance-sheet identity "by
+construction", and while fixing NF-014 I took that to mean the whole sheet. It does not. The
+*result position* is by construction: it sums income accounts by TYPE, no mapping involved, so no
+income account can escape it. The *asset and liability side* is a different mechanism — it is
+mapping-driven, and its completeness was assumed rather than enforced.
+
+**Resolution.** The same treatment as NF-014, which is also the one the error catalogue
+prescribes: a catch-all position `_unassigned` per section plus `gapWarnings[]`. The section is
+chosen by account **type** (asset → assets, everything else balance-carrying →
+liabilitiesAndEquity), which is jurisdiction-free and always available; the mapping cannot answer
+the question, since the whole problem is that it says nothing about this account.
+
+The catch-all is deliberately not a licence to skip mapping work: `importMapping` still reports
+every uncovered account at import time, and the position appears in the report whenever it carries
+something, so the gap is visible rather than absorbed.
+
 ## NF-014 — accounts outside a mapping's ranges vanish from the income statement
 
 > **RESOLVED 2026-08-15** (fixture `income-statement-gap`, both languages). The income statement

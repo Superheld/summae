@@ -5,18 +5,13 @@ import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
 import { integerOr } from './parameters.js';
+import { UNASSIGNED, UNASSIGNED_LABEL } from './mapping/unassigned.js';
 
 /**
  * Income statement as a projection over a mapping (SF-09). Sign: credit − debit
  * (revenue positive, expense negative); netIncome = sum of the positions.
  * fromPeriod/throughPeriod restrict the range (monthly income statement as BWA basis).
  */
-/** Catch-all key, identical to the one importMapping already assigns (error catalogue). */
-const UNASSIGNED = '_unassigned';
-
-/** Neutral, jurisdiction-free — there is no mapping entry to take a label from. */
-const UNASSIGNED_LABEL = 'Unassigned';
-
 export class IncomeStatementProjection {
   constructor(
     private readonly baseCurrency: Currency,

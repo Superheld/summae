@@ -1,4 +1,5 @@
 import { DomainError } from '../../../domain-error.js';
+import { UNASSIGNED } from './unassigned.js';
 import type { AccountRepository } from '../../../port.js';
 import { isBalanceCarrying } from '../../../substrate/types.js';
 import { leafMatches, Mapping } from './mapping.js';
@@ -37,7 +38,7 @@ export class MappingImporter {
         );
       }
       if (matches.length === 0) {
-        gapWarnings.push({ account: account.number.value, assignedTo: '_unassigned' });
+        gapWarnings.push({ account: account.number.value, assignedTo: UNASSIGNED });
       }
     }
 
