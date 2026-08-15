@@ -26,6 +26,17 @@ export class BalanceSheetProjection {
   compute(params: Record<string, unknown>): Record<string, unknown> {
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
     const mappingId = typeof params.mapping === 'string' ? params.mapping : '';
+    // `fiscalYear` used to be read by nobody here: the handbook, the cheat sheet and the
+    // gated scenarios all passed it, and the projection silently reported the whole journal
+    // instead — two different years returned byte-identical balance sheets.
+    //
+    // It scopes CUMULATIVELY (everything up to and including that year), i.e. "as at the end
+    // of fiscal year N", not "movements of year N". A balance sheet is a snapshot and must
+    // balance; applying trialBalance's G1 rule here (income accounts restart each year) tears
+    // a hole exactly the size of the prior year's result, because summae deliberately writes
+    // no closing entries (`closeFiscalYear` is a pure status change), so that result was never
+    // carried into equity. Cumulative keeps assets == liabilities+equity in every year.
+    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
 
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
@@ -40,6 +51,9 @@ export class BalanceSheetProjection {
 
     for (const entry of this.journal.all()) {
       if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
+      const entryYear = entry.periodRef.fiscalYear;
+      if (fiscalYear !== null && entryYear > fiscalYear) continue;
+
       for (const line of entry.lines()) {
         const account = this.accounts.byId(line.accountId);
         if (account === null) continue;

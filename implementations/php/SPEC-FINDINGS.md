@@ -43,6 +43,8 @@ a short file.
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
+| NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
+| NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 
 **Genuinely open today: F-004 (pool period), NF-006, NF-007, NF-008, and the NF-005 remainder.**
 
@@ -354,4 +356,18 @@ data-format decision) before either language moves.
   `".5"` likewise — and `"+10.00"` was accepted here while Node rejected it, a second
   substrate divergence after NF-009. `Money::of` now matches the string against the
   data-format expression before parsing; `fromCalculation` is untouched. Full write-up:
+  `implementations/node/SPEC-FINDINGS.md`.
+
+- **NF-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
+  2026-08-15.** `Ledger.php:706` stored whatever the caller sent; the VAT return is built from
+  those tags, so an invented `reportingKey` became a line of a statutory return at exit 0.
+  A tag whose `code` is set must now resolve in the `TaxCodeRegistry` (`E_TAXCODE_UNKNOWN`,
+  existing code). **PHP needed the registry wired in twice** — `DatabaseTenantFactory.php:78`
+  duplicates the ledger construction from `Tenant.php:96`, where Node has one path; worth
+  removing that duplication separately.
+- **NF-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED 2026-08-15.** Two different
+  years returned byte-identical sheets, while the cheat sheet and the gated scenarios both
+  passed the parameter. It now scopes cumulatively ("as at the end of year N"); mirroring
+  trialBalance's G1 rule was tried first and left the sheet unbalanced by exactly the prior
+  year's result, because summae writes no closing entries. Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.

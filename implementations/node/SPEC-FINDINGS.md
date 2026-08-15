@@ -21,6 +21,8 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
+| NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
+| NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 
 **Genuinely open today: NF-006, NF-007, NF-008 and the NF-005 remainder** (plus F-004's
 hard-coded low-value-asset pool period, recorded on the PHP side).
@@ -348,3 +350,57 @@ The schema was the arbiter here, not taste: it already declared the format, and 
 were simply not enforcing what the exported data promises. Pinned by the same accepted/rejected
 tables in `money.test.ts` and `MoneyTest.php`. All 86 fixtures green in both languages against
 both subjects, SF-15 cross 45/45 both directions — no fixture used any of the loose forms.
+
+## NF-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
+
+**Finding (2026-08-15, adversarial probing of the write path).** `postVoucher` builds tax tags
+through the `TaxCodeRegistry`, so a wrong code is `E_TAXCODE_UNKNOWN`. The direct `post` path
+took whatever the caller supplied (`ledger.ts:577` / `Ledger.php:706`: `isRecord(rawLine.taxTag)
+? rawLine.taxTag : null`) — no registry lookup, no check of `reportingKey`, `appliedVersion` or
+`baseMoney`. Stored verbatim, and the VAT return is built **from these tags, never from account
+numbers**:
+
+```
+op post --input '{… "taxTag":{"code":"MADEUP","reportingKey":"4711","baseMoney":{"amount":"999999.00", …}}}'
+  → exit 0
+report vatReturn --params '{"year":2026,"quarter":0}'
+  → {"keys":{"4711":{"base":"-1.00","tax":"0.00"}, …}}
+```
+
+An invented reporting key and an unregistered tax code became line items of a statutory return,
+at exit 0. The sharpest hole found in this round.
+
+**Resolution.** A caller-supplied tag whose `code` is a non-empty string must resolve in the
+`TaxCodeRegistry`; otherwise `E_TAXCODE_UNKNOWN` (the existing catalogue code — no append). Tags
+built internally by the tax expansion come from the registry and pass unchanged; `reverse`
+copies `EntryLine` objects and never goes through this path. The registry had to be wired into
+the ledger in both languages; PHP needed it in **two** places, because
+`DatabaseTenantFactory.php` duplicates the ledger construction that `Tenant.php` also does —
+Node has a single construction path. That duplication is worth removing separately.
+
+Pinned by `docs/handbuch/examples/scenarios/regressions.json` (fabricated code rejected with
+exit 32; a tag naming a *registered* code still posts, so the guard checks the registry rather
+than forbidding tags).
+
+## NF-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED
+
+**Finding (2026-08-15, probing the read path).** `balance-sheet.ts` read only `asOf` and
+`mapping`. `fiscalYear` was accepted and discarded, so **two different years returned
+byte-identical balance sheets** over a two-year journal. The handbook cheat sheet lists
+`balanceSheet` in the `fiscalYear` row, and — worse — the gated walkthrough scenarios pass
+`fiscalYear` to it (`de.json`, `us.json`), so the documentation endorsed a parameter that did
+nothing. The gate could not catch it: every scenario had exactly one fiscal year.
+
+**Resolution.** `fiscalYear` now scopes the projection **cumulatively** — everything up to and
+including that year, i.e. "as at the end of fiscal year N".
+
+The first attempt mirrored `trialBalance` (income accounts restart each year, G1) and produced
+a sheet that **did not balance** in year two: assets 3570.00 against equity+liabilities 2570.00,
+a hole exactly the size of the prior year's result. That is correct behaviour for a trial
+balance and wrong for a balance sheet, because summae deliberately writes **no closing entries**
+(`closeFiscalYear` is a pure status change), so a prior year's result was never carried into
+equity. Cumulative scoping keeps assets == liabilities+equity in every year, and for a system
+without closing entries the cumulative result *is* the equity delta.
+
+Pinned by `regressions.json`, the first scenario that spans two fiscal years — 2026 → 1190.00,
+2027 → 3570.00, both balancing.

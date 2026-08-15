@@ -210,6 +210,9 @@ final class WalkthroughTest extends TestCase
                 $covered[] = $init['pack'];
             }
         }
+        // A pack may back several scenarios (the lifecycle one plus regression guards), so
+        // compare the SET of covered packs, not the list.
+        $covered = array_values(array_unique($covered));
         sort($covered);
 
         self::assertSame($packs, $covered, 'a pack without a walkthrough scenario is an untested offer');

@@ -36,7 +36,7 @@ final readonly class BalanceSheetProjection
     }
 
     /**
-     * @param array<string, mixed> $params asOf, mapping, incomeMapping?
+     * @param array<string, mixed> $params asOf, fiscalYear, mapping, incomeMapping?
      *
      * @return array<string, mixed>
      */
@@ -44,6 +44,17 @@ final readonly class BalanceSheetProjection
     {
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
         $mappingId = is_string($params['mapping'] ?? null) ? $params['mapping'] : '';
+        // `fiscalYear` used to be read by nobody here: the handbook, the cheat sheet and the
+        // gated scenarios all passed it, and the projection silently reported the whole journal
+        // instead — two different years returned byte-identical balance sheets.
+        //
+        // It scopes CUMULATIVELY (everything up to and including that year), i.e. "as at the end
+        // of fiscal year N", not "movements of year N". A balance sheet is a snapshot and must
+        // balance; applying trialBalance's G1 rule here (income accounts restart each year) tears
+        // a hole exactly the size of the prior year's result, because summae deliberately writes
+        // no closing entries (`closeFiscalYear` is a pure status change), so that result was never
+        // carried into equity. Cumulative keeps assets == liabilities+equity in every year.
+        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : null;
 
         $mapping = $this->mappings->byId($mappingId)
             ?? throw new DomainError('E_MAPPING_OVERLAP', sprintf('Mapping "%s" is not loaded', $mappingId));
@@ -60,6 +71,10 @@ final readonly class BalanceSheetProjection
 
         foreach ($this->journal->all() as $entry) {
             if ($asOf !== null && $entry->entryDate->isAfter($asOf)) {
+                continue;
+            }
+
+            if ($fiscalYear !== null && $entry->periodRef->fiscalYear > $fiscalYear) {
                 continue;
             }
 

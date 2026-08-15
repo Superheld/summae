@@ -136,6 +136,7 @@ export class Tenant {
       dimensions,
       clock,
       ids,
+      taxCodes,
     );
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity);
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);

@@ -19,6 +19,7 @@ import { PeriodRef } from '../substrate/period-ref.js';
 import { Uuid } from '../substrate/uuid.js';
 import { Account } from '../substrate/account.js';
 import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
+import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { EntryLine } from '../substrate/entry-line.js';
 import { FiscalYear } from '../substrate/fiscal-year.js';
@@ -73,6 +74,7 @@ export class Ledger {
     private readonly dimensions: DimensionRegistry,
     private readonly clock: Clock,
     private readonly ids: IdGenerator,
+    private readonly taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
   ) {}
 
   post(input: Record<string, unknown>): PostResult {
@@ -574,7 +576,15 @@ export class Ledger {
       dimensions.push(DimensionValue.of(rawDimension.type, rawDimension.code));
     }
 
+    // A caller-supplied taxTag must name a REGISTERED tax code. The VAT return is built
+    // from these tags, never from account numbers, so an unvalidated tag writes straight
+    // into statutory output: `post` used to accept `{"code":"MADEUP","reportingKey":"4711"}`
+    // and the invented key showed up as a line of the return. `postVoucher` always went
+    // through the registry; the direct `post` path did not.
     const taxTag = isRecord(rawLine.taxTag) ? rawLine.taxTag : null;
+    if (taxTag !== null && typeof taxTag.code === 'string' && taxTag.code !== '') {
+      this.taxCodes.get(taxTag.code);
+    }
 
     return { account, side, money: parsedMoney, dimensions, taxTag };
   }
