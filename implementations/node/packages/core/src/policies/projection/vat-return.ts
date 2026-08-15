@@ -14,6 +14,7 @@ import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { OpenItem } from '../../records/open-item.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 import type { TaxProfile } from '../expansion/tax/tax-profile.js';
+import { integerOr } from './parameters.js';
 
 interface KeyAmount {
   base: Money;
@@ -43,8 +44,8 @@ export class VatReturnProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const year = typeof params.year === 'number' ? params.year : 0;
-    const quarter = typeof params.quarter === 'number' ? params.quarter : 0;
+    const year = integerOr(params.year, 0);
+    const quarter = integerOr(params.quarter, 0);
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
 
     const zero = Money.zero(this.baseCurrency);

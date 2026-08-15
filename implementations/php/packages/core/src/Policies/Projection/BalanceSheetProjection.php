@@ -54,7 +54,7 @@ final readonly class BalanceSheetProjection
         // a hole exactly the size of the prior year's result, because summae deliberately writes
         // no closing entries (`closeFiscalYear` is a pure status change), so that result was never
         // carried into equity. Cumulative keeps assets == liabilities+equity in every year.
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : null;
+        $fiscalYear = Parameters::integerOrNull($params['fiscalYear'] ?? null);
 
         // A missing or unknown mapping is a caller mistake, not an overlap: reporting it as
         // E_MAPPING_OVERLAP (the code for two positions claiming the same account) sent operators

@@ -3,6 +3,7 @@ import type { Currency } from '../../substrate/currency.js';
 import type { EntryLine } from '../../substrate/entry-line.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import { Money } from '../../substrate/money.js';
+import { integerOrNull } from './parameters.js';
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
@@ -28,7 +29,7 @@ export class AuditDataExportProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
+    const fiscalYear = integerOrNull(params.fiscalYear);
     const inScope = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
     const prior =
       fiscalYear === null ? [] : this.journal.all().filter((entry) => entry.periodRef.fiscalYear < fiscalYear);

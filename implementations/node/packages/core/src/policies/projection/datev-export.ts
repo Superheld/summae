@@ -8,6 +8,7 @@ import type {
 import type { EntryLine } from '../../substrate/entry-line.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
+import { integerOr, integerOrNull } from './parameters.js';
 
 const TAX_SUBTYPES = new Set(['tax_in', 'tax_out']);
 const DATEV_KINDS: ReadonlySet<string> = new Set(['entries', 'accounts', 'partners']);
@@ -54,9 +55,9 @@ export class DatevExportProjection {
   }
 
   private entryRows(params: Record<string, unknown>): Array<Record<string, unknown>> {
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
-    const fromPeriod = typeof params.fromPeriod === 'number' ? params.fromPeriod : 1;
-    const throughPeriod = typeof params.throughPeriod === 'number' ? params.throughPeriod : Number.MAX_SAFE_INTEGER;
+    const fiscalYear = integerOrNull(params.fiscalYear);
+    const fromPeriod = integerOr(params.fromPeriod, 1);
+    const throughPeriod = integerOr(params.throughPeriod, Number.MAX_SAFE_INTEGER);
 
     const entries = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
     const rows: Array<Record<string, unknown>> = [];

@@ -34,8 +34,8 @@ final readonly class EcSalesListProjection
      */
     public function compute(array $params): array
     {
-        $year = is_int($params['year'] ?? null) ? $params['year'] : 0;
-        $quarter = is_int($params['quarter'] ?? null) ? $params['quarter'] : 0;
+        $year = Parameters::integerOr($params['year'] ?? null, 0);
+        $quarter = Parameters::integerOr($params['quarter'] ?? null, 0);
 
         $intraCommunityKeys = [];
         foreach ($this->registry->allVersions() as $version) {

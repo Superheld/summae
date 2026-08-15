@@ -3,6 +3,7 @@ import { Money } from '../../substrate/money.js';
 import type { Currency } from '../../substrate/currency.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 import { mechanismFor } from '../expansion/tax/tax-mechanisms.js';
+import { integerOr } from './parameters.js';
 
 /**
  * EC sales list basis (v0.4, SF-21): intra-community supplies per VAT ID and
@@ -18,8 +19,8 @@ export class EcSalesListProjection {
   ) {}
 
   compute(params: Record<string, unknown>): { rows: Array<Record<string, string>> } {
-    const year = typeof params.year === 'number' ? params.year : 0;
-    const quarter = typeof params.quarter === 'number' ? params.quarter : 0;
+    const year = integerOr(params.year, 0);
+    const quarter = integerOr(params.quarter, 0);
 
     const intraCommunityKeys = new Set<string>();
     for (const version of this.registry.allVersions()) {

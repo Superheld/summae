@@ -49,6 +49,9 @@ Current inventory (see `git ls-files '*test*'` for the live list):
 - **Projections** — `TrialBalanceTest`, `AuditDataExportTest` / `audit-data-export.test.ts`
 - **Contract surface** — `TenantOperationsContractTest` / `tenant-operations-contract.test.ts`:
   every operation and projection named in the API spec must resolve to a handler
+- **Parameter contract** — `ProjectionParametersTest` / `projection-parameters.test.ts`: the
+  parameter table each core carries as a constant must equal `testsuite/schema/api-parameters.json`
+  (the core reads no files, so the copy needs a guard against drift)
 - **Architecture guards** — `SubstrateBoundaryTest`, `DeterminismBoundaryTest` (no wall clock or
   RNG in the core), `no-jurisdiction-text.test.ts` (no statute citations in the core)
 - **Non-functional** — `NfConcurrencyPerformanceTest` / `nf-concurrency-performance.test.ts`
@@ -112,6 +115,7 @@ engines, one truth.
 | something only reachable through the CLI | a scenario in `testing/scenarios/` (§ 3) |
 | a fixed bug | `testing/scenarios/regression/` (§ 3) — plus a unit test if it has a natural unit |
 | a new shipped pack | `testing/scenarios/walkthrough/` (§ 3), or the guard test fails |
+| a projection parameter (new, renamed, retyped) | `testsuite/schema/api-parameters.json` in the knowledge base, then both parameter tables (§ 1) |
 | persistence or serialisation | the cross test (§ 4) |
 
 ## Definition of Green

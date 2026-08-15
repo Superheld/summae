@@ -24,10 +24,11 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ⚠ knowledge base entry still to be written |
 
-**Genuinely open today: NF-008 and the NF-005 remainder** (plus F-004's hard-coded low-value-asset
-pool period, recorded on the PHP side), and the further defects listed under "Round 1 backlog" at
+**Genuinely open today: NF-008, NF-016 and the NF-005 remainder** (plus F-004's hard-coded
+low-value-asset pool period and NF-015's untested Laravel adapter, both recorded on the PHP side), and the further defects listed under "Round 1 backlog" at
 the end of this file.
 
 ## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
@@ -445,6 +446,28 @@ posting looks entirely ordinary in every report.
 value is `E_INPUT_INVALID`. Pinned in `testing/scenarios/regression/regressions.json` together with both
 positive cases — the default still works, and lower-case `"input"` still books the right way
 round.
+
+## NF-016 — four declared parameters that no implementation reads
+
+**Finding (2026-08-15, while implementing the projection parameter contract).** Building the
+contract made visible what a tolerant reader had hidden: four parameters are passed by existing
+fixtures and read by nobody. They are declared in
+`testing/testsuite/schema/api-parameters.json` with `acceptedWithoutEffect: true`, which is what
+keeps those fixtures green now that an undeclared parameter is rejected.
+
+| Projection | Parameter | What a caller would expect |
+|---|---|---|
+| `balanceSheet` | `incomeMapping` | the mapping used for the result position — today the sheet uses only `mapping` |
+| `journalExport` | `format` | a choice of output format — today there is exactly one (GoBD Z3) |
+| `costAllocationSheet` | `fiscalYear` | scoping the sheet to a year — today only `runId` selects |
+| `costAllocationSheet` | `period` | scoping the sheet to a period — same |
+
+**Assessment.** The flag is a marker, not a feature: it says "declared so it is visible", not
+"works". Each is a small trap of its own kind — a caller who passes `format: "csv"` gets Z3 and no
+word about it. The honest fix is one of two things per parameter, and both are decisions rather
+than code: **implement** it, or **retire** it in a new fixture (fixtures are append-only, so the
+existing ones are not bent). Deliberately left as-is here; the flag is what keeps the gap
+readable in the meantime.
 
 ## Round 1 backlog — probed and confirmed (R-5 … R-7 fixed, the rest open)
 

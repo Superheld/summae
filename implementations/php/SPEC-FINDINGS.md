@@ -48,9 +48,10 @@ a short file.
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-014 accounts outside a mapping vanish from the income statement | **OPEN** |
 | NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
+| NF-016 four declared parameters that no implementation reads | **OPEN** — see `implementations/node/SPEC-FINDINGS.md` |
 | **`E_INPUT_INVALID` added** | exit code 45 — ⚠ knowledge-base entry still to be written |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-014, NF-015 and the NF-005 remainder**, plus the
+**Genuinely open today: F-004 (pool period), NF-008, NF-014, NF-015, NF-016 and the NF-005 remainder**, plus the
 open part of the "Round 1 backlog" in `implementations/node/SPEC-FINDINGS.md` (R-1 … R-4, R-8 …
 R-12; the input-validation trio R-5 … R-7 was fixed on 2026-08-15 in both languages).
 

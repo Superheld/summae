@@ -79,7 +79,7 @@ A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+
 once at creation, pinned. Legacy term „rule module" = pack (avoid); **base** = the core, account-less.
 
 *Built:* `PackResolver` (byte-equal PHP↔Node), loader, `createTenant(pack:"…")`, CLI `summae init --pack …`,
-packs `default` + `de`.
+packs `default`, `de` + `us`.
 
 > **Deeper (annotated):** `kind`→policy kind + module rules → `pack-library/CLAUDE.md` · engine bundle
 > (`ruleModules`/`packPolicy`), target-vs-actual + open *closed/open* question → `core/src/CLAUDE.md` · full model
@@ -174,7 +174,7 @@ requirement **without** a test is itself a finding (belongs on the gate-gap list
 **Contracts get their own validating test — nothing is silently swallowed.** Behavioral
 fixture coverage is necessary but not sufficient: every *contract surface* must have a test
 that fails loudly when the contract is broken, so authoring mistakes can't slip through
-unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligations:
+unnoticed (a misspelled field, an undeclared key, a routing gap). Four obligations:
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
    streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
@@ -186,10 +186,9 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Three obligati
 4. **The user documentation is gated.** The walkthrough scenarios (`testing/scenarios/walkthrough/*.json` —
    one per *shipped configuration*: each pack plus a free `rules.json`) drive a complete lifecycle
    through the **CLI** in both languages with their numbers pinned; fixed defects are pinned the same
-   way in `testing/scenarios/regression/`. **Ship a new pack ⇒ add a scenario** (a guard test fails otherwise).
-   Documentation that stops being true must turn a build red, not rot on the page.
-   **Where every kind of test lives and which one to write: `testing/README.md`.** They cover what the fixtures cannot reach: the CLI surface, the workspace, the pack library,
-   and the documented parameter names. **Ship a new pack ⇒ add a scenario** (a guard test fails
-   otherwise). Documentation that stops being true must turn a build red, not rot on the page.
+   way in `testing/scenarios/regression/`. They cover what the fixtures cannot reach: the CLI surface,
+   the workspace, the pack library, and the documented parameter names. **Ship a new pack ⇒ add a
+   scenario** (a guard test fails otherwise). Documentation that stops being true must turn a build
+   red, not rot on the page. **Where every kind of test lives and which one to write: `testing/README.md`.**
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.

@@ -40,7 +40,7 @@ final readonly class AuditDataExportProjection
      */
     public function compute(array $params): array
     {
-        $fiscalYear = is_int($params['fiscalYear'] ?? null) ? $params['fiscalYear'] : null;
+        $fiscalYear = Parameters::integerOrNull($params['fiscalYear'] ?? null);
         $inScope = $fiscalYear === null ? $this->journal->all() : $this->journal->forFiscalYear($fiscalYear);
         $prior = $fiscalYear === null ? [] : array_values(array_filter(
             $this->journal->all(),

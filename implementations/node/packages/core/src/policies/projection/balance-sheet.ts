@@ -6,6 +6,7 @@ import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
+import { integerOrNull } from './parameters.js';
 
 type Section = 'assets' | 'liabilitiesAndEquity';
 
@@ -36,7 +37,7 @@ export class BalanceSheetProjection {
     // a hole exactly the size of the prior year's result, because summae deliberately writes
     // no closing entries (`closeFiscalYear` is a pure status change), so that result was never
     // carried into equity. Cumulative keeps assets == liabilities+equity in every year.
-    const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
+    const fiscalYear = integerOrNull(params.fiscalYear);
 
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
