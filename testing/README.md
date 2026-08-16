@@ -81,7 +81,14 @@ The knowledge base is **not under version control**, so there is no undo. Adding
 safe; before changing an existing one, drop a copy into `../archiv/`.
 
 `runner/expected-green.txt` (per implementation) lists the fixtures that must stay green —
-a regression guard for CI independent of `--strict`.
+a regression guard for CI independent of `--strict`. A new fixture goes into **both** lists
+(PHP *and* Node), otherwise `ConformanceTest` fails on the language you did not touch.
+
+**Before writing a fixture, read a neighbouring one.** The setup keys are not uniform:
+`ruleModule` (singular) and `ruleModules` both work, but `dimensionTypes`/`dimensionValues` sit
+directly in `setup` while `dimensionRules` sits in the rule module; the acquisition field is
+`acquisitionCost`, not `cost`; `assetRegister` takes `asOf`, not `fiscalYear`. `expect` is a
+subset comparison, and a trial balance keeps a row that moved even when its balance is `0.00`.
 
 ## 3. CLI scenarios — `testing/scenarios/`, read by both languages
 
