@@ -498,9 +498,10 @@ The full catalogue of 35 codes is in handbook § 9.
 
 ## 12. Parameter cheat sheet
 
-Projection parameter names are **not** uniform, and getting one wrong is the
-most likely way to see an empty or wrong-looking report. The authoritative
-names:
+Projection parameter names are **not** uniform. Getting one wrong no longer gives
+you a plausible-looking empty report, though: each projection declares its
+parameters and the dispatcher checks them before routing, so an undeclared name
+comes back as `E_INPUT_INVALID` (exit code 45) instead. The authoritative names:
 
 | Projection | Period parameters |
 |---|---|

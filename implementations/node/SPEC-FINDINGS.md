@@ -27,7 +27,9 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**No findings are open today.** Four closed on 2026-08-16, all written up on the PHP side —
+| NF-018 four error codes have no exit code | **OPEN** (2026-08-16) — `E_SETTLEMENT_EXCEEDS_ENTRY` + the three pack codes fall through to exit `1`; write-up on the PHP side |
+
+Four findings closed on 2026-08-16, all written up on the PHP side —
 including **NF-015**, which turned out to matter here too: giving the persistence adapters their own
 suites showed that every `byId`, `byOriginEntry` and `save` in **both** `packages/knex` and PHP's
 `packages/laravel` ignored `tenant_id`, so a repository built for one tenant handed out and wrote
