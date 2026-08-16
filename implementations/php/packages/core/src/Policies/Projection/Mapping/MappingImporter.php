@@ -54,7 +54,7 @@ final readonly class MappingImporter
             }
 
             if ($matches === []) {
-                $gapWarnings[] = ['account' => $account->number->value, 'assignedTo' => '_unassigned'];
+                $gapWarnings[] = ['account' => $account->number->value, 'assignedTo' => Unassigned::KEY];
             }
         }
 

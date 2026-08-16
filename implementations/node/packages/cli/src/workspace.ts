@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   Currency,
   DimensionRegistry,
+  DomainError,
   type DimensionRuleData,
   type DimensionTypeData,
   type DimensionValueData,
@@ -32,6 +33,27 @@ function recordList(v: unknown): Record<string, unknown>[] {
  * Each invocation loads the tenant, runs, the database persists.
  * Counterpart to PHP's `Summae\Cli\Workspace`.
  */
+
+/**
+ * A workspace file is a contract, not a suggestion: a missing or unusable field is reported rather
+ * than replaced by something plausible.
+ */
+function requireString(config: Record<string, unknown>, field: string): string {
+  const value = config[field];
+  if (typeof value !== 'string' || value === '') {
+    throw new DomainError('E_WORKSPACE_INVALID', `summae.json: "${field}" is missing or not a string`, { field });
+  }
+  return value;
+}
+
+function parseTenantId(raw: string): Uuid {
+  try {
+    return Uuid.fromString(raw);
+  } catch {
+    throw new DomainError('E_WORKSPACE_INVALID', 'summae.json: "tenantId" is not a UUID', { field: 'tenantId' });
+  }
+}
+
 export class Workspace {
   private constructor(private readonly directory: string) {}
 
@@ -56,11 +78,55 @@ export class Workspace {
     db.close();
   }
 
+  /**
+   * Remove what `initialize` wrote. Used when creating master data fails afterwards: a workspace
+   * that exists but could not be filled is worse than none, because `init` refuses to run again.
+   */
+  discard(): void {
+    for (const path of [this.configPath(), this.dbPath()]) {
+      if (existsSync(path)) rmSync(path);
+    }
+  }
+
+  /**
+   * Write an imported mapping into the workspace file.
+   *
+   * Mappings live in a registry that is rebuilt from `summae.json` on every invocation, so an
+   * import that only touched the registry was gone the moment the process ended: `imported: true`
+   * followed by a report that behaved as though nothing had been imported. Called only after the
+   * import succeeded, so a rejected mapping is never stored.
+   */
+  rememberMapping(mapping: Record<string, unknown>): void {
+    const config = JSON.parse(readFileSync(this.configPath(), 'utf8')) as Record<string, unknown>;
+    const rules = isRecord(config.rules) ? config.rules : {};
+    const ruleModules = isRecord(rules.ruleModules) ? rules.ruleModules : {};
+    const mappings = Array.isArray(ruleModules.mappings) ? [...ruleModules.mappings] : [];
+
+    // Replace by id rather than append: importing the same id twice must update it, not leave two
+    // mappings behind that the next load would read as overlapping.
+    const id = typeof mapping.id === 'string' ? mapping.id : null;
+    const index = mappings.findIndex((m) => isRecord(m) && m.id === id);
+    if (index === -1) mappings.push(mapping);
+    else mappings[index] = mapping;
+
+    ruleModules.mappings = mappings;
+    rules.ruleModules = ruleModules;
+    config.rules = rules;
+    writeFileSync(this.configPath(), `${JSON.stringify(config, null, 2)}\n`);
+  }
+
   tenant(): Tenant {
     if (!this.exists()) {
       throw new Error(`No workspace in ${this.directory} — run \`summae init\` first`);
     }
     const config = JSON.parse(readFileSync(this.configPath(), 'utf8')) as Record<string, unknown>;
+
+    // Every field used to fall back to a default and the tenantId was regenerated when missing,
+    // so a damaged-but-parseable config opened the same database under a different identity and
+    // reported an empty ledger — indistinguishable from books that were never written.
+    const tenantId = requireString(config, 'tenantId');
+    const name = requireString(config, 'name');
+    const baseCurrency = requireString(config, 'baseCurrency');
     const rules = isRecord(config.rules) ? config.rules : {};
     const ruleModules = isRecord(rules.ruleModules) ? rules.ruleModules : {};
 
@@ -75,12 +141,11 @@ export class Workspace {
     });
 
     const clock = new SystemClock();
-    const tenantId = typeof config.tenantId === 'string' ? Uuid.fromString(config.tenantId) : undefined;
 
     const tenant = DatabaseTenantFactory.build(
       new SyncDb(this.dbPath()),
-      typeof config.name === 'string' ? config.name : 'CLI',
-      Currency.of(typeof config.baseCurrency === 'string' ? config.baseCurrency : 'EUR'),
+      name,
+      Currency.of(baseCurrency),
       clock,
       new UuidV7IdGenerator(clock),
       {
@@ -88,7 +153,7 @@ export class Workspace {
         taxCodes: TaxCodeRegistry.fromData(recordList(rules.taxCodes)),
         taxProfile: TaxProfile.fromData(isRecord(rules.taxProfile) ? rules.taxProfile : {}),
         mappings: MappingRegistry.fromRuleModules(Array.isArray(ruleModules.mappings) ? ruleModules.mappings : []),
-        ...(tenantId ? { tenantId } : {}),
+        tenantId: parseTenantId(tenantId),
       },
     );
     tenant.assetService.setRuleModule(ruleModules);

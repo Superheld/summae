@@ -216,6 +216,8 @@ export class Ledger {
       });
     }
 
+    this.assertEntryCoversAllocations(entry, plan);
+
     const affected: OpenItem[] = [];
     for (const step of plan) {
       const before = step.item.remaining().amountAsString();
@@ -228,6 +230,79 @@ export class Ledger {
     }
 
     return affected;
+  }
+
+
+  /**
+   * R-1: an allocation may not claim more than the settling entry actually books against the open
+   * item's account.
+   *
+   * The only bound used to be the item's remaining amount, so a 500.00 payment could close a
+   * 1190.00 receivable in full. The general ledger then carries a 690.00 receivable the subledger
+   * no longer knows about — permanently, and with nothing to point at it — and under cash-basis
+   * taxation the VAT return declares tax as collected that never arrived.
+   *
+   * The bound is the entry's NET REDUCING movement on that account, not its total: a payment with
+   * a discount books the full receivable against the receivables account and carries the
+   * difference as its own line, so those settlements stay valid. Settlements already recorded
+   * against this same entry count against the same budget — otherwise the check could be walked
+   * around by settling twice.
+   */
+  private assertEntryCoversAllocations(
+    entry: JournalEntry,
+    plan: Array<{ item: OpenItem; settlement: Settlement }>,
+  ): void {
+    const zero = Money.zero(this.baseCurrency);
+
+    // What this entry moves per account, signed so that a positive value reduces a receivable.
+    const movement = new Map<string, Money>();
+    for (const line of entry.lines()) {
+      const account = this.accounts.byId(line.accountId);
+      if (account === null) continue;
+      const key = account.number.value;
+      const signed = line.side === 'credit' ? line.money : line.money.negate();
+      movement.set(key, (movement.get(key) ?? zero).add(signed));
+    }
+
+    // Already claimed against this entry by an earlier settle call.
+    const claimed = new Map<string, Money>();
+    const addClaim = (item: OpenItem, amount: Money): void => {
+      const account = this.accountOfOpenItem(item);
+      if (account === null) return;
+      const asReduction = item.kind === 'payable' ? amount.negate() : amount;
+      claimed.set(account, (claimed.get(account) ?? zero).add(asReduction));
+    };
+
+    for (const item of this.openItems.all()) {
+      for (const settlement of item.settlements()) {
+        if (settlement.entryId.value === entry.id.value) addClaim(item, settlement.money);
+      }
+    }
+    for (const step of plan) {
+      addClaim(step.item, step.settlement.money);
+    }
+
+    for (const [account, needed] of claimed) {
+      const available = movement.get(account) ?? zero;
+      // Compared in the reducing direction: `needed` is already signed that way, and so is
+      // `available`, because a payable is reduced by a debit and a receivable by a credit.
+      if (needed.abs().compareTo(available.abs()) > 0 || needed.isPositive() !== available.isPositive()) {
+        throw new DomainError(
+          'E_SETTLEMENT_EXCEEDS_ENTRY',
+          `Allocations against account ${account} claim ${needed.abs().amountAsString()}, ` +
+            `but the entry moves ${available.abs().amountAsString()} there`,
+          { account, claimed: needed.abs().amountAsString(), available: available.abs().amountAsString() },
+        );
+      }
+    }
+  }
+
+  /** The account an open item sits on — its origin posting's line. */
+  private accountOfOpenItem(item: OpenItem): string | null {
+    const origin = this.journal.byId(item.originEntryId);
+    const line = origin?.lines()[item.originLineIndex];
+    if (line === undefined) return null;
+    return this.accounts.byId(line.accountId)?.number.value ?? null;
   }
 
   private parseSettlementMoney(raw: unknown, label: string): Money {
@@ -306,6 +381,19 @@ export class Ledger {
     }
 
     if (Array.isArray(input.lines)) {
+      // Rewriting the lines used to leave the open items derived from them untouched, so the
+      // subledger went on naming an amount, an account and a due date from a posting that no
+      // longer existed — the same silent split between ledger and subledger as R-1, from the
+      // other side. The text stays correctable; for amounts the GoBD-conform path is reversal
+      // and a fresh posting, which keeps both books together.
+      if (this.openItems.byOriginEntry(entry.id).length > 0) {
+        throw new DomainError(
+          'E_ENTRY_HAS_OPEN_ITEMS',
+          'correct: this entry produced open items — correct the text, or reverse and post anew',
+          { entryId: entry.id.value },
+        );
+      }
+
       if (input.lines.length < 2) {
         throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'A posting needs at least two lines');
       }
@@ -379,6 +467,20 @@ export class Ledger {
       });
     }
 
+    // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+    // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
+    // item would drop that movement out of the open-item history while the ledger keeps it. The
+    // line SAP draws with F5308: undo the settlement first, or post a credit note.
+    const items = this.openItems.byOriginEntry(original.id);
+    const settled = items.filter((item) => item.settlements().length > 0);
+    if (settled.length > 0) {
+      throw new DomainError(
+        'E_ENTRY_HAS_SETTLED_ITEMS',
+        'reverse: an open item of this entry is already settled — undo the settlement or post a credit note instead',
+        { entryId: original.id.value, openItemId: settled[0]!.id.value },
+      );
+    }
+
     const entryDate = this.parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
     const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
@@ -404,6 +506,17 @@ export class Ledger {
     this.recordAudit(actor, 'journalEntry', original.id, 'reversed', {
       reversedBy: { from: null, to: reversal.id.value },
     });
+
+    // Clear each untouched open item against the reversal. Nothing is deleted — the item keeps its
+    // record and gains a settlement marked `cancellation`, which is what tells a reader (and the
+    // cash-basis VAT return) that this was a reversal and not an incoming payment.
+    for (const item of items) {
+      item.settle(new Settlement(reversal.id, item.remaining(), entryDate, null, null, 'cancellation'));
+      this.openItems.save(item);
+      this.recordAudit(actor, 'openItem', item.id, 'cancelled', {
+        cancelledBy: { from: null, to: reversal.id.value },
+      });
+    }
 
     return reversal;
   }

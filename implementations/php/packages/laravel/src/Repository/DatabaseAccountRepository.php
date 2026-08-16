@@ -36,7 +36,9 @@ final readonly class DatabaseAccountRepository implements AccountRepository
 
     public function save(Account $account): void
     {
-        $this->table()->where('id', $account->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $account->id->value)->update([
             'name' => $account->name,
             'status' => $account->status()->value,
         ]);
@@ -54,7 +56,9 @@ final readonly class DatabaseAccountRepository implements AccountRepository
 
     public function byId(Uuid $id): ?Account
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }

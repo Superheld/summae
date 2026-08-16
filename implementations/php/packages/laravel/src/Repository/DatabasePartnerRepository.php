@@ -29,14 +29,18 @@ final readonly class DatabasePartnerRepository implements PartnerRepository
 
     public function save(Partner $partner): void
     {
-        $this->table()->where('id', $partner->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $partner->id->value)->update([
             'payload' => Hydrator::encode($partner->jsonSerialize()),
         ]);
     }
 
     public function byId(Uuid $id): ?Partner
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }

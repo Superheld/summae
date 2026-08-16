@@ -14,6 +14,24 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | `E_ENTRY_FINALIZED` | Korrekturversuch nach Festschreibung (F-CORE-002) | finalize-reverse-period |
 | `E_ENTRY_ALREADY_REVERSED` | Doppelstorno | finalize-reverse-period |
 | `E_ENTRY_UNKNOWN` | entryId existiert nicht | post-malformed |
+| `E_ENTRY_HAS_OPEN_ITEMS` | Zeilen-Korrektur an einer Buchung, aus der offene Posten entstanden sind (v0.6) | correct-open-items |
+| `E_ENTRY_HAS_SETTLED_ITEMS` | Storno einer Buchung, deren offener Posten bereits (teil-)ausgeglichen ist (v0.6/NF-008) | reverse-settled-item |
+
+**Storno und offene Posten (NF-008, v0.6).** `reverse` gleicht die offenen Posten der stornierten
+Buchung **aus** — mit einem Ausgleich, der auf die Storno-Buchung zeigt und `cause:
+"cancellation"` trägt; der Posten erhält damit den abgeleiteten Status `cancelled` und
+verschwindet aus der OP-Liste. Vorher blieb er stehen: das Hauptbuch zeigte das
+Forderungskonto auf `0.00`, die OP-Liste dieselbe Forderung weiter als offen **und
+ausgleichbar**. Ist ein Posten dagegen schon angefasst (mindestens ein Ausgleich), wird das
+Storno **verweigert** — dieselbe Linie, die SAP mit F5308 zieht („document includes already
+cleared items — reversal not possible"): erst den Ausgleich zurücknehmen oder eine Gutschrift
+buchen, sonst verschwände Geld aus der OP-Historie, das tatsächlich geflossen ist. Das ist
+zugleich die Antwort auf den offenen NF-005-Rest: der Fall „ausgeglichen, dann storniert"
+entsteht gar nicht mehr, und die Korrektur läuft als eigene, zahlungswirksame Buchung mit
+eigenem Datum — also genau so, wie §17 Abs. 1 UStG es verlangt („in dem Besteuerungszeitraum, in
+dem die Änderung eingetreten ist"). Bei Ist-Versteuerung zählt ein `cancellation`-Ausgleich
+**nicht** als Vereinnahmung: die USt-VA überspringt ihn, sonst erklärte ein Storno Steuer für
+Geld, das nie geflossen ist.
 
 ## E_PERIOD / E_FISCALYEAR
 
@@ -34,13 +52,31 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | `E_ACCOUNT_NUMBER_TAKEN` | Kontonummer doppelt (Repository-Kontrakt) | accounts-and-import |
 | `E_COA_FORMAT_INVALID` | Kontenrahmen-Import nicht parsebar | accounts-and-import |
 
+
+`E_ENTRY_HAS_OPEN_ITEMS`: `correct` schrieb die Zeilen um und ließ den daraus entstandenen
+offenen Posten unangetastet — Betrag, Konto und Fälligkeit im Nebenbuch stammten danach aus einer
+Buchung, die es so nicht mehr gab, ohne jeden Hinweis. Der **Text** einer solchen Buchung bleibt
+korrigierbar; für Beträge ist der GoBD-konforme Weg ohnehin Storno und Neubuchung, und der hält
+Haupt- und Nebenbuch beisammen. Befund R-3, verwandt mit NF-008.
+
 ## E_SETTLEMENT / E_OPENITEM
 
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_SETTLEMENT_EXCEEDS_ITEM` | Σ Ausgleiche > OP-Betrag | open-items-settlement |
+| `E_SETTLEMENT_EXCEEDS_ENTRY` | Σ Ausgleiche gegen ein Konto > was die ausgleichende Buchung auf diesem Konto tatsächlich bewegt (v0.6) | settlement-bound |
 | `E_SETTLEMENT_DIFFERENCE_INVALID` | `difference.kind` unbekannt, Betrag ≤ 0 oder > Restbetrag (v0.3) | settlement-discount |
 | `E_OPENITEM_UNKNOWN` | openItemId existiert nicht | open-items-settlement |
+
+Abgrenzung der beiden `EXCEEDS`-Codes: `…_ITEM` schaut auf den **Posten** („du willst mehr
+ausgleichen, als offen ist"), `…_ENTRY` auf die **Buchung** („du willst mehr ausgleichen, als
+diese Zahlung überhaupt bewegt hat"). Beides sind Aufruferfehler und beide sind nötig — ohne den
+zweiten kann eine Teilzahlung von 500,00 einen Posten über 1.190,00 vollständig schließen: das
+Hauptbuch führt danach dauerhaft eine Forderung, die die OP-Liste nicht mehr kennt, und bei
+Ist-Versteuerung wird Steuer als vereinnahmt gemeldet, die nie geflossen ist. Die Schranke ist die
+**Netto-Minderung** des Kontos durch die Buchung, nicht die Buchungssumme: eine Zahlung mit Skonto
+bucht den vollen Forderungsbetrag gegen die Forderung, die Differenz ist Teil des Ausgleichs und
+nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 
 ## E_CASHBASIS
 
@@ -126,6 +162,17 @@ jede Fehlermeldung führte (Befunde NF-006, NF-007, NF-013).
 Wo ein **spezifischerer** Code existiert, hat dieser Vorrang: ein unbekanntes Konto bleibt
 `E_ACCOUNT_UNKNOWN`, ein unbekannter Steuerschlüssel `E_TAXCODE_UNKNOWN`. `E_INPUT_INVALID`
 greift nur, wenn die Eingabe schon als Eingabe unbrauchbar ist.
+
+## E_WORKSPACE (CLI-Arbeitsverzeichnis, v0.6)
+
+| Code | Invariante | Fixture |
+|---|---|---|
+| `E_WORKSPACE_INVALID` | `summae.json` ist lesbar, aber ein Pflichtfeld fehlt oder ist unbrauchbar (`tenantId`, `name`, `baseCurrency`) | CLI-Test (kein Fixture: nur über die CLI erreichbar) |
+
+Die Arbeitsdatei ist ein Vertrag, keine Anregung. Vorher wurde jedes Feld auf einen Standardwert
+gezogen und die `tenantId` neu erzeugt, wenn sie fehlte — die CLI öffnete dieselbe Datenbank unter
+einer anderen Identität und meldete ein leeres Hauptbuch. Von „die Bücher sind leer" war das für
+niemanden zu unterscheiden. Befund R-9.
 
 ## Konventionen
 

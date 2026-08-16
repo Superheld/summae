@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-euer",
   "kind": "mapping",
-  "version": "2026.1",
+  "version": "2026.2",
   "name": "Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR, auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
   "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
@@ -10,7 +10,7 @@
     "mapping": {
       "id": "de-euer",
       "kind": "cash-basis-categories",
-      "version": "2026.1",
+      "version": "2026.2",
       "positions": [
         { "key": "E1", "label": "Umsatzerlöse", "accounts": [ { "from": "4000", "to": "4019" } ] },
         { "key": "E2", "label": "Steuerfreie innergemeinschaftliche Lieferungen", "accounts": [ { "numbers": ["4030"] } ] },

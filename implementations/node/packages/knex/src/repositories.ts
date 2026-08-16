@@ -27,6 +27,7 @@ import {
   type PeriodStatus,
   Settlement,
   type SettlementDifferenceKind,
+  parseSettlementCause,
   Uuid,
   Voucher,
   type VoucherRepository,
@@ -75,7 +76,7 @@ export class DatabaseAccountRepository implements AccountRepository {
   }
 
   save(account: Account): void {
-    this.db.run(this.table().where('id', account.id.value).update({ name: account.name, status: account.status() }));
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', account.id.value).update({ name: account.name, status: account.status() }));
   }
 
   byNumber(number: AccountNumber): Account | null {
@@ -84,7 +85,7 @@ export class DatabaseAccountRepository implements AccountRepository {
   }
 
   byId(id: Uuid): Account | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 
@@ -138,6 +139,7 @@ export class DatabaseFiscalYearRepository implements FiscalYearRepository {
   save(fiscalYear: FiscalYear): void {
     this.db.run(
       this.table()
+        .where('tenant_id', this.tenantId.value)
         .where('id', fiscalYear.id.value)
         .update({ status: fiscalYear.status(), periods: this.encodePeriods(fiscalYear) }),
     );
@@ -229,6 +231,7 @@ export class DatabaseJournalRepository implements JournalRepository {
   save(entry: JournalEntry): void {
     this.db.run(
       this.table()
+        .where('tenant_id', this.tenantId.value)
         .where('id', entry.id.value)
         .update({
           status: entry.status(),
@@ -240,7 +243,7 @@ export class DatabaseJournalRepository implements JournalRepository {
   }
 
   byId(id: Uuid): JournalEntry | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 
@@ -310,7 +313,7 @@ export class DatabaseVoucherRepository implements VoucherRepository {
   }
 
   byId(id: Uuid): Voucher | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 
@@ -372,17 +375,17 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
   }
 
   save(item: OpenItem): void {
-    this.db.run(this.table().where('id', item.id.value).update({ settlements: this.encodeSettlements(item) }));
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', item.id.value).update({ settlements: this.encodeSettlements(item) }));
   }
 
   byId(id: Uuid): OpenItem | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 
   byOriginEntry(entryId: Uuid): OpenItem[] {
     return this.db
-      .all(this.table().where('origin_entry_id', entryId.value).orderBy('rowid'))
+      .all(this.table().where('tenant_id', this.tenantId.value).where('origin_entry_id', entryId.value).orderBy('rowid'))
       .map((row) => this.hydrate(row));
   }
 
@@ -408,6 +411,7 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
         H.requireDate(data.settledAt, 'settledAt'),
         differenceMoney,
         differenceKind,
+        parseSettlementCause(data.cause),
       );
     });
     return OpenItem.restore(
@@ -442,11 +446,11 @@ export class DatabasePartnerRepository implements PartnerRepository {
   }
 
   save(partner: Partner): void {
-    this.db.run(this.table().where('id', partner.id.value).update({ payload: H.encode(partner.toJSON()) }));
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', partner.id.value).update({ payload: H.encode(partner.toJSON()) }));
   }
 
   byId(id: Uuid): Partner | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 
@@ -501,11 +505,11 @@ export class DatabaseAssetRepository implements AssetRepository {
   }
 
   save(asset: Asset): void {
-    this.db.run(this.table().where('id', asset.id.value).update({ state: H.encode(this.state(asset)) }));
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', asset.id.value).update({ state: H.encode(this.state(asset)) }));
   }
 
   byId(id: Uuid): Asset | null {
-    const row = this.db.first(this.table().where('id', id.value));
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
     return row === null ? null : this.hydrate(row);
   }
 

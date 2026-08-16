@@ -1,0 +1,89 @@
+{
+  "fixture": "balance-sheet-gap",
+  "description": "NF-017: a balance-carrying account outside every mapping position did not merely vanish from the balance sheet — it made the balance sheet stop balancing, silently. The projection iterates over the mapping's positions and pulls the accounts each one matches, so an account no position matches is never visited at all: its amount is in neither total. api.md promises the identity 'by construction', and for the RESULT position that holds (it sums income accounts by type, no mapping involved); for the asset and liability side it silently depends on the mapping being complete, which nothing enforced. Same medicine as NF-014: the catch-all `_unassigned` per section — routed by account TYPE, which is jurisdiction-free — plus gapWarnings[] naming the accounts. A securities account nobody mapped is the realistic case; it is an asset like any other and belongs on the sheet even when the chart of accounts and the mapping were authored by different people.",
+  "covers": ["F-RP-003"],
+  "setup": {
+    "tenant": { "name": "Bilanzlücke GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "2600", "name": "Wertpapiere des Umlaufvermögens", "type": "asset" },
+      { "number": "3000", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" }
+    ],
+    "fiscalYears": [{ "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "B-1", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "B-2", "voucherDate": "2026-03-02" }
+    ],
+    "ruleModules": {
+      "mappings": [
+        {
+          "id": "gap-bilanz",
+          "kind": "balance-sheet",
+          "version": "2026.1",
+          "positions": [
+            {
+              "key": "A",
+              "label": "Aktiva",
+              "side": "assets",
+              "children": [{ "key": "A.B", "label": "Guthaben bei Kreditinstituten", "accounts": [{ "from": "1200", "to": "1299" }] }]
+            },
+            {
+              "key": "P",
+              "label": "Passiva",
+              "side": "liabilitiesAndEquity",
+              "children": [
+                { "key": "P.EK", "label": "Eigenkapital (inkl. Jahresergebnis)", "accounts": [], "includesNetIncome": true },
+                { "key": "P.V", "label": "Verbindlichkeiten", "accounts": [{ "from": "3000", "to": "3099" }] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Darlehensaufnahme auf ein gemapptes Bankkonto",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "3000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "beide Konten gemappt" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-02",
+        "voucherId": "$V2",
+        "text": "Wertpapierkauf auf Kredit — die Aktivseite liegt außerhalb des Mappings",
+        "lines": [
+          { "account": "2600", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
+          { "account": "3000", "side": "credit", "money": { "amount": "5000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "2600 wird von keiner Position erfasst" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "gap-bilanz" },
+      "expect": {
+        "comment": "Der eigentliche Befund steht in den Summen: vorher Aktiva 1000.00 gegen Passiva 6000.00 — eine Bilanz, die um 5000.00 nicht aufging, ohne dass irgendetwas darauf hinwies. Die Auffangposition bringt die 5000.00 zurück auf die Aktivseite, die Identität hält wieder.",
+        "assets": [
+          { "key": "A.B", "label": "Guthaben bei Kreditinstituten", "amount": "1000.00" },
+          { "key": "_unassigned", "label": "Unassigned", "amount": "5000.00" }
+        ],
+        "assetsTotal": "6000.00",
+        "liabilitiesAndEquity": [{ "key": "P.V", "label": "Verbindlichkeiten", "amount": "6000.00" }],
+        "liabilitiesAndEquityTotal": "6000.00",
+        "gapWarnings": [{ "account": "2600", "assignedTo": "_unassigned" }]
+      }
+    }
+  ]
+}

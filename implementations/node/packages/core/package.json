@@ -1,6 +1,6 @@
 {
   "name": "@superheld/summae-core",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Framework-free accounting core (Node) — GoBD double-entry, cash-basis accounting (EÜR), VAT, fixed assets, cost accounting (KLR); parity with the PHP reference",
   "type": "module",
   "license": "MIT",
@@ -41,8 +41,9 @@
   },
   "devDependencies": {
     "@types/big.js": "^7.0.0",
-    "@types/node": "^25.9.3",
-    "tsup": "^8.5.0"
+    "@types/node": "^26.2.0",
+    "tsup": "^8.5.0",
+    "typescript": "^6.0.3"
   },
   "publishConfig": {
     "access": "public",

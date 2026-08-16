@@ -388,13 +388,29 @@ final class PackResolver
     }
 
     /**
+     * @param array<mixed> $selector
+     */
+    private static function selectorText(array $selector): string
+    {
+        if (is_array($selector['numbers'] ?? null)) {
+            $numbers = array_filter($selector['numbers'], is_string(...));
+
+            return 'numbers ' . implode(', ', $numbers);
+        }
+
+        return sprintf('range %s–%s', self::str($selector['from'] ?? null) ?? '?', self::str($selector['to'] ?? null) ?? '?');
+    }
+
+    /**
      * @param array<mixed>     $mapping
      * @param array<int|string, bool>  $accountNumbers
      * @param list<int|string>         $numbers
      */
     private static function checkMappingSelectors(array $mapping, array $accountNumbers, array $numbers): void
     {
-        $visit = static function (array $position) use (&$visit, $accountNumbers, $numbers): void {
+        $mappingId = self::str($mapping['id'] ?? null) ?? '?';
+
+        $visit = static function (array $position) use (&$visit, $accountNumbers, $numbers, $mappingId): void {
             foreach (is_array($position['accounts'] ?? null) ? $position['accounts'] : [] as $selector) {
                 if (!is_array($selector)) {
                     continue;
@@ -420,7 +436,23 @@ final class PackResolver
                     }
                 }
                 if ($hits === 0) {
-                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping selector hits no account (I2)');
+                    // Naming all three is the difference between a five-minute fix and bisecting
+                    // the pack: the message used to say only that "a" selector somewhere hit
+                    // nothing, in a bundle that can hold hundreds of them across several mappings.
+                    $positionKey = self::str($position['key'] ?? null) ?? '?';
+                    $selectorText = self::selectorText($selector);
+
+                    throw new DomainError(
+                        'E_PACK_UNRESOLVED_REF',
+                        sprintf(
+                            'Mapping "%s", position "%s": %s hits no account (I2). '
+                            . 'Every selector must match at least one account of the chart the pack ships.',
+                            $mappingId,
+                            $positionKey,
+                            $selectorText,
+                        ),
+                        ['mapping' => $mappingId, 'position' => $positionKey, 'selector' => $selectorText],
+                    );
                 }
             }
             foreach (is_array($position['children'] ?? null) ? $position['children'] : [] as $child) {

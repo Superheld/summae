@@ -18,6 +18,7 @@ use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 
@@ -161,7 +162,7 @@ final readonly class VatReturnProjection
         foreach ($keys as $key => $amounts) {
             // Official VAT-return convention: round base down to full euros (reporting-key sum).
             $flooredBase = Money::fromCalculation(
-                BigDecimal::of($amounts['base']->amountAsString())->toScale(0, RoundingMode::DOWN),
+                BigDecimal::of($amounts['base']->amountAsString())->toScale(0, RoundingMode::Down),
                 $this->baseCurrency,
             );
 
@@ -325,6 +326,14 @@ final readonly class VatReturnProjection
         $total = BigDecimal::of($item->money->amountAsString());
 
         foreach ($item->settlements() as $settlement) {
+            // NF-008: a cancellation closes the item without any money moving. Counting it here
+            // would declare cash-basis VAT for a reversed invoice that was never paid — the exact
+            // opposite of what the reversal means. Skipped before `remaining` is touched, so the
+            // proportional split of any real payments is unaffected.
+            if ($settlement->cause === SettlementCause::Cancellation) {
+                continue;
+            }
+
             $remaining = $remaining->subtract($settlement->money);
             $isFinal = $remaining->isZero();
             $ratio = BigDecimal::of($settlement->money->amountAsString());
@@ -367,7 +376,7 @@ final readonly class VatReturnProjection
         return Money::fromCalculation(
             BigDecimal::of($total->amountAsString())
                 ->multipliedBy($part)
-                ->dividedBy($whole, 10, RoundingMode::HALF_UP),
+                ->dividedBy($whole, 10, RoundingMode::HalfUp),
             $this->baseCurrency,
         );
     }

@@ -13,13 +13,13 @@ export default defineConfig({
       include: ['packages/*/src/**/*.ts', 'runner/src/**/*.ts'],
       reporter: ['text', 'html'],
       thresholds: {
-        // Measured 2026-08-15 (lines): core 93.15 · cli 92.66 · knex 85.59 · runner 92.72.
-        // The domain core is the strictest floor, knex the mildest: it has no tests of its
-        // own and is covered indirectly through the CLI and the cross-test, which is exactly
-        // why its floor exists — so that indirect coverage cannot quietly disappear.
+        // Measured 2026-08-16 (lines): core 93.15 · cli 92.66 · knex 89.08 · runner 92.72.
+        // knex used to be the mildest floor because it had no tests of its own and was covered
+        // only indirectly through the CLI and the cross test. It has its own adapter suite since
+        // 2026-08-16 (NF-015, twin of the PHP packages/laravel suite), which is what raised it.
         'packages/core/src/**': { statements: 90, branches: 79, functions: 92, lines: 92 },
         'packages/cli/src/**': { statements: 88, branches: 67, functions: 88, lines: 91 },
-        'packages/knex/src/**': { statements: 82, branches: 50, functions: 81, lines: 84 },
+        'packages/knex/src/**': { statements: 85, branches: 56, functions: 85, lines: 88 },
         'runner/src/**': { statements: 91, branches: 80, functions: 95, lines: 91 },
       },
     },

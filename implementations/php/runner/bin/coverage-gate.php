@@ -21,19 +21,20 @@ declare(strict_types=1);
  */
 
 /**
- * Measured on 2026-08-15 (lines): core 91.89 · cli 88.44 · runner 83.12.
+ * Measured on 2026-08-16 (lines): core 93.03 · cli 89.20 · laravel 96.97 · runner 83.12.
  * Floors sit just below that — close enough to catch a real drop, far enough not to
  * flap on a single refactored line.
  *
- * `packages/laravel` is deliberately absent: it has no tests of its own
- * (`packages/laravel/tests/` holds nothing but a .gitkeep). Whatever coverage it gets
- * today it gets as a side effect of other suites, so a floor there would pin a number
- * nobody maintains. It is excluded in phpunit.xml.dist as well — a known gap, recorded
- * as NF-015 in SPEC-FINDINGS.md, to be closed by writing tests, not by lowering a bar.
+ * `packages/laravel` joined on 2026-08-16 (NF-015 closed): it has its own suite now, so its
+ * number is asserted by tests rather than produced as a side effect of other suites. The
+ * one uncovered piece is `SummaeServiceProvider` — framework glue that needs a booted
+ * Laravel application (orchestra/testbench) to exercise; the floor is set below the
+ * measured value with that hole included, so covering it later can only push the floor up.
  */
 const FLOORS = [
     'core' => 91.0,
     'cli' => 87.0,
+    'laravel' => 95.0,
     'runner' => 82.0,
 ];
 

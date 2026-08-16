@@ -1,0 +1,244 @@
+{
+  "fixture": "correct-open-items",
+  "description": "R-3: correct schrieb die Zeilen einer Buchung um und ließ den daraus entstandenen offenen Posten unangetastet. Danach nannte das Nebenbuch einen Betrag, ein Konto und eine Fälligkeit aus einer Buchung, die es so nicht mehr gab — dieselbe stille Divergenz zwischen Haupt- und Nebenbuch wie bei R-1, nur von der anderen Seite. Zeilen einer Buchung mit offenen Posten sind jetzt nicht mehr korrigierbar; der Text bleibt es. Für Beträge ist der GoBD-konforme Weg ohnehin Storno und Neubuchung, und der hält beide Bücher beisammen. Der Port kennt kein Löschen von Posten, ein Neuberechnen wäre also eine Schnittstellen-Erweiterung in beiden Sprachen und drei Adaptern — die konservative Variante steht hier bewusst.",
+  "covers": [
+    "F-CORE-002"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Korrektur GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      },
+      {
+        "number": "6000",
+        "name": "Aufwand",
+        "type": "expense"
+      },
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-1",
+        "voucherDate": "2026-03-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "KA-1",
+        "voucherDate": "2026-03-02"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Rechnung",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1",
+          "openItemsCreated": [
+            {
+              "id": "$OP1",
+              "money": {
+                "amount": "1000.00",
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "correct",
+      "input": {
+        "entryId": "$E1",
+        "text": "Rechnung (Text berichtigt)"
+      },
+      "expect": {
+        "result": {
+          "text": "Rechnung (Text berichtigt)"
+        },
+        "comment": "Positivfall: der Text bleibt korrigierbar, der Posten ist davon nicht betroffen"
+      }
+    },
+    {
+      "op": "correct",
+      "input": {
+        "entryId": "$E1",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_ENTRY_HAS_OPEN_ITEMS",
+        "comment": "der Kernfall: vorher stand der Posten weiter auf 1.000,00, die Buchung aber auf 900,00"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-02",
+        "voucherId": "$V2",
+        "text": "Barausgabe",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E2"
+        }
+      }
+    },
+    {
+      "op": "correct",
+      "input": {
+        "entryId": "$E2",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "60.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "60.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Positivfall: ohne offene Posten bleibt die Zeilen-Korrektur erlaubt"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": {},
+      "expect": {
+        "comment": "der Posten steht unverändert auf 1.000,00 — passend zur Buchung, die ihn erzeugt hat",
+        "items": [
+          {
+            "id": "$OP1",
+            "remaining": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "die erlaubte Korrektur ist angekommen: Aufwand 60,00 statt 50,00",
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "-60.00"
+          },
+          {
+            "account": "1400",
+            "balance": "1000.00"
+          },
+          {
+            "account": "6000",
+            "balance": "60.00"
+          },
+          {
+            "account": "8400",
+            "balance": "-1000.00"
+          }
+        ]
+      }
+    }
+  ]
+}

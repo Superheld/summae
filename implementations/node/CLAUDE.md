@@ -36,6 +36,10 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 - **Core framework-free:** no web/DB frameworks and no
   DB drivers in `packages/core/**` — eslint `no-restricted-imports` enforces it. Structural counterpart to
   „no `use Illuminate\…` in the core". Adapters become their own packages (from M4 on).
+- **`packages/knex` has its own suite** since 2026-08-16 (`packages/knex/test/adapter.test.ts`,
+  NF-015): round-trip through a real column and tenant scoping with two tenants on one database.
+  Twin of PHP's `packages/laravel/tests`. Keep the two in step — the defect that made the suite
+  necessary (every `byId`/`save` ignoring `tenant_id`) was identical in both languages.
 - **Persistence (M4):** via **Knex** as schema/query builder (direct counterpart to
   the PHP side's `illuminate/database`) with **better-sqlite3** as the sqlite driver, **pg**
   for Postgres. The goal is a bit-exact match of the PHP side's `summae_*` schema
@@ -43,6 +47,13 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 - Tests with **vitest**; determinism as required project-wide (injectable
   Clock/IdGenerator, runner uses `FixedClock` + `DeterministicIdGenerator`).
 - Mark deliberately unused bindings with a `_` prefix.
+- **TypeScript stays on 6.x** (checked 2026-08-16). `tsc --noEmit`, `vitest` and `tsup` all pass on
+  7.0, but `typescript-eslint` refuses to load against the TS 7 API and aborts `pnpm lint` — and
+  lint is part of Definition of Green here. Tracking: typescript-eslint#10940. Do not "fix" the
+  outdated marker by bumping it; the whole gate has to move together. `core`/`cli`/`knex` therefore
+  declare `typescript` themselves: tsup takes it as an **optional peer**, and without a declared
+  version pnpm resolves that peer to the newest TypeScript it can find — which silently broke
+  `pnpm build` (the release workflow's step) while `typecheck`, `lint` and `test` all stayed green.
 - **Pack composition:** resolver `packages/core/src/composition/pack-resolver.ts`; loader (reads the
   shipped `pack-library/`) `runner/src/pack-library.ts`. **Reference** modules/manifests,
   do not duplicate them inline.
@@ -51,7 +62,7 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 
 `pnpm typecheck` + `pnpm lint` clean (counterpart to „PHPStan level max") · `pnpm test`
 green **incl. coverage thresholds per package** (`vitest.config.ts`, fixed in the run via
-`coverage.enabled`; lines: core 92 / cli 91 / knex 84 / runner 91 — one floor per package,
+`coverage.enabled`; lines: core 92 / cli 91 / knex 88 / runner 91 — one floor per package,
 just below the measured value, may only rise) · `pnpm fixtures --strict`
 (all fixtures green + byte-identical double run).
 

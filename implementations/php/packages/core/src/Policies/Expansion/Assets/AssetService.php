@@ -78,9 +78,13 @@ final class AssetService
             $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
             $schedule = $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Pool route: fixed 5 years at 1/5 each, independent of disposals (FINDING: period should be pack-driven, not hard-coded).
-            $usefulLifeMonths = 60;
-            $annual = $cost->allocateEvenly(5);
+            // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is
+            // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
+            // would have inherited it silently. The pack says over how long; the core only spreads it
+            // evenly (disposals leave the plan untouched, as before).
+            $poolYears = $this->poolYears($acquiredOn);
+            $usefulLifeMonths = $poolYears * 12;
+            $annual = $cost->allocateEvenly($poolYears);
             foreach ($annual as $yearAmount) {
                 $monthly = $yearAmount->allocateEvenly(12);
                 foreach ($monthly as $monthAmount) {
@@ -414,6 +418,34 @@ final class AssetService
             return AssetRoute::tryFrom($choice) ?? AssetRoute::Capitalize;
         }
 
+        $threshold = $this->applicableThreshold($acquiredOn);
+        if ($threshold === null) {
+            return AssetRoute::Capitalize;
+        }
+
+        if ($cost->compareTo(Money::of($threshold['immediateMax'], $this->baseCurrency)) <= 0) {
+            return AssetRoute::ImmediateExpense;
+        }
+
+        if (
+            $threshold['poolMin'] !== null
+            && $threshold['poolMax'] !== null
+            && $cost->compareTo(Money::of($threshold['poolMin'], $this->baseCurrency)) >= 0
+            && $cost->compareTo(Money::of($threshold['poolMax'], $this->baseCurrency)) <= 0
+        ) {
+            return AssetRoute::Pool;
+        }
+
+        return AssetRoute::Capitalize;
+    }
+
+    /**
+     * The threshold row in force on the acquisition date — the first whose validity window contains it.
+     *
+     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int}|null
+     */
+    private function applicableThreshold(CalendarDate $acquiredOn): ?array
+    {
         foreach ($this->thresholds() as $threshold) {
             $validFrom = CalendarDate::of($threshold['validFrom']);
             $validTo = $threshold['validTo'] === null ? null : CalendarDate::of($threshold['validTo']);
@@ -422,25 +454,35 @@ final class AssetService
                 continue;
             }
 
-            if ($cost->compareTo(Money::of($threshold['immediateMax'], $this->baseCurrency)) <= 0) {
-                return AssetRoute::ImmediateExpense;
-            }
-
-            if (
-                $threshold['poolMin'] !== null
-                && $threshold['poolMax'] !== null
-                && $cost->compareTo(Money::of($threshold['poolMin'], $this->baseCurrency)) >= 0
-                && $cost->compareTo(Money::of($threshold['poolMax'], $this->baseCurrency)) <= 0
-            ) {
-                return AssetRoute::Pool;
-            }
+            return $threshold;
         }
 
-        return AssetRoute::Capitalize;
+        return null;
     }
 
     /**
-     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string}>
+     * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
+     * range without saying over how long is incomplete, and picking a number here would put a statute
+     * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+     * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
+     */
+    private function poolYears(CalendarDate $acquiredOn): int
+    {
+        $threshold = $this->applicableThreshold($acquiredOn);
+
+        if ($threshold === null || $threshold['poolYears'] === null) {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'gwgThresholds: a pool range (poolMin/poolMax) without poolYears — the pack must say over how many years the pool is written off',
+                ['field' => 'poolYears', 'acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $threshold['poolYears'];
+    }
+
+    /**
+     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int}>
      */
     private function thresholds(): array
     {
@@ -457,6 +499,7 @@ final class AssetService
                 'immediateMax' => $raw['immediateMax'],
                 'poolMin' => is_string($raw['poolMin'] ?? null) ? $raw['poolMin'] : null,
                 'poolMax' => is_string($raw['poolMax'] ?? null) ? $raw['poolMax'] : null,
+                'poolYears' => is_int($raw['poolYears'] ?? null) && $raw['poolYears'] >= 1 ? $raw['poolYears'] : null,
             ];
         }
 

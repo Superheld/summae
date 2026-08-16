@@ -28,10 +28,12 @@ export {
   type FiscalYearStatus,
   type OpenItemKind,
   type OpenItemStatus,
+  type SettlementCause,
   type SettlementDifferenceKind,
   isAccountType,
   isBalanceCarrying,
   parseOpenItemKind,
+  parseSettlementCause,
   parseSettlementDifferenceKind,
 } from './substrate/types.js';
 export { Account } from './substrate/account.js';

@@ -8,6 +8,7 @@ use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Policies\Expansion\Settlement;
+use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Substrate\Uuid;
@@ -40,14 +41,18 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
 
     public function save(OpenItem $item): void
     {
-        $this->table()->where('id', $item->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $item->id->value)->update([
             'settlements' => $this->encodeSettlements($item),
         ]);
     }
 
     public function byId(Uuid $id): ?OpenItem
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }
@@ -56,7 +61,9 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
     {
         $items = [];
 
-        foreach ($this->table()->where('origin_entry_id', $entryId->value)->orderBy('origin_line_index')->get() as $row) {
+        foreach ($this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('origin_entry_id', $entryId->value)->orderBy('origin_line_index')->get() as $row) {
             $items[] = $this->hydrate($row);
         }
 
@@ -101,6 +108,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
                 Hydrator::date($data['settledAt'] ?? null) ?? throw new \RuntimeException('settledAt missing'),
                 $differenceMoney === [] ? null : Hydrator::money($differenceMoney),
                 is_string($difference['kind'] ?? null) ? SettlementDifferenceKind::tryFrom($difference['kind']) : null,
+                SettlementCause::parse($data['cause'] ?? null),
             );
         }
 

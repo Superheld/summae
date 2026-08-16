@@ -1,0 +1,61 @@
+{
+  "fixture": "de-wertpapierdepot",
+  "description": "DE-Pack: Wertpapiere sind nach HGB §266 Abs. 2 ein eigener Posten des Umlaufvermögens (B.III), zwischen Forderungen und Liquidität. Der Rahmen kannte kein Wertpapierkonto, und de-bilanz bildete 1200–1399 pauschal auf die Liquiditätsposition ab — ein Depot wurde also entweder auf einer erfundenen Nummer gebucht und als Bankguthaben ausgewiesen, oder es gab schlicht keinen Platz dafür. Jetzt: Konto 1250 im Rahmen, Posten A.III Wertpapiere (1250–1299) im Mapping, und die Liquiditätsposition erfasst nur noch die Konten, die tatsächlich Liquidität sind (1200–1249 Bank/Kasse, 1300–1349 Geldtransit). Die Fixture bucht eine Umschichtung Bank → Depot: die Bilanzsumme bleibt gleich, aber der Betrag steht im richtigen Posten statt im falschen.",
+  "covers": ["F-CORE-015", "SF-10"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Depot GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.2" }, "accountCount": 41 } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "EK-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01",
+        "text": "Einlage",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "20000.00", "currency": "EUR" } },
+          { "account": "2000", "side": "credit", "money": { "amount": "20000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "Startkapital auf der Bank" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "WP-001", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01",
+        "text": "Wertpapierkauf vom Bankkonto",
+        "lines": [
+          { "account": "1250", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "5000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "comment": "Umschichtung: Bank raus, Depot rein — die Bilanzsumme ändert sich nicht" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "comment": "Wertpapiere stehen als eigener Posten vor der Liquidität, wie §266 es vorsieht. Vorher wären die 5000.00 unter 'Kassenbestand' erschienen und die Umschichtung wäre in der Bilanz unsichtbar geblieben.",
+        "assets": [
+          { "key": "A.III", "label": "Wertpapiere", "amount": "5000.00" },
+          {
+            "key": "A.IV",
+            "label": "Kassenbestand, Bundesbankguthaben, Guthaben bei Kreditinstituten und Schecks",
+            "amount": "15000.00"
+          }
+        ],
+        "assetsTotal": "20000.00",
+        "liabilitiesAndEquityTotal": "20000.00",
+        "gapWarnings": []
+      }
+    }
+  ]
+}

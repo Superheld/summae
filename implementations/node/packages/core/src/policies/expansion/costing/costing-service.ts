@@ -1,4 +1,4 @@
-import { DomainError } from '../../../domain-error.js';
+import { DomainError, rejectedValue } from '../../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../../port.js';
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
@@ -118,6 +118,21 @@ export class CostingService {
 
   costAllocationSheet(params: Record<string, unknown>): Record<string, unknown> {
     const run = this.requireRun(params.runId);
+
+    // The run already fixes fiscal year and period. Passing them alongside was accepted and
+    // ignored, so a caller could ask for period 2, receive period 1's numbers, and have nothing
+    // in the answer to contradict them. If they are given, they have to agree.
+    if (params.fiscalYear !== undefined && params.fiscalYear !== null && params.fiscalYear !== run.period.fiscalYear) {
+      throw new DomainError('E_INPUT_INVALID', `costAllocationSheet: the run belongs to fiscal year ${run.period.fiscalYear}`, {
+        fiscalYear: rejectedValue(params.fiscalYear),
+      });
+    }
+    if (params.period !== undefined && params.period !== null && params.period !== run.period.period) {
+      throw new DomainError('E_INPUT_INVALID', `costAllocationSheet: the run belongs to period ${run.period.period}`, {
+        period: rejectedValue(params.period),
+      });
+    }
+
     return {
       runId: run.id.value,
       status: run.status(),

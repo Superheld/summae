@@ -1,3 +1,5 @@
+import { DomainError, rejectedValue } from '../../domain-error.js';
+import { FORMAT_VERSION } from '../../substrate/format-version.js';
 import { createHash } from 'node:crypto';
 import { canonicalJson } from '../../substrate/canonical-json.js';
 import type { Clock } from '../../substrate/clock.js';
@@ -13,7 +15,6 @@ import type {
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import { integerOrNull } from './parameters.js';
 
-const FORMAT_VERSION = '0.4';
 const LINE_FIELDS = ['accountId', 'side', 'money', 'dimensions', 'taxTag'] as const;
 
 function withoutNulls(row: Record<string, unknown>): Record<string, unknown> {
@@ -25,6 +26,13 @@ function withoutNulls(row: Record<string, unknown>): Record<string, unknown> {
  * canonicalized rows, field catalog, journal complete in sequenceNumber
  * order. auditLog is always part of the export (v0.5/F-005).
  */
+/**
+ * The only journal format there is. Declared as a set rather than inlined so adding a second one
+ * is a data change here, not a new branch: `format` exists to guard the caller's typo, and a
+ * parameter that silently accepts anything guards nothing.
+ */
+const JOURNAL_FORMATS: ReadonlySet<string> = new Set(['gobd-z3']);
+
 export class JournalExportProjection {
   constructor(
     private readonly tenantId: Uuid,
@@ -39,6 +47,15 @@ export class JournalExportProjection {
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
+    // Absent still means gobd-z3; a value that is present and unknown used to be ignored, so the
+    // caller got the Z3 stream under whatever label they had typed.
+    const format = params.format;
+    if (format !== undefined && format !== null && (typeof format !== 'string' || !JOURNAL_FORMATS.has(format))) {
+      throw new DomainError('E_INPUT_INVALID', 'journalExport: "format" must be gobd-z3', {
+        format: rejectedValue(format),
+      });
+    }
+
     const fiscalYear = integerOrNull(params.fiscalYear);
     const entries = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
 

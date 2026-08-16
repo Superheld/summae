@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\Substrate\AccountType;
+use Summae\Core\Policies\Projection\Mapping\Unassigned;
 use Summae\Core\DomainError;
 use Summae\Core\Substrate\Side;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
@@ -76,6 +78,11 @@ final readonly class BalanceSheetProjection
         $credits = [];
         /** @var array<string, true> $touchedAccounts */
         $touchedAccounts = [];
+        // Which side an account belongs on when no position claims it. Taken from the account TYPE,
+        // which is jurisdiction-free and always present — the mapping cannot answer it, since the
+        // whole problem is that the mapping says nothing about this account.
+        /** @var array<string, string> $sectionOf */
+        $sectionOf = [];
         $netIncome = $zero;
 
         foreach ($this->journal->all() as $entry) {
@@ -102,6 +109,8 @@ final readonly class BalanceSheetProjection
                 }
 
                 $key = $account->number->value;
+                $sectionOf[$key] = $account->type === AccountType::Asset ? 'assets' : 'liabilitiesAndEquity';
+
                 if ($line->side === Side::Debit) {
                     $debits[$key] = ($debits[$key] ?? $zero)->add($line->money);
                 } else {
@@ -114,6 +123,22 @@ final readonly class BalanceSheetProjection
 
         $sections = ['assets' => [], 'liabilitiesAndEquity' => []];
         $totals = ['assets' => $zero, 'liabilitiesAndEquity' => $zero];
+
+        // An account no position matches used to be visited by nobody: the loop below runs over the
+        // POSITIONS and pulls what each one matches, so an unmatched account landed in neither total
+        // and the sheet stopped balancing without saying so.
+        $unmatched = [];
+        foreach (array_keys($debits + $credits) as $number) {
+            $number = (string) $number;
+            foreach ($mapping->leaves as $leaf) {
+                if ($this->leafMatches($leaf, $number)) {
+                    continue 2;
+                }
+            }
+
+            $unmatched[] = $number;
+        }
+        sort($unmatched, SORT_STRING);
 
         foreach ($mapping->leaves as $leaf) {
             // v0.5/F-007: side comes from `side` at the root node, not from the order.
@@ -153,11 +178,48 @@ final readonly class BalanceSheetProjection
             $totals[$section] = $totals[$section]->add($amount);
         }
 
+        // The catch-all per section, appended last and only when it carries something. Amounts
+        // follow the same sign rule as the section they land in, so the identity holds again.
+        foreach (['assets', 'liabilitiesAndEquity'] as $section) {
+            $amount = $zero;
+            $touched = false;
+
+            foreach ($unmatched as $number) {
+                if (($sectionOf[$number] ?? 'assets') !== $section) {
+                    continue;
+                }
+
+                $debit = $debits[$number] ?? $zero;
+                $credit = $credits[$number] ?? $zero;
+                $amount = $section === 'assets'
+                    ? $amount->add($debit)->subtract($credit)
+                    : $amount->add($credit)->subtract($debit);
+                $touched = $touched || isset($touchedAccounts[$number]);
+            }
+
+            if (!$touched) {
+                continue;
+            }
+
+            $sections[$section][] = [
+                'key' => Unassigned::KEY,
+                'label' => Unassigned::LABEL,
+                'amount' => $amount->amountAsString(),
+            ];
+            $totals[$section] = $totals[$section]->add($amount);
+        }
+
+        $gapWarnings = [];
+        foreach ($unmatched as $account) {
+            $gapWarnings[] = ['account' => $account, 'assignedTo' => Unassigned::KEY];
+        }
+
         return [
             'assets' => $sections['assets'],
             'assetsTotal' => $totals['assets']->amountAsString(),
             'liabilitiesAndEquity' => $sections['liabilitiesAndEquity'],
             'liabilitiesAndEquityTotal' => $totals['liabilitiesAndEquity']->amountAsString(),
+            'gapWarnings' => $gapWarnings,
         ];
     }
 

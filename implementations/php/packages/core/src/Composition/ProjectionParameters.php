@@ -74,7 +74,7 @@ final class ProjectionParameters
         ],
         'journalExport' => [
             'fiscalYear' => ['type' => 'integer', 'required' => true],
-            'format' => ['type' => 'string', 'acceptedWithoutEffect' => true],
+            'format' => ['type' => 'string'],
         ],
         'datevExport' => [
             'kind' => ['type' => 'string'],
@@ -88,8 +88,8 @@ final class ProjectionParameters
         ],
         'costAllocationSheet' => [
             'runId' => ['type' => 'string', 'required' => true],
-            'fiscalYear' => ['type' => 'integer', 'acceptedWithoutEffect' => true],
-            'period' => ['type' => 'integer', 'acceptedWithoutEffect' => true],
+            'fiscalYear' => ['type' => 'integer'],
+            'period' => ['type' => 'integer'],
         ],
     ];
 

@@ -45,6 +45,17 @@ const CODES: readonly string[] = [
   // escaped as an uncaught InvalidValue (stack trace, then E_UNEXPECTED/exit 1, indistinguishable
   // from a summae bug) or were silently coerced into a plausible default.
   'E_INPUT_INVALID',
+  // Appended 2026-08-16. The workspace file is readable but a required field is missing or
+  // unusable. Before this code every field fell back to a default and a missing tenantId was
+  // regenerated, so a damaged summae.json opened the same database under a different identity and
+  // reported an empty ledger — indistinguishable from books that were never written (R-9).
+  'E_WORKSPACE_INVALID',
+  // Appended 2026-08-16 (R-3): correcting the LINES of an entry that produced open items would
+  // leave the subledger describing a posting that no longer exists. Text stays correctable.
+  'E_ENTRY_HAS_OPEN_ITEMS',
+  // Appended 2026-08-16 (NF-008): reversing an entry whose open item already carries a settlement
+  // would drop money that actually moved out of the open-item history.
+  'E_ENTRY_HAS_SETTLED_ITEMS',
 ];
 
 export function exitCodeFor(errorCode: string): number {

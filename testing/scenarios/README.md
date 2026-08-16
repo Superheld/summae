@@ -38,7 +38,7 @@ Full picture of where tests live: [`../README.md`](../README.md).
 {
   "id": "de",
   "init": { "pack": "de", "currency": "EUR", "firstFiscalYear": 2026 },
-  "expect": { "created.accounts": 40 },          // on the init result
+  "expect": { "created.accounts": 41 },          // on the init result
   "steps": [
     {
       "name": "outgoing invoice",                 // shown on failure

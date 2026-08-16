@@ -33,14 +33,18 @@ final readonly class DatabaseAssetRepository implements AssetRepository
 
     public function save(Asset $asset): void
     {
-        $this->table()->where('id', $asset->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $asset->id->value)->update([
             'state' => Hydrator::encode($this->state($asset)),
         ]);
     }
 
     public function byId(Uuid $id): ?Asset
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }

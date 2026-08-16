@@ -3,6 +3,156 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.7.0 — 2026-08-16
+
+The release that closes the findings list. Every open item from 0.6.0 — F-004, NF-008,
+NF-014, NF-017, NF-015 and the NF-005 remainder — is resolved, together with the twelve-item
+backlog two adversarial review passes produced. **100 conformance fixtures green in both
+languages** (87 at 0.6.0), byte-identical double run, PHPStan level max, and for the first
+time a coverage floor on every package that ships.
+
+Two of the fixes below stop the library from producing quietly wrong output rather than from
+crashing, which is the failure shape this project cares about most: the persistence adapters
+were handing out other tenants' rows, and a reversal left the invoice it cancelled standing in
+the open-item list.
+
+### Fixed — data safety
+
+- **Both persistence adapters ignored `tenant_id` on every by-key path.** `byId`,
+  `byOriginEntry` and `save` filtered by primary key alone, so a repository built for tenant A
+  returned — and wrote over — tenant B's rows. Identical defect in PHP's `packages/laravel` and
+  Node's `packages/knex`, identical fix. Nothing could have caught it before: the conformance
+  runner builds one tenant per fixture and the cross test one per database, so an adapter that
+  ignores `tenant_id` entirely passes both suites at 100 %. It surfaced the moment the adapters
+  got tests of their own (see *Added*), with seven red tests per language on the first run.
+- **A reversal left its open items standing** (NF-008). The trial balance showed the receivable
+  at `0.00` while `openItems` still reported the same invoice as open — and settleable, so a
+  payment could be booked against an invoice that no longer existed. `reverse` now clears them;
+  the treatment follows established practice rather than invention, see *Changed*.
+
+### Changed — breaking for callers who relied on lenient behaviour
+
+Four operations that used to accept an instruction and produce an inconsistent result now
+refuse it. In each case the ledger and the subledger had drifted apart silently.
+
+- **`reverse` clears the open items of the reversed entry** and **refuses once one of them
+  carries a settlement** (`E_ENTRY_HAS_SETTLED_ITEMS`). This is the line SAP draws with message
+  F5308: a reversal clears the items it finds, unless one has already been cleared some other
+  way. Cancelling a settled item would drop money that actually moved out of the open-item
+  history while the ledger kept it; the correction goes through a credit note or refund
+  instead. That also answers the NF-005 remainder — "settled, then reversed" can no longer
+  occur, so the tax stays declared and the correction is its own cash-effective posting with
+  its own date, which is what § 17 Abs. 1 UStG asks for.
+- **`correct` refuses to change the *lines* of an entry that produced open items**
+  (`E_ENTRY_HAS_OPEN_ITEMS`). The subledger used to keep naming an amount, an account and a due
+  date from a posting that no longer existed. Correcting the *text* stays allowed; for amounts
+  the GoBD-conform route is reversal and a new posting, which keeps both books together.
+- **A settlement cannot claim more than the settling entry actually moves on that account**
+  (`E_SETTLEMENT_EXCEEDS_ENTRY`). A partial payment of 500.00 could close an item of 1,190.00
+  in full: the ledger then carried a receivable the open-item list no longer knew about, and
+  under cash-basis taxation VAT was declared as received that never arrived. The bound is the
+  account's *net* movement, so discounts and bad-debt cases stay valid.
+- **A pack that opens a pool range without saying how long** is refused
+  (`E_PACK_INCOHERENT`) rather than silently inheriting one jurisdiction's period — see *Added*.
+
+### Changed — data format (additive)
+
+- **`openItem.status` gains `cancelled`**, and settlements gain **`cause`** (`payment` |
+  `cancellation`, absent means `payment`). `cancelled` and not `settled` on purpose: no money
+  arrived. The marker is load-bearing rather than cosmetic — cash-basis VAT follows an item's
+  settlements, so without it the reversal of a never-paid 1,190.00 invoice would have declared
+  190.00 of VAT out of thin air. `vatReturn` skips cancellation settlements.
+- **`$defs/openItem` now declares what the engine has always written** — `remaining`, `status`
+  and the settlement `difference` were missing under `additionalProperties: false`. Latent,
+  because nothing validated a stored open item against the schema.
+- **`$defs/depreciationData`** is a real per-kind schema for `depreciation` modules, and it makes
+  `poolYears` conditionally required wherever a `poolMax` is declared.
+
+### Fixed — reports
+
+- **An unmapped account no longer vanishes** (NF-014/NF-017). It used to disappear from
+  `incomeStatement` while `balanceSheet` kept counting it, so the two reports disagreed about
+  the same money and neither said so; on the balance sheet an unmapped balance account made the
+  sheet stop balancing outright. Both now use the `_unassigned` catch-all plus `gapWarnings[]`,
+  the treatment the error catalogue already prescribed and `importMapping` already applied.
+- **`auditDataExport` starts income accounts at zero** for the fiscal year (R-2). They carried
+  their lifetime balance as the opening figure, so a US audit-data export showed revenue
+  brought forward into a year it did not belong to.
+- **A one-cent invoice is bookable again** (R-11). Tax rounding to `0.00` produced a zero line,
+  which the ledger rejects — a valid small invoice failed with a message about invalid amounts.
+  Zero tax lines are dropped instead of posted.
+- **`journalExport.format` and `costAllocationSheet.fiscalYear`/`period` have an effect.** They
+  were declared, accepted and read by nobody.
+- **The export manifest states the current format version** (0.6) instead of a hard-coded 0.4,
+  guarded against drifting back by a test against the schema `$id`.
+- **The pack resolver says which mapping, which position, which selector** when a reference
+  goes nowhere, instead of naming only the module.
+
+### Fixed — CLI
+
+- `init` validates before it writes: `--pack` and `--rules` together are refused, the first
+  fiscal year must be a plausible year, and a workspace whose creation fails is removed rather
+  than left half-built where `init` refuses to run again (R-8/R-10).
+- A workspace file with a missing or unusable field says so (`E_WORKSPACE_INVALID`). Every
+  field used to fall back to a default and a missing `tenantId` was regenerated, so a damaged
+  `summae.json` opened the same database under a different identity and reported empty books —
+  indistinguishable from books never written (R-9).
+- **An imported mapping outlives the process that imported it** (R-4). `importMapping` only
+  touched the in-memory registry, so it answered `imported: true` and the next command behaved
+  as though nothing had been imported.
+
+### Added
+
+- **The low-value-asset pool period is pack data** (F-004). `poolYears` sits on the
+  depreciation module; `de-afa` declares 5, `us-macrs` `null`. A fixed five years used to be
+  compiled into the core — one jurisdiction's rule in the law-free substrate, which every
+  other jurisdiction with a pooled regime would have inherited without ever saying so.
+- **The persistence adapters have their own test suites** (NF-015), in both languages: a
+  round-trip written by one tenant instance and read back by a second one on the same
+  connection, so every assertion has genuinely been through a column; the stored JSON checked
+  against the aggregate's own serialization; tenant scoping with two tenants on one database;
+  the hydrator's defensive branches, where a wrong default drops data instead of crashing.
+  `packages/laravel` joins the coverage gate at a 95 % floor, `packages/knex` rises 84 → 88.
+- **Four new error codes**, all appended: `E_ENTRY_HAS_OPEN_ITEMS`, `E_ENTRY_HAS_SETTLED_ITEMS`,
+  `E_SETTLEMENT_EXCEEDS_ENTRY`, `E_WORKSPACE_INVALID`. No existing code shifted, so exit codes
+  stay stable.
+- **Thirteen conformance fixtures** (87 → 100), each pinning one of the defects above.
+- **`de` and `us` packs move to `2026.2`.** Both had changed content several times while still
+  claiming `2026.1` — and a tenant records the pack version it was built from, so an unmoved
+  version means the books name a rule set that no longer exists. Modules version independently;
+  only the six that actually changed moved.
+- **Securities are their own balance-sheet item in the de pack**, per HGB § 266 Abs. 2 (A.III),
+  with account 1250; the liquidity position no longer swallows two entire decades of account
+  numbers.
+
+### Dependencies
+
+- **`brick/math` 0.13 → 0.18** — the money library was six minors behind, pinned there by
+  `illuminate/database ^12`. `illuminate/*` now allows `^11|^12|^13`, which unblocked it.
+  `RoundingMode` became an enum in that range, so every call site moved. Both ends of the
+  declared range were tested: `--prefer-lowest` (brick 0.14.2 + Laravel 11) and `--latest`
+  (0.18 + Laravel 13) produce 100 green fixtures with byte-identical output.
+- `Currency` rejects a negative scale, which the stricter `BigDecimal::toScale` signature
+  surfaced — it used to travel straight into the decimal library.
+- Node: eslint, vitest, tsx, typescript-eslint, knex, `@types/node` current;
+  `@types/better-sqlite3` was five majors behind; `better-sqlite3` 12 → 13, `commander` 12 → 15.
+- Composer manifests: `branch-alias` still said `0.1.x-dev`, and the sibling constraints were a
+  bare `*` that would have accepted any future major of our own core — now `self.version`.
+
+### Findings
+
+**None open.** Two things are deliberately parked rather than found:
+
+- **TypeScript stays on 6.** `tsc`, `vitest` and `tsup` all pass on 7.0, but
+  `typescript-eslint` refuses to load against the TS 7 API and lint is part of the green gate.
+- **`SummaeServiceProvider` is the one uncovered file** in the Laravel adapter — framework glue
+  that needs a booted application to exercise. The coverage floor is set with that hole
+  included, so covering it later can only push the floor up.
+- Every fixture that creates a tenant from a shipped pack asserts the pack *version*, which
+  makes a pack content change a 27-file edit. Pinning it in the two `*-pack-resolves` fixtures
+  and asserting only the id elsewhere would make it a two-file edit — a change to the oracle's
+  shape, not a fix, so it waits for a decision.
+
 ## 0.6.0 — 2026-08-15
 
 A correctness release, and the first one that **rejects input earlier versions accepted**.

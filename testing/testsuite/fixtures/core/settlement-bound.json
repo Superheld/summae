@@ -1,0 +1,316 @@
+{
+  "fixture": "settlement-bound",
+  "description": "R-1: ein Ausgleich darf nicht mehr beanspruchen, als die ausgleichende Buchung auf dem Konto des Postens tatsächlich bewegt. Die einzige Schranke war bisher der Restbetrag des Postens, also konnte eine Teilzahlung über 500,00 einen Posten über 1.190,00 vollständig schließen. Danach führt das Hauptbuch dauerhaft eine Forderung von 690,00, die die OP-Liste nicht mehr kennt — Haupt- und Nebenbuch weichen für immer voneinander ab, ohne dass etwas darauf hinweist. Bei Ist-Versteuerung kommt hinzu, dass Steuer als vereinnahmt gemeldet wird, die nie geflossen ist. Die Schranke ist die Netto-Minderung des Kontos durch diese Buchung, nicht die Buchungssumme: eine Zahlung mit Skonto bucht den vollen Forderungsbetrag gegen die Forderung, die Differenz ist Teil des Ausgleichs und nicht obendrauf — der letzte Schritt zeigt, dass diese Fälle gültig bleiben.",
+  "covers": [
+    "F-CORE-009"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Schranke GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse 19%",
+        "type": "revenue"
+      },
+      {
+        "number": "1776",
+        "name": "USt 19%",
+        "type": "liability",
+        "subtype": "tax_out"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-2026-010",
+        "voucherDate": "2026-02-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "ZAHLUNG-1",
+        "voucherDate": "2026-02-15"
+      },
+      {
+        "id": "$V3",
+        "voucherNumber": "ZAHLUNG-2",
+        "voucherDate": "2026-03-01"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01",
+        "voucherId": "$V1",
+        "text": "Ausgangsrechnung",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1776",
+            "side": "credit",
+            "money": {
+              "amount": "190.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "openItemsCreated": [
+            {
+              "id": "$OP1",
+              "kind": "receivable",
+              "money": {
+                "amount": "1190.00",
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-15",
+        "voucherId": "$V2",
+        "text": "Teilzahlung 500,00",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1400",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E2"
+        }
+      }
+    },
+    {
+      "op": "settle",
+      "input": {
+        "entryId": "$E2",
+        "allocations": [
+          {
+            "openItemId": "$OP1",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_SETTLEMENT_EXCEEDS_ENTRY",
+        "comment": "der Kernfall: die Buchung mindert die Forderung um 500,00, beansprucht werden 1.190,00"
+      }
+    },
+    {
+      "op": "settle",
+      "input": {
+        "entryId": "$E2",
+        "allocations": [
+          {
+            "openItemId": "$OP1",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "openItems": [
+            {
+              "id": "$OP1",
+              "remaining": {
+                "amount": "690.00",
+                "currency": "EUR"
+              },
+              "status": "partially_settled"
+            }
+          ]
+        },
+        "comment": "Positivfall: genau das, was die Zahlung bucht, geht durch"
+      }
+    },
+    {
+      "op": "settle",
+      "input": {
+        "entryId": "$E2",
+        "allocations": [
+          {
+            "openItemId": "$OP1",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_SETTLEMENT_EXCEEDS_ENTRY",
+        "comment": "dieselbe Buchung ein zweites Mal: die 500,00 sind bereits verbraucht, es ist nichts mehr übrig zu beanspruchen"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V3",
+        "text": "Restzahlung abzüglich 20,00 Skonto",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "670.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "debit",
+            "money": {
+              "amount": "20.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1400",
+            "side": "credit",
+            "money": {
+              "amount": "690.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E3"
+        }
+      }
+    },
+    {
+      "op": "settle",
+      "input": {
+        "entryId": "$E3",
+        "allocations": [
+          {
+            "openItemId": "$OP1",
+            "money": {
+              "amount": "690.00",
+              "currency": "EUR"
+            },
+            "difference": {
+              "money": {
+                "amount": "20.00",
+                "currency": "EUR"
+              },
+              "kind": "discount"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "openItems": [
+            {
+              "id": "$OP1",
+              "remaining": {
+                "amount": "0.00",
+                "currency": "EUR"
+              },
+              "status": "settled"
+            }
+          ]
+        },
+        "comment": "Positivfall Skonto: die Buchung mindert die Forderung um volle 690,00, die Differenz steckt im Ausgleich — die neue Schranke trifft diesen Fall nicht"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "Haupt- und Nebenbuch sind sich einig: die Forderung 1400 steht auf 0,00 statt dauerhaft auf 690,00. Bank 1170,00 = 500,00 + 670,00, Erlöse 980,00 = 1.000,00 minus 20,00 Skonto.",
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "1170.00"
+          },
+          {
+            "account": "1400",
+            "balance": "0.00"
+          },
+          {
+            "account": "1776",
+            "balance": "-190.00"
+          },
+          {
+            "account": "8400",
+            "balance": "-980.00"
+          }
+        ]
+      }
+    }
+  ]
+}

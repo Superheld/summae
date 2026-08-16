@@ -11,9 +11,9 @@
     },
     "require": {
         "php": ">=8.3",
-        "superheld/summae-core": "*",
+        "superheld/summae-core": "self.version",
         "symfony/console": "^7.0",
-        "superheld/summae-laravel": "*"
+        "superheld/summae-laravel": "self.version"
     },
     "autoload": {
         "psr-4": {
@@ -22,7 +22,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "0.1.x-dev"
+            "dev-main": "0.7.x-dev"
         }
     },
     "config": {

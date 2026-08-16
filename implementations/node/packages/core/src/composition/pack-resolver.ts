@@ -324,8 +324,16 @@ function topoSort(modules: PackModule[], present: Set<string>): PackModule[] {
   return out;
 }
 
+function selectorText(selector: Record<string, unknown>): string {
+  if (Array.isArray(selector.numbers)) {
+    return `numbers ${selector.numbers.filter((n) => typeof n === 'string').join(', ')}`;
+  }
+  return `range ${asString(selector.from) ?? '?'}–${asString(selector.to) ?? '?'}`;
+}
+
 function checkMappingSelectors(mapping: Record<string, unknown>, accountNumbers: Set<string>): void {
   const numbers = [...accountNumbers];
+  const mappingId = asString(mapping.id) ?? '?';
   const visit = (position: Record<string, unknown>): void => {
     for (const selector of recordList(position.accounts)) {
       let hits = 0;
@@ -339,7 +347,16 @@ function checkMappingSelectors(mapping: Record<string, unknown>, accountNumbers:
         }
       }
       if (hits === 0) {
-        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Mapping selector hits no account (I2)');
+        // Naming all three is the difference between a five-minute fix and bisecting the pack:
+        // the message used to say only that "a" selector somewhere hit nothing, in a bundle that
+        // can hold hundreds of them across several mappings.
+        const positionKey = asString(position.key) ?? '?';
+        throw new DomainError(
+          'E_PACK_UNRESOLVED_REF',
+          `Mapping "${mappingId}", position "${positionKey}": ${selectorText(selector)} hits no account (I2). ` +
+            'Every selector must match at least one account of the chart the pack ships.',
+          { mapping: mappingId, position: positionKey, selector: selectorText(selector) },
+        );
       }
     }
     for (const child of recordList(position.children)) {

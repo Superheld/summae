@@ -2,8 +2,8 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.1",
-  "name": "Deutschland — Kontenrahmen (40 Konten, eigener Entwurf, keine SKR-Übernahme)",
+  "version": "2026.2",
+  "name": "Deutschland — Kontenrahmen (41 Konten, eigener Entwurf, keine SKR-Übernahme)",
   "contributes": ["accounts"],
   "dependsOn": [],
   "data": {
@@ -11,6 +11,7 @@
       { "number": "0100", "name": "Anlagen", "type": "asset", "subtype": "fixed_asset" },
       { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
       { "number": "1210", "name": "Kasse", "type": "asset", "subtype": "cash" },
+      { "number": "1250", "name": "Wertpapiere des Umlaufvermögens", "type": "asset" },
       { "number": "1300", "name": "Geldtransit", "type": "asset", "subtype": "transit" },
       { "number": "1400", "name": "Forderungen aus Lieferungen und Leistungen", "type": "asset", "subtype": "ar" },
       { "number": "1450", "name": "Sonstige Forderungen", "type": "asset" },

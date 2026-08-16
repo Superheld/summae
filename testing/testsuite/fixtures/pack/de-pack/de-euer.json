@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "EÜR Freiberufler", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "taxationMethod": "cash" } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.2" }, "taxationMethod": "cash" } } },
     { "op": "postVoucher", "input": {
         "tenant": "$T1", "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-03-01" },
         "entryDate": "2026-03-01", "text": "Barverkauf 19%", "taxCode": "USt19", "direction": "output",
