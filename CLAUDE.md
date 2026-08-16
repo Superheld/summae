@@ -71,7 +71,10 @@ versioned bundle of a jurisdiction
 („tzdata for accounting"; „Germany" is the *first* pack, not the built-in
 assumption). A pack is composable (take it curated / adapt it / build your own à la carte).
 **Litmus test when building:** does your code cite a statute → wrong layer, that
-belongs in the pack as data. Full picture + honest build status: `docs/architektur.md`.
+belongs in the pack as data. **The stronger test, because a statute rarely arrives quoted:**
+*would another jurisdiction answer this differently?* A rule translated into a plain condition
+reads like mechanism — `route !== 'pool'` was § 6 Abs. 2a EStG, and neither the code nor its
+comment gave it away (NF-025). Full picture + honest build status: `docs/architektur.md`.
 
 **Pack & modules (brief).** Three layers: **substrate** → **policy kinds** (sockets in the core) → **pack** (on top).
 A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+`data`); a **pack**
@@ -197,5 +200,9 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    reads no files, so each language carries the table as a constant — and a test per language asserts
    the constant equals that file, which is what makes drift impossible. **Adding a parameter means
    editing the declaration in the knowledge base**, not the constant.
+6. **An error code lives in two places at once.** A new code needs its row in the knowledge base's
+   `fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
+   never reordered). `ExitCodesTest`/`exit-codes.test.ts` compare the two as sets in both
+   directions, so half the work fails the build.
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.
