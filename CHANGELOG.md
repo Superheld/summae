@@ -3,7 +3,17 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
-## Unreleased
+## 0.8.0 — 2026-08-16
+
+A release about the seams between the pieces rather than about new capability. Nothing here
+adds an operation or a report; what changes is that three contracts which had been maintained
+by hand are now compared by a test, and that the largest class in the core stopped being one
+class.
+
+**Why this is a minor and not a patch:** five error codes that used to exit `1` now exit
+49–53. A script that branches on the exit code will see different numbers for the same
+failures — a correction, but a visible one. `ExitCodes::all()` / `allExitCodes()` are new;
+nothing was removed or renamed.
 
 Both languages stay byte-identical, and every gate (conformance `--strict` against both
 subjects, cross-test, PHPStan max, typecheck/lint, coverage floors) is green.
@@ -35,6 +45,14 @@ subjects, cross-test, PHPStan max, typecheck/lint, coverage floors) is green.
   `AuditWriter` and `Lookups` carrying what all of them need. The public surface is unchanged —
   `TenantOperations`, the CLI and both persistence adapters see the same object as before.
   879 → 520 lines in Node, 1126 → 671 in PHP.
+- **The handbook was brought level with what the code does**, and the status claims in the
+  READMEs and CLAUDE files with it — dead job references, stale counts, and two release traps
+  are gone. NF-018 was found during exactly that pass.
+- **`make sync` refuses to leave a gate file behind.** Three files the gate tests read
+  (`api-parameters.json`, `format.schema.json`, `fehlerkatalog.md`) come from the spec folder,
+  not from the testsuite folder the mirror is named after. If that source ever fails to
+  resolve, the sync used to drop them silently and five tests across both languages would stop
+  checking; it now exits non-zero naming the files and where they come from.
 
 ### Decided
 

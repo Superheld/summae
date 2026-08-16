@@ -177,7 +177,7 @@ gezogen und die `tenantId` neu erzeugt, wenn sie fehlte — die CLI öffnete die
 einer anderen Identität und meldete ein leeres Hauptbuch. Von „die Bücher sind leer" war das für
 niemanden zu unterscheiden. Befund R-9.
 
-## E_NOT_IMPLEMENTED (Dispatcher, v0.7.1)
+## E_NOT_IMPLEMENTED (Dispatcher, v0.8.0)
 
 | Code | Invariante | Fixture |
 |---|---|---|
