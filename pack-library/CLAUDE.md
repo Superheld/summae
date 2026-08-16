@@ -22,6 +22,12 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
   **fails loudly** on missing/incoherent references (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).
+- **Where a jurisdiction has an answer, the pack must give it — no defaults.** A `depreciation`
+  module that opens a pool range (`poolMin`/`poolMax`) must declare **both** `poolYears` and
+  `poolReducedOnDisposal`; the schema requires them conditionally and the core refuses rather than
+  guessing. A `taxCode` version picks its `mechanism` from the closed core list (`standard`,
+  `reverse_charge`, `intra_community_supply`, `exempt`) — an unknown name is `E_PACK_INCOHERENT`,
+  not a silent fallback to standard VAT.
 
 ## Rule
 
