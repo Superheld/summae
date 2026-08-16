@@ -48,11 +48,11 @@ a short file.
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-017 an unmapped balance account made the balance sheet stop balancing | **RESOLVED 2026-08-15** — `_unassigned` per section + `gapWarnings[]` (fixture `balance-sheet-gap`) |
 | NF-014 accounts outside a mapping vanish from the income statement | **RESOLVED 2026-08-15** — `_unassigned` + `gapWarnings[]` (fixture `income-statement-gap`) |
-| NF-015 `packages/laravel` has no tests of its own | **OPEN** — excluded from the coverage gate, deliberately |
+| NF-015 `packages/laravel` has no tests of its own | **RESOLVED 2026-08-16** — own suite (19 tests), coverage floor 95%; found and fixed a tenant-scoping defect in **both** adapters |
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: NF-015** — F-004, NF-008 and the NF-005 remainder were all closed on
+**No findings are open today.** F-004, NF-008, the NF-005 remainder and NF-015 were all closed on
 2026-08-16.
 
 The **entire Round 1 backlog (R-1 … R-12) is closed** as of 2026-08-16 — the twelve defects the
@@ -444,16 +444,29 @@ data-format decision) before either language moves.
   finding — this is one, and it sits on the surface that writes and reads the shared data format.
 - **Where:** `implementations/php/packages/laravel/` (src ~534 statements), `phpunit.xml.dist`,
   `runner/bin/coverage-gate.php`
-- **Chosen behavior:** the package is **excluded** from the coverage source set and carries **no
-  floor**, with the reason stated at both places. Measuring it would pin a number nobody
-  maintains: it does get ~79 % line coverage today, but purely as a side effect of the conformance
-  runner's `database` subject and the cross-test driving it — coverage that no test in this
-  package asserts anything about, and that would silently move whenever those suites change.
-  Excluding it keeps the gate honest; the gap stays visible here instead of hiding inside a
-  green percentage.
-- **Proposal:** give the adapter its own suite (repository round-trips per aggregate, the JSON
-  columns of the `summae_*` tables, tenant scoping) and then add a `laravel` floor to
-  `coverage-gate.php` — the floors are a ratchet, so the number can only rise after that.
+- **Chosen behavior (until 2026-08-16):** the package was **excluded** from the coverage source set
+  and carried **no floor**, with the reason stated at both places. Measuring it would have pinned a
+  number nobody maintains: it did get ~79 % line coverage, but purely as a side effect of the
+  conformance runner's `database` subject and the cross-test driving it — coverage that no test in
+  this package asserted anything about. Excluding it kept the gate honest and the gap visible.
+- **RESOLVED 2026-08-16.** The adapter has its own suite: `AdapterTestCase` (in-memory SQLite with
+  the `summae_*` schema) · `RepositoryRoundTripTest` (books written by one tenant instance and read
+  back by a second one on the same connection, so everything asserted has genuinely been through a
+  column) · `TenantScopingTest` · `HydratorAndSchemaTest`. 19 tests, line coverage 96.97 %, floor
+  95 % in `coverage-gate.php` and the package added to `phpunit.xml.dist`'s source set.
+- **And it paid for itself immediately: every `byId`, `byOriginEntry` and `save` in the adapter
+  ignored `tenant_id`.** A repository built for tenant A handed out — and wrote over — tenant B's
+  rows by primary key. Seven of the new tests were red on the first run. The root `CLAUDE.md` calls
+  summae "multi-tenant at the data level", and the `tenant_id` column exists for exactly this, but
+  nothing enforced it on the by-key paths. No existing suite could have seen it: the conformance
+  runner builds one tenant per fixture and the cross test one per database, so an adapter that
+  ignores `tenant_id` entirely passes both. **The Node `packages/knex` adapter had the identical
+  defect** — same lines, same fix, and it had no tests of its own either. Both are fixed and both
+  now carry the mirrored suite (`packages/knex/test/adapter.test.ts`), verified red-before-green in
+  each language.
+- **Still uncovered:** `SummaeServiceProvider` (0 %, ~15 statements) — Laravel framework glue that
+  needs a booted application (`orchestra/testbench`) to exercise. The floor is set below the
+  measured value *with* that hole, so covering it later can only push the floor up.
   Deliberately **not** done here: it is a test-writing job, not a gate-wiring one. Node has no
   counterpart — `packages/knex` has no tests of its own either, but is covered through the CLI
   package's tests and does carry a floor there.

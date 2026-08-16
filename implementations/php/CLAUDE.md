@@ -58,14 +58,16 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 
 PHPStan level max without errors · `make test` green (**PHPUnit incl. `ConformanceTest`**
 over the full suite **+ coverage gate per package** via `coverage-gate.php`: lines core 91 /
-cli 87 / runner 82, `packages/laravel` excluded because it has no tests of its own — NF-015) ·
-conformance suite `--strict` against **both** subjects (`core` and `database`) incl.
-byte-identical double run.
+cli 87 / laravel 95 / runner 82) · conformance suite `--strict` against **both** subjects
+(`core` and `database`) incl. byte-identical double run.
 
-⚠ **Working on `packages/laravel`? A green `make test` proves nothing about it.** The adapter has
-no unit tests at all; it is exercised only end-to-end — via the conformance suite with
-`--subject=database` and via the SF-15 cross test (`make cross`). Run **both** after touching it,
-and expect a failure there to tell you *that* something broke, not *what*.
+**`packages/laravel` has its own suite** since 2026-08-16 (NF-015): `AdapterTestCase` (in-memory
+SQLite + `summae_*` schema) · `RepositoryRoundTripTest` (write with one tenant instance, read with a
+second — everything asserted has been through a column) · `TenantScopingTest` (two tenants on one
+database) · `HydratorAndSchemaTest`. The one uncovered piece is `SummaeServiceProvider` — framework
+glue that would need a booted Laravel application (`orchestra/testbench`) to exercise. Still run
+`--subject=database` and `make cross` after touching the adapter: they cover the Postgres dialect
+and the shared-database format, which the SQLite suite cannot.
 
 `make test` includes the **walkthrough scenarios** (`packages/cli/tests/WalkthroughTest.php`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared

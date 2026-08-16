@@ -37,7 +37,9 @@ final readonly class DatabaseFiscalYearRepository implements FiscalYearRepositor
 
     public function save(FiscalYear $fiscalYear): void
     {
-        $this->table()->where('id', $fiscalYear->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $fiscalYear->id->value)->update([
             'status' => $fiscalYear->status()->value,
             'periods' => $this->encodePeriods($fiscalYear),
         ]);

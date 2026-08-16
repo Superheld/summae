@@ -29,7 +29,9 @@ final readonly class DatabaseVoucherRepository implements VoucherRepository
 
     public function byId(Uuid $id): ?Voucher
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }
