@@ -88,6 +88,4 @@ payment), margin schemes. If the **base computation** ever becomes its own socke
 describable as data — today's four differ only in accounts/sides/reporting keys/gross delta — and closed/open
 is a different question with possibly a different answer. Until then it is settled.
 
-**Open as a hardening** (independent of the decision): `mechanismFor` falls back to the standard mechanism for
-an unknown name, so a typo in a pack silently books standard VAT. Under "closed" a dedicated error is the
-honest behaviour — not done, needs a fixture.
+**Hardening done 2026-08-16:** `mechanismFor` no longer falls back to the standard mechanism for an unknown name — it raises `E_PACK_INCOHERENT`. Under a closed repertoire an unlisted name is a typo or a pack built against a newer core, and both used to book plain VAT silently: `reverse-charge` instead of `reverse_charge` produced a normal tax line on the normal account in the normal VAT box. The resolver calls the same function, so a composed pack now fails at `resolvePack`/`init` rather than at the first posting. Fixture `resolver-unknown-mechanism`.

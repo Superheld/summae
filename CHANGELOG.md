@@ -40,6 +40,14 @@ rather than missing tests, and both were the quiet kind: no crash, no error, jus
   disposal period first. Making `dispose` catch up on its own is a separate decision — it would
   make one operation write two economically different entries.
 
+- **An unknown tax mechanism is refused instead of quietly booked as standard.** `mechanismFor`
+  fell back to the standard mechanism for any unregistered name. Since the repertoire is closed —
+  a pack picks one of the four and carries no code — an unlisted name is a typo or a pack built
+  against a newer core, and both booked plain VAT without a word: `reverse-charge` instead of
+  `reverse_charge` produced a normal tax line, on the normal account, in the normal VAT return
+  box. It is now `E_PACK_INCOHERENT`, and because the resolver calls the same function, a composed
+  pack fails at `resolvePack`/`init` rather than at the first posting.
+
 ### Added
 
 - **Three fixtures for requirements that were built but unwatched.** `E_POLICY_INVALID` had no
@@ -47,7 +55,8 @@ rather than missing tests, and both were the quiet kind: no crash, no error, jus
   four); the trial balance's `openingBalance`/`debitTotal`/`creditTotal` columns had none although
   both languages emit them (`trial-balance-columns`, over two fiscal years — the only way the
   carry-forward is distinguishable from the period turnover); and F-TAX-007 got
-  `supplier-taxation-method`. 104 fixtures now, cross-test 61/61 each way.
+  `supplier-taxation-method`. Plus `resolver-unknown-mechanism` for the hardening above and
+  `pool-unaffected-by-disposal` for NF-019/NF-021. 105 fixtures now, cross-test 61/61 each way.
 
 ## 0.8.1 — 2026-08-16
 

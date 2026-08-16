@@ -1,0 +1,61 @@
+{
+  "fixture": "resolver-unknown-mechanism",
+  "description": "Ein taxCode verlangt einen Steuermechanismus, den es nicht gibt (`reverse-charge` statt `reverse_charge`) → E_PACK_INCOHERENT. Das Repertoire ist geschlossen (Entscheidung 2026-08-16): ein Pack wählt einen der vier registrierten Mechanismen und trägt keinen Code, ein anderer Name ist also ein Tippfehler oder ein Pack gegen einen neueren Kern. Vorher fiel beides still auf `standard` zurück — der Reverse-Charge-Beleg bekam eine gewöhnliche Steuerzeile auf dem gewöhnlichen Konto in der gewöhnlichen USt-VA-Kennzahl, und nichts an der Ausgabe sagte, dass der Mechanismus weggefallen war. Der Fehler kommt beim Auflösen, nicht erst bei der ersten Buchung.",
+  "covers": ["F-PACK-RESOLVE", "E_PACK_INCOHERENT", "mechanism"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "mini-coa", "version": "1.0",
+        "name": "Minimaler Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+          { "number": "1570", "name": "Vorsteuer", "type": "asset" },
+          { "number": "3100", "name": "Umsatzsteuer", "type": "liability" }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "tax", "id": "tax-typo", "version": "1.0",
+        "name": "Steuerschlüssel mit vertipptem Mechanismus", "contributes": ["taxCodes"], "dependsOn": [],
+        "data": { "taxCodes": [
+          {
+            "code": "RC19", "name": "Reverse Charge 19 %",
+            "versions": [
+              {
+                "validFrom": "2026-01-01", "validTo": null, "rate": "19.00",
+                "mechanism": "reverse-charge",
+                "taxAccount": "3100", "inputTaxAccount": "1570", "reportingKey": "46"
+              }
+            ]
+          }
+        ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-eur", "version": "1.0",
+        "name": "EUR-Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-typo-mechanism", "name": "Pack mit unbekanntem Mechanismus", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "mini-coa", "version": "1.0" },
+          { "kind": "tax", "id": "tax-typo", "version": "1.0" },
+          { "kind": "policy", "id": "pol-eur", "version": "1.0" }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-typo-mechanism", "version": "1.0" } },
+      "expect": {
+        "comment": "Alle Referenzen existieren — Konten, Steuerkonto, Vorsteuerkonto sind da. Nur der Mechanismus-Name trifft nichts. Deshalb INCOHERENT (Bündel passt nicht zusammen) und nicht UNRESOLVED_REF (Referenz zeigt ins Leere).",
+        "error": "E_PACK_INCOHERENT"
+      }
+    }
+  ],
+  "projections": []
+}
