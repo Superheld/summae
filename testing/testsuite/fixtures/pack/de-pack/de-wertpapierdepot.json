@@ -7,7 +7,7 @@
     {
       "op": "createTenant",
       "input": { "name": "Depot GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" }, "accountCount": 41 } }
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.2" }, "accountCount": 41 } }
     },
     {
       "op": "postVoucher",

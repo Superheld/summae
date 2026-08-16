@@ -6,11 +6,11 @@
   "steps": [
     {
       "op": "resolvePack",
-      "input": { "manifest": "us", "version": "2026.1" },
+      "input": { "manifest": "us", "version": "2026.2" },
       "expect": {
         "result": {
           "id": "us",
-          "version": "2026.1",
+          "version": "2026.2",
           "accountCount": 35,
           "assetAccounts": { "default": { "acquisitionCounterAccount": "1010", "depreciationExpenseAccount": "6300", "gwgExpenseAccount": "6310", "disposalProceedsAccount": "4900", "disposalLossAccount": "6900" } },
           "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
@@ -20,7 +20,7 @@
     {
       "op": "createTenant",
       "input": { "name": "Example Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "accountCount": 35, "taxationMethod": "accrual" } }
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" }, "accountCount": 35, "taxationMethod": "accrual" } }
     },
     {
       "op": "postVoucher",

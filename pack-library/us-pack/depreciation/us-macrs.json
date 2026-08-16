@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "macrs-us",
   "kind": "depreciation",
-  "version": "2026.1",
+  "version": "2026.2",
   "name": "Depreciation United States (de minimis safe harbor, MACRS GDS recovery periods as useful lives)",
   "contributes": ["depreciation"],
   "dependsOn": [],

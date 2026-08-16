@@ -345,12 +345,20 @@ Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
 `packPolicy` + `defaults`:
 ```json
-{ "formatVersion": "0.6", "id": "de", "version": "2026.1",
-  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.1" },
+{ "formatVersion": "0.6", "id": "de", "version": "2026.2",
+  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.2" },
                { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
   "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
   "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
 ```
+
+**Versions move per module.** Each module carries its own `version`, the manifest
+pins the exact one it wants, and the pack's own version rises whenever any of its
+modules changes — the two lines above show it: the chart of accounts moved to
+`2026.2`, the tax module stayed at `2026.1`. A tenant records the pack id and
+version it was created from, so the books always say which rule set produced
+them. `YYYY.N` is the shipped convention, not a requirement: the resolver only
+compares strings.
 
 Choose it with `summae init --pack de`. The **resolver checks coherence** (does
 a tax account point at an account the chart of accounts doesn't have? does a
