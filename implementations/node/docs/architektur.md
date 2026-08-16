@@ -57,8 +57,10 @@ PascalCase folders — full picture in [`../packages/core/src/CLAUDE.md`](../pac
 
 - **`substrate/`** — frozen, jurisdiction-free primitives (posting summing to 0, account, journal,
   balance, period, plus enums). Imports nothing from above.
-- **`ledger/`** — the orchestrator `ledger.ts`, which threads `post` (substrate) + `settle`/`reverse`
-  (expansion) + `close` (constraint) together.
+- **`ledger/`** — `ledger.ts` writes postings (`post`/`correct`/`finalize`/`reverse`) and is a thin
+  facade over its extracted neighbours: `settlement-service.ts` (expansion),
+  `chart-admin-service.ts` (setup), `fiscal-period-service.ts` (constraint), plus
+  `audit-writer.ts` and `lookups.ts`.
 - **`records/`** — vouchers/records (voucher · open-item · audit), data layer, **not** a policy kind;
   may reference the substrate.
 - **`policies/`** — the three policy kinds; here only the **socket** (law-free mechanics), the

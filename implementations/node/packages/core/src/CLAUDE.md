@@ -43,7 +43,8 @@ The folders above **are** the structure (no longer just a target): `shared→sub
 `tax/assets/costing→policies/expansion`, `projection/mapping→policies/projection`; `ledger/`
 split across `substrate/` (primitives+enums) · `records/` (voucher/open-item/audit) ·
 `policies/constraint/` (dimension-registry) · `policies/expansion/` (settlement) — `ledger.ts`
-stayed as the **orchestrator** in `ledger/`. Each slice green (typecheck/lint/test + `fixtures --strict`
+stayed as the **orchestrator** in `ledger/` (whose own methods were split in turn, see below).
+Each slice green (typecheck/lint/test + `fixtures --strict`
 + `make cross`), PHP + Node 1:1. `records/` may reference the substrate (data layer); the
 substrate boundary (lint/arch test) forbids `policies/` + upper layers.
 
@@ -54,9 +55,12 @@ substrate boundary (lint/arch test) forbids `policies/` + upper layers.
   strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal, which
   since 2026-08-16 is also the **decided** shape (closed repertoire — see below). A new mechanism (e.g.
   `exempt`) is just a fourth registered strategy.
-- **`ledger.ts` (orchestrator in `ledger/`) still fuses internally** post (substrate) + settle/reverse
-  (expansion) + close (constraint) into *one* class — the **method** disentanglement (surgery B) is
-  separate and still pending.
+- **`ledger.ts` is disentangled** (surgery B, 2026-08-16, byte-identical): it keeps the operations that
+  *write postings* — `post`/`correct`/`finalize`/`reverse` — plus the line parsing they share, and is a
+  thin **facade** over `settlement-service.ts` (expansion), `chart-admin-service.ts` (setup) and
+  `fiscal-period-service.ts` (constraint); `audit-writer.ts` and the free functions in `lookups.ts` carry
+  what all of them need. The facade is the point: `TenantOperations` and every adapter still see one
+  object, so the seam is internal. 879 → 520 lines.
 
 ## Engine bundle & target model vs. status
 

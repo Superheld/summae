@@ -43,7 +43,8 @@ The folders above **are** the structure (no longer just a target): `Shared→Sub
 `Tax/Assets/Costing→Policies/Expansion`, `Projection/Mapping→Policies/Projection`; `Ledger/`
 split across `Substrate/` (primitives+enums) · `Records/` (Voucher/OpenItem/Audit) ·
 `Policies/Constraint/` (DimensionRegistry) · `Policies/Expansion/` (Settlement) — `Ledger.php`
-stayed as the **orchestrator** in `Ledger/`. Each slice green (PHPStan/PHPUnit + `fixtures` +
+stayed as the **orchestrator** in `Ledger/` (whose own methods were split in turn, see below).
+Each slice green (PHPStan/PHPUnit + `fixtures` +
 `make cross`), PHP + Node 1:1. `Records/` may reference the substrate (data layer); the
 substrate boundary (lint/arch test) forbids `Policies/` + upper layers.
 
@@ -54,9 +55,12 @@ substrate boundary (lint/arch test) forbids `Policies/` + upper layers.
   strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal, which
   since 2026-08-16 is also the **decided** shape (closed repertoire — see below). A new mechanism (e.g.
   `exempt`) is just a fourth registered strategy.
-- **`Ledger.php` (orchestrator in `Ledger/`) still fuses internally** post (substrate) + settle/reverse
-  (expansion) + close (constraint) into *one* class — the **method** disentanglement (surgery B) is
-  separate and still pending.
+- **`Ledger.php` is disentangled** (surgery B, 2026-08-16, byte-identical): it keeps the operations that
+  *write postings* — `post`/`correct`/`finalize`/`reverse` — plus the line parsing they share, and is a
+  thin **facade** over `SettlementService` (expansion), `ChartAdminService` (setup) and
+  `FiscalPeriodService` (constraint); `AuditWriter` and the static `Lookups` carry what all of them need.
+  The facade is the point: `TenantOperations` and every adapter still see one object, so the seam is
+  internal. 1126 → 671 lines.
 
 ## Engine bundle & target model vs. status
 

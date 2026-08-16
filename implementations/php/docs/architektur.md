@@ -126,11 +126,12 @@ postVoucher(input)
   → PostResult (entry + generated open items)
 ```
 
-`Ledger.php` (in `Ledger/`) is the orchestrator: it currently fuses `post`
-(substrate) + settle/reverse (expansion) + close (constraint) in *one* class.
-Splitting those **methods** apart is an independent structure question — it is *not*
-gated on the mechanism-repertoire decision, which is settled (closed, see
-`packages/core/src/CLAUDE.md`); the directory split itself is done.
+`Ledger.php` (in `Ledger/`) keeps the operations that *write postings* — `post`,
+`correct`, `finalize`, `reverse` — together with the line parsing they share, and is a
+thin **facade** for three neighbours that were extracted in 2026-08 (surgery B):
+`SettlementService` (settle), `ChartAdminService` (accounts) and `FiscalPeriodService`
+(fiscal years/periods), plus `AuditWriter` and the static `Lookups`. The facade keeps the
+public surface unchanged, so `TenantOperations` and every adapter still talk to one object.
 
 Reading never goes through stored balances, only through the projections in
 `packages/core/src/Policies/Projection/`.
