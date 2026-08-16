@@ -44,6 +44,14 @@ turnkey after a one-time setup:
    builds (`pnpm build`) and publishes. Dry run anytime via „Run workflow"
    (input `dry_run = true`).
 
+**The GitHub release writes itself** from the CHANGELOG section for that version
+([`release-notes.yml`](.github/workflows/release-notes.yml) → `bin/changelog-section.sh`), so the
+one thing you must do is have `## X.Y.Z — <date>` in `CHANGELOG.md` **before** you tag — the
+workflow fails rather than publishing an empty release. It never overwrites notes that already
+have content, so improving them by hand afterwards is safe. This is automated because it was the
+step that got skipped: v0.3.0 through v0.8.1 shipped to npm and Packagist with no notes on GitHub
+at all, and nothing pointed it out until 2026-08-17.
+
 Manual alternative (local, one-time login):
 ```bash
 cd implementations/node && pnpm install && pnpm build
