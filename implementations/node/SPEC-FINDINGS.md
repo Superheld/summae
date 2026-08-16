@@ -28,6 +28,8 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
 | NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in `exit-codes.ts` (with `E_AMOUNT_SCALE_MISMATCH`, so the guard needs no exception list); `packages/cli/test/exit-codes.test.ts` compares catalogue and exit codes **as sets**, both directions — `E_NOT_IMPLEMENTED` got the catalogue row it never had; write-up on the PHP side |
+| NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `asset-service.ts` skipped every disposed asset; a pool must run its full term (F-AST-006). Identical fix in both languages, fixture `pool-unaffected-by-disposal`; write-up on the PHP side |
+| NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — the field was in the data format and in `voucher.ts`, but `post-voucher-service.ts` never read it from the input. Now accepted + validated; fixture `supplier-taxation-method`; write-up on the PHP side |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **NF-015**, which turned out to matter here too: giving the persistence adapters their own

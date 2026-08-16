@@ -52,9 +52,33 @@ a short file.
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 | NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
+| NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
+| NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
 
-F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16. **The
-findings list is empty.**
+F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16, and NF-019 +
+NF-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
+is empty.**
+
+### NF-019 / NF-020 — found by asking which requirements have no test
+
+Neither came from a bug report; both came from listing the requirements (`30-anforderungen/`)
+against the `covers` fields of the fixtures and then checking, for each requirement without a
+link, whether the capability exists in the code. That separates two very different things: not
+built yet (no finding — six requirements are in that group and the handbook claims none of them)
+versus **built and unwatched**, which is where these two sat.
+
+- **NF-019** — `runDepreciation` skipped every disposed asset. Correct for a single asset, wrong
+  for a pooled one: F-AST-006 requires the pool to be written off on its fixed schedule
+  *unaffected by disposals*, and the jurisdiction behind the rule states it outright — the pool is
+  not reduced when an item leaves. The effect was silent and directional: too little depreciation
+  and too much profit, for every remaining year of the term. Fixed in both languages by exempting
+  `route === pool` from the skip; the disposal still books its proceeds.
+- **NF-020** — `supplierTaxationMethod` sat in `format.schema.json` as `enum ["accrual","cash"]`,
+  in `datenformat.md` with F-TAX-007 next to it, and in both `Voucher` classes — but the PHP
+  constructor call passed a literal `null` for it and the Node object literal omitted it, so no
+  caller could ever set it. The field decides whether input tax is deductible on invoice or only
+  on payment. An unknown value is now rejected rather than dropped: storing null silently would
+  read as "supplier taxes on accrual", which is the answer that permits the earlier deduction.
 
 ### NF-018 — four error codes fall through to exit code 1 — RESOLVED
 

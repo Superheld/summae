@@ -1,0 +1,109 @@
+{
+  "fixture": "trial-balance-columns",
+  "description": "F-CORE-026: die SuSa führt vier Spalten je Zeile — openingBalance (kumuliert VOR dem Geschäftsjahr), debitTotal/creditTotal (Verkehrszahlen DES Zeitraums) und balance = opening + debit − credit. Über zwei Geschäftsjahre gebucht, geprüft wird das zweite: nur so ist openingBalance von den Verkehrszahlen unterscheidbar. Der fachliche Kern ist die Asymmetrie Bestand/Erfolg — Bestandskonten tragen vor, GuV-Konten starten bei 0.00, sonst stünde der Jahresgewinn doppelt in den Büchern. Abgrenzung zu `two-year-carryover`: die prüft dieselbe Vortragslogik, aber nur über die `balance`-Spalte — die drei übrigen Spalten hatte bis dahin keine Fixture, obwohl beide Implementierungen sie ausgeben.",
+  "covers": ["F-CORE-026", "F-CORE-011"],
+  "setup": {
+    "tenant": { "name": "Spalten GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "4000", "name": "Erlöse", "type": "revenue" },
+      { "number": "6000", "name": "Aufwand", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "B-2026-1", "voucherDate": "2026-03-10" },
+      { "id": "$V2", "voucherNumber": "B-2026-2", "voucherDate": "2026-04-05" },
+      { "id": "$V3", "voucherNumber": "B-2027-1", "voucherDate": "2027-02-20" },
+      { "id": "$V4", "voucherNumber": "B-2027-2", "voucherDate": "2027-03-15" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-10", "voucherId": "$V1", "text": "Erlös 2026",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-05", "voucherId": "$V2", "text": "Aufwand 2026 auf Ziel",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1600", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-02-20", "voucherId": "$V3", "text": "Erlös 2027",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "250.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "250.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "periodRef": { "fiscalYear": 2027, "period": 2 } } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-03-15", "voucherId": "$V4", "text": "Begleichung der Verbindlichkeit aus 2026",
+        "lines": [
+          { "account": "1600", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "periodRef": { "fiscalYear": 2027, "period": 3 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Erstes Jahr: kein Vortrag, also openingBalance überall 0.00 — auch auf den Bestandskonten. balance ist hier deckungsgleich mit den Verkehrszahlen.",
+        "rows": [
+          { "account": "1200", "openingBalance": "0.00", "debitTotal": "1000.00", "creditTotal": "0.00", "balance": "1000.00" },
+          { "account": "1600", "openingBalance": "0.00", "debitTotal": "0.00", "creditTotal": "400.00", "balance": "-400.00" },
+          { "account": "4000", "openingBalance": "0.00", "debitTotal": "0.00", "creditTotal": "1000.00", "balance": "-1000.00" },
+          { "account": "6000", "openingBalance": "0.00", "debitTotal": "400.00", "creditTotal": "0.00", "balance": "400.00" }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2027, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Zweites Jahr — hier trennen sich die Spalten. Bank: 1000.00 Vortrag + 250.00 Zugang − 400.00 Abgang = 850.00. Verbindlichkeiten: −400.00 Vortrag, im Jahr 400.00 im Soll getilgt, Saldo 0.00 — die Zeile bleibt trotz Nullsaldo stehen, weil sie im Zeitraum bewegt wurde. Erlöse und Aufwand starten bei 0.00 Vortrag, obwohl 2026 auf beiden gebucht wurde: GuV-Konten werden nicht vorgetragen.",
+        "rows": [
+          { "account": "1200", "openingBalance": "1000.00", "debitTotal": "250.00", "creditTotal": "400.00", "balance": "850.00" },
+          { "account": "1600", "openingBalance": "-400.00", "debitTotal": "400.00", "creditTotal": "0.00", "balance": "0.00" },
+          { "account": "4000", "openingBalance": "0.00", "debitTotal": "0.00", "creditTotal": "250.00", "balance": "-250.00" }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2027, "throughPeriod": 2 },
+      "expect": {
+        "comment": "Derselbe Vortrag, aber nur bis Periode 2: die Tilgung aus dem März fehlt in den Verkehrszahlen, der Vortrag ändert sich dadurch nicht. Das ist der Unterschied, den eine reine balance-Spalte nicht sichtbar machen kann.",
+        "rows": [
+          { "account": "1200", "openingBalance": "1000.00", "debitTotal": "250.00", "creditTotal": "0.00", "balance": "1250.00" },
+          { "account": "1600", "openingBalance": "-400.00", "debitTotal": "0.00", "creditTotal": "0.00", "balance": "-400.00" },
+          { "account": "4000", "openingBalance": "0.00", "debitTotal": "0.00", "creditTotal": "250.00", "balance": "-250.00" }
+        ]
+      }
+    }
+  ]
+}

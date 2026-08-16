@@ -13,6 +13,30 @@ function asString(value: unknown): string | null {
 }
 
 /**
+ * F-TAX-007: the supplier's taxation method on the voucher. It decides whether input tax may be
+ * deducted on invoice or only on payment — a distinction German law makes binding for the
+ * deducting side in 2028, and one only the incoming document can answer. The field was in the
+ * data format (`enum ["accrual","cash"]`) and in both record classes from the start, but nothing
+ * ever read it out of the input, so it could not be anything but null.
+ *
+ * An unknown value is rejected rather than dropped: silently storing null would look exactly like
+ * "the supplier taxes on accrual", which is the answer that permits the earlier deduction.
+ */
+function supplierTaxationMethod(voucherData: Record<string, unknown>): string | null {
+  const value = voucherData.supplierTaxationMethod;
+  if (value === undefined || value === null) return null;
+
+  if (value !== 'accrual' && value !== 'cash') {
+    throw new DomainError(
+      'E_INPUT_INVALID',
+      `voucher.supplierTaxationMethod must be "accrual" or "cash", got ${typeof value === 'string' ? `"${value}"` : typeof value}`,
+    );
+  }
+
+  return value;
+}
+
+/**
  * Application-layer composition `postVoucher` (api.md, part of the spec): SF-02/03
  * in one call — create voucher, expandTax, post, OP creation.
  */
@@ -56,6 +80,7 @@ export class PostVoucherService {
       kind: asString(voucherData.kind),
       partnerId,
       issuer: asString(voucherData.issuer),
+      supplierTaxationMethod: supplierTaxationMethod(voucherData),
     });
     this.tenant.vouchers.add(voucher);
     return voucher;
