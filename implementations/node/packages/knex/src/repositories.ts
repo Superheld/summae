@@ -27,6 +27,7 @@ import {
   type PeriodStatus,
   Settlement,
   type SettlementDifferenceKind,
+  parseSettlementCause,
   Uuid,
   Voucher,
   type VoucherRepository,
@@ -408,6 +409,7 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
         H.requireDate(data.settledAt, 'settledAt'),
         differenceMoney,
         differenceKind,
+        parseSettlementCause(data.cause),
       );
     });
     return OpenItem.restore(

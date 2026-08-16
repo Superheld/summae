@@ -37,10 +37,10 @@ a short file.
 | F-009 `cashBasisReport` German VAT passthrough | ✅ resolved |
 | F-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
 | F-CROSS-001 timestamp serialization | ✅ resolved |
-| NF-005 cash-basis reversal | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
+| NF-005 cash-basis reversal | ✅ fixed 2026-08-15; **remainder closed 2026-08-16** by NF-008 — settled-then-reversed cannot occur any more |
 | NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-008 reversal leaves open items standing | **RESOLVED 2026-08-16** — the reversal clears them (`cause: cancellation` → status `cancelled`), a touched item refuses the reversal (`E_ENTRY_HAS_SETTLED_ITEMS`); fixtures `reverse-clears-open-items`, `reverse-settled-item`, `vat-cash-basis-reversal-unpaid` |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
@@ -52,7 +52,8 @@ a short file.
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: NF-008, NF-015 and the NF-005 remainder** (F-004 closed 2026-08-16).
+**Genuinely open today: NF-015** — F-004, NF-008 and the NF-005 remainder were all closed on
+2026-08-16.
 
 The **entire Round 1 backlog (R-1 … R-12) is closed** as of 2026-08-16 — the twelve defects the
 two adversarial probing agents turned up on 2026-08-15. Per-item write-ups:
@@ -337,9 +338,11 @@ Summary and the PHP sites:
   2026-08-15.** The direct-contribution loop in `VatReturnProjection.php` now also skips an entry
   that *reverses* an entry carrying open items: its tax follows the reversed entry's settlements
   instead of counting as a cash movement. Reversals of genuinely cash-effective entries still count
-  directly, at their own date. **Still open:** the settled-then-reversed case (tax stays declared
-  until a refund is posted vs. corrected at the reversal's date, the `F-011` reading) — no fixture
-  pins either.
+  directly, at their own date. **Remainder closed 2026-08-16 by NF-008:** the settled-then-reversed
+  case cannot arise any more, because a reversal is refused once the open item carries a settlement.
+  That answers the question rather than choosing between its two readings — the tax stays declared,
+  and the correction is a separate cash-effective posting with its own date, which is what
+  § 17 Abs. 1 UStG prescribes ("in the taxation period in which the change occurred").
 - **NF-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
   `CashBasisProjection.php:63` defaults a missing `year` to `0`, then builds
   `CalendarDate::of('0000-01-01')` in `assertCalendarYearFiscalYears`. Not a `DomainError`, so the
@@ -349,6 +352,30 @@ Summary and the PHP sites:
   `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
   opposite of what happened, and the only error a tax-free configuration hits on a normal report.
   Current behaviour pinned in `testing/scenarios/walkthrough/default.json`.
+- **NF-008 — RESOLVED 2026-08-16.** Researched rather than guessed, because the data-format
+  decision hung on it. GoBD settles the first half: nothing is ever deleted, before or after
+  finalization — even a finalized batch is corrected by a counter-entry, so the reversal posting
+  itself was never in question. The half that mattered is a different axis, and SAP draws it
+  sharply (message F5308, `FB08`): *"a reverse posting clears all line items that are managed as
+  open items, but this is not possible if one of the items in question has already been cleared by
+  another method."* Both halves are now built. An **untouched** item is cleared by the reversal —
+  a settlement pointing at the reversal entry, marked `cause: "cancellation"`, which derives the
+  status `cancelled`. A **touched** item refuses the reversal with the new
+  `E_ENTRY_HAS_SETTLED_ITEMS`; the correction goes through a credit note or refund instead.
+  The data-format change stayed small because status was already derived, not stored: the enum
+  gained `cancelled`, settlements gained `cause`. `cancelled` and not `settled` is the whole point
+  — `settled` reads as "the money came in".
+  **The marker is load-bearing, not cosmetic.** Cash-basis VAT follows an item's settlements, so
+  the cancelling settlement would have been read as a receipt: reversing a never-paid 1,190.00
+  invoice would have declared 190.00 of VAT out of thin air. `vatReturn` skips cancellation
+  settlements, and `vat-cash-basis-reversal-unpaid` pins it with a paid invoice alongside as the
+  control case.
+  While writing the schema for it, a second gap surfaced: `$defs/openItem` declared neither
+  `remaining` nor `status` nor the settlement `difference`, all of which the engine has always
+  written, under `additionalProperties: false` — the NF-002/F-008 class again, latent because no
+  test validated a stored open item against it. The declaration now matches what is written.
+  Original finding:
+
 - **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
   counter-entry but does not touch the open items the reversed entry created: the trial balance
   shows the payable account at `0.00` while `openItems` still reports it open and settleable.

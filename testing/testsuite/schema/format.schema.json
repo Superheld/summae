@@ -150,19 +150,41 @@
         "kind": { "enum": ["receivable", "payable"] },
         "originEntryId": { "$ref": "#/$defs/uuid" },
         "originLineIndex": { "type": "integer", "minimum": 0 },
-        "partnerId": { "$ref": "#/$defs/uuid" },
+        "partnerId": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
         "money": { "$ref": "#/$defs/money" },
+        "remaining": { "$ref": "#/$defs/money" },
+        "status": { "enum": ["open", "partially_settled", "settled", "cancelled"] },
         "settlements": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["entryId", "money", "settledAt"],
-            "properties": { "entryId": { "$ref": "#/$defs/uuid" }, "money": { "$ref": "#/$defs/money" }, "settledAt": { "$ref": "#/$defs/date" } },
+            "properties": {
+              "entryId": { "$ref": "#/$defs/uuid" },
+              "money": { "$ref": "#/$defs/money" },
+              "settledAt": { "$ref": "#/$defs/date" },
+              "cause": { "enum": ["payment", "cancellation"] },
+              "difference": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["money", "kind"],
+                    "properties": {
+                      "money": { "$ref": "#/$defs/money" },
+                      "kind": { "enum": ["discount", "bad_debt", "minor"] }
+                    },
+                    "additionalProperties": false
+                  },
+                  { "type": "null" }
+                ]
+              }
+            },
             "additionalProperties": false
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Offener Posten. `remaining`/`status` sind abgeleitet (money minus Ausgleiche), nie Wahrheit — wie Salden. `settlements[].cause` trennt Zahlung von Storno (v0.6/NF-008): `cancellation` ist kein Geldfluss und zählt bei Ist-Versteuerung nicht als Vereinnahmung."
     },
     "profile": {
       "type": "object",

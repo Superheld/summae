@@ -10,6 +10,7 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Substrate\OpenItemStatus;
+use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Policies\Expansion\Settlement;
 
 /**
@@ -94,10 +95,33 @@ final class OpenItem implements \JsonSerializable
         $remaining = $this->remainingAt($asOf);
 
         if ($remaining->isZero()) {
+            // A cancelled item is closed but was never paid (NF-008). Reporting it as `settled`
+            // would read as "the money came in", which is the opposite of what a reversal means.
+            foreach ($this->settlementsUpTo($asOf) as $settlement) {
+                if ($settlement->cause === SettlementCause::Cancellation) {
+                    return OpenItemStatus::Cancelled;
+                }
+            }
+
             return OpenItemStatus::Settled;
         }
 
         return $remaining->equals($this->money) ? OpenItemStatus::Open : OpenItemStatus::PartiallySettled;
+    }
+
+    /**
+     * @return list<Settlement>
+     */
+    private function settlementsUpTo(?CalendarDate $asOf): array
+    {
+        if ($asOf === null) {
+            return $this->settlements;
+        }
+
+        return array_values(array_filter(
+            $this->settlements,
+            static fn (Settlement $settlement): bool => !$settlement->settledAt->isAfter($asOf),
+        ));
     }
 
     public function settle(Settlement $settlement): void

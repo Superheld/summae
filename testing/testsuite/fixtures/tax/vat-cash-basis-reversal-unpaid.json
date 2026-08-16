@@ -1,0 +1,119 @@
+{
+  "fixture": "vat-cash-basis-reversal-unpaid",
+  "description": "NF-008 an seiner gefährlichsten Stelle: bei Ist-Versteuerung folgt die Steuer den Ausgleichen des offenen Postens. Seit `reverse` die Posten ausgleicht (Fixture `reverse-clears-open-items`), entsteht dabei ein Ausgleich über den vollen Restbetrag — und ein Ausgleich heißt in dieser Projektion normalerweise „Geld ist geflossen\". Ohne die Unterscheidung `cause: \"cancellation\"` hätte das Storno einer nie bezahlten Rechnung 190,00 Umsatzsteuer erklärt, für die nie ein Cent geflossen ist: eine falsche Voranmeldung als Nebenwirkung einer Korrektur. Die Projektion überspringt Storno-Ausgleiche deshalb ganz. Zur Kontrolle steht die zweite Rechnung daneben, die tatsächlich bezahlt und ausgeglichen wird — sie muss unverändert erklärt werden, damit die Ausnahme nicht zu breit greift.",
+  "covers": ["F-TAX-004"],
+  "setup": {
+    "tenant": { "name": "Ist-Versteuerer GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "cash" } },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-02-01" },
+      { "id": "$V2", "voucherNumber": "AR-2", "voucherDate": "2026-02-02" },
+      { "id": "$V3", "voucherNumber": "Z-2", "voucherDate": "2026-02-20" }
+    ],
+    "taxCodes": [
+      {
+        "code": "USt19",
+        "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" } ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01",
+        "voucherId": "$V1",
+        "text": "Rechnung, wird storniert",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          {
+            "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } }
+          },
+          {
+            "account": "1776", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1",
+          "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-02",
+        "voucherId": "$V2",
+        "text": "Rechnung, wird bezahlt",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "595.00", "currency": "EUR" } },
+          {
+            "account": "8400", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "500.00", "currency": "EUR" } }
+          },
+          {
+            "account": "1776", "side": "credit", "money": { "amount": "95.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "500.00", "currency": "EUR" } }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E2",
+          "openItemsCreated": [ { "id": "$OP2", "money": { "amount": "595.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-02-10", "text": "Storno AR-1" },
+      "expect": { "result": { "reverses": "$E1" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-20",
+        "voucherId": "$V3",
+        "text": "Zahlung AR-2",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "595.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "595.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "id": "$E4" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E4", "allocations": [ { "openItemId": "$OP2", "money": { "amount": "595.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "openItems": [ { "id": "$OP2", "status": "settled" } ] } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": {},
+      "expect": {
+        "comment": "beide Posten sind erledigt — einer durch Storno, einer durch Zahlung",
+        "items": []
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 1, "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "nur die tatsächlich vereinnahmten 595,00 → Basis 500,00 / Steuer 95,00. Ohne die Storno-Unterscheidung stünden hier 1.500,00 / 285,00",
+        "keys": { "81": { "base": "500.00", "tax": "95.00" } }
+      }
+    }
+  ]
+}

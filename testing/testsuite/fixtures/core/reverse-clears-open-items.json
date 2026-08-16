@@ -1,0 +1,60 @@
+{
+  "fixture": "reverse-clears-open-items",
+  "description": "NF-008: ein Storno ließ den offenen Posten der stornierten Buchung stehen. Das Hauptbuch zeigte das Forderungskonto danach auf 0,00, die OP-Liste dieselbe Forderung weiter als offen — und ausgleichbar: man konnte einen Zahlungseingang auf eine Rechnung buchen, die es nicht mehr gab. `reverse` gleicht die Posten jetzt aus, mit einem Ausgleich, der auf die Storno-Buchung zeigt und `cause: \"cancellation\"` trägt. Gelöscht wird nichts (append-only): der Posten behält seinen Datensatz und bekommt den abgeleiteten Status `cancelled` — bewusst nicht `settled`, denn Geld ist nie geflossen; der Audit-Trail hält den Vorgang als eigene Aktion fest. Der zweite Teil der Regel steht in `reverse-settled-item`.",
+  "covers": ["F-CORE-004"],
+  "setup": {
+    "tenant": { "name": "Storno GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-03-01" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Ausgangsrechnung",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1",
+          "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-03-10", "text": "Storno AR-1" },
+      "expect": { "result": { "id": "$E2", "reverses": "$E1" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": {},
+      "expect": {
+        "comment": "der Kernfall: vorher stand hier weiter eine offene Forderung über 1.000,00, obwohl das Hauptbuch längst 0,00 zeigte",
+        "items": []
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Haupt- und Nebenbuch sagen jetzt dasselbe: beide Konten glatt, nichts mehr offen",
+        "rows": [
+          { "account": "1400", "balance": "0.00" },
+          { "account": "8400", "balance": "0.00" }
+        ]
+      }
+    }
+  ]
+}

@@ -220,6 +220,11 @@ export class VatReturnProjection {
     const total = new Big(item.money.amountAsString());
 
     for (const settlement of item.settlements()) {
+      // NF-008: a cancellation closes the item without any money moving. Counting it here would
+      // declare cash-basis VAT for a reversed invoice that was never paid — the exact opposite of
+      // what the reversal means. Skipped before `remaining` is touched, so the proportional split
+      // of any real payments is unaffected.
+      if (settlement.cause === 'cancellation') continue;
       remaining = remaining.subtract(settlement.money);
       const isFinal = remaining.isZero();
       const ratio = new Big(settlement.money.amountAsString());

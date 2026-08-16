@@ -39,7 +39,19 @@ export type FiscalYearStatus = 'open' | 'closed';
 
 export type OpenItemKind = 'receivable' | 'payable';
 
-export type OpenItemStatus = 'open' | 'partially_settled' | 'settled';
+export type OpenItemStatus = 'open' | 'partially_settled' | 'settled' | 'cancelled';
+
+/**
+ * Why an open item was settled (NF-008). `payment` is the ordinary case and the default when the
+ * field is absent; `cancellation` arises only from `reverse` and means the item is done because its
+ * origin entry was reversed — no money moved. Without the distinction a reversal is indistinguishable
+ * from a payment, and cash-basis VAT would declare tax for money that never arrived.
+ */
+export type SettlementCause = 'payment' | 'cancellation';
+
+export function parseSettlementCause(value: unknown): SettlementCause {
+  return value === 'cancellation' ? 'cancellation' : 'payment';
+}
 
 /**
  * Settlement with difference (api.md G2): cash discount, bad debt, minor difference.

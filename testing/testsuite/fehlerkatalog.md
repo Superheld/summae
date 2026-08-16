@@ -15,6 +15,23 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 | `E_ENTRY_ALREADY_REVERSED` | Doppelstorno | finalize-reverse-period |
 | `E_ENTRY_UNKNOWN` | entryId existiert nicht | post-malformed |
 | `E_ENTRY_HAS_OPEN_ITEMS` | Zeilen-Korrektur an einer Buchung, aus der offene Posten entstanden sind (v0.6) | correct-open-items |
+| `E_ENTRY_HAS_SETTLED_ITEMS` | Storno einer Buchung, deren offener Posten bereits (teil-)ausgeglichen ist (v0.6/NF-008) | reverse-settled-item |
+
+**Storno und offene Posten (NF-008, v0.6).** `reverse` gleicht die offenen Posten der stornierten
+Buchung **aus** — mit einem Ausgleich, der auf die Storno-Buchung zeigt und `cause:
+"cancellation"` trägt; der Posten erhält damit den abgeleiteten Status `cancelled` und
+verschwindet aus der OP-Liste. Vorher blieb er stehen: das Hauptbuch zeigte das
+Forderungskonto auf `0.00`, die OP-Liste dieselbe Forderung weiter als offen **und
+ausgleichbar**. Ist ein Posten dagegen schon angefasst (mindestens ein Ausgleich), wird das
+Storno **verweigert** — dieselbe Linie, die SAP mit F5308 zieht („document includes already
+cleared items — reversal not possible"): erst den Ausgleich zurücknehmen oder eine Gutschrift
+buchen, sonst verschwände Geld aus der OP-Historie, das tatsächlich geflossen ist. Das ist
+zugleich die Antwort auf den offenen NF-005-Rest: der Fall „ausgeglichen, dann storniert"
+entsteht gar nicht mehr, und die Korrektur läuft als eigene, zahlungswirksame Buchung mit
+eigenem Datum — also genau so, wie §17 Abs. 1 UStG es verlangt („in dem Besteuerungszeitraum, in
+dem die Änderung eingetreten ist"). Bei Ist-Versteuerung zählt ein `cancellation`-Ausgleich
+**nicht** als Vereinnahmung: die USt-VA überspringt ihn, sonst erklärte ein Storno Steuer für
+Geld, das nie geflossen ist.
 
 ## E_PERIOD / E_FISCALYEAR
 

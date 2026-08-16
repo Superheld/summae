@@ -27,11 +27,15 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: NF-008 and the NF-005 remainder** (plus NF-015's untested Laravel adapter,
-recorded on the PHP side). F-004's hard-coded low-value-asset pool period was closed on 2026-08-16 —
-`poolYears` is depreciation-module data now, and `asset-service.ts` refuses a pool range that omits
-it instead of falling back to five years; write-up on the PHP side. The "Round 1 backlog" at the end
-of this file is closed in full as of 2026-08-16.
+**Genuinely open today: NF-015's untested Laravel adapter** (recorded on the PHP side). Three
+findings closed on 2026-08-16, all written up on the PHP side: **F-004** — `poolYears` is
+depreciation-module data now, and `asset-service.ts` refuses a pool range that omits it instead of
+falling back to five years. **NF-008** — `reverse` clears the open items of the reversed entry
+(`cause: "cancellation"` → status `cancelled`) and refuses outright once one is settled
+(`E_ENTRY_HAS_SETTLED_ITEMS`), the line SAP draws with F5308; `vat-return.ts` skips cancellation
+settlements, without which reversing an unpaid invoice would have declared cash-basis VAT for money
+that never arrived. **The NF-005 remainder** falls out of that: settled-then-reversed can no longer
+happen. The "Round 1 backlog" at the end of this file is closed in full as of 2026-08-16.
 
 ## NF-001 — Pack draft fixture `tenant-from-de-complete`: `defaults` missing in the manifest — ✅ RESOLVED
 
