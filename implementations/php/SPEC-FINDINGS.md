@@ -51,12 +51,33 @@ a short file.
 | NF-015 `packages/laravel` has no tests of its own | **RESOLVED 2026-08-16** — own suite (19 tests), coverage floor 95%; found and fixed a tenant-scoping defect in **both** adapters |
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
-| NF-018 four error codes have no exit code | **OPEN** (found 2026-08-16) — `E_SETTLEMENT_EXCEEDS_ENTRY`, `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` are thrown by the core but missing from `ExitCodes`/`exit-codes.ts`, so `exitCodeFor` falls through to `1` — the same exit a genuine crash produces |
+| NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
 
-F-004, NF-008, the NF-005 remainder and NF-015 were all closed on 2026-08-16. **One finding is
-open again since 2026-08-16: NF-018.**
+F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16. **The
+findings list is empty.**
 
-### NF-018 — four error codes fall through to exit code 1 — OPEN
+### NF-018 — four error codes fall through to exit code 1 — RESOLVED
+
+> **Resolved 2026-08-16.** The four codes were appended to `ExitCodes`/`exit-codes.ts` (49–52),
+> together with `E_AMOUNT_SCALE_MISMATCH` (53): it is declared in the catalogue but not yet
+> thrown anywhere, and mapping it means the new guard test can demand the *whole* catalogue
+> without an exception list — an exception list would be the same hole again. Nothing was
+> renumbered. The missing piece was never the four entries but the comparison: `ExitCodesTest`
+> (PHP) and `exit-codes.test.ts` (Node) now parse `testing/testsuite/fehlerkatalog.md` and fail
+> when a catalogued code maps to `1`, when two codes share a number, or when an insertion shifts
+> the anchors (10 / 45 / 53).
+>
+> The reservation below — that the numeric mapping needs a knowledge-base decision the way
+> `E_INPUT_INVALID` did — turned out not to apply: the catalogue carries *names*, not numbers
+> (the number is the position in the append-only list), and all five codes were already in it.
+> So no knowledge-base change was needed, and the fix is code + guard.
+>
+> **One gap remains in the other direction:** `E_NOT_IMPLEMENTED` has an exit code (44) but no
+> catalogue row — it is a dispatcher error, documented only in the handbook. The guard runs
+> catalogue → exit code and cannot see it. Adding the row is a knowledge-base edit and is
+> Roland's call; nothing is broken by it, the code is reachable and correctly numbered.
+>
+> Original finding:
 
 Found while checking the handbook's error catalogue against the code. `E_SETTLEMENT_EXCEEDS_ENTRY`
 (new with R-1) and the three pack-composition codes `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`

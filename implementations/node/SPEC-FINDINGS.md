@@ -27,7 +27,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-| NF-018 four error codes have no exit code | **OPEN** (2026-08-16) — `E_SETTLEMENT_EXCEEDS_ENTRY` + the three pack codes fall through to exit `1`; write-up on the PHP side |
+| NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in `exit-codes.ts` (with `E_AMOUNT_SCALE_MISMATCH`, so the guard needs no exception list); `packages/cli/test/exit-codes.test.ts` reads the catalogue and fails when a code in it maps to `1`; write-up on the PHP side |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **NF-015**, which turned out to matter here too: giving the persistence adapters their own
