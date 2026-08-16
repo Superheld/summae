@@ -1,0 +1,61 @@
+name: Release notes
+
+# Publishes the GitHub release for a `v*` tag, with the CHANGELOG section as its body.
+#
+# Why a workflow and not a step in RELEASING.md: releases v0.3.0 through v0.8.1 were tagged and
+# published to npm and Packagist without any notes on GitHub — the CHANGELOG had them all along,
+# nobody carried them over, and nothing said so. A documented manual step is exactly what was
+# forgotten (the `branch-alias` bump went the same way). The notes now come from the file that has
+# to be written anyway.
+#
+# It fails loudly on a missing CHANGELOG section rather than publishing an empty release: a tag
+# without notes is what this workflow exists to prevent.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to write notes for (e.g. v0.9.1)'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The tag itself, so CHANGELOG.md is the one that shipped with this release.
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Extract the CHANGELOG section
+        id: section
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          ./bin/changelog-section.sh "$version" > /tmp/release-notes.md
+          echo "--- notes ---"
+          cat /tmp/release-notes.md
+
+      - name: Publish or update the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.section.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Re-running must not clobber notes someone improved by hand, so only fill an empty one.
+            if [ -z "$(gh release view "$tag" --json body -q .body)" ]; then
+              gh release edit "$tag" --notes-file /tmp/release-notes.md
+              echo "filled empty notes for $tag"
+            else
+              echo "$tag already has notes — left untouched"
+            fi
+          else
+            gh release create "$tag" --title "${tag#v}" --notes-file /tmp/release-notes.md --verify-tag
+          fi
