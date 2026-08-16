@@ -81,8 +81,7 @@ A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+
 = self-contained manifest that bundles modules (`pack-library/<pack>/`, do not build on each other). Pack choice
 once at creation, pinned. Legacy term „rule module" = pack (avoid); **base** = the core, account-less.
 
-*Built:* `PackResolver` (byte-equal PHP↔Node), loader, `createTenant(pack:"…")`, CLI `summae init --pack …`,
-packs `default`, `de` + `us`.
+Shipped packs: `default`, `de`, `us`.
 
 > **Deeper (annotated):** `kind`→policy kind + module rules → `pack-library/CLAUDE.md` · engine bundle
 > (`ruleModules`/`packPolicy`), target-vs-actual + the *closed repertoire* decision → `core/src/CLAUDE.md` · full model

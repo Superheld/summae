@@ -4,13 +4,8 @@ Language-specific rules and commands for `implementations/node/`. Project-wide r
 (iron invariants, quality policy, `testing/testsuite/` read-only, Git) are in the
 root `CLAUDE.md`.
 
-**Status:** domain core (`packages/core`) complete against the in-memory port. Persistence adapter
-`@superheld/summae-knex` (Knex + better-sqlite3), also against `--subject=database`; the
-**SF-15 cross-test** (`make cross`) confirms byte-identical `journalExport` across
-the language boundary; same-language CLI `@superheld/summae-cli` (`summae init|op|report`,
-persistent SQLite, exit codes = error catalog); **pack composition** (resolver + loader)
-built. Packages: `core`, `knex`, `cli` + `runner`. (Do not hardcode fixture counts here —
-they drift; the current count comes from `pnpm fixtures`.)
+Packages: `core` (domain) · `knex` (persistence, better-sqlite3 + pg) · `cli` · `runner`
+(conformance). Fixture counts are not repeated here — they drift; `pnpm fixtures` knows.
 
 ## Commands
 
