@@ -1,6 +1,6 @@
 {
     "name": "superheld/summae-php",
-    "description": "PHP-Referenzimplementierung Rechnungswesen — Monorepo (core, laravel, cli)",
+    "description": "summae PHP reference implementation — monorepo (core, laravel, cli)",
     "type": "project",
     "license": "MIT",
     "require": {

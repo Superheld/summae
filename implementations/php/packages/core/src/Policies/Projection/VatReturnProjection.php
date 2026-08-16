@@ -162,7 +162,7 @@ final readonly class VatReturnProjection
         foreach ($keys as $key => $amounts) {
             // Official VAT-return convention: round base down to full euros (reporting-key sum).
             $flooredBase = Money::fromCalculation(
-                BigDecimal::of($amounts['base']->amountAsString())->toScale(0, RoundingMode::DOWN),
+                BigDecimal::of($amounts['base']->amountAsString())->toScale(0, RoundingMode::Down),
                 $this->baseCurrency,
             );
 
@@ -376,7 +376,7 @@ final readonly class VatReturnProjection
         return Money::fromCalculation(
             BigDecimal::of($total->amountAsString())
                 ->multipliedBy($part)
-                ->dividedBy($whole, 10, RoundingMode::HALF_UP),
+                ->dividedBy($whole, 10, RoundingMode::HalfUp),
             $this->baseCurrency,
         );
     }

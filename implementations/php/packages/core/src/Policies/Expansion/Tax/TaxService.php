@@ -142,7 +142,7 @@ final readonly class TaxService
                 $tax = Money::fromCalculation(
                     BigDecimal::of($line['money']->amountAsString())
                         ->multipliedBy(BigDecimal::of($version->rate))
-                        ->dividedBy(100, 10, \Brick\Math\RoundingMode::UNNECESSARY),
+                        ->dividedBy(100, 10, \Brick\Math\RoundingMode::Unnecessary),
                     $this->baseCurrency,
                 );
                 $taxLines[] = [
@@ -185,7 +185,7 @@ final readonly class TaxService
             $tax = Money::fromCalculation(
                 BigDecimal::of($base->amountAsString())
                     ->multipliedBy(BigDecimal::of($version->rate))
-                    ->dividedBy(100, 10, \Brick\Math\RoundingMode::UNNECESSARY),
+                    ->dividedBy(100, 10, \Brick\Math\RoundingMode::Unnecessary),
                 $this->baseCurrency,
             );
 

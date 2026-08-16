@@ -85,7 +85,7 @@ final readonly class Money implements \JsonSerializable, \Stringable
         $currency = $currency instanceof Currency ? $currency : Currency::of($currency);
 
         try {
-            $scaled = BigDecimal::of($value)->toScale($currency->scale, RoundingMode::HALF_UP);
+            $scaled = BigDecimal::of($value)->toScale($currency->scale, RoundingMode::HalfUp);
         } catch (MathException) {
             throw new InvalidValue(sprintf('Invalid calculation value for currency %s', $currency->code));
         }

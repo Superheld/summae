@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@types/big.js": "^7.0.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.2.0",
     "tsup": "^8.5.0"
   },
   "publishConfig": {
