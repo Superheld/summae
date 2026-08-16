@@ -52,7 +52,9 @@ final readonly class DatabaseJournalRepository implements JournalRepository
 
     public function save(JournalEntry $entry): void
     {
-        $this->table()->where('id', $entry->id->value)->update([
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $entry->id->value)->update([
             'status' => $entry->status()->value,
             'text' => $entry->text(),
             'lines' => Hydrator::encode(array_map(
@@ -65,7 +67,9 @@ final readonly class DatabaseJournalRepository implements JournalRepository
 
     public function byId(Uuid $id): ?JournalEntry
     {
-        $row = $this->table()->where('id', $id->value)->first();
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->first();
 
         return $row === null ? null : $this->hydrate($row);
     }

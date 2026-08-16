@@ -27,8 +27,12 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: NF-015's untested Laravel adapter** (recorded on the PHP side). Three
-findings closed on 2026-08-16, all written up on the PHP side: **F-004** — `poolYears` is
+**No findings are open today.** Four closed on 2026-08-16, all written up on the PHP side —
+including **NF-015**, which turned out to matter here too: giving the persistence adapters their own
+suites showed that every `byId`, `byOriginEntry` and `save` in **both** `packages/knex` and PHP's
+`packages/laravel` ignored `tenant_id`, so a repository built for one tenant handed out and wrote
+over another's rows by primary key. Same lines, same fix, mirrored suite in
+`packages/knex/test/adapter.test.ts`. The others: **F-004** — `poolYears` is
 depreciation-module data now, and `asset-service.ts` refuses a pool range that omits it instead of
 falling back to five years. **NF-008** — `reverse` clears the open items of the reversed entry
 (`cause: "cancellation"` → status `cancelled`) and refuses outright once one is settled
