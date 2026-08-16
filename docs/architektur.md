@@ -151,7 +151,9 @@ PascalCase folders):
 
 - **`substrate/`** — frozen, jurisdiction-free (posting sums to zero, account,
   journal, balance, period). Does not grow. **Imports nothing from above.**
-- **`ledger/`** — `ledger.ts`, kept as the **orchestrator**.
+- **`ledger/`** — the posting-writing operations (`post`/`correct`/`finalize`/`reverse`) plus
+  a thin **facade** over their extracted neighbours: settlement, chart administration and
+  fiscal periods, each its own service.
 - **`records/`** — vouchers/records (voucher · open-item · audit). **Not** a policy
   kind; may reference the substrate (data layer).
 - **`policies/`** — the three policy kinds; here only the **socket** (law-free
@@ -186,22 +188,25 @@ code:
 - ✅ **A fictitious test pack** (3-decimal currency, per-line rounding, no input-tax
   deduction) is built as a fixture set (`testing/testsuite/fixtures/pack/conformance-xx/`) —
   the seam-proof of jurisdiction freedom thus exists as a conformance test.
-- 🔧 **Module registry, resolver, `E_PACK_*` codes, manifest format** — specified in
-  Gate 1 (`_bauflow-pack-gate01/`, data format v0.6) and present as pack fixtures;
-  the runtime resolution (Node/PHP) is in progress (branch
-  `job/pack-conformance-runner`).
+- ✅ **Module registry, resolver, `E_PACK_*` codes, manifest format** — specified with
+  data format v0.6, present as pack fixtures, and resolved at runtime in **both**
+  languages (`PackResolver`, byte-equal PHP↔Node) since 0.3.0.
 - 🔧 **Target model vs. current state (honest — otherwise it drifts):** the
   socket/plug picture is the **target**. Today only infrastructure ports
   (Clock/Id/repositories) plus the bundle as *data* are injected; the three policy
   kinds are **not yet** built as ports (`tax-service.ts`/`asset-service.ts` are
   concrete classes).
-- ⚠️ **Open decision — do not guess:** whether the mechanism repertoire is *closed*
-  (the core never grows, a pack = selection only) or *open* (grows only
-  law-free + visibly). The method fusions in `ledger.ts` (post + settle/reverse +
-  close in one class) and `tax-service.ts` (socket fused with the DE paradigm,
-  branching on `reverse_charge`/`intra_community_supply`) are **gated on this
-  decision** — the directory split is done, but the seam *within* those methods
-  is not.
+- ✅ **Decided 2026-08-16 — the mechanism repertoire is *closed*.** New tax mechanisms are
+  registered inside the core, in both languages, with a fixture; the pack selects one per tax
+  code and never carries code. The reason is the top quality policy: a mechanism registered
+  from outside would be different code in PHP than in Node, so "same input → same result
+  regardless of language" would stop holding for it, and the shared oracle could not check it.
+  The seam itself is built — `tax-service.ts` delegates to an addressable mechanism registry
+  instead of branching inline, and `ledger.ts`/`Ledger.php` were split so that the orchestrator
+  writes postings and hands settlement, chart administration and fiscal periods to their own
+  services. What would reopen the question — the *base computation* becoming its own socket,
+  which is where the jurisdictions actually differ — is recorded in
+  `implementations/<language>/packages/core/src/CLAUDE.md`.
 
 The **fictitious test pack is itself a conformance test** and thus falls under the
 top quality directive (`CLAUDE.md`: "every future jurisdiction") — the seam-proof of

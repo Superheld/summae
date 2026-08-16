@@ -22,8 +22,6 @@ use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\PeriodRef;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\Account;
-use Summae\Core\Substrate\AccountStatus;
-use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\EntryLine;
 use Summae\Core\Substrate\EntryStatus;
 use Summae\Core\Substrate\FiscalYear;
@@ -32,9 +30,7 @@ use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Substrate\Period;
 use Summae\Core\Substrate\PostResult;
 use Summae\Core\Substrate\SettlementCause;
-use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Substrate\Side;
-use Summae\Core\Records\AuditRecord;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
@@ -52,11 +48,20 @@ use Summae\Core\Policies\Expansion\Settlement;
  * 3. Balance equation (E_ENTRY_UNBALANCED)
  * 4. Temporal context (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
  * Only the first error is reported.
+ *
+ * Ledger keeps the operations that write postings — `post`, `correct`, `finalize`, `reverse` —
+ * together with the line parsing they share, and is a thin facade for the three areas that were
+ * only ever neighbours of the journal, not part of it: settlement (SettlementService), chart of
+ * accounts (ChartAdminService) and fiscal years/periods (FiscalPeriodService). The facade is
+ * deliberate: TenantOperations and every adapter keep talking to one object, so the split is a
+ * change of shape inside the core and of nothing else.
  */
 final readonly class Ledger
 {
-    /** 2^53-1 — the largest integer Node can represent exactly (Number.MAX_SAFE_INTEGER). */
-    private const int MAX_EXACT_INT = 9007199254740991;
+    private AuditWriter $auditWriter;
+    private SettlementService $settlements;
+    private ChartAdminService $chart;
+    private FiscalPeriodService $periods;
 
     public function __construct(
         private Currency $baseCurrency,
@@ -65,14 +70,18 @@ final readonly class Ledger
         private VoucherRepository $vouchers,
         private JournalRepository $journal,
         private OpenItemRepository $openItems,
-        private AuditTrail $audit,
+        AuditTrail $audit,
         private DimensionRegistry $dimensions,
-        private Clock $clock,
+        Clock $clock,
         private IdGenerator $ids,
         /** Null = unwired; treated as an EMPTY registry, so a caller-supplied tax tag is
          *  rejected rather than waved through — same behaviour as Node's default. */
         private ?TaxCodeRegistry $taxCodes = null,
     ) {
+        $this->auditWriter = new AuditWriter($audit, $clock, $ids);
+        $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
+        $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter);
+        $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids);
     }
 
     /**
@@ -80,7 +89,7 @@ final readonly class Ledger
      */
     public function post(array $input): PostResult
     {
-        $actor = $this->actor($input);
+        $actor = $this->auditWriter->actorOf($input);
 
         // 1. Structure
         $rawLines = $input['lines'] ?? null;
@@ -106,7 +115,7 @@ final readonly class Ledger
         $this->assertBalanced($lines);
 
         // 4. Temporal context
-        $entryDate = $this->parseEntryDate($input['entryDate'] ?? null);
+        $entryDate = Lookups::parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
         $text = is_string($input['text'] ?? null) ? $input['text'] : '';
@@ -116,7 +125,7 @@ final readonly class Ledger
             $this->journal->nextSequenceNumber($fiscalYear->year),
             $entryDate,
             $voucher->voucherDate,
-            $this->clock->now(),
+            $this->auditWriter->now(),
             new PeriodRef($fiscalYear->year, $period->number),
             $voucher->id,
             $text,
@@ -124,7 +133,7 @@ final readonly class Ledger
         );
 
         $this->journal->append($entry);
-        $this->recordAudit($actor, 'journalEntry', $entry->id, 'created');
+        $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'created');
 
         return new PostResult($entry, $this->createOpenItems($entry));
     }
@@ -176,242 +185,6 @@ final readonly class Ledger
     }
 
     /**
-     * Settlement: allocation payment -> open item(s), also partial;
-     * always explicit, no FIFO automation (determinismus.md §3).
-     * Differences (cash discount/write-off/small difference) per api.md G2 (v0.3).
-     *
-     * @param array<string, mixed> $input
-     *
-     * @return list<OpenItem> the affected items
-     */
-    public function settle(array $input): array
-    {
-        $actor = $this->actor($input);
-        $entry = $this->requireEntry($input['entryId'] ?? null);
-
-        $allocations = is_array($input['allocations'] ?? null) ? array_values($input['allocations']) : [];
-        if ($allocations === []) {
-            throw new DomainError('E_OPENITEM_UNKNOWN', 'settle without allocations');
-        }
-
-        /** @var list<array{item: OpenItem, settlement: Settlement}> $plan */
-        $plan = [];
-        /** @var array<string, Money> $planned amounts already allocated per item */
-        $planned = [];
-
-        foreach ($allocations as $allocation) {
-            if (!is_array($allocation)) {
-                throw new DomainError('E_OPENITEM_UNKNOWN', 'Allocation is not a structure');
-            }
-
-            $openItemId = $allocation['openItemId'] ?? null;
-            $item = null;
-            if (is_string($openItemId)) {
-                try {
-                    $item = $this->openItems->byId(Uuid::fromString($openItemId));
-                } catch (InvalidValue) {
-                    $item = null;
-                }
-            }
-
-            if ($item === null) {
-                throw new DomainError('E_OPENITEM_UNKNOWN', sprintf(
-                    'Open item %s does not exist',
-                    is_string($openItemId) ? $openItemId : '?',
-                ));
-            }
-
-            $money = $this->parseSettlementMoney($allocation['money'] ?? null, 'Allocation amount');
-            [$differenceMoney, $differenceKind] = $this->parseDifference($allocation['difference'] ?? null, $item);
-
-            // Validate fully first, then apply — no partial state.
-            $alreadyPlanned = $planned[$item->id->value] ?? Money::zero($this->baseCurrency);
-            if ($money->add($alreadyPlanned)->compareTo($item->remaining()) > 0) {
-                throw new DomainError('E_SETTLEMENT_EXCEEDS_ITEM', sprintf(
-                    'Allocation %s exceeds remaining amount %s of item %s',
-                    $money->amountAsString(),
-                    $item->remaining()->subtract($alreadyPlanned)->amountAsString(),
-                    $item->id->value,
-                ), ['openItemId' => $item->id->value]);
-            }
-
-            $planned[$item->id->value] = $money->add($alreadyPlanned);
-            $plan[] = [
-                'item' => $item,
-                'settlement' => new Settlement($entry->id, $money, $entry->entryDate, $differenceMoney, $differenceKind),
-            ];
-        }
-
-        $this->assertEntryCoversAllocations($entry, $plan);
-
-        $affected = [];
-
-        foreach ($plan as $step) {
-            $before = $step['item']->remaining()->amountAsString();
-            $step['item']->settle($step['settlement']);
-            $this->openItems->save($step['item']);
-            $this->recordAudit($actor, 'openItem', $step['item']->id, 'settled', [
-                'remaining' => ['from' => $before, 'to' => $step['item']->remaining()->amountAsString()],
-            ]);
-            $affected[] = $step['item'];
-        }
-
-        return $affected;
-    }
-
-
-    /**
-     * R-1: an allocation may not claim more than the settling entry actually books against the
-     * open item's account.
-     *
-     * The only bound used to be the item's remaining amount, so a 500.00 payment could close a
-     * 1190.00 receivable in full. The general ledger then carries a 690.00 receivable the
-     * subledger no longer knows about — permanently, and with nothing to point at it — and under
-     * cash-basis taxation the VAT return declares tax as collected that never arrived.
-     *
-     * The bound is the entry's NET REDUCING movement on that account, not its total: a payment
-     * with a discount books the full receivable against the receivables account and carries the
-     * difference as its own line, so those settlements stay valid. Settlements already recorded
-     * against this same entry count against the same budget — otherwise the check could be walked
-     * around by settling twice.
-     *
-     * @param list<array{item: OpenItem, settlement: Settlement}> $plan
-     */
-    private function assertEntryCoversAllocations(JournalEntry $entry, array $plan): void
-    {
-        $zero = Money::zero($this->baseCurrency);
-
-        // What this entry moves per account, signed so that a positive value reduces a receivable.
-        /** @var array<string, Money> $movement */
-        $movement = [];
-        foreach ($entry->lines() as $line) {
-            $account = $this->accounts->byId($line->accountId);
-            if ($account === null) {
-                continue;
-            }
-
-            $key = $account->number->value;
-            $signed = $line->side === Side::Credit ? $line->money : $line->money->negate();
-            $movement[$key] = ($movement[$key] ?? $zero)->add($signed);
-        }
-
-        /** @var array<string, Money> $claimed */
-        $claimed = [];
-        $addClaim = function (OpenItem $item, Money $amount) use (&$claimed, $zero): void {
-            $account = $this->accountOfOpenItem($item);
-            if ($account === null) {
-                return;
-            }
-
-            $asReduction = $item->kind === OpenItemKind::Payable ? $amount->negate() : $amount;
-            $claimed[$account] = ($claimed[$account] ?? $zero)->add($asReduction);
-        };
-
-        // Already claimed against this entry by an earlier settle call.
-        foreach ($this->openItems->all() as $item) {
-            foreach ($item->settlements() as $settlement) {
-                if ($settlement->entryId->value === $entry->id->value) {
-                    $addClaim($item, $settlement->money);
-                }
-            }
-        }
-
-        foreach ($plan as $step) {
-            $addClaim($step['item'], $step['settlement']->money);
-        }
-
-        foreach ($claimed as $account => $needed) {
-            $available = $movement[$account] ?? $zero;
-            // Compared in the reducing direction: `needed` is already signed that way, and so is
-            // `available`, because a payable is reduced by a debit and a receivable by a credit.
-            if ($needed->abs()->compareTo($available->abs()) > 0 || $needed->isPositive() !== $available->isPositive()) {
-                throw new DomainError(
-                    'E_SETTLEMENT_EXCEEDS_ENTRY',
-                    sprintf(
-                        'Allocations against account %s claim %s, but the entry moves %s there',
-                        $account,
-                        $needed->abs()->amountAsString(),
-                        $available->abs()->amountAsString(),
-                    ),
-                    [
-                        'account' => $account,
-                        'claimed' => $needed->abs()->amountAsString(),
-                        'available' => $available->abs()->amountAsString(),
-                    ],
-                );
-            }
-        }
-    }
-
-    /** The account an open item sits on — its origin posting's line. */
-    private function accountOfOpenItem(OpenItem $item): ?string
-    {
-        $origin = $this->journal->byId($item->originEntryId);
-        $line = $origin?->lines()[$item->originLineIndex] ?? null;
-        if ($line === null) {
-            return null;
-        }
-
-        return $this->accounts->byId($line->accountId)?->number->value;
-    }
-
-    private function parseSettlementMoney(mixed $raw, string $label): Money
-    {
-        $amount = is_array($raw) && is_string($raw['amount'] ?? null) ? $raw['amount'] : null;
-        $currency = is_array($raw) && is_string($raw['currency'] ?? null) ? $raw['currency'] : null;
-
-        if ($amount === null || $currency !== $this->baseCurrency->code) {
-            throw new InvalidValue(sprintf('%s missing or wrong currency', $label));
-        }
-
-        $money = Money::of($amount, $this->baseCurrency);
-
-        if (!$money->isPositive()) {
-            throw new InvalidValue(sprintf('%s must be > 0', $label));
-        }
-
-        return $money;
-    }
-
-    /**
-     * @return array{0: ?Money, 1: ?SettlementDifferenceKind}
-     */
-    private function parseDifference(mixed $raw, OpenItem $item): array
-    {
-        if ($raw === null) {
-            return [null, null];
-        }
-
-        if (!is_array($raw)) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference is not a structure');
-        }
-
-        $kind = SettlementDifferenceKind::tryFrom(is_string($raw['kind'] ?? null) ? $raw['kind'] : '');
-        if ($kind === null) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
-                'Unknown difference kind "%s"',
-                is_string($raw['kind'] ?? null) ? $raw['kind'] : '?',
-            ));
-        }
-
-        try {
-            $money = $this->parseSettlementMoney($raw['money'] ?? null, 'Difference amount');
-        } catch (InvalidValue) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Difference amount invalid (≤ 0 or format)');
-        }
-
-        if ($money->compareTo($item->remaining()) > 0) {
-            throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', sprintf(
-                'Difference %s exceeds remaining amount %s',
-                $money->amountAsString(),
-                $item->remaining()->amountAsString(),
-            ));
-        }
-
-        return [$money, $kind];
-    }
-
-    /**
      * Correction only in status `entered`, with audit trail — no deletion
      * (decision 2026-06-07, integrity-conservative).
      *
@@ -419,8 +192,8 @@ final readonly class Ledger
      */
     public function correct(array $input): JournalEntry
     {
-        $actor = $this->actor($input);
-        $entry = $this->requireEntry($input['entryId'] ?? null);
+        $actor = $this->auditWriter->actorOf($input);
+        $entry = Lookups::requireEntry($this->journal, $input['entryId'] ?? null);
 
         $changes = [];
 
@@ -497,7 +270,7 @@ final readonly class Ledger
 
         if ($changes !== []) {
             $this->journal->save($entry);
-            $this->recordAudit($actor, 'journalEntry', $entry->id, 'corrected', $changes);
+            $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'corrected', $changes);
         } else {
             // Status check even without an effective change (E_ENTRY_FINALIZED)
             $entry->changeText($entry->text());
@@ -516,10 +289,10 @@ final readonly class Ledger
      */
     public function finalize(array $input): int
     {
-        $actor = $this->actor($input);
+        $actor = $this->auditWriter->actorOf($input);
 
         if (isset($input['entryId'])) {
-            $entry = $this->requireEntry($input['entryId']);
+            $entry = Lookups::requireEntry($this->journal, $input['entryId']);
 
             if ($entry->isFinalized()) {
                 return 0;
@@ -527,7 +300,7 @@ final readonly class Ledger
 
             $entry->finalize();
             $this->journal->save($entry);
-            $this->recordAudit($actor, 'journalEntry', $entry->id, 'finalized', [
+            $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'finalized', [
                 'status' => ['from' => EntryStatus::Entered->value, 'to' => EntryStatus::Finalized->value],
             ]);
 
@@ -539,7 +312,7 @@ final readonly class Ledger
             throw new DomainError('E_ENTRY_UNKNOWN', 'finalize needs entryId or finalizeUntil');
         }
 
-        $untilDate = $this->parseEntryDate($until);
+        $untilDate = Lookups::parseEntryDate($until);
         $count = 0;
 
         foreach ($this->journal->all() as $entry) {
@@ -549,7 +322,7 @@ final readonly class Ledger
 
             $entry->finalize();
             $this->journal->save($entry);
-            $this->recordAudit($actor, 'journalEntry', $entry->id, 'finalized', [
+            $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'finalized', [
                 'status' => ['from' => EntryStatus::Entered->value, 'to' => EntryStatus::Finalized->value],
             ]);
             $count++;
@@ -567,8 +340,8 @@ final readonly class Ledger
      */
     public function reverse(array $input): JournalEntry
     {
-        $actor = $this->actor($input);
-        $original = $this->requireEntry($input['entryId'] ?? null);
+        $actor = $this->auditWriter->actorOf($input);
+        $original = Lookups::requireEntry($this->journal, $input['entryId'] ?? null);
 
         if ($original->reversedBy() !== null) {
             throw new DomainError('E_ENTRY_ALREADY_REVERSED', sprintf(
@@ -592,7 +365,7 @@ final readonly class Ledger
             }
         }
 
-        $entryDate = $this->parseEntryDate($input['entryDate'] ?? null);
+        $entryDate = Lookups::parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
         $text = is_string($input['text'] ?? null) ? $input['text'] : sprintf('Reversal %d', $original->sequenceNumber);
@@ -602,7 +375,7 @@ final readonly class Ledger
             $this->journal->nextSequenceNumber($fiscalYear->year),
             $entryDate,
             $original->voucherDate,
-            $this->clock->now(),
+            $this->auditWriter->now(),
             new PeriodRef($fiscalYear->year, $period->number),
             $original->voucherId,
             $text,
@@ -614,8 +387,8 @@ final readonly class Ledger
         $this->journal->append($reversal);
         $this->journal->save($original);
 
-        $this->recordAudit($actor, 'journalEntry', $reversal->id, 'created');
-        $this->recordAudit($actor, 'journalEntry', $original->id, 'reversed', [
+        $this->auditWriter->record($actor, 'journalEntry', $reversal->id, 'created');
+        $this->auditWriter->record($actor, 'journalEntry', $original->id, 'reversed', [
             'reversedBy' => ['from' => null, 'to' => $reversal->id->value],
         ]);
 
@@ -632,7 +405,7 @@ final readonly class Ledger
                 SettlementCause::Cancellation,
             ));
             $this->openItems->save($item);
-            $this->recordAudit($actor, 'openItem', $item->id, 'cancelled', [
+            $this->auditWriter->record($actor, 'openItem', $item->id, 'cancelled', [
                 'cancelledBy' => ['from' => null, 'to' => $reversal->id->value],
             ]);
         }
@@ -640,205 +413,65 @@ final readonly class Ledger
         return $reversal;
     }
 
-    /** @param array<string, mixed> $input */
-    public function closePeriod(array $input): Period
-    {
-        $fiscalYear = $this->requireFiscalYear($input['fiscalYear'] ?? null);
-        $period = $fiscalYear->closePeriod($this->periodNumber($input));
-        $this->fiscalYears->save($fiscalYear);
-
-        return $period;
-    }
-
-    /** @param array<string, mixed> $input */
-    public function reopenPeriod(array $input): Period
-    {
-        $fiscalYear = $this->requireFiscalYear($input['fiscalYear'] ?? null);
-        $period = $fiscalYear->reopenPeriod($this->periodNumber($input));
-        $this->fiscalYears->save($fiscalYear);
-
-        return $period;
-    }
+    // ---- facade: settlement, chart of accounts, fiscal years -------------
 
     /**
-     * Pure status change with preconditions: all periods closed,
-     * all postings finalized (api.md v0.3) — NO closing entries.
-     *
      * @param array<string, mixed> $input
-     */
-    public function closeFiscalYear(array $input): FiscalYear
-    {
-        $fiscalYear = $this->requireFiscalYear($input['fiscalYear'] ?? null);
-
-        foreach ($this->journal->forFiscalYear($fiscalYear->year) as $entry) {
-            if (!$entry->isFinalized()) {
-                throw new DomainError('E_FISCALYEAR_UNFINALIZED_ENTRIES', sprintf(
-                    'Year-end close %d: posting %d is not finalized',
-                    $fiscalYear->year,
-                    $entry->sequenceNumber,
-                ), ['fiscalYear' => $fiscalYear->year, 'sequenceNumber' => $entry->sequenceNumber]);
-            }
-        }
-
-        $fiscalYear->close();
-        $this->fiscalYears->save($fiscalYear);
-
-        return $fiscalYear;
-    }
-
-    /**
-     * Create fiscal year (v0.4): overlap with existing years
-     * is rejected (E_FISCALYEAR_OVERLAP); gaps are allowed.
-     * Without explicit periods: 12 monthly periods.
      *
-     * @param array<string, mixed> $input
+     * @return list<OpenItem> the affected items
      */
-    public function createFiscalYear(array $input): FiscalYear
+    public function settle(array $input): array
     {
-        // Anything that was not an int became year 0 — a quoted "2027" from a JSON caller
-        // created a fiscal year nobody could address again: every later report for 2027 came back
-        // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
-        // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
-        // JSON knows no int/float split: `2027.0` arrives as a float here and as a plain number
-        // in Node, so a whole-valued float counts as the same input in both languages.
-        $rawYear = $input['year'] ?? null;
-
-        // Bounded at 2^53-1 (Node's Number.isSafeInteger), not at PHP_INT_MAX: an int this side
-        // can hold but Node cannot represent exactly would be accepted here and rejected there —
-        // same input, different answer, which is the one thing the equivalence policy forbids.
-        if (is_float($rawYear) && $rawYear === floor($rawYear) && abs($rawYear) <= self::MAX_EXACT_INT) {
-            $rawYear = (int) $rawYear;
-        }
-
-        if (!is_int($rawYear) || $rawYear <= 0 || $rawYear > self::MAX_EXACT_INT) {
-            throw new DomainError(
-                'E_INPUT_INVALID',
-                'createFiscalYear requires "year" as a positive whole number',
-                ['year' => DomainError::rejectedValue($rawYear)],
-            );
-        }
-
-        $year = $rawYear;
-        $start = $this->parseEntryDate($input['start'] ?? null);
-        $end = $this->parseEntryDate($input['end'] ?? null);
-
-        foreach ($this->fiscalYears->all() as $existing) {
-            $overlaps = !$existing->end->isBefore($start) && !$existing->start->isAfter($end);
-
-            if ($overlaps || $existing->year === $year) {
-                throw new DomainError('E_FISCALYEAR_OVERLAP', sprintf(
-                    'Fiscal year %d (%s to %s) overlaps with %d',
-                    $year,
-                    $start->iso,
-                    $end->iso,
-                    $existing->year,
-                ), ['year' => $year, 'existing' => $existing->year]);
-            }
-        }
-
-        $fiscalYear = FiscalYear::create($this->ids->next(), $year, $start, $end);
-        $this->fiscalYears->add($fiscalYear);
-
-        return $fiscalYear;
+        return $this->settlements->settle($input);
     }
 
     /** @param array<string, mixed> $input */
     public function createAccount(array $input): Account
     {
-        $actor = $this->actor($input);
-        $account = $this->buildAccount($input);
-
-        if ($this->accounts->byNumber($account->number) !== null) {
-            throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', sprintf(
-                'Account number %s is already taken',
-                $account->number->value,
-            ), ['number' => $account->number->value]);
-        }
-
-        $this->accounts->add($account);
-        $this->recordAudit($actor, 'account', $account->id, 'created');
-
-        return $account;
+        return $this->chart->createAccount($input);
     }
 
     /** @param array<string, mixed> $input */
     public function lockAccount(array $input): Account
     {
-        $actor = $this->actor($input);
-        $number = is_string($input['number'] ?? null) ? $input['number'] : '';
-        $account = $this->accounts->byNumber(AccountNumber::of($number));
-
-        if ($account === null) {
-            throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf('Account %s does not exist', $number), ['number' => $number]);
-        }
-
-        $before = $account->status()->value;
-        $account->lock();
-        $this->accounts->save($account);
-        $this->recordAudit($actor, 'account', $account->id, 'locked', [
-            'status' => ['from' => $before, 'to' => $account->status()->value],
-        ]);
-
-        return $account;
+        return $this->chart->lockAccount($input);
     }
 
     /**
-     * Chart-of-accounts import (DATEV-compatible rows): atomic — validate
-     * everything first, then create.
-     *
      * @param array<string, mixed> $input
      *
      * @return int number of imported accounts
      */
     public function importChartOfAccounts(array $input): int
     {
-        $actor = $this->actor($input);
-        $rows = $input['rows'] ?? null;
+        return $this->chart->importChartOfAccounts($input);
+    }
 
-        if (!is_array($rows) || $rows === []) {
-            throw new DomainError('E_COA_FORMAT_INVALID', 'Import without rows');
-        }
+    /** @param array<string, mixed> $input */
+    public function createFiscalYear(array $input): FiscalYear
+    {
+        return $this->periods->createFiscalYear($input);
+    }
 
-        $accounts = [];
-        $numbers = [];
+    /** @param array<string, mixed> $input */
+    public function closePeriod(array $input): Period
+    {
+        return $this->periods->closePeriod($input);
+    }
 
-        foreach (array_values($rows) as $index => $row) {
-            if (!is_array($row)) {
-                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Row %d is not a structure', $index));
-            }
+    /** @param array<string, mixed> $input */
+    public function reopenPeriod(array $input): Period
+    {
+        return $this->periods->reopenPeriod($input);
+    }
 
-            try {
-                $account = $this->buildAccount($row);
-            } catch (DomainError) {
-                throw new DomainError('E_COA_FORMAT_INVALID', sprintf('Row %d is not parsable', $index), ['row' => $index]);
-            }
-
-            if (isset($numbers[$account->number->value]) || $this->accounts->byNumber($account->number) !== null) {
-                throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', sprintf(
-                    'Account number %s is already taken',
-                    $account->number->value,
-                ), ['number' => $account->number->value]);
-            }
-
-            $numbers[$account->number->value] = true;
-            $accounts[] = $account;
-        }
-
-        foreach ($accounts as $account) {
-            $this->accounts->add($account);
-            $this->recordAudit($actor, 'account', $account->id, 'created');
-        }
-
-        return count($accounts);
+    /** @param array<string, mixed> $input */
+    public function closeFiscalYear(array $input): FiscalYear
+    {
+        return $this->periods->closeFiscalYear($input);
     }
 
     // ---- internal --------------------------------------------------------
-
-    /** @param array<string, mixed> $input */
-    private function actor(array $input): string
-    {
-        return is_string($input['actor'] ?? null) && $input['actor'] !== '' ? $input['actor'] : 'system';
-    }
 
     /**
      * @param array<mixed> $rawLine
@@ -1009,19 +642,6 @@ final readonly class Ledger
         }
     }
 
-    private function parseEntryDate(mixed $entryDate): CalendarDate
-    {
-        if (!is_string($entryDate)) {
-            throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate missing');
-        }
-
-        try {
-            return CalendarDate::of($entryDate);
-        } catch (InvalidValue) {
-            throw new DomainError('E_PERIOD_UNKNOWN', sprintf('Invalid posting date "%s"', $entryDate));
-        }
-    }
-
     /**
      * @return array{0: FiscalYear, 1: Period}
      */
@@ -1047,80 +667,5 @@ final readonly class Ledger
         }
 
         return [$fiscalYear, $period];
-    }
-
-    private function requireEntry(mixed $entryId): JournalEntry
-    {
-        $entry = null;
-
-        if (is_string($entryId) && $entryId !== '') {
-            try {
-                $entry = $this->journal->byId(Uuid::fromString($entryId));
-            } catch (InvalidValue) {
-                $entry = null;
-            }
-        }
-
-        return $entry ?? throw new DomainError('E_ENTRY_UNKNOWN', sprintf(
-            'Posting %s does not exist',
-            is_string($entryId) ? $entryId : '?',
-        ));
-    }
-
-    private function requireFiscalYear(mixed $year): FiscalYear
-    {
-        $fiscalYear = is_int($year) ? $this->fiscalYears->byYear($year) : null;
-
-        return $fiscalYear ?? throw new DomainError('E_PERIOD_UNKNOWN', sprintf(
-            'Fiscal year %s is not created',
-            is_int($year) ? (string) $year : '?',
-        ));
-    }
-
-    /** @param array<string, mixed> $input */
-    private function periodNumber(array $input): int
-    {
-        $period = $input['period'] ?? null;
-
-        if (!is_int($period)) {
-            throw new DomainError('E_PERIOD_UNKNOWN', 'Period number missing');
-        }
-
-        return $period;
-    }
-
-    /** @param array<mixed> $input */
-    private function buildAccount(array $input): Account
-    {
-        $number = $input['number'] ?? null;
-        $name = $input['name'] ?? null;
-        $type = AccountType::tryFrom(is_string($input['type'] ?? null) ? $input['type'] : '');
-
-        if (!is_string($number) || $number === '' || !is_string($name) || $name === '' || $type === null) {
-            throw new DomainError('E_COA_FORMAT_INVALID', 'Account needs number, name and a valid type');
-        }
-
-        $subtype = is_string($input['subtype'] ?? null) ? $input['subtype'] : null;
-        $status = ($input['status'] ?? null) === AccountStatus::Locked->value
-            ? AccountStatus::Locked
-            : AccountStatus::Active;
-
-        return new Account($this->ids->next(), AccountNumber::of($number), $name, $type, $subtype, $status);
-    }
-
-    /**
-     * @param array<string, array{from: mixed, to: mixed}> $changes
-     */
-    private function recordAudit(string $actor, string $objectType, Uuid $objectId, string $action, array $changes = []): void
-    {
-        $this->audit->append(new AuditRecord(
-            $this->ids->next(),
-            $this->clock->now(),
-            $actor,
-            $objectType,
-            $objectId,
-            $action,
-            $changes,
-        ));
     }
 }

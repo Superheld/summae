@@ -18,16 +18,18 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-005 cash-basis reversal counts immediately | ✅ fixed 2026-08-15 — **remainder open**: settled-then-reversed |
 | NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
 | NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-008 reversal leaves open items standing | **OPEN** — needs a data-format decision |
+| NF-008 reversal leaves open items standing | ✅ **resolved 2026-08-16** — the reversal clears them (`cause: cancellation` → status `cancelled`), a touched item refuses the reversal (`E_ENTRY_HAS_SETTLED_ITEMS`) |
 | NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — host `Date` removed from the substrate |
 | NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
 | NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
 | NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
 | NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-016 four declared parameters that no implementation reads | **OPEN** — declared `acceptedWithoutEffect`, needs a decision per parameter |
+| NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added to the catalogue** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**No findings are open today.** Four closed on 2026-08-16, all written up on the PHP side —
+| NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in `exit-codes.ts` (with `E_AMOUNT_SCALE_MISMATCH`, so the guard needs no exception list); `packages/cli/test/exit-codes.test.ts` compares catalogue and exit codes **as sets**, both directions — `E_NOT_IMPLEMENTED` got the catalogue row it never had; write-up on the PHP side |
+
+Four findings closed on 2026-08-16, all written up on the PHP side —
 including **NF-015**, which turned out to matter here too: giving the persistence adapters their own
 suites showed that every `byId`, `byOriginEntry` and `save` in **both** `packages/knex` and PHP's
 `packages/laravel` ignored `tenant_id`, so a repository built for one tenant handed out and wrote

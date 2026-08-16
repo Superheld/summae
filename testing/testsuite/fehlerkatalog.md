@@ -140,10 +140,13 @@ widersprüchlich. `E_PACK_UNRESOLVED_REF` hat Vorrang, wenn beide zugleich zutr�
 | `E_POLICY_INVALID` | `packPolicy`-Wert ungültig oder inkonsistent: unbekannter `roundingMode`/`taxRoundingGranularity`-Enum, `currencyScale` nicht ganzzahlig oder außerhalb 0–4, ISO-Exponent-Widerspruch, Manifest-`packPolicy`-Kopie ≠ aufgelöstes `policy`-Modul, oder `currencyScale`-Änderung auf bestehendem Mandanten | ✗ |
 | `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | ✗ |
 
-**Stand 2026-06-21 (v0.6): 38 Codes, 36 mit Fixture** (`validate.py`). Die 34 Kern-Codes
-sind vollständig abgedeckt; von den 4 Pack-Codes haben `E_PACK_UNRESOLVED_REF` und
-`E_PACK_INCOHERENT` Fixtures (`resolver-errors`). **Offen (✗): `E_POLICY_INVALID`,
-`E_AMOUNT_SCALE_MISMATCH` — Fixtures in Gate 1.**
+**Stand 2026-08-16: 44 Codes in Tabellen, 40 mit Fixture** (`validate.py`; es zählt 45,
+weil es auch `E_UNEXPECTED` aus dem Fließtext greift — der ist bewusst kein Katalogcode,
+siehe unten). Von den 4 Pack-Codes haben `E_PACK_UNRESOLVED_REF` und `E_PACK_INCOHERENT`
+Fixtures (`resolver-errors`). **Ohne Fixture (✗): `E_POLICY_INVALID` und
+`E_AMOUNT_SCALE_MISMATCH` (Fixtures in Gate 1) sowie `E_WORKSPACE_INVALID` und
+`E_NOT_IMPLEMENTED` — die beiden letzten sind über Fixtures gar nicht erreichbar und
+werden pro Sprache durch einen Kontrakt-Test geprüft, nicht durch die Suite.**
 
 Hinweis: `runDepreciation` auf bereits gelaufene Periode ist **kein Fehler** (idempotent, `alreadyRun: true`) — bewusste Abweichung, siehe `api.md`.
 
@@ -173,6 +176,28 @@ Die Arbeitsdatei ist ein Vertrag, keine Anregung. Vorher wurde jedes Feld auf ei
 gezogen und die `tenantId` neu erzeugt, wenn sie fehlte — die CLI öffnete dieselbe Datenbank unter
 einer anderen Identität und meldete ein leeres Hauptbuch. Von „die Bücher sind leer" war das für
 niemanden zu unterscheiden. Befund R-9.
+
+## E_NOT_IMPLEMENTED (Dispatcher, v0.8.0)
+
+| Code | Invariante | Fixture |
+|---|---|---|
+| `E_NOT_IMPLEMENTED` | `TenantOperations` kennt den Namen der Operation/Projektion nicht — Tippfehler, Verwechslung, oder eine Fähigkeit, die diese Implementierung noch nicht verdrahtet hat | Kontrakt-Test (kein Fixture: nur über den Dispatcher erreichbar) |
+
+Nachgetragen 2026-08-16 (Befund NF-018). Der Code wurde von Anfang an geworfen, hatte eine
+Exit-Nummer (44) und stand im Handbuch — nur hier fehlte er. Die Grenze dieses Katalogs ist
+nicht „fachlicher Fehler", sondern **alles, worauf ein Aufrufer sich verlassen kann**: derselbe
+Grund, aus dem der reine CLI-Code `E_WORKSPACE_INVALID` oben drinsteht. Ohne Zeile hier war er
+für jede maschinelle Prüfung unsichtbar — `validate.py` sah ihn nicht, und der Exit-Code-Wächter
+der Implementierungen prüft gegen diesen Katalog.
+
+Abgrenzung nach unten: `E_NOT_IMPLEMENTED` heißt „diesen Namen gibt es hier nicht", nicht „die
+Eingabe ist unbrauchbar" — Letzteres ist `E_INPUT_INVALID`. Ein **bekannter** Name mit falschen
+Parametern ist nie `E_NOT_IMPLEMENTED`.
+
+Nicht zu verwechseln mit `E_UNEXPECTED`: der ist **bewusst kein Katalogcode** und behält Exit 1.
+Er bedeutet, dass summae den Fehler nicht klassifizieren konnte — ein Bug-Report, kein Fall, den
+ein Aufrufer behandeln kann. `validate.py` zählt ihn trotzdem mit und meldet ihn dauerhaft als
+„ohne Fixture", weil sein Regex jedes `` `E_…` `` im Fließtext greift, nicht nur Tabellenzeilen.
 
 ## Konventionen
 

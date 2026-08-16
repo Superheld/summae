@@ -56,9 +56,31 @@ const CODES: readonly string[] = [
   // Appended 2026-08-16 (NF-008): reversing an entry whose open item already carries a settlement
   // would drop money that actually moved out of the open-item history.
   'E_ENTRY_HAS_SETTLED_ITEMS',
+  // Appended 2026-08-16 (NF-018). These five were in the error catalogue and thrown by the core,
+  // but not in this list — so they exited `1`, the code that means "unknown error", and a script
+  // branching on the exit could not tell them from a summae crash. It hit every `summae init
+  // --pack …` (the three pack codes) and every settlement that over-claims its entry.
+  'E_SETTLEMENT_EXCEEDS_ENTRY',
+  'E_PACK_UNRESOLVED_REF',
+  'E_PACK_INCOHERENT',
+  'E_POLICY_INVALID',
+  // Declared in the catalogue, not yet thrown anywhere (its fixture is still open). Mapped
+  // regardless: reserving the number costs nothing, and it lets `exit-codes.test.ts` demand the
+  // catalogue *without an exception list* — an exception list is the hole NF-018 came through.
+  'E_AMOUNT_SCALE_MISMATCH',
 ];
 
 export function exitCodeFor(errorCode: string): number {
   const index = CODES.indexOf(errorCode);
   return index === -1 ? 1 : index + 10;
+}
+
+/**
+ * Every code that has an exit code, in mapping order. The list is a published contract, so
+ * reading it is legitimate — `exit-codes.test.ts` compares it against the error catalogue in
+ * both directions, which is how a code that lives here but nowhere in the catalogue (as
+ * `E_NOT_IMPLEMENTED` did) stops being invisible. PHP twin: `ExitCodes::all()`.
+ */
+export function allExitCodes(): readonly string[] {
+  return CODES;
 }

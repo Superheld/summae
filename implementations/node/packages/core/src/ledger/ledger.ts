@@ -1,4 +1,4 @@
-import { DomainError, rejectedValue } from '../domain-error.js';
+import { DomainError } from '../domain-error.js';
 import type {
   AccountRepository,
   AuditTrail,
@@ -8,7 +8,7 @@ import type {
   VoucherRepository,
 } from '../port.js';
 import { AccountNumber } from '../substrate/account-number.js';
-import { CalendarDate } from '../substrate/calendar-date.js';
+import type { CalendarDate } from '../substrate/calendar-date.js';
 import type { Clock } from '../substrate/clock.js';
 import type { Currency } from '../substrate/currency.js';
 import { DimensionValue } from '../substrate/dimension-value.js';
@@ -17,24 +17,23 @@ import type { IdGenerator } from '../substrate/id-generator.js';
 import { Money } from '../substrate/money.js';
 import { PeriodRef } from '../substrate/period-ref.js';
 import { Uuid } from '../substrate/uuid.js';
-import { Account } from '../substrate/account.js';
-import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
+import type { Account } from '../substrate/account.js';
+import type { AuditChanges } from '../records/audit-record.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { EntryLine } from '../substrate/entry-line.js';
-import { FiscalYear } from '../substrate/fiscal-year.js';
+import type { FiscalYear } from '../substrate/fiscal-year.js';
 import { JournalEntry } from '../substrate/journal-entry.js';
 import { OpenItem } from '../records/open-item.js';
 import { PostResult } from '../substrate/post-result.js';
 import { Settlement } from '../policies/expansion/settlement.js';
-import {
-  isAccountType,
-  type OpenItemKind,
-  parseSettlementDifferenceKind,
-  type SettlementDifferenceKind,
-  type Side,
-} from '../substrate/types.js';
+import { type OpenItemKind, type Side } from '../substrate/types.js';
 import type { Voucher } from '../records/voucher.js';
+import { AuditWriter } from './audit-writer.js';
+import { ChartAdminService } from './chart-admin-service.js';
+import { FiscalPeriodService } from './fiscal-period-service.js';
+import { SettlementService } from './settlement-service.js';
+import { parseEntryDate, requireEntry } from './lookups.js';
 
 interface ParsedLine {
   readonly account: string;
@@ -61,8 +60,20 @@ function asString(value: unknown): string | null {
  *   3. Balance equation (E_ENTRY_UNBALANCED)
  *   4. Temporal context (E_PERIOD_UNKNOWN, E_PERIOD_CLOSED)
  * Only the first error is reported.
+ *
+ * `Ledger` keeps the operations that write postings — `post`, `correct`, `finalize`, `reverse` —
+ * together with the line parsing they share, and is a thin facade for the three areas that were
+ * only ever neighbours of the journal, not part of it: settlement (`SettlementService`), chart of
+ * accounts (`ChartAdminService`) and fiscal years/periods (`FiscalPeriodService`). The facade is
+ * deliberate: `TenantOperations` and every adapter keep talking to one object, so the split is a
+ * change of shape inside the core and of nothing else.
  */
 export class Ledger {
+  private readonly auditWriter: AuditWriter;
+  private readonly settlements: SettlementService;
+  private readonly chart: ChartAdminService;
+  private readonly periods: FiscalPeriodService;
+
   constructor(
     private readonly baseCurrency: Currency,
     private readonly accounts: AccountRepository,
@@ -70,15 +81,20 @@ export class Ledger {
     private readonly vouchers: VoucherRepository,
     private readonly journal: JournalRepository,
     private readonly openItems: OpenItemRepository,
-    private readonly audit: AuditTrail,
+    audit: AuditTrail,
     private readonly dimensions: DimensionRegistry,
-    private readonly clock: Clock,
+    clock: Clock,
     private readonly ids: IdGenerator,
     private readonly taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
-  ) {}
+  ) {
+    this.auditWriter = new AuditWriter(audit, clock, ids);
+    this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
+    this.chart = new ChartAdminService(accounts, ids, this.auditWriter);
+    this.periods = new FiscalPeriodService(fiscalYears, journal, ids);
+  }
 
   post(input: Record<string, unknown>): PostResult {
-    const actor = this.actor(input);
+    const actor = this.auditWriter.actorOf(input);
 
     // 1. Structure
     const rawLines = input.lines;
@@ -100,7 +116,7 @@ export class Ledger {
     this.assertBalanced(lines);
 
     // 4. Temporal context
-    const entryDate = this.parseEntryDate(input.entryDate);
+    const entryDate = parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
 
     const text = asString(input.text) ?? '';
@@ -110,7 +126,7 @@ export class Ledger {
       this.journal.nextSequenceNumber(fiscalYear.year),
       entryDate,
       voucher.voucherDate,
-      this.now(),
+      this.auditWriter.now(),
       new PeriodRef(fiscalYear.year, period.number),
       voucher.id,
       text,
@@ -118,7 +134,7 @@ export class Ledger {
     );
 
     this.journal.append(entry);
-    this.recordAudit(actor, 'journalEntry', entry.id, 'created');
+    this.auditWriter.record(actor, 'journalEntry', entry.id, 'created');
 
     return new PostResult(entry, this.createOpenItems(entry));
   }
@@ -157,203 +173,9 @@ export class Ledger {
     return created;
   }
 
-  /**
-   * Settlement: allocation payment → open item(s), also partial; always
-   * explicit, no FIFO (determinismus.md §3). Differences (cash discount/write-off/
-   * small difference) per api.md G2. Validate fully first, then apply.
-   */
-  settle(input: Record<string, unknown>): OpenItem[] {
-    const actor = this.actor(input);
-    const entry = this.requireEntry(input.entryId);
-
-    const allocations = Array.isArray(input.allocations) ? input.allocations : [];
-    if (allocations.length === 0) {
-      throw new DomainError('E_OPENITEM_UNKNOWN', 'settle without allocations');
-    }
-
-    const plan: Array<{ item: OpenItem; settlement: Settlement }> = [];
-    const planned = new Map<string, Money>();
-
-    for (const allocation of allocations) {
-      if (!isRecord(allocation)) {
-        throw new DomainError('E_OPENITEM_UNKNOWN', 'Allocation is not a structure');
-      }
-      const openItemId = allocation.openItemId;
-      let item: OpenItem | null = null;
-      if (typeof openItemId === 'string') {
-        try {
-          item = this.openItems.byId(Uuid.fromString(openItemId));
-        } catch (error) {
-          if (!(error instanceof InvalidValue)) throw error;
-        }
-      }
-      if (item === null) {
-        throw new DomainError(
-          'E_OPENITEM_UNKNOWN',
-          `Open item ${typeof openItemId === 'string' ? openItemId : '?'} does not exist`,
-        );
-      }
-
-      const money = this.parseSettlementMoney(allocation.money, 'Allocation amount');
-      const [differenceMoney, differenceKind] = this.parseDifference(allocation.difference ?? null, item);
-
-      const alreadyPlanned = planned.get(item.id.value) ?? Money.zero(this.baseCurrency);
-      if (money.add(alreadyPlanned).compareTo(item.remaining()) > 0) {
-        throw new DomainError(
-          'E_SETTLEMENT_EXCEEDS_ITEM',
-          `Allocation ${money.amountAsString()} exceeds remaining amount ${item
-            .remaining()
-            .subtract(alreadyPlanned)
-            .amountAsString()} of item ${item.id.value}`,
-          { openItemId: item.id.value },
-        );
-      }
-
-      planned.set(item.id.value, money.add(alreadyPlanned));
-      plan.push({
-        item,
-        settlement: new Settlement(entry.id, money, entry.entryDate, differenceMoney, differenceKind),
-      });
-    }
-
-    this.assertEntryCoversAllocations(entry, plan);
-
-    const affected: OpenItem[] = [];
-    for (const step of plan) {
-      const before = step.item.remaining().amountAsString();
-      step.item.settle(step.settlement);
-      this.openItems.save(step.item);
-      this.recordAudit(actor, 'openItem', step.item.id, 'settled', {
-        remaining: { from: before, to: step.item.remaining().amountAsString() },
-      });
-      affected.push(step.item);
-    }
-
-    return affected;
-  }
-
-
-  /**
-   * R-1: an allocation may not claim more than the settling entry actually books against the open
-   * item's account.
-   *
-   * The only bound used to be the item's remaining amount, so a 500.00 payment could close a
-   * 1190.00 receivable in full. The general ledger then carries a 690.00 receivable the subledger
-   * no longer knows about — permanently, and with nothing to point at it — and under cash-basis
-   * taxation the VAT return declares tax as collected that never arrived.
-   *
-   * The bound is the entry's NET REDUCING movement on that account, not its total: a payment with
-   * a discount books the full receivable against the receivables account and carries the
-   * difference as its own line, so those settlements stay valid. Settlements already recorded
-   * against this same entry count against the same budget — otherwise the check could be walked
-   * around by settling twice.
-   */
-  private assertEntryCoversAllocations(
-    entry: JournalEntry,
-    plan: Array<{ item: OpenItem; settlement: Settlement }>,
-  ): void {
-    const zero = Money.zero(this.baseCurrency);
-
-    // What this entry moves per account, signed so that a positive value reduces a receivable.
-    const movement = new Map<string, Money>();
-    for (const line of entry.lines()) {
-      const account = this.accounts.byId(line.accountId);
-      if (account === null) continue;
-      const key = account.number.value;
-      const signed = line.side === 'credit' ? line.money : line.money.negate();
-      movement.set(key, (movement.get(key) ?? zero).add(signed));
-    }
-
-    // Already claimed against this entry by an earlier settle call.
-    const claimed = new Map<string, Money>();
-    const addClaim = (item: OpenItem, amount: Money): void => {
-      const account = this.accountOfOpenItem(item);
-      if (account === null) return;
-      const asReduction = item.kind === 'payable' ? amount.negate() : amount;
-      claimed.set(account, (claimed.get(account) ?? zero).add(asReduction));
-    };
-
-    for (const item of this.openItems.all()) {
-      for (const settlement of item.settlements()) {
-        if (settlement.entryId.value === entry.id.value) addClaim(item, settlement.money);
-      }
-    }
-    for (const step of plan) {
-      addClaim(step.item, step.settlement.money);
-    }
-
-    for (const [account, needed] of claimed) {
-      const available = movement.get(account) ?? zero;
-      // Compared in the reducing direction: `needed` is already signed that way, and so is
-      // `available`, because a payable is reduced by a debit and a receivable by a credit.
-      if (needed.abs().compareTo(available.abs()) > 0 || needed.isPositive() !== available.isPositive()) {
-        throw new DomainError(
-          'E_SETTLEMENT_EXCEEDS_ENTRY',
-          `Allocations against account ${account} claim ${needed.abs().amountAsString()}, ` +
-            `but the entry moves ${available.abs().amountAsString()} there`,
-          { account, claimed: needed.abs().amountAsString(), available: available.abs().amountAsString() },
-        );
-      }
-    }
-  }
-
-  /** The account an open item sits on — its origin posting's line. */
-  private accountOfOpenItem(item: OpenItem): string | null {
-    const origin = this.journal.byId(item.originEntryId);
-    const line = origin?.lines()[item.originLineIndex];
-    if (line === undefined) return null;
-    return this.accounts.byId(line.accountId)?.number.value ?? null;
-  }
-
-  private parseSettlementMoney(raw: unknown, label: string): Money {
-    const amount = isRecord(raw) ? asString(raw.amount) : null;
-    const currency = isRecord(raw) ? asString(raw.currency) : null;
-    if (amount === null || currency !== this.baseCurrency.code) {
-      throw new InvalidValue(`${label} missing or wrong currency`);
-    }
-    const money = Money.of(amount, this.baseCurrency);
-    if (!money.isPositive()) {
-      throw new InvalidValue(`${label} must be > 0`);
-    }
-    return money;
-  }
-
-  private parseDifference(
-    raw: unknown,
-    item: OpenItem,
-  ): [Money | null, SettlementDifferenceKind | null] {
-    if (raw === null) return [null, null];
-    if (!isRecord(raw)) {
-      throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'difference is not a structure');
-    }
-    const kind = parseSettlementDifferenceKind(raw.kind);
-    if (kind === null) {
-      throw new DomainError(
-        'E_SETTLEMENT_DIFFERENCE_INVALID',
-        `Unknown difference kind "${typeof raw.kind === 'string' ? raw.kind : '?'}"`,
-      );
-    }
-    let money: Money;
-    try {
-      money = this.parseSettlementMoney(raw.money, 'Difference amount');
-    } catch (error) {
-      if (error instanceof InvalidValue) {
-        throw new DomainError('E_SETTLEMENT_DIFFERENCE_INVALID', 'Difference amount invalid (≤ 0 or format)');
-      }
-      throw error;
-    }
-    if (money.compareTo(item.remaining()) > 0) {
-      throw new DomainError(
-        'E_SETTLEMENT_DIFFERENCE_INVALID',
-        `Difference ${money.amountAsString()} exceeds remaining amount ${item.remaining().amountAsString()}`,
-      );
-    }
-    return [money, kind];
-  }
-
   correct(input: Record<string, unknown>): JournalEntry {
-    const actor = this.actor(input);
-    const entry = this.requireEntry(input.entryId);
+    const actor = this.auditWriter.actorOf(input);
+    const entry = requireEntry(this.journal, input.entryId);
     const changes: AuditChanges = {};
 
     // Reading both fields leniently made every unrecognized field a silent no-op that still
@@ -415,7 +237,7 @@ export class Ledger {
 
     if (Object.keys(changes).length > 0) {
       this.journal.save(entry);
-      this.recordAudit(actor, 'journalEntry', entry.id, 'corrected', changes);
+      this.auditWriter.record(actor, 'journalEntry', entry.id, 'corrected', changes);
     } else {
       // Status check even without an effective change (E_ENTRY_FINALIZED).
       entry.changeText(entry.text());
@@ -425,14 +247,14 @@ export class Ledger {
   }
 
   finalize(input: Record<string, unknown>): number {
-    const actor = this.actor(input);
+    const actor = this.auditWriter.actorOf(input);
 
     if (input.entryId !== undefined) {
-      const entry = this.requireEntry(input.entryId);
+      const entry = requireEntry(this.journal, input.entryId);
       if (entry.isFinalized()) return 0;
       entry.finalize();
       this.journal.save(entry);
-      this.recordAudit(actor, 'journalEntry', entry.id, 'finalized', {
+      this.auditWriter.record(actor, 'journalEntry', entry.id, 'finalized', {
         status: { from: 'entered', to: 'finalized' },
       });
       return 1;
@@ -442,14 +264,14 @@ export class Ledger {
     if (typeof until !== 'string') {
       throw new DomainError('E_ENTRY_UNKNOWN', 'finalize needs entryId or finalizeUntil');
     }
-    const untilDate = this.parseEntryDate(until);
+    const untilDate = parseEntryDate(until);
     let count = 0;
 
     for (const entry of this.journal.all()) {
       if (entry.isFinalized() || entry.entryDate.isAfter(untilDate)) continue;
       entry.finalize();
       this.journal.save(entry);
-      this.recordAudit(actor, 'journalEntry', entry.id, 'finalized', {
+      this.auditWriter.record(actor, 'journalEntry', entry.id, 'finalized', {
         status: { from: 'entered', to: 'finalized' },
       });
       count++;
@@ -458,8 +280,8 @@ export class Ledger {
   }
 
   reverse(input: Record<string, unknown>): JournalEntry {
-    const actor = this.actor(input);
-    const original = this.requireEntry(input.entryId);
+    const actor = this.auditWriter.actorOf(input);
+    const original = requireEntry(this.journal, input.entryId);
 
     if (original.reversedBy() !== null) {
       throw new DomainError('E_ENTRY_ALREADY_REVERSED', `Posting ${original.id.value} is already reversed`, {
@@ -481,7 +303,7 @@ export class Ledger {
       );
     }
 
-    const entryDate = this.parseEntryDate(input.entryDate);
+    const entryDate = parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
     const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
 
@@ -490,7 +312,7 @@ export class Ledger {
       this.journal.nextSequenceNumber(fiscalYear.year),
       entryDate,
       original.voucherDate,
-      this.now(),
+      this.auditWriter.now(),
       new PeriodRef(fiscalYear.year, period.number),
       original.voucherId,
       text,
@@ -502,8 +324,8 @@ export class Ledger {
     this.journal.append(reversal);
     this.journal.save(original);
 
-    this.recordAudit(actor, 'journalEntry', reversal.id, 'created');
-    this.recordAudit(actor, 'journalEntry', original.id, 'reversed', {
+    this.auditWriter.record(actor, 'journalEntry', reversal.id, 'created');
+    this.auditWriter.record(actor, 'journalEntry', original.id, 'reversed', {
       reversedBy: { from: null, to: reversal.id.value },
     });
 
@@ -513,7 +335,7 @@ export class Ledger {
     for (const item of items) {
       item.settle(new Settlement(reversal.id, item.remaining(), entryDate, null, null, 'cancellation'));
       this.openItems.save(item);
-      this.recordAudit(actor, 'openItem', item.id, 'cancelled', {
+      this.auditWriter.record(actor, 'openItem', item.id, 'cancelled', {
         cancelledBy: { from: null, to: reversal.id.value },
       });
     }
@@ -521,148 +343,41 @@ export class Ledger {
     return reversal;
   }
 
-  closePeriod(input: Record<string, unknown>): { fiscalYear: number; period: number; status: string } {
-    const fiscalYear = this.requireFiscalYear(input.fiscalYear);
-    const period = fiscalYear.closePeriod(this.periodNumber(input));
-    this.fiscalYears.save(fiscalYear);
-    return { fiscalYear: fiscalYear.year, period: period.number, status: period.status() };
-  }
+  // ---- facade: settlement, chart of accounts, fiscal years -------------
 
-  reopenPeriod(input: Record<string, unknown>): { fiscalYear: number; period: number; status: string } {
-    const fiscalYear = this.requireFiscalYear(input.fiscalYear);
-    const period = fiscalYear.reopenPeriod(this.periodNumber(input));
-    this.fiscalYears.save(fiscalYear);
-    return { fiscalYear: fiscalYear.year, period: period.number, status: period.status() };
-  }
-
-  closeFiscalYear(input: Record<string, unknown>): FiscalYear {
-    const fiscalYear = this.requireFiscalYear(input.fiscalYear);
-    for (const entry of this.journal.forFiscalYear(fiscalYear.year)) {
-      if (!entry.isFinalized()) {
-        throw new DomainError(
-          'E_FISCALYEAR_UNFINALIZED_ENTRIES',
-          `Year-end close ${fiscalYear.year}: posting ${entry.sequenceNumber} is not finalized`,
-          { fiscalYear: fiscalYear.year, sequenceNumber: entry.sequenceNumber },
-        );
-      }
-    }
-    fiscalYear.close();
-    this.fiscalYears.save(fiscalYear);
-    return fiscalYear;
-  }
-
-  createFiscalYear(input: Record<string, unknown>): FiscalYear {
-    // Anything that was not a number became year 0 — a quoted `"2027"` from a JSON caller
-    // created a fiscal year nobody could address again: every later report for 2027 came back
-    // empty and correct-looking instead of saying the year does not exist. A fiscal year is a
-    // positive whole number; 2028.5 or -5 are caller mistakes, not values to round into shape.
-    const rawYear = input.year;
-    // Safe integer, not just integer: `1e21` passes Number.isInteger but is beyond what the
-    // PHP side can hold as an int, so it was accepted here and rejected there — same input,
-    // different answer, which is the one thing the equivalence policy does not allow.
-    if (typeof rawYear !== 'number' || !Number.isSafeInteger(rawYear) || rawYear <= 0) {
-      throw new DomainError('E_INPUT_INVALID', 'createFiscalYear requires "year" as a positive whole number', {
-        year: rejectedValue(rawYear),
-      });
-    }
-    const year = rawYear;
-    const start = this.parseEntryDate(input.start);
-    const end = this.parseEntryDate(input.end);
-
-    for (const existing of this.fiscalYears.all()) {
-      const overlaps = !existing.end.isBefore(start) && !existing.start.isAfter(end);
-      if (overlaps || existing.year === year) {
-        throw new DomainError(
-          'E_FISCALYEAR_OVERLAP',
-          `Fiscal year ${year} (${start.iso} to ${end.iso}) overlaps with ${existing.year}`,
-          { year, existing: existing.year },
-        );
-      }
-    }
-
-    const fiscalYear = FiscalYear.create(this.ids.next(), year, start, end);
-    this.fiscalYears.add(fiscalYear);
-    return fiscalYear;
+  settle(input: Record<string, unknown>): OpenItem[] {
+    return this.settlements.settle(input);
   }
 
   createAccount(input: Record<string, unknown>): Account {
-    const actor = this.actor(input);
-    const account = this.buildAccount(input);
-
-    if (this.accounts.byNumber(account.number) !== null) {
-      throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Account number ${account.number.value} is already taken`, {
-        number: account.number.value,
-      });
-    }
-
-    this.accounts.add(account);
-    this.recordAudit(actor, 'account', account.id, 'created');
-    return account;
+    return this.chart.createAccount(input);
   }
 
   lockAccount(input: Record<string, unknown>): Account {
-    const actor = this.actor(input);
-    const number = asString(input.number) ?? '';
-    const account = this.accounts.byNumber(AccountNumber.of(number));
-
-    if (account === null) {
-      throw new DomainError('E_ACCOUNT_UNKNOWN', `Account ${number} does not exist`, { number });
-    }
-
-    const before = account.status();
-    account.lock();
-    this.accounts.save(account);
-    this.recordAudit(actor, 'account', account.id, 'locked', {
-      status: { from: before, to: account.status() },
-    });
-    return account;
+    return this.chart.lockAccount(input);
   }
 
   importChartOfAccounts(input: Record<string, unknown>): number {
-    const actor = this.actor(input);
-    const rows = input.rows;
-    if (!Array.isArray(rows) || rows.length === 0) {
-      throw new DomainError('E_COA_FORMAT_INVALID', 'Import without rows');
-    }
+    return this.chart.importChartOfAccounts(input);
+  }
 
-    const accounts: Account[] = [];
-    const numbers = new Set<string>();
+  createFiscalYear(input: Record<string, unknown>): FiscalYear {
+    return this.periods.createFiscalYear(input);
+  }
 
-    rows.forEach((row, index) => {
-      if (!isRecord(row)) {
-        throw new DomainError('E_COA_FORMAT_INVALID', `Row ${index} is not a structure`);
-      }
-      let account: Account;
-      try {
-        account = this.buildAccount(row);
-      } catch (error) {
-        if (error instanceof DomainError) {
-          throw new DomainError('E_COA_FORMAT_INVALID', `Row ${index} is not parsable`, { row: index });
-        }
-        throw error;
-      }
-      if (numbers.has(account.number.value) || this.accounts.byNumber(account.number) !== null) {
-        throw new DomainError('E_ACCOUNT_NUMBER_TAKEN', `Account number ${account.number.value} is already taken`, {
-          number: account.number.value,
-        });
-      }
-      numbers.add(account.number.value);
-      accounts.push(account);
-    });
+  closePeriod(input: Record<string, unknown>): { fiscalYear: number; period: number; status: string } {
+    return this.periods.closePeriod(input);
+  }
 
-    for (const account of accounts) {
-      this.accounts.add(account);
-      this.recordAudit(actor, 'account', account.id, 'created');
-    }
-    return accounts.length;
+  reopenPeriod(input: Record<string, unknown>): { fiscalYear: number; period: number; status: string } {
+    return this.periods.reopenPeriod(input);
+  }
+
+  closeFiscalYear(input: Record<string, unknown>): FiscalYear {
+    return this.periods.closeFiscalYear(input);
   }
 
   // ---- internal --------------------------------------------------------
-
-  private actor(input: Record<string, unknown>): string {
-    const actor = asString(input.actor);
-    return actor !== null && actor !== '' ? actor : 'system';
-  }
 
   private parseLine(rawLine: Record<string, unknown>, index: number): ParsedLine {
     const money = rawLine.money;
@@ -784,20 +499,6 @@ export class Ledger {
     }
   }
 
-  private parseEntryDate(entryDate: unknown): CalendarDate {
-    if (typeof entryDate !== 'string') {
-      throw new DomainError('E_PERIOD_UNKNOWN', 'entryDate missing');
-    }
-    try {
-      return CalendarDate.of(entryDate);
-    } catch (error) {
-      if (error instanceof InvalidValue) {
-        throw new DomainError('E_PERIOD_UNKNOWN', `Invalid posting date "${entryDate}"`);
-      }
-      throw error;
-    }
-  }
-
   private openPeriodFor(entryDate: CalendarDate): [FiscalYear, ReturnType<FiscalYear['periodForDate']>] {
     const fiscalYear = this.fiscalYears.forDate(entryDate);
     if (fiscalYear === null) {
@@ -815,65 +516,5 @@ export class Ledger {
       });
     }
     return [fiscalYear, period];
-  }
-
-  private requireEntry(entryId: unknown): JournalEntry {
-    let entry: JournalEntry | null = null;
-    if (typeof entryId === 'string' && entryId !== '') {
-      try {
-        entry = this.journal.byId(Uuid.fromString(entryId));
-      } catch (error) {
-        if (!(error instanceof InvalidValue)) throw error;
-      }
-    }
-    if (entry === null) {
-      throw new DomainError('E_ENTRY_UNKNOWN', `Posting ${typeof entryId === 'string' ? entryId : '?'} does not exist`);
-    }
-    return entry;
-  }
-
-  private requireFiscalYear(year: unknown): FiscalYear {
-    const fiscalYear = typeof year === 'number' ? this.fiscalYears.byYear(year) : null;
-    if (fiscalYear === null) {
-      throw new DomainError('E_PERIOD_UNKNOWN', `Fiscal year ${typeof year === 'number' ? year : '?'} is not created`);
-    }
-    return fiscalYear;
-  }
-
-  private periodNumber(input: Record<string, unknown>): number {
-    const period = input.period;
-    if (typeof period !== 'number' || !Number.isInteger(period)) {
-      throw new DomainError('E_PERIOD_UNKNOWN', 'Period number missing');
-    }
-    return period;
-  }
-
-  private buildAccount(input: Record<string, unknown>): Account {
-    const number = asString(input.number);
-    const name = asString(input.name);
-    const type = input.type;
-
-    if (number === null || number === '' || name === null || name === '' || !isAccountType(type)) {
-      throw new DomainError('E_COA_FORMAT_INVALID', 'Account needs number, name and a valid type');
-    }
-
-    const subtype = asString(input.subtype);
-    const status = input.status === 'locked' ? 'locked' : 'active';
-
-    return new Account(this.ids.next(), AccountNumber.of(number), name, type, subtype, status);
-  }
-
-  private recordAudit(
-    actor: string,
-    objectType: string,
-    objectId: Uuid,
-    action: string,
-    changes: AuditChanges = {},
-  ): void {
-    this.audit.append(new AuditRecord(this.ids.next(), this.now(), actor, objectType, objectId, action, changes));
-  }
-
-  private now(): string {
-    return this.clock.now().toISOString();
   }
 }

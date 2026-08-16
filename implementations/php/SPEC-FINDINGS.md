@@ -51,9 +51,52 @@ a short file.
 | NF-015 `packages/laravel` has no tests of its own | **RESOLVED 2026-08-16** — own suite (19 tests), coverage floor 95%; found and fixed a tenant-scoping defect in **both** adapters |
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
+| NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
 
-**No findings are open today.** F-004, NF-008, the NF-005 remainder and NF-015 were all closed on
-2026-08-16.
+F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16. **The
+findings list is empty.**
+
+### NF-018 — four error codes fall through to exit code 1 — RESOLVED
+
+> **Resolved 2026-08-16.** The four codes were appended to `ExitCodes`/`exit-codes.ts` (49–52),
+> together with `E_AMOUNT_SCALE_MISMATCH` (53): it is declared in the catalogue but not yet
+> thrown anywhere, and mapping it means the new guard test can demand the *whole* catalogue
+> without an exception list — an exception list would be the same hole again. Nothing was
+> renumbered. The missing piece was never the four entries but the comparison: `ExitCodesTest`
+> (PHP) and `exit-codes.test.ts` (Node) now parse `testing/testsuite/fehlerkatalog.md` and fail
+> when a catalogued code maps to `1`, when two codes share a number, or when an insertion shifts
+> the anchors (10 / 45 / 53).
+>
+> The reservation below — that the numeric mapping needs a knowledge-base decision the way
+> `E_INPUT_INVALID` did — turned out not to apply: the catalogue carries *names*, not numbers
+> (the number is the position in the append-only list), and all five codes were already in it.
+> So no knowledge-base change was needed, and the fix is code + guard.
+>
+> **The gap in the other direction is closed too.** `E_NOT_IMPLEMENTED` had an exit code (44)
+> and a handbook entry but no catalogue row — invisible to every machine check, including the
+> guard above. The catalogue's line is not "domain errors" but *everything a caller can rely on*
+> (which is why the pure CLI code `E_WORKSPACE_INVALID` is in it), so the row was missing, not
+> withheld. It was added in the knowledge base on 2026-08-16 and mirrored here; both guards now
+> compare the two lists **as sets**, so neither direction can drift. 44 codes, covering each
+> other exactly.
+>
+> Original finding:
+
+Found while checking the handbook's error catalogue against the code. `E_SETTLEMENT_EXCEEDS_ENTRY`
+(new with R-1) and the three pack-composition codes `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`
+and `E_POLICY_INVALID` are thrown by the core but are not in the `CODES` list that
+`exitCodeFor`/`ExitCodes` maps, so they return `1` — which the CLI documents as *unknown error*,
+i.e. indistinguishable from a summae bug. It hits `summae init --pack …` (all three pack codes)
+and every settlement that over-claims its entry.
+
+The JSON on stderr still names the code, so nothing is lost for a human reader; a script that
+branches on the exit code cannot tell these four from a crash.
+
+**Not fixed unilaterally**, because it is not a code-only change: the list is **append-only and
+identical in both languages**, and the numeric mapping is part of the error catalogue in the
+knowledge base (the same route `E_INPUT_INVALID` took, exit 45). Appending four entries in
+`exit-codes.ts` + `ExitCodes.php` would be mechanical; the catalogue entry is Roland's call.
+Documented in the handbook meanwhile, so the gap is at least visible to users.
 
 The **entire Round 1 backlog (R-1 … R-12) is closed** as of 2026-08-16 — the twelve defects the
 two adversarial probing agents turned up on 2026-08-15. Per-item write-ups:
