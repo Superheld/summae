@@ -1,4 +1,8 @@
-# Fehlerkatalog v0.5
+# Fehlerkatalog
+
+*(Die Versionsangaben in Klammern hinter den Codes — `(v0.6)`, `(v0.8.0)` — bezeichnen das
+summae-Release, in dem der Code dazukam. Der Katalog selbst wird nicht eigenständig versioniert;
+bis 2026-08-16 stand hier „v0.5", was neben den Release-Markern nur verwirrte.)*
 
 Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Implementierungen. Jeder Code MUSS mindestens eine Fixture haben (Spalte „Fixture"; ✗ = noch zu bauen). Codes sind stabil — Umbenennung ist ein Breaking Change.
 
@@ -68,6 +72,15 @@ Haupt- und Nebenbuch beisammen. Befund R-3, verwandt mit NF-008.
 | `E_SETTLEMENT_DIFFERENCE_INVALID` | `difference.kind` unbekannt, Betrag ≤ 0 oder > Restbetrag (v0.3) | settlement-discount |
 | `E_OPENITEM_UNKNOWN` | openItemId existiert nicht | open-items-settlement |
 
+**Unbekannter Mechanismus (v0.8.0).** Das Mechanismus-Repertoire ist **geschlossen** (Entscheidung
+2026-08-16): ein Pack wählt einen der im Kern registrierten Mechanismen (`standard`,
+`reverse_charge`, `intra_community_supply`, `exempt`) und trägt keinen Code. Ein Name, den es nicht
+gibt, ist deshalb ein Tippfehler oder ein Pack gegen einen neueren Kern — vorher fiel beides still
+auf `standard` zurück, und ein als `reverse-charge` vertippter Reverse-Charge-Schlüssel buchte eine
+gewöhnliche Steuerzeile auf dem gewöhnlichen Konto in der gewöhnlichen USt-VA-Kennzahl. An der
+Ausgabe war nicht zu erkennen, dass der Mechanismus weggefallen war. Der Fehler kommt beim
+Auflösen, nicht erst bei der ersten Buchung. Fixture `resolver-unknown-mechanism`.
+
 Abgrenzung der beiden `EXCEEDS`-Codes: `…_ITEM` schaut auf den **Posten** („du willst mehr
 ausgleichen, als offen ist"), `…_ENTRY` auf die **Buchung** („du willst mehr ausgleichen, als
 diese Zahlung überhaupt bewegt hat"). Beides sind Aufruferfehler und beide sind nötig — ohne den
@@ -136,7 +149,7 @@ widersprüchlich. `E_PACK_UNRESOLVED_REF` hat Vorrang, wenn beide zugleich zutr�
 | Code | Auslösende Invariante | Fixture |
 |---|---|---|
 | `E_PACK_UNRESOLVED_REF` | Eine Referenz im Manifest/Modul zeigt ins Leere: Modul-`id`/`version` im Modulbestand nicht gefunden, `dependsOn` zeigt auf ein nicht in der effektiven Liste enthaltenes Modul, oder ein gefalteter Beitrag referenziert ein fehlendes Ziel — `taxAccount` (bzw. `inputTaxAccount` bei `reverse_charge`) ohne Konto (I1), Mapping-Selektor trifft kein Konto / zeigt vollständig ins Leere (I2), eines der fünf `assetAccounts.*Account` fehlt (I3), ein vom Profil/Manifest referenzierter `taxCode` wird von keinem aufgelösten `tax`-Modul bereitgestellt (I4, mapping-frei) | resolver-errors |
-| `E_PACK_INCOHERENT` | Referenzen existieren, aber das Bündel passt nicht zusammen: Abhängigkeits-Zyklus, Konto-`number`-Kollision aus zwei Kontenrahmen (I6), doppelter `taxCode.code`/`mapping.id` oder mehr als ein `policy`-Modul (I7), kollidierender oder ins Leere greifender `override` (Doppel-Override, `replace` auf nicht gelistetes Modul), unbekanntes `kind` | resolver-errors |
+| `E_PACK_INCOHERENT` | Referenzen existieren, aber das Bündel passt nicht zusammen: Abhängigkeits-Zyklus, Konto-`number`-Kollision aus zwei Kontenrahmen (I6), doppelter `taxCode.code`/`mapping.id` oder mehr als ein `policy`-Modul (I7), kollidierender oder ins Leere greifender `override` (Doppel-Override, `replace` auf nicht gelistetes Modul), unbekanntes `kind`, **unbekannter `mechanism` an einem `taxCode`** (v0.8.0) | resolver-errors |
 | `E_POLICY_INVALID` | `packPolicy`-Wert ungültig oder inkonsistent: unbekannter `roundingMode`/`taxRoundingGranularity`-Enum, `currencyScale` nicht ganzzahlig oder außerhalb 0–4, ISO-Exponent-Widerspruch, Manifest-`packPolicy`-Kopie ≠ aufgelöstes `policy`-Modul, oder `currencyScale`-Änderung auf bestehendem Mandanten | ✗ |
 | `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | ✗ |
 

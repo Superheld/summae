@@ -1,0 +1,78 @@
+{
+  "fixture": "disposal-catches-up-depreciation",
+  "description": "NF-022: der Abgang bucht zuerst die fällige, noch nicht gebuchte AfA und schreibt erst dann den Restbuchwert aus. Ohne diesen Schritt schrieb er den Stand vom Jahresanfang aus, und die AfA der letzten Monate entstand nie — `runDepreciation` überspringt abgegangene Güter, es hätte sie also auch später niemand mehr gebucht. Die Summe traf die GuV richtig, die Aufteilung nicht: der Aufwand lag als überhöhter Abgangsverlust dort statt als Abschreibung, und die AfA-Zahl des Anlagespiegels war zu niedrig. Fällig ist ein Planmonat an seinem letzten Tag — dieselbe Konvention, nach der der reguläre Lauf ihn greift.",
+  "covers": ["F-AST-004", "F-AST-003"],
+  "setup": {
+    "tenant": { "name": "Abgang GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "0500", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4900", "name": "Erlöse aus Anlagenabgang", "type": "revenue" },
+      { "number": "6500", "name": "Abschreibungen", "type": "expense" },
+      { "number": "6510", "name": "GWG-Aufwand", "type": "expense" },
+      { "number": "6900", "name": "Verlust aus Anlagenabgang", "type": "expense" }
+    ],
+    "ruleModule": {
+      "usefulLife": [ { "assetClass": "machinery", "months": 36 } ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "6500",
+        "gwgExpenseAccount": "6510",
+        "disposalProceedsAccount": "4900",
+        "disposalLossAccount": "6900"
+      }
+    },
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-MASCHINE", "voucherDate": "2026-01-01" },
+      { "id": "$V2", "voucherNumber": "ABGANG", "voucherDate": "2026-06-30" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine", "assetClass": "machinery", "assetAccount": "0500",
+        "acquisitionCost": { "amount": "3600.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1"
+      },
+      "expect": {
+        "comment": "36 Monate ab 1. Januar → 100,00 je Monat.",
+        "result": { "id": "$A1", "route": "capitalize", "usefulLifeMonths": 36 }
+      }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "$A1", "disposedOn": "2026-06-30", "voucherId": "$V2" },
+      "expect": {
+        "comment": "Abgang zum 30. Juni, OHNE dass vorher ein AfA-Lauf stattgefunden hat — der Fall, den NF-022 beschreibt. Sechs Planmonate sind fällig (Stichtag jeweils Monatsletzter, der sechste am 30.06.), also 600,00 AfA; danach beträgt der Restbuchwert 3600,00 − 600,00 = 3000,00 und wird ohne Erlös komplett als Verlust ausgebucht.",
+        "result": { "id": "$A1", "status": "disposed" }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Die Aufteilung ist der Punkt: 600,00 stehen als Abschreibung auf 6500 und 3000,00 als Abgangsverlust auf 6900 — zusammen 3600,00, also die vollen Anschaffungskosten, wie es sein muss, wenn ein Gut ohne Erlös untergeht. Vor dem Fix waren es 0,00 Abschreibung und 3600,00 Verlust. Das Anlagekonto steht auf 0,00 — 3600,00 Zugang gegen 600,00 AfA und 3000,00 Ausbuchung — und bleibt als bewegte Zeile in der Liste stehen.",
+        "rows": [
+          { "account": "0500", "openingBalance": "0.00", "debitTotal": "3600.00", "creditTotal": "3600.00", "balance": "0.00" },
+          { "account": "1200", "openingBalance": "0.00", "creditTotal": "3600.00", "balance": "-3600.00" },
+          { "account": "6500", "openingBalance": "0.00", "debitTotal": "600.00", "balance": "600.00" },
+          { "account": "6900", "openingBalance": "0.00", "debitTotal": "3000.00", "balance": "3000.00" }
+        ]
+      }
+    },
+    {
+      "name": "assetRegister",
+      "params": { "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Der Anlagespiegel führt dieselbe AfA — sie ist echte Abschreibung des Wirtschaftsguts, nicht Teil des Abgangsergebnisses.",
+        "assets": [
+          { "name": "Maschine", "status": "disposed", "accumulatedDepreciation": { "amount": "600.00", "currency": "EUR" } }
+        ]
+      }
+    }
+  ]
+}

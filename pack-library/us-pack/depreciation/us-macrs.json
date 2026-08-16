@@ -8,7 +8,7 @@
   "dependsOn": [],
   "data": {
     "gwgThresholds": [
-      { "validFrom": "2016-01-01", "validTo": null, "immediateMax": "2500.00", "poolMin": null, "poolMax": null, "poolYears": null }
+      { "validFrom": "2016-01-01", "validTo": null, "immediateMax": "2500.00", "poolMin": null, "poolMax": null, "poolYears": null, "poolReducedOnDisposal": null }
     ],
     "usefulLife": [
       { "assetClass": "it-hardware", "months": 60 },

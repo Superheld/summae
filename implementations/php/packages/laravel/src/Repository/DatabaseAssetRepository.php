@@ -130,7 +130,28 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             $depreciations,
             ($state['disposed'] ?? false) === true,
             Hydrator::date($state['disposedOn'] ?? null),
+            // NF-023: the asset's dimensions survive the round trip — every machine entry about it
+            // reads them, so losing them here would make depreciation impossible after a restart
+            // wherever a dimension is mandatory.
+            self::dimensions($data['dimensions'] ?? null),
         );
+    }
+
+    /** @return list<array{type: string, code: string}> */
+    private static function dimensions(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $parsed = [];
+        foreach ($raw as $item) {
+            if (is_array($item) && is_string($item['type'] ?? null) && is_string($item['code'] ?? null)) {
+                $parsed[] = ['type' => $item['type'], 'code' => $item['code']];
+            }
+        }
+
+        return $parsed;
     }
 
     private function table(): \Illuminate\Database\Query\Builder

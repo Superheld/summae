@@ -3,6 +3,98 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.9.0 — 2026-08-17
+
+Closing the gate gaps — the requirements that had no test. Six of them turned out to be defects
+rather than missing tests, and all were the quiet kind: no crash, no error, just wrong numbers.
+Fixed assets carry most of this release, because that is where the untested requirements sat.
+
+### ⚠ Two things break
+
+- **A pack with a pool range must now declare `poolReducedOnDisposal`** next to `poolYears`,
+  or the resolver answers `E_PACK_INCOHERENT`. The shipped `de` pack says `false`; a pack of your
+  own needs the line added. It is required rather than defaulted on purpose — see NF-025 below.
+- **`disposeAsset` books different entries than it did.** It now writes off the carrying amount
+  and books gain or loss, where before it booked only the proceeds. Balance sheet and income
+  statement change for anyone who disposes of assets — the old numbers were wrong, but they were
+  your numbers, so re-check any reports built on them.
+
+### Fixed
+
+- **A pooled asset kept its depreciation when it was disposed of (NF-019).** `runDepreciation`
+  skipped every disposed asset. That is right for a single asset and wrong for a pooled one:
+  F-AST-006 requires the pool to be written off on its fixed schedule *unaffected by disposals* —
+  the jurisdiction behind the rule says the pool is not reduced when an item leaves. The error was
+  directional and silent: **too little depreciation and too much profit, for every remaining year
+  of the term.** Fixed in both languages; the disposal still books its proceeds. Fixture
+  `pool-unaffected-by-disposal`, which also carries the counter-case (a single asset does stop).
+- **`supplierTaxationMethod` could never be set (NF-020).** The field is declared in the data
+  format (`enum ["accrual","cash"]`), documented against F-TAX-007, and carried by both `Voucher`
+  classes — but nothing ever read it out of the input: PHP passed a literal `null`, Node left it
+  out. It decides whether input tax is deductible on invoice or only on payment. It is now
+  accepted on `createVoucher`/`postVoucher` and validated — an unknown value is `E_INPUT_INVALID`,
+  because storing null silently reads as "supplier taxes on accrual", the answer that permits the
+  earlier deduction.
+
+- **An asset disposal now writes off the carrying amount (NF-021).** `dispose` booked only
+  `bank → proceedsAccount`: the asset account was never relieved, so a disposed asset **stayed in
+  the balance sheet at its carrying amount** and the proceeds counted as income in full instead of
+  as a gain against book value — profit overstated by exactly the carrying amount. It now books the
+  write-off plus the difference to the pack's `disposalProceedsAccount` (gain) or
+  `disposalLossAccount` (loss) — two accounts the pack resolver had been *requiring* while nothing
+  booked either. Pooled assets stay exempt (see NF-019 above). A fully depreciated asset scrapped
+  for nothing books no entry rather than an empty one.
+
+  ⚠ **Known limit (NF-022):** the write-off uses what has been *booked*. The yearly depreciation
+  run books on 31 December, so disposing mid-year without running depreciation first writes off a
+  stale carrying amount and overstates the loss by the pro-rata share. Run depreciation up to the
+  disposal period first. Making `dispose` catch up on its own is a separate decision — it would
+  make one operation write two economically different entries.
+
+- **The pool-disposal rule left the core (NF-025).** Fixing NF-019 put § 6 Abs. 2a EStG straight
+  into `runDepreciation` as `route !== 'pool'` — „a disposal does not reduce the pool" is not a
+  property of pooling but **one jurisdiction's answer**, and the UK and Australia give the
+  opposite one. It is now `poolReducedOnDisposal` in the depreciation module, conditionally
+  required next to `poolMax` and refused rather than defaulted — the same treatment `poolYears`
+  got for the pool period (F-004), one line further down in the same file. Two fixtures drive the
+  identical sequence through both answers.
+- **The disposal books the depreciation it owes first (NF-022).** Otherwise it wrote off a stale
+  carrying amount, and the asset's last months of depreciation never happened at all —
+  `runDepreciation` skips disposed assets. The expense landed as an inflated disposal loss instead
+  of as depreciation: the income statement total was right, the split was not, and the fixed-asset
+  schedule reported too little depreciation. Which months are due follows the schedule's existing
+  convention, so no new rule enters the core. Still open by design: whether the month of departure
+  counts as a whole month is a pack question.
+- **A pooled asset no longer reports a carrying amount of zero (NF-024).** `bookValueAt`
+  short-circuited for every route except `capitalize`. Correct for an immediately expensed asset,
+  wrong for a pooled one — it sits on the pool account with a real book value, and the fixed-asset
+  schedule (F-AST-005) understated the balance sheet it is supposed to explain.
+- **An asset carries its dimensions, so depreciation can run at all (NF-023).** A tenant with a
+  mandatory dimension on the depreciation account could not depreciate: `postMachineEntry` builds
+  its own lines and had no dimension to give, so every run failed with `E_DIMENSION_INVALID`.
+  `acquireAsset` now takes `dimensions`, the asset stores them, and acquisition, the depreciation
+  run, the disposal catch-up and the disposal itself all book with them — both persistence
+  adapters included, so a restart does not undo it. Exempting machine entries from the constraint
+  would have been the easy fix and the wrong one: depreciation per cost centre is what cost
+  accounting is for.
+- **An unknown tax mechanism is refused instead of quietly booked as standard.** `mechanismFor`
+  fell back to the standard mechanism for any unregistered name. Since the repertoire is closed —
+  a pack picks one of the four and carries no code — an unlisted name is a typo or a pack built
+  against a newer core, and both booked plain VAT without a word: `reverse-charge` instead of
+  `reverse_charge` produced a normal tax line, on the normal account, in the normal VAT return
+  box. It is now `E_PACK_INCOHERENT`, and because the resolver calls the same function, a composed
+  pack fails at `resolvePack`/`init` rather than at the first posting.
+
+### Added
+
+- **Three fixtures for requirements that were built but unwatched.** `E_POLICY_INVALID` had no
+  fixture although the resolver throws it in four places (`resolver-policy-invalid` covers all
+  four); the trial balance's `openingBalance`/`debitTotal`/`creditTotal` columns had none although
+  both languages emit them (`trial-balance-columns`, over two fiscal years — the only way the
+  carry-forward is distinguishable from the period turnover); and F-TAX-007 got
+  `supplier-taxation-method`. Plus `resolver-unknown-mechanism` for the hardening above and
+  `pool-unaffected-by-disposal` for NF-019/NF-021. 105 fixtures now, cross-test 61/61 each way.
+
 ## 0.8.1 — 2026-08-16
 
 Backlog cleanup — no behaviour change, no API change. It ships as a release of its own rather

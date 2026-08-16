@@ -43,6 +43,14 @@ export class Asset {
     readonly usefulLifeMonths: number | null,
     readonly monthlySchedule: Money[],
     readonly voucherId: Uuid,
+    /**
+     * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by the
+     * machine, month after month, for years — nobody is there to name a dimension at that moment,
+     * and a mandatory one on the depreciation account would otherwise make the run impossible. The
+     * master record answering it once is also how it works in practice: an asset belongs to a cost
+     * centre, and its depreciation belongs there with it.
+     */
+    readonly dimensions: ReadonlyArray<{ type: string; code: string }> = [],
   ) {}
 
   isDisposed(): boolean {
@@ -110,6 +118,7 @@ export class Asset {
     depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid }>,
     disposed: boolean,
     disposedOn: CalendarDate | null,
+    dimensions: ReadonlyArray<{ type: string; code: string }> = [],
   ): Asset {
     const asset = new Asset(
       id,
@@ -122,6 +131,7 @@ export class Asset {
       usefulLifeMonths,
       monthlySchedule,
       voucherId,
+      dimensions,
     );
     for (const booking of depreciations) {
       asset.depreciations.push({
@@ -145,8 +155,17 @@ export class Asset {
     return sum;
   }
 
+  /**
+   * Carrying amount = cost less what has been depreciated (NF-024).
+   *
+   * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
+   * *pooled* one was: it sits on the pool account and is written down over the pack's term, so
+   * reporting zero for it made the fixed-asset schedule (F-AST-005) understate the balance sheet
+   * it is supposed to explain. The old shortcut was invisible while nothing consumed the value
+   * for pooled assets; the disposal write-off does now.
+   */
   bookValueAt(asOf: CalendarDate | null): Money {
-    if (this.route !== 'capitalize') return this.acquisitionCost.subtract(this.acquisitionCost);
+    if (this.route === 'immediate_expense') return this.acquisitionCost.subtract(this.acquisitionCost);
     return this.acquisitionCost.subtract(this.accumulatedDepreciationAt(asOf));
   }
 
@@ -183,6 +202,7 @@ export class Asset {
       status: this.disposed ? 'disposed' : 'active',
       disposedOn: this.disposedOn?.iso ?? null,
       voucherId: this.voucherId.value,
+      dimensions: this.dimensions.map((d) => ({ type: d.type, code: d.code })),
     };
   }
 }

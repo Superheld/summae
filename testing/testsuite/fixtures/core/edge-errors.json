@@ -8,6 +8,7 @@
       { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
       { "number": "0420", "name": "Anlagen", "type": "asset", "subtype": "fixed_asset" },
       { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "6500", "name": "Abschreibungen", "type": "expense", "comment": "seit NF-022 nötig: der Abgang holt die fällige AfA nach, bevor er ausbucht. Bewusst außerhalb 4000–4999: dort verlangt diese Fixture eine Pflicht-Kostenstelle, und eine maschinell erzeugte AfA-Buchung kann keine tragen (Befund NF-023)." },
       { "number": "8801", "name": "Anlagenabgang", "type": "revenue" }
     ],
     "fiscalYears": [
@@ -27,7 +28,7 @@
     "ruleModules": {
       "dimensionRules": [ { "accountRange": { "from": "4000", "to": "4999" }, "requiredDimension": "costCenter" } ],
       "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
-      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855", "disposalProceedsAccount": "8801", "disposalLossAccount": "8801" }
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "6500", "gwgExpenseAccount": "4855", "disposalProceedsAccount": "8801", "disposalLossAccount": "8801" }
     }
   },
   "steps": [

@@ -58,7 +58,7 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
 
 PHPStan level max without errors · `make test` green (**PHPUnit incl. `ConformanceTest`**
 over the full suite **+ coverage gate per package** via `coverage-gate.php`: lines core 91 /
-cli 87 / laravel 95 / runner 82) · conformance suite `--strict` against **both** subjects
+cli 87 / laravel 98 / runner 82) · conformance suite `--strict` against **both** subjects
 (`core` and `database`) incl. byte-identical double run.
 
 **`packages/laravel` has its own suite** since 2026-08-16 (NF-015): `AdapterTestCase` (in-memory

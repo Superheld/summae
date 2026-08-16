@@ -62,7 +62,7 @@ final readonly class PostVoucherService
             is_string($voucherData['due'] ?? null) ? CalendarDate::of($voucherData['due']) : null,
             (bool) ($voucherData['recurring'] ?? false),
             is_int($voucherData['economicYear'] ?? null) ? $voucherData['economicYear'] : null,
-            null,
+            self::supplierTaxationMethod($voucherData),
             $serviceDate,
             is_string($servicePeriod['from'] ?? null) ? CalendarDate::of($servicePeriod['from']) : null,
             is_string($servicePeriod['to'] ?? null) ? CalendarDate::of($servicePeriod['to']) : null,
@@ -73,6 +73,36 @@ final readonly class PostVoucherService
         $this->tenant->vouchers->add($voucher);
 
         return $voucher;
+    }
+
+    /**
+     * F-TAX-007: the supplier's taxation method on the voucher. It decides whether input tax may
+     * be deducted on invoice or only on payment — a distinction German law makes binding for the
+     * deducting side in 2028, and one only the incoming document can answer. The field was in the
+     * data format (`enum ["accrual","cash"]`) and in both record classes from the start, but
+     * nothing ever read it out of the input, so it could not be anything but null.
+     *
+     * An unknown value is rejected rather than dropped: silently storing null would look exactly
+     * like "the supplier taxes on accrual", which is the answer that permits the earlier
+     * deduction.
+     *
+     * @param array<mixed> $voucherData the raw `input.voucher` map, exactly as the caller sent it
+     */
+    private static function supplierTaxationMethod(array $voucherData): ?string
+    {
+        $value = $voucherData['supplierTaxationMethod'] ?? null;
+        if ($value === null) {
+            return null;
+        }
+
+        if (!in_array($value, ['accrual', 'cash'], true)) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'voucher.supplierTaxationMethod must be "accrual" or "cash", got %s',
+                is_string($value) ? sprintf('"%s"', $value) : get_debug_type($value),
+            ));
+        }
+
+        return $value;
     }
 
     /**

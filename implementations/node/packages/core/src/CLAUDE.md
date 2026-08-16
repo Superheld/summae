@@ -37,30 +37,21 @@ Real persistence (`knex`/`laravel`) are **own packages** outside of `core`; in
 - **`partner/`** — supporting subdomain (master data), **not** a policy kind
 - **`ports/` · `adapters/`** — hexagon edge / outside
 
-## Structure status: implemented (slices 1–4)
+## Layer boundary (enforced)
 
-The folders above **are** the structure (no longer just a target): `shared→substrate`,
-`tax/assets/costing→policies/expansion`, `projection/mapping→policies/projection`; `ledger/`
-split across `substrate/` (primitives+enums) · `records/` (voucher/open-item/audit) ·
-`policies/constraint/` (dimension-registry) · `policies/expansion/` (settlement) — `ledger.ts`
-stayed as the **orchestrator** in `ledger/` (whose own methods were split in turn, see below).
-Each slice green (typecheck/lint/test + `fixtures --strict`
-+ `make cross`), PHP + Node 1:1. `records/` may reference the substrate (data layer); the
-substrate boundary (lint/arch test) forbids `policies/` + upper layers.
+`records/` may reference the substrate (data layer); the substrate boundary — a lint/arch test,
+not review — forbids `policies/` and everything above it from being imported there.
 
-## Gated — tax seam resolved (A1), the rest still method-level
+## Where the two seams sit
 
-- **The tax-mechanism seam is now an addressable registry** (A1, byte-identical): `tax-service.ts`
-  delegates to `tax-mechanisms.ts` (`mechanismFor` → `Standard`/`ReverseCharge`/`IntraCommunitySupply`
-  strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal, which
-  since 2026-08-16 is also the **decided** shape (closed repertoire — see below). A new mechanism (e.g.
-  `exempt`) is just a fourth registered strategy.
-- **`ledger.ts` is disentangled** (surgery B, 2026-08-16, byte-identical): it keeps the operations that
-  *write postings* — `post`/`correct`/`finalize`/`reverse` — plus the line parsing they share, and is a
-  thin **facade** over `settlement-service.ts` (expansion), `chart-admin-service.ts` (setup) and
-  `fiscal-period-service.ts` (constraint); `audit-writer.ts` and the free functions in `lookups.ts` carry
-  what all of them need. The facade is the point: `TenantOperations` and every adapter still see one
-  object, so the seam is internal. 879 → 520 lines.
+- **Tax mechanisms are a registry, not a switch:** `tax-service.ts` delegates to `mechanismFor` in
+  `tax-mechanisms.ts` (`Standard`/`ReverseCharge`/`IntraCommunitySupply`/`Exempt`). Core-internal by
+  decision (closed repertoire, below); a new mechanism is one more registered strategy plus a fixture.
+- **`ledger.ts` is a facade:** it keeps the operations that *write postings* — `post`/`correct`/`finalize`/
+  `reverse` — plus their shared line parsing, and delegates the rest to `settlement-service.ts` (expansion),
+  `chart-admin-service.ts` (setup) and `fiscal-period-service.ts` (constraint); `audit-writer.ts` and the
+  free functions in `lookups.ts` carry what all of them need. `TenantOperations` and every adapter still
+  see one object.
 
 ## Engine bundle & target model vs. status
 
@@ -87,7 +78,3 @@ between jurisdictions is elsewhere and has **no socket at all**: tax-inclusive/g
 payment), margin schemes. If the **base computation** ever becomes its own socket, a mechanism becomes
 describable as data — today's four differ only in accounts/sides/reporting keys/gross delta — and closed/open
 is a different question with possibly a different answer. Until then it is settled.
-
-**Open as a hardening** (independent of the decision): `mechanismFor` falls back to the standard mechanism for
-an unknown name, so a typo in a pack silently books standard VAT. Under "closed" a dedicated error is the
-honest behaviour — not done, needs a fixture.

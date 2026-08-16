@@ -26,6 +26,7 @@ interface Threshold {
   poolMin: string | null;
   poolMax: string | null;
   poolYears: number | null;
+  poolReducedOnDisposal: boolean | null;
 }
 
 /**
@@ -59,6 +60,7 @@ export class AssetService {
     if (voucherIdRaw === null) throw new InvalidValue('acquireAsset requires voucherId');
     const voucherId = Uuid.fromString(voucherIdRaw);
     const choice = asString(input.gwgChoice) ?? 'auto';
+    const dimensions = AssetService.parseDimensions(input.dimensions);
 
     const route = this.resolveRoute(choice, cost, acquiredOn);
 
@@ -89,14 +91,15 @@ export class AssetService {
       usefulLifeMonths,
       schedule,
       voucherId,
+      dimensions,
     );
     this.assets.add(asset);
 
     const targetAccount = route === 'immediate_expense' ? this.gwgExpenseAccount() : assetAccount.value;
-    this.postMachineEntry(acquiredOn, voucherId, `Asset acquisition ${name}`, [
+    this.postMachineEntry(acquiredOn, voucherId, `Asset acquisition ${name}`, this.withDimensions(asset, [
       { account: targetAccount, side: 'debit', money: cost.toJSON() },
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
-    ]);
+    ]));
 
     const result = asset.toJSON();
     result.route = route;
@@ -113,15 +116,19 @@ export class AssetService {
     this.assets.save(asset);
 
     const proceeds = isRecord(input.proceeds) ? this.parseMoney(input.proceeds) : null;
-    const proceedsAccount = asString(input.proceedsAccount);
     const bankAccount = asString(input.bankAccount) ?? this.counterAccount();
+    const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
 
-    if (proceeds !== null && proceedsAccount !== null) {
-      const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
-      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, [
-        { account: bankAccount, side: 'debit', money: proceeds.toJSON() },
-        { account: proceedsAccount, side: 'credit', money: proceeds.toJSON() },
-      ]);
+    // Where the pack keeps a disposed item in the pool (F-AST-006, see runDepreciation), the pool
+    // keeps running its term and there is no carrying amount of its own to clear — only the
+    // proceeds are booked. Where the pack takes it out, it is written off like any other asset.
+    const staysPooled = this.staysInPool(asset);
+    if (!staysPooled) this.catchUpDepreciation(asset, disposedOn, voucherId);
+    const carrying = staysPooled ? Money.zero(this.baseCurrency) : asset.bookValueAt(disposedOn);
+    const lines = this.disposalLines(asset, carrying, proceeds, bankAccount, asString(input.proceedsAccount));
+
+    if (lines.length > 0) {
+      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, this.withDimensions(asset, lines));
     }
 
     return asset.toJSON();
@@ -136,7 +143,12 @@ export class AssetService {
 
     for (const asset of this.assets.all()) {
       if (asset.route !== 'capitalize' && asset.route !== 'pool') continue;
-      if (asset.isDisposed()) continue;
+      // A disposed asset stops depreciating — unless its pack keeps it in the pool. Whether a
+      // disposal reduces the pool is declared per jurisdiction (`poolReducedOnDisposal`); where it
+      // does not, the pool runs its fixed term no matter what happened to the individual items
+      // (F-AST-006). Stopping unconditionally understated depreciation and overstated profit for
+      // every remaining year of the term.
+      if (asset.isDisposed() && !this.staysInPool(asset)) continue;
 
       const [months, amount] =
         period === null ? this.yearTarget(asset, fiscalYear) : this.monthTarget(asset, fiscalYear, period);
@@ -148,10 +160,10 @@ export class AssetService {
         bookingDate,
         this.depreciationVoucher(asset, fiscalYear, period),
         `Depreciation ${asset.name} ${fiscalYear}${periodLabel}`,
-        [
+        this.withDimensions(asset, [
           { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
           { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
-        ],
+        ]),
       );
 
       const monthAmounts = months.length === 1 ? [amount] : this.monthAmounts(asset, months, amount);
@@ -252,6 +264,32 @@ export class AssetService {
     return asset.planMonthDate(months[months.length - 1]!);
   }
 
+  /**
+   * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+   * entry about an asset gets them on every line: the whole event belongs to that cost centre, and
+   * a line without them would be refused wherever the pack makes a dimension mandatory — which is
+   * precisely the case that used to make depreciation impossible to run.
+   */
+  private static parseDimensions(raw: unknown): Array<{ type: string; code: string }> {
+    if (!Array.isArray(raw)) return [];
+    const parsed: Array<{ type: string; code: string }> = [];
+    for (const item of raw) {
+      if (!isRecord(item)) continue;
+      const type = asString(item.type);
+      const code = asString(item.code);
+      if (type !== null && code !== null) parsed.push({ type, code });
+    }
+    return parsed;
+  }
+
+  private withDimensions(
+    asset: Asset,
+    lines: Array<Record<string, unknown>>,
+  ): Array<Record<string, unknown>> {
+    if (asset.dimensions.length === 0) return lines;
+    return lines.map((line) => ({ ...line, dimensions: asset.dimensions.map((d) => ({ ...d })) }));
+  }
+
   private postMachineEntry(
     date: CalendarDate,
     voucherId: Uuid,
@@ -323,6 +361,30 @@ export class AssetService {
     return threshold.poolYears;
   }
 
+  /**
+   * Whether a disposal takes the item out of the pool. Same reasoning as `poolYears`, and the same
+   * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
+   * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
+   * the UK and Australia take disposals out of their pools. Deciding it here would have put a
+   * statute back into the core — which is exactly what NF-019 accidentally did before this.
+   */
+  private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null || threshold.poolReducedOnDisposal === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'gwgThresholds: a pool range (poolMin/poolMax) without poolReducedOnDisposal — the pack must say whether a disposal reduces the pool',
+        { field: 'poolReducedOnDisposal', acquiredOn: acquiredOn.iso },
+      );
+    }
+    return threshold.poolReducedOnDisposal;
+  }
+
+  /** A pooled asset that its pack keeps in the pool after disposal — the write-off does not apply. */
+  private staysInPool(asset: Asset): boolean {
+    return asset.route === 'pool' && !this.poolReducedOnDisposal(asset.acquiredOn);
+  }
+
   private thresholds(): Threshold[] {
     const raw = Array.isArray(this.ruleModule.gwgThresholds) ? this.ruleModule.gwgThresholds : [];
     const thresholds: Threshold[] = [];
@@ -337,6 +399,7 @@ export class AssetService {
         poolYears: typeof item.poolYears === 'number' && Number.isSafeInteger(item.poolYears) && item.poolYears >= 1
           ? item.poolYears
           : null,
+        poolReducedOnDisposal: typeof item.poolReducedOnDisposal === 'boolean' ? item.poolReducedOnDisposal : null,
       });
     }
     return thresholds;
@@ -363,6 +426,105 @@ export class AssetService {
   }
   private gwgExpenseAccount(): string {
     return this.assetAccount('gwgExpenseAccount');
+  }
+  /**
+   * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+   *
+   * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
+   * asset's last months of depreciation never happened at all: `runDepreciation` skips disposed
+   * assets, so nobody would book them afterwards either. The expense landed in the disposal
+   * account as an inflated loss instead of in depreciation — the total hit the income statement
+   * correctly, the split did not, and the depreciation figure the fixed-asset schedule reports
+   * was short.
+   *
+   * Which months are owed follows the schedule's own due-date convention — a plan month falls due
+   * on its last day, exactly as `monthTarget` reads it for the regular run. No new rule is
+   * invented here, and deliberately so: whether the month an asset leaves in counts as a whole
+   * month is a *jurisdiction's* answer (Germany grants it, US conventions are half-year or
+   * mid-quarter), so it belongs in a pack, not in this code. Consequence today: an asset disposed
+   * mid-month gets no depreciation for that month. Recorded as a follow-up.
+   */
+  private catchUpDepreciation(asset: Asset, disposedOn: CalendarDate, voucherId: Uuid): void {
+    const due: number[] = [];
+    for (let planMonth = 1; planMonth <= asset.monthlySchedule.length; planMonth++) {
+      if (asset.planMonthDate(planMonth).isAfter(disposedOn)) break;
+      if (!asset.isMonthBooked(planMonth)) due.push(planMonth);
+    }
+    if (due.length === 0) return;
+
+    let amount = Money.zero(this.baseCurrency);
+    for (const planMonth of due) amount = amount.add(asset.monthlySchedule[planMonth - 1]!);
+    if (amount.isZero()) return;
+
+    const entry = this.postMachineEntry(
+      disposedOn,
+      voucherId,
+      `Depreciation up to disposal ${asset.name}`,
+      this.withDimensions(asset, [
+        { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    const amounts = this.monthAmounts(asset, due, amount);
+    due.forEach((planMonth, index) => {
+      asset.recordDepreciation(planMonth, disposedOn, amounts[index]!, entry);
+    });
+    this.assets.save(asset);
+  }
+
+  private disposalProceedsAccount(): string {
+    return this.assetAccount('disposalProceedsAccount');
+  }
+  private disposalLossAccount(): string {
+    return this.assetAccount('disposalLossAccount');
+  }
+
+  /**
+   * The disposal entry (F-AST-004). Two things leave the books at once: the asset's carrying
+   * amount, and the difference between that and what the sale brought in.
+   *
+   * This core depreciates *net* — `runDepreciation` credits the asset account directly, there is
+   * no accumulated-depreciation account — so the write-off is a single credit of the carrying
+   * amount against that same account, not the gross form with an offsetting contra account.
+   *
+   * The difference is a gain (proceeds above book value) or a loss (below, including a scrapping
+   * with no proceeds at all), and it goes to the account the pack names for it. Before this,
+   * `dispose` booked only `bank → proceedsAccount`: the asset stayed in the balance sheet at its
+   * carrying amount and the proceeds counted as income in full, overstating profit by exactly
+   * that amount.
+   *
+   * The `proceedsAccount` input parameter still wins over the pack's account — it is documented
+   * and fixtures pass it — but is no longer required for the entry to happen.
+   */
+  private disposalLines(
+    asset: Asset,
+    carrying: Money,
+    proceeds: Money | null,
+    bankAccount: string,
+    proceedsAccountOverride: string | null,
+  ): Array<Record<string, unknown>> {
+    const lines: Array<Record<string, unknown>> = [];
+    const received = proceeds ?? Money.zero(this.baseCurrency);
+
+    if (received.isPositive()) {
+      lines.push({ account: bankAccount, side: 'debit', money: received.toJSON() });
+    }
+    if (carrying.isPositive()) {
+      lines.push({ account: asset.assetAccount.value, side: 'credit', money: carrying.toJSON() });
+    }
+
+    const difference = received.subtract(carrying);
+    if (difference.isPositive()) {
+      const gainAccount = proceedsAccountOverride ?? this.disposalProceedsAccount();
+      lines.push({ account: gainAccount, side: 'credit', money: difference.toJSON() });
+    } else if (!difference.isZero()) {
+      lines.push({ account: this.disposalLossAccount(), side: 'debit', money: difference.negate().toJSON() });
+    }
+
+    // Nothing moved: a fully depreciated asset scrapped without proceeds. Booking a zero entry
+    // would put an empty voucher in the journal for no reason.
+    return lines.length > 1 ? lines : [];
   }
 
   private assetAccount(key: string): string {

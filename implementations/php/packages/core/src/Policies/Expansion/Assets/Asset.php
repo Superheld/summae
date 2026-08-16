@@ -39,11 +39,23 @@ final class Asset implements \JsonSerializable
         public readonly ?int $usefulLifeMonths,
         public readonly array $monthlySchedule,
         public readonly Uuid $voucherId,
+        /**
+         * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by
+         * the machine, month after month, for years — nobody is there to name a dimension at that
+         * moment, and a mandatory one on the depreciation account would otherwise make the run
+         * impossible. The master record answering it once is also how it works in practice: an
+         * asset belongs to a cost centre, and its depreciation belongs there with it.
+         *
+         * @var list<array{type: string, code: string}>
+         */
+        public readonly array $dimensions = [],
     ) {
     }
 
     /**
      * Rehydration from persistence (adapter).
+     *
+     * @param list<array{type: string, code: string}> $dimensions
      *
      * @param list<Money> $monthlySchedule
      * @param list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> $depreciations
@@ -62,8 +74,9 @@ final class Asset implements \JsonSerializable
         array $depreciations,
         bool $disposed,
         ?CalendarDate $disposedOn,
+        array $dimensions = [],
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions);
         $asset->depreciations = $depreciations;
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
@@ -154,9 +167,18 @@ final class Asset implements \JsonSerializable
         return $sum;
     }
 
+    /**
+     * Carrying amount = cost less what has been depreciated (NF-024).
+     *
+     * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
+     * *pooled* one was: it sits on the pool account and is written down over the pack's term, so
+     * reporting zero for it made the fixed-asset schedule (F-AST-005) understate the balance sheet
+     * it is supposed to explain. The old shortcut was invisible while nothing consumed the value
+     * for pooled assets; the disposal write-off does now.
+     */
     public function bookValueAt(?CalendarDate $asOf): Money
     {
-        if ($this->route !== AssetRoute::Capitalize) {
+        if ($this->route === AssetRoute::ImmediateExpense) {
             return $this->acquisitionCost->subtract($this->acquisitionCost);
         }
 
@@ -212,6 +234,7 @@ final class Asset implements \JsonSerializable
             'status' => $this->disposed ? 'disposed' : 'active',
             'disposedOn' => $this->disposedOn?->iso,
             'voucherId' => $this->voucherId->value,
+            'dimensions' => $this->dimensions,
         ];
     }
 }
