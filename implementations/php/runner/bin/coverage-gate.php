@@ -21,20 +21,20 @@ declare(strict_types=1);
  */
 
 /**
- * Measured on 2026-08-16 (lines): core 93.03 · cli 89.20 · laravel 96.97 · runner 83.12.
+ * Measured on 2026-08-16 (lines): core 93.41 · cli 89.24 · laravel 99.11 · runner 83.12.
  * Floors sit just below that — close enough to catch a real drop, far enough not to
  * flap on a single refactored line.
  *
  * `packages/laravel` joined on 2026-08-16 (NF-015 closed): it has its own suite now, so its
- * number is asserted by tests rather than produced as a side effect of other suites. The
- * one uncovered piece is `SummaeServiceProvider` — framework glue that needs a booted
- * Laravel application (orchestra/testbench) to exercise; the floor is set below the
- * measured value with that hole included, so covering it later can only push the floor up.
+ * number is asserted by tests rather than produced as a side effect of other suites. Its last
+ * uncovered piece, `SummaeServiceProvider`, got its test the same day (`ServiceProviderTest`
+ * on orchestra/testbench), which took the package from 96.97 to 99.11 — so the floor rose with
+ * it, as floors here only ever do.
  */
 const FLOORS = [
     'core' => 91.0,
     'cli' => 87.0,
-    'laravel' => 95.0,
+    'laravel' => 98.0,
     'runner' => 82.0,
 ];
 

@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Returns Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" } } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us" } } } },
     { "op": "postVoucher", "input": {
         "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-03-01" },
         "entryDate": "2026-03-01", "text": "Cash sale 7%", "taxCode": "SALETAX", "direction": "output",

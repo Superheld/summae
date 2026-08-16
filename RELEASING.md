@@ -13,8 +13,12 @@ A git tag `vX.Y.Z` marks a release. Before tagging:
   `packages/cli` and `packages/knex` each carry a `version` in their `package.json`, and the
   workflow runs `pnpm -r publish`, which publishes every one of them. Bumping only the core
   ships the other two under their old version.
-- **PHP:** no `version` fields (Composer derives them from the tag; `branch-alias`
-  is set).
+- **PHP:** no `version` fields — Composer derives them from the tag. But the three
+  `composer.json` files carry `extra.branch-alias.dev-main`, and **that one does not follow
+  the tag**: it has to be bumped to `X.Y.x-dev` by hand, in all three. It was missed at
+  0.8.0 (still read `0.7.x-dev` after the release) and nothing catches it, because it
+  affects only how Composer resolves `dev-main` for someone tracking the branch — never the
+  released tags, and never a test.
 
 > **Run `pnpm build` locally before tagging.** It is the one step of the release that
 > `typecheck`, `lint`, `test` and `fixtures` cannot stand in for, and it broke silently once
