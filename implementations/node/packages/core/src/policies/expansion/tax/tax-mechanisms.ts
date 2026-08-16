@@ -9,11 +9,15 @@ import type { TaxCodeVersion } from './tax-code-version.js';
  * a small strategy here in the policy layer; the pack only *selects* one per tax code via
  * `version.mechanism`, it carries no code.
  *
- * This is the FORM (switch → registry), byte-identical to the old branches. It does NOT decide
- * the open question (whether composition may register additional mechanisms from outside the
- * core): the registry is core-internal and the unknown-mechanism fallback stays lenient
- * (`mechanismFor` returns the standard mechanism for any unrecognized name, exactly as the old
- * `else` branch did). Tightening that to strict is part of the still-open closed/open decision.
+ * The repertoire is CLOSED (decided 2026-08-16): mechanisms are registered here, inside the core,
+ * in both languages — never from outside. A mechanism plugged in by the embedder would be
+ * different code in PHP than in Node, and "same input → same result regardless of language" is the
+ * project's top rule; the shared fixtures could not check such a mechanism at all. The reasoning
+ * and what would reopen the question: `core/src/CLAUDE.md`.
+ *
+ * The unknown-mechanism fallback is still lenient (`mechanismFor` returns the standard mechanism
+ * for any unrecognized name, exactly as the old `else` branch did), so a typo in a pack books
+ * standard VAT silently. Tightening that to an error is a separate hardening, not done.
  */
 export interface MechanismContext {
   readonly version: TaxCodeVersion;
