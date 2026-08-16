@@ -190,7 +190,13 @@ final class AssetService
                 continue;
             }
 
-            if ($asset->isDisposed()) {
+            // A disposed asset stops depreciating — unless it went into a pool. The pool is written
+            // off on a fixed schedule that does not care what happened to the individual items in
+            // it (F-AST-006); the jurisdiction that made this rule famous puts it plainly: the pool
+            // is not reduced when an item leaves. Stopping here understated depreciation and
+            // overstated profit for every remaining year of the term. The disposal itself still
+            // books its proceeds.
+            if ($asset->isDisposed() && $asset->route !== AssetRoute::Pool) {
                 continue;
             }
 

@@ -3,6 +3,37 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## Unreleased
+
+Closing the gate gaps — the requirements that had no test. Two of them turned out to be defects
+rather than missing tests, and both were the quiet kind: no crash, no error, just wrong numbers.
+
+### Fixed
+
+- **A pooled asset kept its depreciation when it was disposed of (NF-019).** `runDepreciation`
+  skipped every disposed asset. That is right for a single asset and wrong for a pooled one:
+  F-AST-006 requires the pool to be written off on its fixed schedule *unaffected by disposals* —
+  the jurisdiction behind the rule says the pool is not reduced when an item leaves. The error was
+  directional and silent: **too little depreciation and too much profit, for every remaining year
+  of the term.** Fixed in both languages; the disposal still books its proceeds. Fixture
+  `pool-unaffected-by-disposal`, which also carries the counter-case (a single asset does stop).
+- **`supplierTaxationMethod` could never be set (NF-020).** The field is declared in the data
+  format (`enum ["accrual","cash"]`), documented against F-TAX-007, and carried by both `Voucher`
+  classes — but nothing ever read it out of the input: PHP passed a literal `null`, Node left it
+  out. It decides whether input tax is deductible on invoice or only on payment. It is now
+  accepted on `createVoucher`/`postVoucher` and validated — an unknown value is `E_INPUT_INVALID`,
+  because storing null silently reads as "supplier taxes on accrual", the answer that permits the
+  earlier deduction.
+
+### Added
+
+- **Three fixtures for requirements that were built but unwatched.** `E_POLICY_INVALID` had no
+  fixture although the resolver throws it in four places (`resolver-policy-invalid` covers all
+  four); the trial balance's `openingBalance`/`debitTotal`/`creditTotal` columns had none although
+  both languages emit them (`trial-balance-columns`, over two fiscal years — the only way the
+  carry-forward is distinguishable from the period turnover); and F-TAX-007 got
+  `supplier-taxation-method`. 104 fixtures now, cross-test 61/61 each way.
+
 ## 0.8.1 — 2026-08-16
 
 Backlog cleanup — no behaviour change, no API change. It ships as a release of its own rather

@@ -1,0 +1,72 @@
+{
+  "fixture": "supplier-taxation-method",
+  "description": "F-TAX-007: die Versteuerungsart des Lieferanten ist am Beleg erfassbar (`supplierTaxationMethod`, accrual|cash). Sie entscheidet, ob die Vorsteuer mit der Rechnung oder erst mit der Zahlung abziehbar ist — ab 2028 für die abziehende Seite bindend, und beantworten kann sie nur der Eingangsbeleg. Das Feld stand von Anfang an im Datenformat und in beiden Record-Klassen, wurde aber nie aus der Eingabe übernommen: es konnte gar nichts anderes als null sein. Ein unbekannter Wert wird abgelehnt statt verworfen — ein stilles null sähe genau wie „der Lieferant versteuert nach Soll\" aus, und das ist die Antwort, die den früheren Abzug erlaubt.",
+  "covers": ["F-TAX-007"],
+  "setup": {
+    "tenant": { "name": "Vorsteuer GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "6000", "name": "Aufwand", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ]
+  },
+  "steps": [
+    {
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-CASH-1", "voucherDate": "2026-03-01", "issuer": "Kleiner Handwerker", "supplierTaxationMethod": "cash" } },
+      "expect": {
+        "comment": "Ist-Versteuerer als Lieferant: die Vorsteuer aus dieser Rechnung ist erst mit der Zahlung abziehbar. Der Beleg trägt die Information, die Auswertung baut die App darauf.",
+        "result": { "id": "$V1", "voucherNumber": "ER-CASH-1" }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-ACCRUAL-1", "voucherDate": "2026-03-02", "issuer": "Großer Lieferant", "supplierTaxationMethod": "accrual" } },
+      "expect": { "result": { "id": "$V2", "voucherNumber": "ER-ACCRUAL-1" } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-OHNE", "voucherDate": "2026-03-03" } },
+      "expect": {
+        "comment": "Ohne Angabe bleibt das Feld null — die Angabe ist optional, nicht vorausgesetzt. Kein Default auf accrual: unbekannt ist nicht dasselbe wie „nach Soll versteuernd\".",
+        "result": { "id": "$V3", "voucherNumber": "ER-OHNE" }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-KAPUTT", "voucherDate": "2026-03-04", "supplierTaxationMethod": "ist" } },
+      "expect": {
+        "comment": "`ist` ist der deutsche Umgangsbegriff, aber kein Wert des Datenformats (accrual|cash). Ein Aufruferfehler, kein interner Fehler → E_INPUT_INVALID.",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V1", "text": "Eingangsrechnung eines Ist-Versteuerers",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1600", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "journalExport",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Die Angabe überlebt den Weg in den Bestand — sie ist Beleg-Stammdatum, nicht Eingabe-Beiwerk. `createVoucher` gibt nur id + Nummer zurück, geprüft wird deshalb hier, wo es zählt. Der dritte Beleg trägt das Feld gar nicht: der Export lässt Nullwerte weg (withoutNulls), „nicht angegeben\" ist also die Abwesenheit des Feldes und nicht ein null im Bestand.",
+        "data": {
+          "vouchers": [
+            { "voucherNumber": "ER-CASH-1", "supplierTaxationMethod": "cash" },
+            { "voucherNumber": "ER-ACCRUAL-1", "supplierTaxationMethod": "accrual" },
+            { "voucherNumber": "ER-OHNE" }
+          ]
+        }
+      }
+    }
+  ]
+}

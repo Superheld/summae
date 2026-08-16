@@ -1,0 +1,103 @@
+{
+  "fixture": "resolver-policy-invalid",
+  "description": "Resolver: die vier Wege, auf denen `packPolicy` ungültig ist — unbekannter roundingMode, unbekannte taxRoundingGranularity, currencyScale außerhalb 0–4, und eine Manifest-Kopie, die vom aufgelösten policy-Modul abweicht. Alle vier enden in E_POLICY_INVALID. Die Bündel sind sonst vollständig auflösbar, damit kein E_PACK_UNRESOLVED_REF vorgreift (der hat laut Fehlerkatalog Vorrang). Schließt die letzte Fehlercode-Lücke des Katalogs, die einen implementierten Code betraf.",
+  "covers": ["F-PACK-RESOLVE", "E_POLICY_INVALID", "packPolicy"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6", "kind": "accounts", "id": "mini-coa", "version": "1.0",
+        "name": "Minimaler Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+        "data": { "accounts": [ { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" } ] }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-ok", "version": "1.0",
+        "name": "Gültige Policy", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-bad-rounding", "version": "1.0",
+        "name": "Policy mit unbekanntem Rundungsmodus", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "bankers", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 } }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-bad-granularity", "version": "1.0",
+        "name": "Policy mit unbekannter Steuerrundungs-Granularität", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perInvoiceLine", "currencyScale": 2 } }
+      },
+      {
+        "formatVersion": "0.6", "kind": "policy", "id": "pol-bad-scale", "version": "1.0",
+        "name": "Policy mit currencyScale außerhalb 0–4", "contributes": ["policy"], "dependsOn": [],
+        "data": { "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 5 } }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6", "id": "pk-bad-rounding", "name": "Pack mit unbekanntem Rundungsmodus", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "mini-coa", "version": "1.0" },
+          { "kind": "policy", "id": "pol-bad-rounding", "version": "1.0" }
+        ],
+        "packPolicy": { "roundingMode": "bankers", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      },
+      {
+        "formatVersion": "0.6", "id": "pk-bad-granularity", "name": "Pack mit unbekannter Granularität", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "mini-coa", "version": "1.0" },
+          { "kind": "policy", "id": "pol-bad-granularity", "version": "1.0" }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perInvoiceLine", "currencyScale": 2 }
+      },
+      {
+        "formatVersion": "0.6", "id": "pk-bad-scale", "name": "Pack mit currencyScale 5", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "mini-coa", "version": "1.0" },
+          { "kind": "policy", "id": "pol-bad-scale", "version": "1.0" }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 5 }
+      },
+      {
+        "formatVersion": "0.6", "id": "pk-copy-deviates", "name": "Pack, dessen packPolicy-Kopie abweicht", "version": "1.0",
+        "modules": [
+          { "kind": "accounts", "id": "mini-coa", "version": "1.0" },
+          { "kind": "policy", "id": "pol-ok", "version": "1.0" }
+        ],
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perLine", "currencyScale": 2 }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-bad-rounding", "version": "1.0" } },
+      "expect": {
+        "comment": "`bankers` ist kein zulässiger Rundungsmodus — summae rundet kaufmännisch (half-up, away from zero), Banker's Rounding ist ausdrücklich ausgeschlossen. Ein Pack, das es verlangt, darf nicht still auf half-up zurückfallen: dieselbe Rechnung käme sonst mit anderem Ergebnis heraus, als das Pack behauptet.",
+        "error": "E_POLICY_INVALID"
+      }
+    },
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-bad-granularity", "version": "1.0" } },
+      "expect": {
+        "comment": "`perInvoiceLine` gibt es nicht (zulässig: perLine, perVoucher). Die Granularität entscheidet, ob die Steuer je Zeile oder je Beleg gerundet wird — ein Fallback wäre ein Centbetrag Unterschied ohne jeden Hinweis.",
+        "error": "E_POLICY_INVALID"
+      }
+    },
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-bad-scale", "version": "1.0" } },
+      "expect": {
+        "comment": "currencyScale 5 liegt außerhalb 0–4. Die Skala bestimmt die kanonische Form jedes Betrags im Bestand; ein Wert außerhalb des Bereichs macht das Datenformat unbeschreibbar.",
+        "error": "E_POLICY_INVALID"
+      }
+    },
+    {
+      "op": "resolvePack",
+      "input": { "manifest": { "id": "pk-copy-deviates", "version": "1.0" } },
+      "expect": {
+        "comment": "Beide Werte sind für sich gültig (perLine im Manifest, perVoucher im Modul) — sie widersprechen sich nur. Das Manifest führt die packPolicy als Kopie, damit sie ohne Modulauflösung lesbar ist; weicht die Kopie ab, ist unentscheidbar, welche gilt. Deshalb Fehler statt Vorrangregel.",
+        "error": "E_POLICY_INVALID"
+      }
+    }
+  ],
+  "projections": []
+}
