@@ -74,3 +74,13 @@ export function exitCodeFor(errorCode: string): number {
   const index = CODES.indexOf(errorCode);
   return index === -1 ? 1 : index + 10;
 }
+
+/**
+ * Every code that has an exit code, in mapping order. The list is a published contract, so
+ * reading it is legitimate — `exit-codes.test.ts` compares it against the error catalogue in
+ * both directions, which is how a code that lives here but nowhere in the catalogue (as
+ * `E_NOT_IMPLEMENTED` did) stops being invisible. PHP twin: `ExitCodes::all()`.
+ */
+export function allExitCodes(): readonly string[] {
+  return CODES;
+}

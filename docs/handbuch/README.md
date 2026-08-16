@@ -1367,10 +1367,11 @@ dispatcher).
 The **CLI** maps this catalog onto exit codes: on errors it prints
 `{"error": "E_…", "message": …, "details": …}` and exits with an exit code ≥ 10.
 It adds one code of its own, `E_WORKSPACE_INVALID`, for a `summae.json` that is
-missing fields or malformed. **Every code in the catalog has an exit code of its
-own**, so a script may branch on the exit alone; `1` is reserved for an
-unexpected failure, i.e. a summae bug. The numbers are stable and assigned in
-append order — a new code gets the next free number, existing ones never move.
+missing fields or malformed. **Catalog and exit codes cover each other exactly**:
+every code listed here has a number of its own, and no number exists without its
+catalog entry. A script may therefore branch on the exit alone; `1` is reserved
+for an unexpected failure, i.e. a summae bug. The numbers are stable and assigned
+in append order — a new code gets the next free number, existing ones never move.
 
 > ⚠ Value/format validation of the value objects (`InvalidValue`,
 > `CurrencyMismatch`) is **not** a `DomainError` and not part of this catalog.

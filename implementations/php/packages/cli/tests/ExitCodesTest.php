@@ -56,6 +56,23 @@ final class ExitCodesTest extends TestCase
         self::assertSame([], $withoutExit, 'these catalogued codes fall through to exit 1 (NF-018)');
     }
 
+    /**
+     * The other direction, and the reason the two lists are compared as sets: a code that has a
+     * number here but no row in the catalogue is invisible to every machine check — the knowledge
+     * base's validate.py never sees it, and the test above cannot miss it. `E_NOT_IMPLEMENTED`
+     * sat in exactly that blind spot until 2026-08-16.
+     */
+    public function testMapsNoErrorCodeTheCatalogDoesNotKnow(): void
+    {
+        $cataloged = $this->catalogCodes();
+        $uncataloged = array_values(array_filter(
+            ExitCodes::all(),
+            static fn (string $code): bool => !in_array($code, $cataloged, true),
+        ));
+
+        self::assertSame([], $uncataloged, 'these codes have an exit code but no catalogue row');
+    }
+
     public function testNoTwoErrorCodesShareAnExitCode(): void
     {
         $codes = $this->catalogCodes();

@@ -19,6 +19,13 @@ subjects, cross-test, PHPStan max, typecheck/lint, coverage floors) is green.
   existing number moves. A new guard test in both languages (`ExitCodesTest`,
   `exit-codes.test.ts`) reads the catalogue and fails when a code in it has no exit code of its
   own — the comparison that was missing.
+- **`E_NOT_IMPLEMENTED` reaches the error catalogue.** It was thrown, numbered (44) and
+  documented in the handbook, but had no catalogue row, which made it invisible to every
+  machine check. The catalogue's line is *everything a caller can rely on* — the reason the
+  pure CLI code `E_WORKSPACE_INVALID` is in it — so the row was missing, not withheld. Both
+  guards now compare catalogue and exit codes **as sets**, in both directions: 44 codes that
+  cover each other exactly. `ExitCodes::all()` / `allExitCodes()` are new (additive) so the
+  test can read the mapped list.
 
 ### Changed
 

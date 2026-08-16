@@ -72,10 +72,13 @@ findings list is empty.**
 > (the number is the position in the append-only list), and all five codes were already in it.
 > So no knowledge-base change was needed, and the fix is code + guard.
 >
-> **One gap remains in the other direction:** `E_NOT_IMPLEMENTED` has an exit code (44) but no
-> catalogue row — it is a dispatcher error, documented only in the handbook. The guard runs
-> catalogue → exit code and cannot see it. Adding the row is a knowledge-base edit and is
-> Roland's call; nothing is broken by it, the code is reachable and correctly numbered.
+> **The gap in the other direction is closed too.** `E_NOT_IMPLEMENTED` had an exit code (44)
+> and a handbook entry but no catalogue row — invisible to every machine check, including the
+> guard above. The catalogue's line is not "domain errors" but *everything a caller can rely on*
+> (which is why the pure CLI code `E_WORKSPACE_INVALID` is in it), so the row was missing, not
+> withheld. It was added in the knowledge base on 2026-08-16 and mirrored here; both guards now
+> compare the two lists **as sets**, so neither direction can drift. 44 codes, covering each
+> other exactly.
 >
 > Original finding:
 
