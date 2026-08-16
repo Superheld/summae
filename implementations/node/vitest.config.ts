@@ -19,7 +19,7 @@ export default defineConfig({
         // 2026-08-16 (NF-015, twin of the PHP packages/laravel suite), which is what raised it.
         'packages/core/src/**': { statements: 90, branches: 79, functions: 92, lines: 92 },
         'packages/cli/src/**': { statements: 88, branches: 67, functions: 88, lines: 91 },
-        'packages/knex/src/**': { statements: 85, branches: 56, functions: 85, lines: 88 },
+        'packages/knex/src/**': { statements: 89, branches: 60, functions: 89, lines: 92 },
         'runner/src/**': { statements: 91, branches: 80, functions: 95, lines: 91 },
       },
     },
