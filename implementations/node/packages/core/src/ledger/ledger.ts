@@ -467,6 +467,20 @@ export class Ledger {
       });
     }
 
+    // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+    // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
+    // item would drop that movement out of the open-item history while the ledger keeps it. The
+    // line SAP draws with F5308: undo the settlement first, or post a credit note.
+    const items = this.openItems.byOriginEntry(original.id);
+    const settled = items.filter((item) => item.settlements().length > 0);
+    if (settled.length > 0) {
+      throw new DomainError(
+        'E_ENTRY_HAS_SETTLED_ITEMS',
+        'reverse: an open item of this entry is already settled — undo the settlement or post a credit note instead',
+        { entryId: original.id.value, openItemId: settled[0]!.id.value },
+      );
+    }
+
     const entryDate = this.parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
     const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
@@ -492,6 +506,17 @@ export class Ledger {
     this.recordAudit(actor, 'journalEntry', original.id, 'reversed', {
       reversedBy: { from: null, to: reversal.id.value },
     });
+
+    // Clear each untouched open item against the reversal. Nothing is deleted — the item keeps its
+    // record and gains a settlement marked `cancellation`, which is what tells a reader (and the
+    // cash-basis VAT return) that this was a reversal and not an incoming payment.
+    for (const item of items) {
+      item.settle(new Settlement(reversal.id, item.remaining(), entryDate, null, null, 'cancellation'));
+      this.openItems.save(item);
+      this.recordAudit(actor, 'openItem', item.id, 'cancelled', {
+        cancelledBy: { from: null, to: reversal.id.value },
+      });
+    }
 
     return reversal;
   }

@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Below Nexus LLC", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "taxationMethod": "accrual" } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" }, "taxationMethod": "accrual" } } },
     { "op": "setTaxProfile", "input": { "tenant": "$T1", "smallBusiness": { "validFrom": "2026-01-01", "value": true } },
       "expect": { "result": { "smallBusiness": [ { "validFrom": "2026-01-01", "value": true } ] } } },
     { "op": "expandTax", "input": {

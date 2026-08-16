@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Ermäßigt GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.1" } } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.2" } } } },
     { "op": "postVoucher",
       "input": {
         "tenant": "$T1",

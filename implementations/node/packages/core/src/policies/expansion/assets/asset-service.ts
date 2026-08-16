@@ -25,6 +25,7 @@ interface Threshold {
   immediateMax: string;
   poolMin: string | null;
   poolMax: string | null;
+  poolYears: number | null;
 }
 
 /**
@@ -67,9 +68,12 @@ export class AssetService {
       usefulLifeMonths = this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
-      // Pool route: fixed 5 years at 1/5 each (FINDING: period should be pack-driven, not hard-coded).
-      usefulLifeMonths = 60;
-      for (const yearAmount of cost.allocateEvenly(5)) {
+      // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is one
+      // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
+      // inherited it silently. The pack says over how long; the core only spreads it evenly.
+      const poolYears = this.poolYears(acquiredOn);
+      usefulLifeMonths = poolYears * 12;
+      for (const yearAmount of cost.allocateEvenly(poolYears)) {
         schedule.push(...yearAmount.allocateEvenly(12));
       }
     }
@@ -275,22 +279,48 @@ export class AssetService {
   private resolveRoute(choice: string, cost: Money, acquiredOn: CalendarDate): AssetRoute {
     if (choice !== 'auto') return parseAssetRoute(choice) ?? 'capitalize';
 
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null) return 'capitalize';
+
+    if (cost.compareTo(Money.of(threshold.immediateMax, this.baseCurrency)) <= 0) return 'immediate_expense';
+    if (
+      threshold.poolMin !== null &&
+      threshold.poolMax !== null &&
+      cost.compareTo(Money.of(threshold.poolMin, this.baseCurrency)) >= 0 &&
+      cost.compareTo(Money.of(threshold.poolMax, this.baseCurrency)) <= 0
+    ) {
+      return 'pool';
+    }
+    return 'capitalize';
+  }
+
+  /** The threshold row in force on the acquisition date — the first whose validity window contains it. */
+  private applicableThreshold(acquiredOn: CalendarDate): Threshold | null {
     for (const threshold of this.thresholds()) {
       const validFrom = CalendarDate.of(threshold.validFrom);
       const validTo = threshold.validTo === null ? null : CalendarDate.of(threshold.validTo);
       if (acquiredOn.isBefore(validFrom) || (validTo !== null && acquiredOn.isAfter(validTo))) continue;
-
-      if (cost.compareTo(Money.of(threshold.immediateMax, this.baseCurrency)) <= 0) return 'immediate_expense';
-      if (
-        threshold.poolMin !== null &&
-        threshold.poolMax !== null &&
-        cost.compareTo(Money.of(threshold.poolMin, this.baseCurrency)) >= 0 &&
-        cost.compareTo(Money.of(threshold.poolMax, this.baseCurrency)) <= 0
-      ) {
-        return 'pool';
-      }
+      return threshold;
     }
-    return 'capitalize';
+    return null;
+  }
+
+  /**
+   * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
+   * range without saying over how long is incomplete, and picking a number here would put a statute
+   * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+   * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
+   */
+  private poolYears(acquiredOn: CalendarDate): number {
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null || threshold.poolYears === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'gwgThresholds: a pool range (poolMin/poolMax) without poolYears — the pack must say over how many years the pool is written off',
+        { field: 'poolYears', acquiredOn: acquiredOn.iso },
+      );
+    }
+    return threshold.poolYears;
   }
 
   private thresholds(): Threshold[] {
@@ -304,6 +334,9 @@ export class AssetService {
         immediateMax: item.immediateMax,
         poolMin: typeof item.poolMin === 'string' ? item.poolMin : null,
         poolMax: typeof item.poolMax === 'string' ? item.poolMax : null,
+        poolYears: typeof item.poolYears === 'number' && Number.isSafeInteger(item.poolYears) && item.poolYears >= 1
+          ? item.poolYears
+          : null,
       });
     }
     return thresholds;

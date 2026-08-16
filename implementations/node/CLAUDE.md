@@ -43,6 +43,10 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 - Tests with **vitest**; determinism as required project-wide (injectable
   Clock/IdGenerator, runner uses `FixedClock` + `DeterministicIdGenerator`).
 - Mark deliberately unused bindings with a `_` prefix.
+- **TypeScript stays on 6.x** (checked 2026-08-16). `tsc --noEmit`, `vitest` and `tsup` all pass on
+  7.0, but `typescript-eslint` refuses to load against the TS 7 API and aborts `pnpm lint` — and
+  lint is part of Definition of Green here. Tracking: typescript-eslint#10940. Do not "fix" the
+  outdated marker by bumping it; the whole gate has to move together.
 - **Pack composition:** resolver `packages/core/src/composition/pack-resolver.ts`; loader (reads the
   shipped `pack-library/`) `runner/src/pack-library.ts`. **Reference** modules/manifests,
   do not duplicate them inline.

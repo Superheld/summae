@@ -1,7 +1,10 @@
 # us-pack — United States
 
 The second complete jurisdiction pack: the United States. Selectable as
-`createTenant(pack: "us")`. **Self-contained:** all modules live in this folder, no
+`createTenant(pack: "us")`. **Current version: `2026.2`** — raised from `2026.1` when the
+tax module gained the exempt mechanism and the depreciation module gained `poolYears`
+(`null` here: the de-minimis route is an outright expense, not a pool). Modules version
+independently; the manifest pins the exact ones it wants. **Self-contained:** all modules live in this folder, no
 module shared with other packs (packs do not build on each other). **Own chart of
 accounts** — the US has no statutory chart (US-GAAP leaves the account structure free),
 so we manage the accounts ourselves in the **common US small-business numbering** that US

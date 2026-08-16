@@ -31,6 +31,7 @@ use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Substrate\Period;
 use Summae\Core\Substrate\PostResult;
+use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Substrate\Side;
 use Summae\Core\Records\AuditRecord;
@@ -576,6 +577,21 @@ final readonly class Ledger
             ), ['entryId' => $original->id->value]);
         }
 
+        // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+        // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
+        // item would drop that movement out of the open-item history while the ledger keeps it. The
+        // line SAP draws with F5308: undo the settlement first, or post a credit note.
+        $items = $this->openItems->byOriginEntry($original->id);
+        foreach ($items as $item) {
+            if ($item->settlements() !== []) {
+                throw new DomainError(
+                    'E_ENTRY_HAS_SETTLED_ITEMS',
+                    'reverse: an open item of this entry is already settled — undo the settlement or post a credit note instead',
+                    ['entryId' => $original->id->value, 'openItemId' => $item->id->value],
+                );
+            }
+        }
+
         $entryDate = $this->parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
@@ -602,6 +618,24 @@ final readonly class Ledger
         $this->recordAudit($actor, 'journalEntry', $original->id, 'reversed', [
             'reversedBy' => ['from' => null, 'to' => $reversal->id->value],
         ]);
+
+        // Clear each untouched open item against the reversal. Nothing is deleted — the item keeps
+        // its record and gains a settlement marked `cancellation`, which is what tells a reader (and
+        // the cash-basis VAT return) that this was a reversal and not an incoming payment.
+        foreach ($items as $item) {
+            $item->settle(new Settlement(
+                $reversal->id,
+                $item->remaining(),
+                $entryDate,
+                null,
+                null,
+                SettlementCause::Cancellation,
+            ));
+            $this->openItems->save($item);
+            $this->recordAudit($actor, 'openItem', $item->id, 'cancelled', [
+                'cancelledBy' => ['from' => null, 'to' => $reversal->id->value],
+            ]);
+        }
 
         return $reversal;
     }

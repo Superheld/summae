@@ -61,6 +61,9 @@ final class ExitCodes
         // Appended 2026-08-16 (R-3): correcting the LINES of an entry that produced open items
         // would leave the subledger describing a posting that no longer exists.
         'E_ENTRY_HAS_OPEN_ITEMS',
+        // Appended 2026-08-16 (NF-008): reversing an entry whose open item already carries a
+        // settlement would drop money that actually moved out of the open-item history.
+        'E_ENTRY_HAS_SETTLED_ITEMS',
     ];
 
     private function __construct()

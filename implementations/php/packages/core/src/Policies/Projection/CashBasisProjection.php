@@ -283,7 +283,7 @@ final readonly class CashBasisProjection
                 }
 
                 $ratio = BigDecimal::of($settlement->money->amountAsString())
-                    ->dividedBy(BigDecimal::of($item->money->amountAsString()), 10, RoundingMode::HALF_UP);
+                    ->dividedBy(BigDecimal::of($item->money->amountAsString()), 10, RoundingMode::HalfUp);
 
                 foreach ($origin->lines() as $line) {
                     $sourced[] = ['line' => $line, 'ratio' => $ratio];

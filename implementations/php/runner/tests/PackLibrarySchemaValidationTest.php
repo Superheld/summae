@@ -15,10 +15,10 @@ use PHPUnit\Framework\TestCase;
  * declare is a finding (the NF-002/F-008 class), not a convenience.
  *
  * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
- * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. The
- * `mapping` and `policy` kinds are already deeply schema'd (`#/$defs/mapping` incl.
- * positions/mappingPosition, `#/$defs/packPolicy`), so their `data` is validated here. The other
- * kinds (accounts/tax/depreciation/assetAccounts) still need per-kind sub-schemas authored in the
+ * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. `mapping`,
+ * `policy` and `depreciation` are deeply schema'd (`#/$defs/mapping` incl. positions,
+ * `#/$defs/packPolicy`, `#/$defs/depreciationData`), so their `data` is validated here. The
+ * remaining kinds (accounts/tax/assetAccounts) still need per-kind sub-schemas authored in the
  * knowledge base — tracked separately.
  */
 final class PackLibrarySchemaValidationTest extends TestCase
@@ -43,6 +43,20 @@ final class PackLibrarySchemaValidationTest extends TestCase
             'validator must reject a bad module',
         );
 
+        // …and the depreciation payload rejects a pool range without its period (F-004): the field is
+        // conditionally required, so a pack can no longer open a pool and leave the duration to the core.
+        $poolRange = '{"validFrom":"2018-01-01","validTo":null,"immediateMax":"250.00","poolMin":"250.01","poolMax":"1000.00"';
+        $withoutYears = json_decode('{"gwgThresholds":[' . $poolRange . '}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withYears = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5}]}', false, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse(
+            $validator->validate($withoutYears, $base . '#/$defs/depreciationData')->isValid(),
+            'a pool range without poolYears must be rejected',
+        );
+        self::assertTrue(
+            $validator->validate($withYears, $base . '#/$defs/depreciationData')->isValid(),
+            'the same range with poolYears must pass',
+        );
+
         $packDir = dirname(__DIR__, 4) . '/pack-library';
         $violations = [];
         foreach ($this->jsonFiles($packDir) as $file) {
@@ -62,20 +76,28 @@ final class PackLibrarySchemaValidationTest extends TestCase
                     . ($result->error()?->message() ?? '?');
             }
 
-            // Layer 2: kinds whose data.<key> is already deeply schema'd by an existing $def.
-            // (accounts/tax/depreciation/assetAccounts need per-kind sub-schemas authored in the WB.)
+            // Layer 2: kinds whose data is already deeply schema'd by an existing $def.
+            // 'key' => null = the whole `data` object is the payload (depreciation keeps
+            // gwgThresholds and usefulLife at the top level); a string key = payload at data.<key>.
+            // (accounts/tax/assetAccounts need per-kind sub-schemas authored in the WB.)
             $deepByKind = [
                 'mapping' => ['def' => 'mapping', 'key' => 'mapping'],
                 'policy' => ['def' => 'packPolicy', 'key' => 'packPolicy'],
+                'depreciation' => ['def' => 'depreciationData', 'key' => null],
             ];
             $kind = $arr['kind'] ?? null;
             if (is_string($kind) && isset($deepByKind[$kind])) {
                 $deep = $deepByKind[$kind];
                 $dataObj = $arr['data'] ?? null;
-                $inner = is_object($dataObj) ? (((array) $dataObj)[$deep['key']] ?? null) : null;
+                if ($deep['key'] === null) {
+                    $inner = $dataObj;
+                } else {
+                    $inner = is_object($dataObj) ? (((array) $dataObj)[$deep['key']] ?? null) : null;
+                }
                 $deepResult = $validator->validate($inner, $base . '#/$defs/' . $deep['def']);
                 if (!$deepResult->isValid()) {
-                    $violations[] = substr($file, strlen($packDir) + 1) . ' (data.' . $deep['key'] . '): '
+                    $where = $deep['key'] === null ? 'data' : 'data.' . $deep['key'];
+                    $violations[] = substr($file, strlen($packDir) + 1) . ' (' . $where . '): '
                         . ($deepResult->error()?->message() ?? '?');
                 }
             }

@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-bilanz",
   "kind": "mapping",
-  "version": "2026.1",
+  "version": "2026.2",
   "name": "Bilanzgliederung HGB §266 (auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
   "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
@@ -10,7 +10,7 @@
     "mapping": {
       "id": "de-bilanz",
       "kind": "balance-sheet",
-      "version": "2026.1",
+      "version": "2026.2",
       "positions": [
         { "key": "A", "label": "Aktiva", "side": "assets", "children": [
           { "key": "A.I", "label": "Anlagevermögen", "accounts": [ { "from": "0000", "to": "0999" } ] },

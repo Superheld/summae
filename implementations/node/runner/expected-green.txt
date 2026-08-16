@@ -20,6 +20,7 @@ finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
 gwg-and-depreciation
+gwg-pool-period
 journal-export-z3
 mapping-import
 mixed-tax-rates
@@ -101,3 +102,7 @@ settlement-bound
 audit-data-export-fiscal-year
 cent-invoice
 correct-open-items
+gwg-pool-period
+reverse-clears-open-items
+reverse-settled-item
+vat-cash-basis-reversal-unpaid

@@ -28,7 +28,7 @@ final class SmokeTest extends TestCase
     {
         // Core requirement from determinismus.md §2 — here only as proof
         // that brick/math works correctly in the container.
-        $rounded = BigDecimal::of('2.225')->toScale(2, RoundingMode::HALF_UP);
+        $rounded = BigDecimal::of('2.225')->toScale(2, RoundingMode::HalfUp);
 
         self::assertSame('2.23', (string) $rounded);
     }

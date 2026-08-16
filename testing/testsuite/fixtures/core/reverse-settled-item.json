@@ -1,0 +1,101 @@
+{
+  "fixture": "reverse-settled-item",
+  "description": "NF-008, zweite Hälfte: sobald ein offener Posten schon angefasst ist, wird das Storno verweigert (`E_ENTRY_HAS_SETTLED_ITEMS`). Würde es durchgehen, müsste der Ausgleich der Teilzahlung mit verschwinden — Geld, das tatsächlich geflossen ist, wäre aus der OP-Historie raus, während das Hauptbuch es weiter führt. Dieselbe Linie zieht SAP mit F5308 („document includes already cleared items — reversal not possible\"): erst den Ausgleich zurücknehmen, oder eine Gutschrift buchen. Damit ist zugleich der offene NF-005-Rest beantwortet: den Fall „ausgeglichen, dann storniert\" gibt es nicht mehr, die Korrektur läuft als eigene zahlungswirksame Buchung mit eigenem Datum — so, wie §17 Abs. 1 UStG die Berichtigung im Zeitraum der Änderung verlangt. Der ungetroffene Posten daneben bleibt stornierbar; die Verweigerung hängt am einzelnen Posten, nicht an der Existenz von Posten überhaupt.",
+  "covers": ["F-CORE-004"],
+  "setup": {
+    "tenant": { "name": "Storno GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "ZE-1", "voucherDate": "2026-03-05" },
+      { "id": "$V3", "voucherNumber": "AR-2", "voucherDate": "2026-03-06" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Ausgangsrechnung",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1",
+          "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-05",
+        "voucherId": "$V2",
+        "text": "Teilzahlung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "id": "$E2" } }
+    },
+    {
+      "op": "settle",
+      "input": { "entryId": "$E2", "allocations": [ { "openItemId": "$OP1", "money": { "amount": "400.00", "currency": "EUR" } } ] },
+      "expect": { "result": { "comment": "400,00 sind tatsächlich geflossen" } }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-03-10", "text": "Storno AR-1" },
+      "expect": {
+        "error": "E_ENTRY_HAS_SETTLED_ITEMS",
+        "comment": "der Kernfall: vorher entstand hier eine Storno-Buchung, die den ausgeglichenen Posten unberührt ließ"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-06",
+        "voucherId": "$V3",
+        "text": "Zweite Rechnung, nie angefasst",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "250.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "250.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E3",
+          "openItemsCreated": [ { "id": "$OP2", "money": { "amount": "250.00", "currency": "EUR" } } ]
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E3", "entryDate": "2026-03-11", "text": "Storno AR-2" },
+      "expect": {
+        "result": { "reverses": "$E3" },
+        "comment": "Positivfall: ein unberührter Posten bleibt stornierbar"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": {},
+      "expect": {
+        "comment": "die erste Forderung steht mit ihrem Rest weiter offen (Storno abgelehnt), die zweite ist durchs Storno erledigt",
+        "items": [ { "id": "$OP1", "status": "partially_settled", "remaining": { "amount": "600.00", "currency": "EUR" } } ]
+      }
+    }
+  ]
+}

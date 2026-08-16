@@ -8,6 +8,7 @@ use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Policies\Expansion\Settlement;
+use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Substrate\Uuid;
@@ -101,6 +102,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
                 Hydrator::date($data['settledAt'] ?? null) ?? throw new \RuntimeException('settledAt missing'),
                 $differenceMoney === [] ? null : Hydrator::money($differenceMoney),
                 is_string($difference['kind'] ?? null) ? SettlementDifferenceKind::tryFrom($difference['kind']) : null,
+                SettlementCause::parse($data['cause'] ?? null),
             );
         }
 

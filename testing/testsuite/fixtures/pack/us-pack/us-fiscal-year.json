@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Fiscal Year Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.1" }, "accountCount": 35, "taxationMethod": "accrual" } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" }, "accountCount": 35, "taxationMethod": "accrual" } } },
 
     { "op": "postVoucher", "input": {
         "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-03-01" },

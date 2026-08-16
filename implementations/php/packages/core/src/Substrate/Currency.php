@@ -24,6 +24,9 @@ final readonly class Currency implements \JsonSerializable, \Stringable
         'TND' => 3,
     ];
 
+    /**
+     * @param int<0, max> $scale
+     */
     private function __construct(
         public string $code,
         public int $scale,
@@ -39,6 +42,13 @@ final readonly class Currency implements \JsonSerializable, \Stringable
     {
         if (preg_match('/^[A-Z]{3}$/', $code) !== 1) {
             throw new InvalidValue(sprintf('Invalid ISO 4217 code: "%s"', $code));
+        }
+
+        // A negative scale is meaningless and used to travel all the way into the decimal library.
+        // The upper bound (0–4) stays a pack-policy matter (E_POLICY_INVALID) — this is only the
+        // floor the value object itself cannot do without.
+        if ($scaleOverride !== null && $scaleOverride < 0) {
+            throw new InvalidValue(sprintf('Currency scale must not be negative: %d', $scaleOverride));
         }
 
         return new self($code, $scaleOverride ?? self::SCALES[$code] ?? 2);

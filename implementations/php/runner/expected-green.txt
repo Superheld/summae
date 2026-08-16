@@ -36,6 +36,7 @@ profit-appropriation
 two-year-carryover
 depreciation-monthly-allocation
 gwg-and-depreciation
+gwg-pool-period
 allocate-largest-remainder
 allocation-run
 edge-errors
@@ -101,3 +102,7 @@ settlement-bound
 audit-data-export-fiscal-year
 cent-invoice
 correct-open-items
+gwg-pool-period
+reverse-clears-open-items
+reverse-settled-item
+vat-cash-basis-reversal-unpaid

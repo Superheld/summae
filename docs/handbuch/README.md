@@ -345,12 +345,20 @@ Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
 `packPolicy` + `defaults`:
 ```json
-{ "formatVersion": "0.6", "id": "de", "version": "2026.1",
-  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.1" },
+{ "formatVersion": "0.6", "id": "de", "version": "2026.2",
+  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.2" },
                { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
   "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
   "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
 ```
+
+**Versions move per module.** Each module carries its own `version`, the manifest
+pins the exact one it wants, and the pack's own version rises whenever any of its
+modules changes — the two lines above show it: the chart of accounts moved to
+`2026.2`, the tax module stayed at `2026.1`. A tenant records the pack id and
+version it was created from, so the books always say which rule set produced
+them. `YYYY.N` is the shipped convention, not a requirement: the resolver only
+compares strings.
 
 Choose it with `summae init --pack de`. The **resolver checks coherence** (does
 a tax account point at an account the chart of accounts doesn't have? does a
@@ -675,12 +683,26 @@ Reversal by full counter-entry: a new posting with a back-reference
 `entryDate` (yes, open period), `text` (no, default `"Reversal <seqNo>"`). Output:
 serialized reversal posting; the original gets `reversedBy`. Errors:
 `E_ENTRY_UNKNOWN`, `E_ENTRY_ALREADY_REVERSED`, `E_PERIOD_UNKNOWN`,
-`E_PERIOD_CLOSED`.
+`E_PERIOD_CLOSED`, `E_ENTRY_HAS_SETTLED_ITEMS`.
 
 ```json
 // input { "entryId": "$E1", "entryDate": "2026-02-03", "text": "Reversal Office supplies" }
 // → lines with money "-240.00", reverses: "$E1"
 ```
+
+**Open items are cleared along with it.** If the reversed posting produced open
+items, each of them is settled against the reversal — a settlement carrying
+`"cause": "cancellation"`, which puts the item into status `cancelled` and takes
+it out of `openItems`. Nothing is deleted; the item keeps its record and its
+history. `cancelled` rather than `settled` on purpose: no money arrived, and a
+cash-basis VAT return must not count it as received.
+
+**A reversal is refused once an open item has been touched**
+(`E_ENTRY_HAS_SETTLED_ITEMS`). If a payment has already been allocated to the
+item, cancelling it would drop that payment out of the open-item history while
+the ledger still carries it. Post a credit note or a refund instead — which is
+also the correct tax treatment, because a correction belongs in the period in
+which it happened, not in the period of the original invoice.
 
 #### settle
 
@@ -693,7 +715,8 @@ the difference, yes), `difference` (`{money, kind}` with kind
 `"discount"`/`"bad_debt"`/`"minor"`, no).
 
 Output: `{ "openItems": [ … ] }` (affected items with `remaining`, `status` ∈
-`open`/`partially_settled`/`settled`, `settlements[]`). Errors:
+`open`/`partially_settled`/`settled`/`cancelled`, `settlements[]`). `cancelled`
+never comes from `settle` — only a reversal produces it. Errors:
 `E_ENTRY_UNKNOWN`, `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
 `E_SETTLEMENT_DIFFERENCE_INVALID`. Validation is all-or-nothing.
 
@@ -837,13 +860,17 @@ The asset operations need a **rule module** in the tenant setup (`ruleModule`)
 with `gwgThresholds` (dated low-value-asset thresholds), `usefulLife` (useful
 life per `assetClass` in months), and `assetAccounts`
 (`acquisitionCounterAccount`, `depreciationExpenseAccount`,
-`gwgExpenseAccount`). Asset postings are finalized immediately (GoBD); cost
+`gwgExpenseAccount`). A threshold that opens a pool range (`poolMin`/`poolMax`)
+must also give `poolYears` — the number of years a pooled asset is written off
+over. It is required rather than defaulted: the period is jurisdiction law, so
+the pack states it and the engine never picks a number for you (`acquireAsset`
+answers `E_PACK_INCOHERENT` if it is missing). Asset postings are finalized immediately (GoBD); cost
 accounting is a separate accounting circle and leaves the financial-accounting
 journal untouched.
 
 ```json
 "ruleModule": {
-  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00" } ],
+  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5 } ],
   "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
   "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
 }

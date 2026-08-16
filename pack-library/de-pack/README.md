@@ -1,6 +1,10 @@
 # de-pack — Germany
 
 The first complete jurisdiction pack: Germany. Selectable as `createTenant(pack: "de")`.
+**Current version: `2026.2`** — raised from `2026.1` when the chart of accounts gained the
+securities account, the balance sheet grew its own securities item per HGB §266 Abs. 2, the
+cash-basis categories stopped carrying hard-coded German labels, and the depreciation module
+gained `poolYears`. Modules version independently; the manifest pins the exact ones it wants.
 **Self-contained:** all modules live in this folder, no module shared with other packs
 (packs do not build on each other). **Own chart of accounts** (no SKR adopted) — we manage
 the accounts ourselves; SKR03/04 remain loadable via `importChartOfAccounts`.
@@ -9,7 +13,7 @@ the accounts ourselves; SKR03/04 remain loadable via `importChartOfAccounts`.
 
 | Module | kind | Content |
 |---|---|---|
-| `accounts/de-konten` | accounts | Own DE chart of accounts, **40 accounts** (standard + DE extras: 4020 cash discount/revenue reduction · 4030 intra-community supplies · 4040 small-business revenue · 4050 deemed supply · 6010/6020 entertainment · 1900/3900 accruals/deferrals) |
+| `accounts/de-konten` | accounts | Own DE chart of accounts, **41 accounts** (standard + DE extras: 1250 current-asset securities · 4020 cash discount/revenue reduction · 4030 intra-community supplies · 4040 small-business revenue · 4050 deemed supply · 6010/6020 entertainment · 1900/3900 accruals/deferrals) |
 | `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (intra-community supply), USt19WA (deemed supply) — rates/codes, accounts on neutral numbers |
 | `mappings/de-bilanz` | mapping | Balance-sheet structure HGB §266 |
 | `mappings/de-guv` | mapping | Income-statement structure HGB §275 (total-cost method) |
