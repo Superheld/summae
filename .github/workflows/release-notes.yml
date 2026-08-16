@@ -29,8 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The tag itself, so CHANGELOG.md is the one that shipped with this release.
-          ref: ${{ inputs.tag || github.ref }}
+          # The default branch, not the tag: on a tag push the two carry the same CHANGELOG
+          # anyway (the tag is cut from it), while a manual run for an older tag would otherwise
+          # check out a tree that predates this script — which is exactly how the first test of
+          # this workflow failed.
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
       - name: Extract the CHANGELOG section
