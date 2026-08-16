@@ -48,8 +48,8 @@
   "steps": [
     {
       "op": "createTenant",
-      "input": { "name": "XX Receivables GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance", "version": "2026.1" }, "accountCount": 7, "taxationMethod": "accrual" } }
+      "input": { "name": "XX Receivables GmbH", "baseCurrency": "XXD", "pack": { "id": "xx-test-conformance" }, "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-test-conformance" }, "accountCount": 7, "taxationMethod": "accrual" } }
     },
     {
       "op": "postVoucher",

@@ -64,8 +64,9 @@ cli 87 / laravel 95 / runner 82) · conformance suite `--strict` against **both*
 **`packages/laravel` has its own suite** since 2026-08-16 (NF-015): `AdapterTestCase` (in-memory
 SQLite + `summae_*` schema) · `RepositoryRoundTripTest` (write with one tenant instance, read with a
 second — everything asserted has been through a column) · `TenantScopingTest` (two tenants on one
-database) · `HydratorAndSchemaTest`. The one uncovered piece is `SummaeServiceProvider` — framework
-glue that would need a booted Laravel application (`orchestra/testbench`) to exercise. Still run
+database) · `HydratorAndSchemaTest` · `ServiceProviderTest` (the Laravel entry point on
+`orchestra/testbench`: singleton binding, merged config, `artisan migrate` really creating the
+`summae_*` tables, publishable config). Still run
 `--subject=database` and `make cross` after touching the adapter: they cover the Postgres dialect
 and the shared-database format, which the SQLite suite cannot.
 

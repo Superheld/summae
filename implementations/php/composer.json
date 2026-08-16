@@ -11,6 +11,7 @@
     },
     "require-dev": {
         "opis/json-schema": "^2.6",
+        "orchestra/testbench": "*",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.0"
     },

@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Anlagen GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de", "version": "2026.2" } } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } } },
     { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-LAPTOP", "voucherDate": "2026-07-01" } },
       "expect": { "result": { "id": "$V1" } } },
     { "op": "acquireAsset",

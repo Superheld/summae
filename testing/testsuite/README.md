@@ -36,7 +36,17 @@ Eine Fixture = eine JSON-Datei:
 - Jeder Standardfall SF-01–26 bekommt ≥ 1 Fixture (SF-15 = Cross-Kompatibilität, erfüllt seit der Node-Runtime + bidirektionalem Cross-Test).
 - Rundungs- und Sortierfälle sind eigene Fixtures (häufigste Cross-Impl-Abweichung).
 - Fixtures sind append-only: Verhaltensänderung = neue Fixture + Entscheidungslog, nie stilles Editieren.
+- **Die Pack-`version` wird nur dort erwartet, wo `resolvePack` der Gegenstand ist** (die
+  `*-pack-resolves`-Fixtures + `xx-1`). Überall sonst steht im `createTenant`-`expect` nur
+  `"pack": { "id": "de" }`. Grund: die Version lief vorher in 32 Fixtures mit, ohne dort geprüft
+  zu werden — eine Pack-Version zu erhöhen färbte 17 Fixtures rot, die von Bilanz, Skonto oder
+  EÜR handeln. Seit 2026-08-16 ist es genau eine pro Pack, und die prüft die Version wirklich.
 
-## Stand (2026-06-21)
+## Stand
 
-**58 Fixtures (45 Kern + 13 Pack), 38 Fehlercodes (36 mit Fixture, 2 offen), 26/26 Standardfälle** (SF-15 erfüllt: PHP ↔ Node bidirektional grün). Die 45 Kern-Fixtures sind PHP- und Node-grün; die 13 Pack-Fixtures (`fixtures/pack/`) prüfen die v0.6-Pack-Komposition (Resolver) — Gegenstand von Gate 1. Aktueller Stand und Abdeckungsmatrix: `abdeckung.md`, Validierung: `validate.py`. PHP- und Node-Referenz bestehen den Kern-Vertrag vollständig (`../80-implementierung/ABSCHLUSSBERICHT.md`, `RUNTIME-LEITFADEN.md`).
+**Keine eingefrorenen Zahlen hier** — sie driften schneller, als sie jemand nachzieht (diese Zeile
+stand bis 2026-08-16 auf „58 Fixtures, 38 Fehlercodes", während es längst dreistellig war). Die
+aktuellen Werte liefern die Werkzeuge: Fixture-Zahl + grün/rot aus dem Runner (`make fixtures`
+bzw. `pnpm fixtures --strict`), Fehlercode- und Standardfall-Abdeckung aus `validate.py`,
+Abdeckungsmatrix in `abdeckung.md`. SF-15 (Cross-Kompatibilität) ist nicht per Fixture belegt,
+sondern durch den bidirektionalen Cross-Test PHP ↔ Node.
