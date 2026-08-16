@@ -1,7 +1,10 @@
 import {
   Account,
   AccountNumber,
+  Asset,
+  CalendarDate,
   Currency,
+  Money,
   FixedClock,
   type Tenant,
   TenantOperations,
@@ -205,5 +208,59 @@ describe('tenant scoping', () => {
     );
 
     expect(b.accounts.byId(Uuid.fromString(idsB.accountId))?.name).toBe('Forderungen');
+  });
+
+  /**
+   * NF-023: an asset carries the dimensions its machine entries inherit — depreciation for years to
+   * come is booked with them, so losing them here makes depreciation impossible on the next start
+   * wherever a dimension is mandatory. Written straight through the repository rather than through
+   * `acquireAsset`: what is under test is the column round trip, not the posting rules, and the
+   * hydration branch this covers is the one the 0.9.0 release gate caught as untested.
+   */
+  it('carries an asset\u2019s dimensions through the database', () => {
+    const a = tenantOn(TENANT_A, 'A');
+    const id = Uuid.fromString('0195f000-0000-7000-8000-00000000cccc');
+    a.assets.add(
+      new Asset(
+        id,
+        'Fr\u00e4se',
+        'machinery',
+        AccountNumber.of('0500'),
+        Money.of('3600.00', Currency.of('EUR')),
+        CalendarDate.of('2026-01-01'),
+        'capitalize',
+        36,
+        [],
+        Uuid.fromString('0195f000-0000-7000-8000-00000000dddd'),
+        [{ type: 'costCenter', code: 'FERTIGUNG' }],
+      ),
+    );
+
+    // A second tenant instance on the same database: what is asserted has been through a column.
+    const reread = tenantOn(TENANT_A, 'A').assets.byId(id);
+
+    expect(reread).not.toBeNull();
+    expect(reread?.dimensions).toEqual([{ type: 'costCenter', code: 'FERTIGUNG' }]);
+  });
+
+  it('leaves an asset without dimensions empty rather than undefined', () => {
+    const a = tenantOn(TENANT_A, 'A');
+    const id = Uuid.fromString('0195f000-0000-7000-8000-00000000eeee');
+    a.assets.add(
+      new Asset(
+        id,
+        'Presse',
+        'machinery',
+        AccountNumber.of('0500'),
+        Money.of('1200.00', Currency.of('EUR')),
+        CalendarDate.of('2026-01-01'),
+        'capitalize',
+        36,
+        [],
+        Uuid.fromString('0195f000-0000-7000-8000-00000000ffff'),
+      ),
+    );
+
+    expect(tenantOn(TENANT_A, 'A').assets.byId(id)?.dimensions).toEqual([]);
   });
 });
