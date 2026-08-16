@@ -663,7 +663,19 @@ Output: `{ "id": <uuid>, "voucherNumber": <string> }`.
 Changes the text and/or lines of a posting — only in status `entered`, with an
 audit trail (no deletion). `entryId` (yes), `text` (no), `lines` (no, ≥ 2 &
 balanced). Output: serialized (changed) posting. Errors: `E_ENTRY_UNKNOWN`,
-`E_ENTRY_FINALIZED`, plus the `lines` errors of `post`.
+`E_ENTRY_FINALIZED`, `E_INPUT_INVALID`, `E_ENTRY_HAS_OPEN_ITEMS`, plus the
+`lines` errors of `post`.
+
+**At least one of `text`/`lines` must be present** (`E_INPUT_INVALID`). A call
+with neither used to return the unchanged posting as a success payload, so a
+misspelled field (`txt` instead of `text`) looked like a correction that had
+happened.
+
+**The `lines` of a posting that produced open items cannot be changed**
+(`E_ENTRY_HAS_OPEN_ITEMS`). The subledger would go on naming an amount, an
+account and a due date from a posting that no longer exists. Correcting the
+**text** stays allowed; for amounts the GoBD-conform route is `reverse` plus a
+fresh posting, which keeps ledger and subledger together.
 
 #### finalize
 
@@ -718,7 +730,18 @@ Output: `{ "openItems": [ … ] }` (affected items with `remaining`, `status` �
 `open`/`partially_settled`/`settled`/`cancelled`, `settlements[]`). `cancelled`
 never comes from `settle` — only a reversal produces it. Errors:
 `E_ENTRY_UNKNOWN`, `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
-`E_SETTLEMENT_DIFFERENCE_INVALID`. Validation is all-or-nothing.
+`E_SETTLEMENT_EXCEEDS_ENTRY`, `E_SETTLEMENT_DIFFERENCE_INVALID`. Validation is
+all-or-nothing.
+
+**An allocation may not claim more than the settling posting actually moves on
+that account** (`E_SETTLEMENT_EXCEEDS_ENTRY`). The item's remaining amount alone
+is not the bound: a 500.00 payment must not close a 1190.00 receivable in full,
+or the general ledger keeps a receivable the subledger no longer knows about —
+and under cash-basis taxation the VAT return declares tax as collected that never
+arrived. The bound is the posting's **net reducing** movement on the account, so
+a payment with a cash discount (which books the full receivable and carries the
+difference as its own line) stays valid. Settlements already recorded against the
+same posting count against the same budget.
 
 ```json
 // Partial payment
@@ -956,10 +979,16 @@ as-of evaluations.
 
 > ⚠ **Period parameters are not uniform.** Most projections take `fiscalYear`,
 > but **`vatReturn` takes `year` + `quarter`** and **`cashBasisReport` takes
-> `year`**. Passing the wrong name is not an error: you get an empty or
-> whole-year result that looks plausible. `incomeStatement` and `balanceSheet`
-> additionally *require* `mapping`. Cheat sheet:
+> `year`**. `incomeStatement` and `balanceSheet` additionally *require*
+> `mapping`. Cheat sheet:
 > [CLI walkthrough § 12](cli-walkthrough.md#12-parameter-cheat-sheet).
+>
+> Getting a name wrong **fails loudly**: every projection declares its parameters,
+> and the dispatcher checks them before routing. An undeclared parameter is
+> `E_INPUT_INVALID` and is never silently ignored; a declared one of the wrong type
+> is rejected rather than coerced; an absent one keeps its documented default. So
+> passing `fiscalYear` to `vatReturn` is an error, not an empty report that looks
+> plausible.
 
 ### trialBalance — trial balance
 
@@ -1048,28 +1077,47 @@ counts by posting/service date; cash taxation follows the open-item settlements
 `fiscalYear` (yes), `mapping` (yes, income-statement mapping ID; not loaded →
 `E_MAPPING_OVERLAP` ⚠), `fromPeriod`/`throughPeriod` (no). Sign: credit − debit;
 income-statement accounts only. Output: `positions[]` (`key`, `label`,
-`amount`), `netIncome`.
+`amount`), `netIncome`, `gapWarnings[]`.
+
+**Accounts the mapping does not cover stay visible.** They land in a catch-all
+position with the key `_unassigned` (label `Unassigned`) and are listed in
+`gapWarnings[]` as `{ account, assignedTo: "_unassigned" }`, sorted by account
+number. A gap is a warning, not an error: money that was posted must not vanish
+from a statement because a mapping is incomplete. `gapWarnings` is always
+present — an empty array when the mapping covers everything.
 
 ```json
 // params { "fiscalYear": 2026, "throughPeriod": 12, "mapping": "test-guv" }
 { "positions": [ { "key": "1", "label": "Revenue", "amount": "1000.00" },
                  { "key": "2", "label": "Sonstige betriebliche Aufwendungen", "amount": "-300.00" } ],
-  "netIncome": "700.00" }
+  "netIncome": "700.00", "gapWarnings": [] }
 ```
 
 ### balanceSheet — balance sheet
 
-`asOf` (no, cutoff date), `mapping` (yes, balance-sheet mapping ID),
-`incomeMapping` (no; ⚠ not evaluated by `compute()` — the net income flows in via
-the `includesNetIncome` leaf of the balance-sheet mapping). Side assignment via
-`side`. Output: `assets[]`, `assetsTotal`, `liabilitiesAndEquity[]`,
-`liabilitiesAndEquityTotal` — balance identity by construction.
+`asOf` (no, cutoff date), `fiscalYear` (no), `mapping` (yes, balance-sheet
+mapping ID), `incomeMapping` (no; ⚠ not evaluated by `compute()` — the net income
+flows in via the `includesNetIncome` leaf of the balance-sheet mapping). Side
+assignment via `side`. Output: `assets[]`, `assetsTotal`,
+`liabilitiesAndEquity[]`, `liabilitiesAndEquityTotal`, `gapWarnings[]` — balance
+identity by construction.
+
+**`fiscalYear` scopes cumulatively**: everything up to and including that year,
+i.e. "as at the end of fiscal year N", not "movements of year N". A balance sheet
+is a snapshot and has to balance — `trialBalance`'s rule that income accounts
+restart each year would tear a hole exactly the size of the prior year's result,
+because summae writes no closing entries (`closeFiscalYear` is a pure status
+change) and that result was therefore never carried into equity.
+
+**Uncovered accounts stay visible**, as in `incomeStatement`: a `_unassigned`
+position per section (label `Unassigned`) plus `gapWarnings[]` — which is what
+keeps assets == liabilities + equity when a mapping is incomplete.
 
 ```json
 // params { "asOf": "2026-12-31", "mapping": "test-bilanz" }
 { "assets": [ { "key": "A.B", "amount": "890.00" } ], "assetsTotal": "890.00",
   "liabilitiesAndEquity": [ { "key": "P.EK", "amount": "700.00" }, { "key": "P.V", "amount": "190.00" } ],
-  "liabilitiesAndEquityTotal": "890.00" }
+  "liabilitiesAndEquityTotal": "890.00", "gapWarnings": [] }
 ```
 
 ### cashBasisReport — cash-basis report (EÜR)
@@ -1275,7 +1323,9 @@ catch (e) { if (e instanceof DomainError) { e.errorCode; e.details; e.message; }
 
 **Posting / journal:** `E_ENTRY_TOO_FEW_LINES`, `E_ENTRY_INVALID_AMOUNT`,
 `E_ENTRY_UNBALANCED`, `E_ENTRY_NO_VOUCHER`, `E_ENTRY_UNKNOWN`,
-`E_ENTRY_FINALIZED`, `E_ENTRY_ALREADY_REVERSED`, `E_VOUCHER_UNKNOWN`.
+`E_ENTRY_FINALIZED`, `E_ENTRY_ALREADY_REVERSED`, `E_ENTRY_HAS_OPEN_ITEMS`
+(`correct` on lines that produced open items), `E_ENTRY_HAS_SETTLED_ITEMS`
+(`reverse` of a posting whose open item is already settled), `E_VOUCHER_UNKNOWN`.
 
 **Account / dimensions:** `E_ACCOUNT_UNKNOWN`, `E_ACCOUNT_NUMBER_TAKEN`,
 `E_ACCOUNT_LOCKED`, `E_COA_FORMAT_INVALID`, `E_DIMENSION_INVALID`.
@@ -1288,7 +1338,7 @@ catch (e) { if (e instanceof DomainError) { e.errorCode; e.details; e.message; }
 `E_PROFILE_RETROACTIVE_CONFLICT`.
 
 **Open items:** `E_OPENITEM_UNKNOWN`, `E_SETTLEMENT_EXCEEDS_ITEM`,
-`E_SETTLEMENT_DIFFERENCE_INVALID`.
+`E_SETTLEMENT_EXCEEDS_ENTRY`, `E_SETTLEMENT_DIFFERENCE_INVALID`.
 
 **Assets:** `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`.
 
@@ -1301,11 +1351,30 @@ catch (e) { if (e instanceof DomainError) { e.errorCode; e.details; e.message; }
 
 **Cash-basis (EÜR):** `E_CASHBASIS_DEVIATING_FISCAL_YEAR`.
 
+**Pack composition:** `E_PACK_UNRESOLVED_REF` (a manifest names a module that is
+not there), `E_PACK_INCOHERENT` (the resolved bundle contradicts itself, e.g. a
+tax code without its account), `E_POLICY_INVALID` (a policy value is wrong, or
+the manifest's `packPolicy` deviates from the policy module).
+
+**Input:** `E_INPUT_INVALID` — a parameter that is not declared for this
+operation/projection, one of the wrong type, or a required field missing.
+Undeclared parameters are **rejected, never silently ignored**; a declared one of
+the wrong type is **rejected, never coerced** (see § 7).
+
 **Other:** `E_NOT_IMPLEMENTED` (operation/projection not wired in the
 dispatcher).
 
-The **CLI** maps the same catalog onto exit codes: on errors it prints
+The **CLI** maps this catalog onto exit codes: on errors it prints
 `{"error": "E_…", "message": …, "details": …}` and exits with an exit code ≥ 10.
+It adds one code of its own, `E_WORKSPACE_INVALID`, for a `summae.json` that is
+missing fields or malformed.
+
+> ⚠ **Four codes have no exit code of their own yet** and therefore exit with `1`
+> (the "unknown error" code): `E_SETTLEMENT_EXCEEDS_ENTRY`,
+> `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT` and `E_POLICY_INVALID`. The printed
+> JSON still names the code correctly — only the numeric exit does not
+> distinguish them from an unexpected failure. If you branch on exit codes in a
+> script, read `error` from the JSON for these four.
 
 > ⚠ Value/format validation of the value objects (`InvalidValue`,
 > `CurrencyMismatch`) is **not** a `DomainError` and not part of this catalog.
