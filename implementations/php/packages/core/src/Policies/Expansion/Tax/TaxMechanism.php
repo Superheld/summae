@@ -14,11 +14,14 @@ use Summae\Core\Substrate\Money;
  * a small strategy here in the policy layer; the pack only *selects* one per tax code via
  * `version->mechanism`, it carries no code.
  *
- * This is the FORM (switch -> registry), byte-identical to the old branches. It does NOT decide
- * the open question (whether composition may register additional mechanisms from outside the
- * core): the registry is core-internal and the unknown-mechanism fallback stays lenient
- * (TaxMechanisms::mechanismFor returns the standard mechanism for any unrecognized name, exactly
- * as the old `else` branch did). Tightening that to strict is part of the open closed/open decision.
+ * The repertoire is CLOSED (decided 2026-08-16): mechanisms are registered in TaxMechanisms,
+ * inside the core, in both languages — never from outside, because a mechanism plugged in by the
+ * embedder would be different code in PHP than in Node and could not be checked by the shared
+ * fixtures. Reasoning and what would reopen it: `packages/core/src/CLAUDE.md`.
+ *
+ * The unknown-mechanism fallback stays lenient (TaxMechanisms::mechanismFor returns the standard
+ * mechanism for any unrecognized name, exactly as the old `else` branch did); tightening that to
+ * an error is a separate hardening, not done.
  */
 interface TaxMechanism
 {

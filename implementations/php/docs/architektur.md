@@ -128,8 +128,9 @@ postVoucher(input)
 
 `Ledger.php` (in `Ledger/`) is the orchestrator: it currently fuses `post`
 (substrate) + settle/reverse (expansion) + close (constraint) in *one* class.
-Splitting those **methods** apart is gated on the open **closed/open** decision
-(see `packages/core/src/CLAUDE.md`); the directory split itself is done.
+Splitting those **methods** apart is an independent structure question — it is *not*
+gated on the mechanism-repertoire decision, which is settled (closed, see
+`packages/core/src/CLAUDE.md`); the directory split itself is done.
 
 Reading never goes through stored balances, only through the projections in
 `packages/core/src/Policies/Projection/`.

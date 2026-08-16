@@ -51,10 +51,9 @@ substrate boundary (lint/arch test) forbids `policies/` + upper layers.
 
 - **The tax-mechanism seam is now an addressable registry** (A1, byte-identical): `tax-service.ts`
   delegates to `tax-mechanisms.ts` (`mechanismFor` → `Standard`/`ReverseCharge`/`IntraCommunitySupply`
-  strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal with a
-  lenient fallback, so the **closed/open** decision (may composition register mechanisms from *outside* the
-  core?) is **not** prejudged — that part stays open. A new mechanism (e.g. `exempt`) is now just a fourth
-  registered strategy.
+  strategies) instead of an inline switch — the **form** the socket calls for. It is core-internal, which
+  since 2026-08-16 is also the **decided** shape (closed repertoire — see below). A new mechanism (e.g.
+  `exempt`) is just a fourth registered strategy.
 - **`ledger.ts` (orchestrator in `ledger/`) still fuses internally** post (substrate) + settle/reverse
   (expansion) + close (constraint) into *one* class — the **method** disentanglement (surgery B) is
   separate and still pending.
@@ -67,6 +66,24 @@ mappings/assetAccounts/depreciation/packPolicy`); reached **inline** (bundle dir
 
 **Target model vs. today's status (honest — otherwise it drifts):** the socket/plug picture is the **target**. Today
 only infrastructure ports (Clock/Id/Repositories) + the bundle as *data* are injected; the three policy kinds
-are **not yet** built as ports (`tax-service.ts`/`asset-service.ts` are concrete classes). **Open
-decision:** whether the mechanism repertoire is *closed* (core never grows, pack = selection only) or *open*
-(grows only law-free + visible). Do not guess.
+are **not yet** built as ports (`tax-service.ts`/`asset-service.ts` are concrete classes).
+
+**Decided 2026-08-16 — the mechanism repertoire is *closed*.** A new tax mechanism is registered in
+`tax-mechanisms.ts` inside the core, in **both** languages, with a fixture; the pack selects one per tax code
+via `version.mechanism` and never carries code. The reason is the top quality policy, not distrust of the
+embedder: a mechanism registered from *outside* would be **different code in PHP than in Node**, so "same input
+→ same result regardless of language" would stop holding for it, and the shared oracle could not check it — the
+cross-test would silently prove less than it does today. The cost is low: `exempt` showed that a new mechanism
+is four registered lines.
+
+**What would reopen it:** this seam covers only *line assembly* — the mechanism receives an already-computed,
+already-rounded tax amount (`base × rate / 100` sits in `tax-service.ts`). The variance that actually differs
+between jurisdictions is elsewhere and has **no socket at all**: tax-inclusive/gross-up bases (Brazil, Odoo's
+`division`), compound bases (Canadian PST on a GST-inclusive base), tax at payment time (withholding, split
+payment), margin schemes. If the **base computation** ever becomes its own socket, a mechanism becomes
+describable as data — today's four differ only in accounts/sides/reporting keys/gross delta — and closed/open
+is a different question with possibly a different answer. Until then it is settled.
+
+**Open as a hardening** (independent of the decision): `mechanismFor` falls back to the standard mechanism for
+an unknown name, so a typo in a pack silently books standard VAT. Under "closed" a dedicated error is the
+honest behaviour — not done, needs a fixture.

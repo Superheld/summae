@@ -82,7 +82,7 @@ once at creation, pinned. Legacy term „rule module" = pack (avoid); **base** =
 packs `default`, `de` + `us`.
 
 > **Deeper (annotated):** `kind`→policy kind + module rules → `pack-library/CLAUDE.md` · engine bundle
-> (`ruleModules`/`packPolicy`), target-vs-actual + open *closed/open* question → `core/src/CLAUDE.md` · full model
+> (`ruleModules`/`packPolicy`), target-vs-actual + the *closed repertoire* decision → `core/src/CLAUDE.md` · full model
 > → `docs/architektur.md`.
 
 ## Build conventions (principles — patterns & recipes in the `docs/`)
