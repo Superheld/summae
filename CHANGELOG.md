@@ -3,9 +3,13 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
-## Unreleased
+## 0.8.1 — 2026-08-16
 
-Backlog cleanup — no behaviour change, no API change.
+Backlog cleanup — no behaviour change, no API change. It ships as a release of its own rather
+than waiting, because one of the fixes is only effective once it is on a tag: `branch-alias`
+went out wrong with 0.8.0, and the split repos Packagist reads are only updated by the tag
+workflow. Nothing about the 0.8.0 *packages* was wrong — Composer takes the version from the
+tag — but `dev-main` announced itself as `0.7.x-dev` while 0.8.0 was current.
 
 ### Added
 
