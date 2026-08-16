@@ -42,6 +42,16 @@ jobs:
           tag="${{ inputs.tag || github.ref_name }}"
           version="${tag#v}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          # Whether this tag gets the "Latest" badge is decided here, not by gh's default of
+          # "whatever was published most recently". Backfilling the notes for v0.3.0..v0.8.1 in
+          # that order handed the badge to 0.8.1 while 0.9.1 was long out, and the repo front
+          # page said so for a day.
+          newest=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          if [ "$tag" = "$newest" ]; then latest=true; else latest=false; fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "newest tag is $newest -> latest=$latest"
+
           ./bin/changelog-section.sh "$version" > /tmp/release-notes.md
           echo "--- notes ---"
           cat /tmp/release-notes.md
@@ -60,5 +70,6 @@ jobs:
               echo "$tag already has notes — left untouched"
             fi
           else
-            gh release create "$tag" --title "${tag#v}" --notes-file /tmp/release-notes.md --verify-tag
+            gh release create "$tag" --title "${tag#v}" --notes-file /tmp/release-notes.md \
+              --verify-tag --latest="${{ steps.section.outputs.latest }}"
           fi

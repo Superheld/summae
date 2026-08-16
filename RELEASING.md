@@ -48,7 +48,9 @@ turnkey after a one-time setup:
 ([`release-notes.yml`](.github/workflows/release-notes.yml) → `bin/changelog-section.sh`), so the
 one thing you must do is have `## X.Y.Z — <date>` in `CHANGELOG.md` **before** you tag — the
 workflow fails rather than publishing an empty release. It never overwrites notes that already
-have content, so improving them by hand afterwards is safe. This is automated because it was the
+have content, so improving them by hand afterwards is safe, and it sets the „Latest" badge from
+the tag order rather than from publication order — a manual run for an old tag cannot take the
+badge off the current release (which is exactly what the backfill did once). This is automated because it was the
 step that got skipped: v0.3.0 through v0.8.1 shipped to npm and Packagist with no notes on GitHub
 at all, and nothing pointed it out until 2026-08-17.
 
