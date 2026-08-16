@@ -837,13 +837,17 @@ The asset operations need a **rule module** in the tenant setup (`ruleModule`)
 with `gwgThresholds` (dated low-value-asset thresholds), `usefulLife` (useful
 life per `assetClass` in months), and `assetAccounts`
 (`acquisitionCounterAccount`, `depreciationExpenseAccount`,
-`gwgExpenseAccount`). Asset postings are finalized immediately (GoBD); cost
+`gwgExpenseAccount`). A threshold that opens a pool range (`poolMin`/`poolMax`)
+must also give `poolYears` — the number of years a pooled asset is written off
+over. It is required rather than defaulted: the period is jurisdiction law, so
+the pack states it and the engine never picks a number for you (`acquireAsset`
+answers `E_PACK_INCOHERENT` if it is missing). Asset postings are finalized immediately (GoBD); cost
 accounting is a separate accounting circle and leaves the financial-accounting
 journal untouched.
 
 ```json
 "ruleModule": {
-  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00" } ],
+  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5 } ],
   "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
   "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
 }

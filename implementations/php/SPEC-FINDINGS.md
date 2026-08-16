@@ -29,7 +29,7 @@ a short file.
 | F-001 unknown `voucherId` | ✅ `E_VOUCHER_UNKNOWN` + `core/voucher-unknown.json` |
 | F-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
 | F-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
-| F-004 asset posting accounts | ⚠ **partly** — accounts came via the `assetAccounts` pack module; the **pool period is still hard-coded** |
+| F-004 asset posting accounts | ✅ accounts via the `assetAccounts` pack module; **pool period** `poolYears` in the depreciation module since 2026-08-16 (fixture `gwg-pool-period`) |
 | F-005 journalExport manifest streams | ✅ `auditLog` always included; `formatVersion` follows the spec version (0.6 since 2026-08-16, guarded against drift) |
 | F-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
 | F-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
@@ -52,7 +52,7 @@ a short file.
 | NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
 
-**Genuinely open today: F-004 (pool period), NF-008, NF-015 and the NF-005 remainder.**
+**Genuinely open today: NF-008, NF-015 and the NF-005 remainder** (F-004 closed 2026-08-16).
 
 The **entire Round 1 backlog (R-1 … R-12) is closed** as of 2026-08-16 — the twelve defects the
 two adversarial probing agents turned up on 2026-08-15. Per-item write-ups:
@@ -103,26 +103,35 @@ Format per finding:
 - **Proposal:** resolve the footnote in api.md — remove the line from the error
   column or define the behavior for `entered` explicitly.
 
-## F-004: Account resolution for asset postings not specified — ⚠ PARTLY RESOLVED
+## F-004: Account resolution for asset postings not specified — ✅ RESOLVED
 
 > **Accounts: resolved.** The proposed keys became a pack module of their own — `kind:
 > assetAccounts` (`pack-library/de-pack/assets/`, `pack-library/us-pack/assets/`) supplies the
 > acquisition counter account, the depreciation expense account and the low-value-asset
 > account as pack data, not as a name-matching fallback.
 >
-> **Still open — the low-value-asset *pool period* is hard-coded.** `asset-service.ts:70-72`
-> (`AssetService.php` likewise) writes off a pooled asset over a **fixed 5 years at 1/5 each**,
-> tagged `FINDING:` in the source. Five years is German law (§ 6 Abs. 2a EStG,
-> GWG-Sammelposten) sitting in the expansion code — the litmus test from the root `CLAUDE.md`
-> says a rule that cites a statute belongs in the pack as data. The statute-citation guard did
-> not catch it because the source names no paragraph. Needs a field on the depreciation module
-> (knowledge base: schema + fixture) before the code can read it from the pack.
+> **Pool period: resolved 2026-08-16.** The depreciation module gained `poolYears` on each
+> `gwgThresholds` row; `AssetService` reads it and spreads the cost over exactly that many years
+> (`poolYears × 12` plan months). The number that used to be compiled in — five years, one
+> jurisdiction's rule — is now `de-afa`'s data; `us-macrs` carries `null` because the de-minimis
+> route there is an outright expense, not a pool. Three guards, so the field cannot rot:
+> `$defs/depreciationData` in the schema makes `poolYears` **conditionally required** wherever a
+> `poolMax` is declared (validated for every shipped module by the pack-library schema test in
+> both languages, with an explicit teeth check that a range without the field is rejected);
+> `AssetService` refuses with `E_PACK_INCOHERENT` rather than defaulting, which covers hand-fed
+> rule data that never passed a pack; and the conformance fixture `assets/gwg-pool-period`
+> declares **three** years instead of the German five, so the old hard-coded behaviour would fail
+> it loudly (36 plan months vs. 60, 300.00 depreciation vs. 180.00).
 >
-> No pack is *currently* mis-served: the pool route only fires when a threshold declares both
-> `poolMin` and `poolMax`, and only `de-pack` does (`250.01`–`1000.00`); `us-pack` has both
-> `null`, so it never takes the route. The gap is expressive, not yet a wrong number — the pack
-> can switch the pool on and off but cannot say **over how long**, so any future jurisdiction
-> with a pooled de-minimis rule would inherit Germany's five years.
+> Found while writing it: the **statute-citation guard has teeth**. The first version of the new
+> comment named the paragraph and turned `no-jurisdiction-text.test.ts` red — which is exactly the
+> mechanism working, and the reason it did not catch the original defect (the old comment named no
+> paragraph, only the number 5).
+>
+> **Deliberately not built:** a pool with a *rate* instead of a *period* — the UK style, where a
+> pool is written down at a percentage per year and never fully closes. That needs a method
+> discriminator on the threshold, and no shipped pack has the case. Noted here so the next
+> jurisdiction knows it is an extension, not a bug.
 >
 > Original finding:
 

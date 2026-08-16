@@ -12,10 +12,10 @@ import { describe, expect, it } from 'vitest';
  * declare is a finding (the NF-002/F-008 class), not a convenience.
  *
  * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
- * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. The
- * `mapping` and `policy` kinds are already deeply schema'd (`#/$defs/mapping` incl.
- * positions/mappingPosition, `#/$defs/packPolicy`), so their `data` is validated here. The other
- * kinds (accounts/tax/depreciation/assetAccounts) still need per-kind sub-schemas authored in the
+ * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. `mapping`,
+ * `policy` and `depreciation` are deeply schema'd (`#/$defs/mapping` incl. positions,
+ * `#/$defs/packPolicy`, `#/$defs/depreciationData`), so their `data` is validated here. The
+ * remaining kinds (accounts/tax/assetAccounts) still need per-kind sub-schemas authored in the
  * knowledge base — tracked separately.
  */
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,15 +50,31 @@ describe('pack-library files validate against format.schema.json', () => {
     const validateModule = ajv.getSchema(`${schema.$id}#/$defs/module`) as ValidateFunction;
     const validateManifest = ajv.getSchema(`${schema.$id}#/$defs/packManifest`) as ValidateFunction;
 
-    // Layer 2: kinds whose `data.<key>` is already deeply schema'd by an existing $def.
-    // (accounts/tax/depreciation/assetAccounts need per-kind sub-schemas authored in the WB.)
-    const deepByKind: Record<string, { def: string; key: string }> = {
+    // Layer 2: kinds whose `data` is already deeply schema'd by an existing $def.
+    // `key: null` = the whole `data` object is the payload (depreciation keeps gwgThresholds and
+    // usefulLife at the top level); a string key = the payload sits under `data.<key>`.
+    // (accounts/tax/assetAccounts need per-kind sub-schemas authored in the WB.)
+    const deepByKind: Record<string, { def: string; key: string | null }> = {
       mapping: { def: 'mapping', key: 'mapping' },
       policy: { def: 'packPolicy', key: 'packPolicy' },
+      depreciation: { def: 'depreciationData', key: null },
     };
 
     // Guard has teeth: a malformed module is rejected (bad kind, missing required keys).
     expect(validateModule({ kind: 'not-a-real-kind' }), 'validator must reject a bad module').toBe(false);
+
+    // …and the depreciation payload rejects a pool range without its period (F-004): the field is
+    // conditionally required, so a pack can no longer open a pool and leave the duration to the core.
+    const validateDepreciation = ajv.getSchema(`${schema.$id}#/$defs/depreciationData`) as ValidateFunction;
+    const poolRange = { validFrom: '2018-01-01', validTo: null, immediateMax: '250.00', poolMin: '250.01', poolMax: '1000.00' };
+    expect(
+      validateDepreciation({ gwgThresholds: [poolRange] }),
+      'a pool range without poolYears must be rejected',
+    ).toBe(false);
+    expect(
+      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5 }] }),
+      'the same range with poolYears must pass',
+    ).toBe(true);
 
     const violations: string[] = [];
     for (const file of jsonFiles(packLibraryDir)) {
@@ -71,10 +87,12 @@ describe('pack-library files validate against format.schema.json', () => {
       const deep = record !== null && typeof record.kind === 'string' ? deepByKind[record.kind] : undefined;
       if (deep && record !== null) {
         const data = record.data;
-        const inner = data !== null && typeof data === 'object' ? (data as Record<string, unknown>)[deep.key] : undefined;
+        const payload = data !== null && typeof data === 'object' ? (data as Record<string, unknown>) : undefined;
+        const inner = deep.key === null ? payload : payload?.[deep.key];
         const validateDeep = ajv.getSchema(`${schema.$id}#/$defs/${deep.def}`) as ValidateFunction;
         if (!validateDeep(inner)) {
-          violations.push(`${relative(packLibraryDir, file)} (data.${deep.key}): ${ajv.errorsText(validateDeep.errors)}`);
+          const where = deep.key === null ? 'data' : `data.${deep.key}`;
+          violations.push(`${relative(packLibraryDir, file)} (${where}): ${ajv.errorsText(validateDeep.errors)}`);
         }
       }
     }
