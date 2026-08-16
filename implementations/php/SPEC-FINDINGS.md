@@ -55,13 +55,67 @@ a short file.
 | NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
 | NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` now credits the carrying amount off the asset account and books the difference to the pack's `disposalProceedsAccount`/`disposalLossAccount`; pooled assets stay exempt (NF-019). Fixture `pool-unaffected-by-disposal` |
-| NF-022 disposal does not catch up depreciation to the disposal date | **OPEN** (found 2026-08-16 while fixing NF-021) — `bookValueAt` reads what has been *booked*, and the yearly run books on 31.12. Disposing mid-year without running depreciation first writes off too high a carrying amount, so the loss is overstated by the pro-rata share |
+| NF-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the depreciation that is due before writing off; due follows the schedule's own convention (a plan month falls due on its last day). Fixture `disposal-catches-up-depreciation` |
+| NF-023 machine entries cannot carry a required dimension | **OPEN** (found 2026-08-16) — a tenant with a mandatory dimension on the depreciation account cannot run depreciation at all: `postMachineEntry` has no dimension to give, so `E_DIMENSION_INVALID` blocks both the regular run and the disposal catch-up |
+| NF-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
+| NF-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the NF-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
 
 F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16, and NF-019 +
 NF-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
 is empty.**
 
-### NF-022 — the disposal does not catch up depreciation to the disposal date — OPEN
+### NF-025 — the pool-disposal rule was German law inside the core — RESOLVED
+
+Roland's catch, and the sharpest finding of the day: fixing NF-019 I wrote „a pooled asset keeps
+depreciating after disposal" straight into `runDepreciation` as `route !== 'pool'`. That is not a
+property of pooling — it is **§ 6 Abs. 2a Satz 4 EStG**, one jurisdiction's answer. The UK and
+Australia do the opposite: disposals are taken out of their pools. So every future pack with a
+pooled de-minimis regime would have inherited the German answer silently — the exact mistake F-004
+had already fixed for the pool *period*, one line further down in the same file.
+
+It is now `poolReducedOnDisposal` in the depreciation module, conditionally required next to
+`poolMax` in the schema (like `poolYears`), and refused rather than defaulted: a pack that opens a
+pool must answer both questions. `de-pack` says `false` (§ 6 Abs. 2a), and the two fixtures
+`pool-unaffected-by-disposal` / `pool-reduced-on-disposal` drive the same sequence through both
+answers — the same core, two results.
+
+**The lesson generalises:** the litmus test in `CLAUDE.md` ("does your code cite a statute → wrong
+layer") catches statutes that are *quoted*. It does not catch a statute that has been silently
+translated into a condition. Both my NF-019 fix and its comment read as mechanism; only the
+question "would another country answer this differently?" exposes it.
+
+### NF-024 — pooled assets reported a carrying amount of zero — RESOLVED
+
+`bookValueAt` short-circuited to zero for every route except `capitalize`. True for an immediately
+expensed asset, which was never capitalised — false for a pooled one, which sits on the pool
+account and is written down over the pack's term. The fixed-asset schedule (F-AST-005) therefore
+reported zero book value for assets that are in the balance sheet with a real one. Invisible while
+nothing consumed the value for pooled assets; the NF-021 write-off consumed it, and the disposal
+of a pooled asset under a `poolReducedOnDisposal: true` pack wrote off nothing at all.
+
+### NF-023 — a machine entry cannot carry a required dimension — OPEN
+
+Found when the disposal catch-up started booking depreciation in `edge-errors`, whose rule module
+makes a cost centre mandatory for 4000–4999. `postMachineEntry` builds its lines itself and has no
+dimension to give, so any tenant that puts a mandatory dimension on the depreciation account cannot
+run depreciation **at all** — neither the regular run nor the catch-up. Pre-existing, not caused by
+this work; the fixture dodges it by moving the account out of the range.
+
+The decision it needs: machine entries either inherit a default dimension from the rule module, or
+are exempt from dimension constraints by nature (they are system-generated, not user postings), or
+the constraint stays and the pack must keep such accounts out of dimension ranges. That is a
+policy-kind question — constraint versus expansion — not a line of code.
+
+### NF-022 — the disposal does not catch up depreciation to the disposal date — RESOLVED
+
+> **Resolved 2026-08-16.** `dispose` now books the depreciation that is due before it writes
+> anything off. Which months are due follows the schedule's own convention — a plan month falls due
+> on its last day, exactly as `monthTarget` reads it for the regular run — so no new rule enters the
+> core. **Deliberately left to the pack:** whether the month an asset leaves in counts as a whole
+> month is a jurisdiction's answer (Germany grants it, US conventions are half-year or mid-quarter),
+> so an asset disposed mid-month gets no depreciation for that month today. That is the honest
+> limit, and it is the same shape as NF-025 — the moment we answer it in the core, we have written
+> law again. Original finding:
 
 Fallout from fixing NF-021, and visible only because the write-off exists now. `bookValueAt`
 reports what has actually been **booked**, not what would be owed up to that date; the yearly

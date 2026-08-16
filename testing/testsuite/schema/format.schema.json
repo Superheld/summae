@@ -225,16 +225,23 @@
               "immediateMax": { "type": "string", "pattern": "^-?\\d+(\\.\\d{1,4})?$" },
               "poolMin": { "oneOf": [{ "type": "string", "pattern": "^-?\\d+(\\.\\d{1,4})?$" }, { "type": "null" }] },
               "poolMax": { "oneOf": [{ "type": "string", "pattern": "^-?\\d+(\\.\\d{1,4})?$" }, { "type": "null" }] },
-              "poolYears": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] }
+              "poolYears": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+              "poolReducedOnDisposal": { "oneOf": [{ "type": "boolean" }, { "type": "null" }] }
             },
             "additionalProperties": false,
             "allOf": [
               {
                 "if": { "properties": { "poolMax": { "type": "string" } }, "required": ["poolMax"] },
-                "then": { "required": ["poolYears"], "properties": { "poolYears": { "type": "integer", "minimum": 1 } } }
+                "then": {
+                  "required": ["poolYears", "poolReducedOnDisposal"],
+                  "properties": {
+                    "poolYears": { "type": "integer", "minimum": 1 },
+                    "poolReducedOnDisposal": { "type": "boolean" }
+                  }
+                }
               }
             ],
-            "description": "Sammelposten/Pool: wer eine Pool-Spanne aufmacht (poolMin/poolMax), muss auch die Auflösungsdauer angeben (poolYears) — sonst erbt jede Jurisdiktion still die deutschen fünf Jahre (F-004)"
+            "description": "Sammelposten/Pool: wer eine Pool-Spanne aufmacht (poolMin/poolMax), muss die Auflösungsdauer angeben (poolYears) UND sagen, ob ein Abgang den Pool vermindert (poolReducedOnDisposal) — sonst erbt jede Jurisdiktion still die deutschen Regeln (F-004, NF-019). Deutschland: 5 Jahre, Abgang vermindert NICHT (§6 Abs. 2a EStG). UK/Australien: Abgänge werden dem Pool entnommen — dieselbe Weiche, andere Antwort."
           }
         },
         "usefulLife": {

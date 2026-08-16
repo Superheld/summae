@@ -40,6 +40,24 @@ rather than missing tests, and both were the quiet kind: no crash, no error, jus
   disposal period first. Making `dispose` catch up on its own is a separate decision — it would
   make one operation write two economically different entries.
 
+- **The pool-disposal rule left the core (NF-025).** Fixing NF-019 put § 6 Abs. 2a EStG straight
+  into `runDepreciation` as `route !== 'pool'` — „a disposal does not reduce the pool" is not a
+  property of pooling but **one jurisdiction's answer**, and the UK and Australia give the
+  opposite one. It is now `poolReducedOnDisposal` in the depreciation module, conditionally
+  required next to `poolMax` and refused rather than defaulted — the same treatment `poolYears`
+  got for the pool period (F-004), one line further down in the same file. Two fixtures drive the
+  identical sequence through both answers.
+- **The disposal books the depreciation it owes first (NF-022).** Otherwise it wrote off a stale
+  carrying amount, and the asset's last months of depreciation never happened at all —
+  `runDepreciation` skips disposed assets. The expense landed as an inflated disposal loss instead
+  of as depreciation: the income statement total was right, the split was not, and the fixed-asset
+  schedule reported too little depreciation. Which months are due follows the schedule's existing
+  convention, so no new rule enters the core. Still open by design: whether the month of departure
+  counts as a whole month is a pack question.
+- **A pooled asset no longer reports a carrying amount of zero (NF-024).** `bookValueAt`
+  short-circuited for every route except `capitalize`. Correct for an immediately expensed asset,
+  wrong for a pooled one — it sits on the pool account with a real book value, and the fixed-asset
+  schedule (F-AST-005) understated the balance sheet it is supposed to explain.
 - **An unknown tax mechanism is refused instead of quietly booked as standard.** `mechanismFor`
   fell back to the standard mechanism for any unregistered name. Since the repertoire is closed —
   a pack picks one of the four and carries no code — an unlisted name is a typo or a pack built

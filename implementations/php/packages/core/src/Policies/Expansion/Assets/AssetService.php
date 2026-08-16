@@ -156,9 +156,14 @@ final class AssetService
         // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the
         // pool keeps running its term, so there is no carrying amount of its own to clear. Only
         // the proceeds are booked, as before.
-        $carrying = $asset->route === AssetRoute::Pool
-            ? Money::zero($this->baseCurrency)
-            : $asset->bookValueAt($disposedOn);
+        // Where the pack keeps a disposed item in the pool (F-AST-006, see runDepreciation), the
+        // pool keeps running its term and there is no carrying amount of its own to clear — only
+        // the proceeds are booked. Where the pack takes it out, it is written off like any other.
+        $staysPooled = $this->staysInPool($asset);
+        if (!$staysPooled) {
+            $this->catchUpDepreciation($asset, $disposedOn, $voucherId);
+        }
+        $carrying = $staysPooled ? Money::zero($this->baseCurrency) : $asset->bookValueAt($disposedOn);
         $lines = $this->disposalLines($asset, $carrying, $proceeds, $bankAccount, $proceedsAccount);
 
         if ($lines !== []) {
@@ -189,13 +194,12 @@ final class AssetService
                 continue;
             }
 
-            // A disposed asset stops depreciating — unless it went into a pool. The pool is written
-            // off on a fixed schedule that does not care what happened to the individual items in
-            // it (F-AST-006); the jurisdiction that made this rule famous puts it plainly: the pool
-            // is not reduced when an item leaves. Stopping here understated depreciation and
-            // overstated profit for every remaining year of the term. The disposal itself still
-            // books its proceeds.
-            if ($asset->isDisposed() && $asset->route !== AssetRoute::Pool) {
+            // A disposed asset stops depreciating — unless its pack keeps it in the pool. Whether
+            // a disposal reduces the pool is declared per jurisdiction (poolReducedOnDisposal);
+            // where it does not, the pool runs its fixed term no matter what happened to the
+            // individual items (F-AST-006). Stopping unconditionally understated depreciation and
+            // overstated profit for every remaining year of the term.
+            if ($asset->isDisposed() && !$this->staysInPool($asset)) {
                 continue;
             }
 
@@ -447,7 +451,7 @@ final class AssetService
     /**
      * The threshold row in force on the acquisition date — the first whose validity window contains it.
      *
-     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int}|null
+     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}|null
      */
     private function applicableThreshold(CalendarDate $acquiredOn): ?array
     {
@@ -487,7 +491,7 @@ final class AssetService
     }
 
     /**
-     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int}>
+     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}>
      */
     private function thresholds(): array
     {
@@ -505,6 +509,9 @@ final class AssetService
                 'poolMin' => is_string($raw['poolMin'] ?? null) ? $raw['poolMin'] : null,
                 'poolMax' => is_string($raw['poolMax'] ?? null) ? $raw['poolMax'] : null,
                 'poolYears' => is_int($raw['poolYears'] ?? null) && $raw['poolYears'] >= 1 ? $raw['poolYears'] : null,
+                'poolReducedOnDisposal' => is_bool($raw['poolReducedOnDisposal'] ?? null)
+                    ? $raw['poolReducedOnDisposal']
+                    : null,
             ];
         }
 
@@ -538,6 +545,99 @@ final class AssetService
     private function gwgExpenseAccount(): string
     {
         return $this->assetAccount('gwgExpenseAccount');
+    }
+
+    /**
+     * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+     *
+     * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
+     * asset's last months of depreciation never happened at all: runDepreciation skips disposed
+     * assets, so nobody would book them afterwards either. The expense landed in the disposal
+     * account as an inflated loss instead of in depreciation — the total hit the income statement
+     * correctly, the split did not, and the depreciation figure the fixed-asset schedule reports
+     * was short.
+     *
+     * Which months are owed follows the schedule's own due-date convention — a plan month falls
+     * due on its last day, exactly as monthTarget reads it for the regular run. No new rule is
+     * invented here, and deliberately so: whether the month an asset leaves in counts as a whole
+     * month is a *jurisdiction's* answer, so it belongs in a pack, not in this code. Consequence
+     * today: an asset disposed mid-month gets no depreciation for that month. Recorded as a
+     * follow-up.
+     */
+    private function catchUpDepreciation(Asset $asset, CalendarDate $disposedOn, Uuid $voucherId): void
+    {
+        $due = [];
+        $life = count($asset->monthlySchedule);
+        for ($planMonth = 1; $planMonth <= $life; $planMonth++) {
+            if ($asset->planMonthDate($planMonth)->isAfter($disposedOn)) {
+                break;
+            }
+            if (!$asset->isMonthBooked($planMonth)) {
+                $due[] = $planMonth;
+            }
+        }
+        if ($due === []) {
+            return;
+        }
+
+        $amount = Money::zero($this->baseCurrency);
+        foreach ($due as $planMonth) {
+            $amount = $amount->add($asset->monthlySchedule[$planMonth - 1]);
+        }
+        if ($amount->isZero()) {
+            return;
+        }
+
+        $entry = $this->postMachineEntry(
+            $disposedOn,
+            $voucherId,
+            sprintf('Depreciation up to disposal %s', $asset->name),
+            [
+                [
+                    'account' => $this->depreciationExpenseAccount(),
+                    'side' => 'debit',
+                    'money' => $amount->jsonSerialize(),
+                ],
+                [
+                    'account' => $asset->assetAccount->value,
+                    'side' => 'credit',
+                    'money' => $amount->jsonSerialize(),
+                ],
+            ],
+        );
+
+        $amounts = $this->monthAmounts($asset, $due, $amount);
+        foreach ($due as $index => $planMonth) {
+            $asset->recordDepreciation($planMonth, $disposedOn, $amounts[$index], $entry);
+        }
+        $this->assets->save($asset);
+    }
+
+    /**
+     * Whether a disposal takes the item out of the pool. Same reasoning as poolYears, and the same
+     * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
+     * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
+     * the UK and Australia take disposals out of their pools. Deciding it here would have put a
+     * statute back into the core — which is exactly what NF-019 accidentally did before this.
+     */
+    private function poolReducedOnDisposal(CalendarDate $acquiredOn): bool
+    {
+        $threshold = $this->applicableThreshold($acquiredOn);
+        if ($threshold === null || !is_bool($threshold['poolReducedOnDisposal'] ?? null)) {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'gwgThresholds: a pool range (poolMin/poolMax) without poolReducedOnDisposal — the pack must say whether a disposal reduces the pool',
+                ['field' => 'poolReducedOnDisposal', 'acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $threshold['poolReducedOnDisposal'];
+    }
+
+    /** A pooled asset that its pack keeps in the pool after disposal — the write-off does not apply. */
+    private function staysInPool(Asset $asset): bool
+    {
+        return $asset->route === AssetRoute::Pool && !$this->poolReducedOnDisposal($asset->acquiredOn);
     }
 
     private function disposalProceedsAccount(): string

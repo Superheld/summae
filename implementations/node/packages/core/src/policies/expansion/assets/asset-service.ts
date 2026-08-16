@@ -26,6 +26,7 @@ interface Threshold {
   poolMin: string | null;
   poolMax: string | null;
   poolYears: number | null;
+  poolReducedOnDisposal: boolean | null;
 }
 
 /**
@@ -116,10 +117,12 @@ export class AssetService {
     const bankAccount = asString(input.bankAccount) ?? this.counterAccount();
     const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
 
-    // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the pool
-    // keeps running its term, so there is no carrying amount of its own to clear. Only the
-    // proceeds are booked, as before.
-    const carrying = asset.route === 'pool' ? Money.zero(this.baseCurrency) : asset.bookValueAt(disposedOn);
+    // Where the pack keeps a disposed item in the pool (F-AST-006, see runDepreciation), the pool
+    // keeps running its term and there is no carrying amount of its own to clear — only the
+    // proceeds are booked. Where the pack takes it out, it is written off like any other asset.
+    const staysPooled = this.staysInPool(asset);
+    if (!staysPooled) this.catchUpDepreciation(asset, disposedOn, voucherId);
+    const carrying = staysPooled ? Money.zero(this.baseCurrency) : asset.bookValueAt(disposedOn);
     const lines = this.disposalLines(asset, carrying, proceeds, bankAccount, asString(input.proceedsAccount));
 
     if (lines.length > 0) {
@@ -138,12 +141,12 @@ export class AssetService {
 
     for (const asset of this.assets.all()) {
       if (asset.route !== 'capitalize' && asset.route !== 'pool') continue;
-      // A disposed asset stops depreciating — unless it went into a pool. The pool is written off
-      // on a fixed schedule that does not care what happened to the individual items in it
-      // (F-AST-006); the jurisdiction that made this rule famous puts it plainly: the pool is not
-      // reduced when an item leaves. Stopping here understated depreciation and overstated profit
-      // for every remaining year of the term. The disposal itself still books its proceeds.
-      if (asset.isDisposed() && asset.route !== 'pool') continue;
+      // A disposed asset stops depreciating — unless its pack keeps it in the pool. Whether a
+      // disposal reduces the pool is declared per jurisdiction (`poolReducedOnDisposal`); where it
+      // does not, the pool runs its fixed term no matter what happened to the individual items
+      // (F-AST-006). Stopping unconditionally understated depreciation and overstated profit for
+      // every remaining year of the term.
+      if (asset.isDisposed() && !this.staysInPool(asset)) continue;
 
       const [months, amount] =
         period === null ? this.yearTarget(asset, fiscalYear) : this.monthTarget(asset, fiscalYear, period);
@@ -330,6 +333,30 @@ export class AssetService {
     return threshold.poolYears;
   }
 
+  /**
+   * Whether a disposal takes the item out of the pool. Same reasoning as `poolYears`, and the same
+   * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
+   * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
+   * the UK and Australia take disposals out of their pools. Deciding it here would have put a
+   * statute back into the core — which is exactly what NF-019 accidentally did before this.
+   */
+  private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null || threshold.poolReducedOnDisposal === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'gwgThresholds: a pool range (poolMin/poolMax) without poolReducedOnDisposal — the pack must say whether a disposal reduces the pool',
+        { field: 'poolReducedOnDisposal', acquiredOn: acquiredOn.iso },
+      );
+    }
+    return threshold.poolReducedOnDisposal;
+  }
+
+  /** A pooled asset that its pack keeps in the pool after disposal — the write-off does not apply. */
+  private staysInPool(asset: Asset): boolean {
+    return asset.route === 'pool' && !this.poolReducedOnDisposal(asset.acquiredOn);
+  }
+
   private thresholds(): Threshold[] {
     const raw = Array.isArray(this.ruleModule.gwgThresholds) ? this.ruleModule.gwgThresholds : [];
     const thresholds: Threshold[] = [];
@@ -344,6 +371,7 @@ export class AssetService {
         poolYears: typeof item.poolYears === 'number' && Number.isSafeInteger(item.poolYears) && item.poolYears >= 1
           ? item.poolYears
           : null,
+        poolReducedOnDisposal: typeof item.poolReducedOnDisposal === 'boolean' ? item.poolReducedOnDisposal : null,
       });
     }
     return thresholds;
@@ -371,6 +399,52 @@ export class AssetService {
   private gwgExpenseAccount(): string {
     return this.assetAccount('gwgExpenseAccount');
   }
+  /**
+   * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+   *
+   * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
+   * asset's last months of depreciation never happened at all: `runDepreciation` skips disposed
+   * assets, so nobody would book them afterwards either. The expense landed in the disposal
+   * account as an inflated loss instead of in depreciation — the total hit the income statement
+   * correctly, the split did not, and the depreciation figure the fixed-asset schedule reports
+   * was short.
+   *
+   * Which months are owed follows the schedule's own due-date convention — a plan month falls due
+   * on its last day, exactly as `monthTarget` reads it for the regular run. No new rule is
+   * invented here, and deliberately so: whether the month an asset leaves in counts as a whole
+   * month is a *jurisdiction's* answer (Germany grants it, US conventions are half-year or
+   * mid-quarter), so it belongs in a pack, not in this code. Consequence today: an asset disposed
+   * mid-month gets no depreciation for that month. Recorded as a follow-up.
+   */
+  private catchUpDepreciation(asset: Asset, disposedOn: CalendarDate, voucherId: Uuid): void {
+    const due: number[] = [];
+    for (let planMonth = 1; planMonth <= asset.monthlySchedule.length; planMonth++) {
+      if (asset.planMonthDate(planMonth).isAfter(disposedOn)) break;
+      if (!asset.isMonthBooked(planMonth)) due.push(planMonth);
+    }
+    if (due.length === 0) return;
+
+    let amount = Money.zero(this.baseCurrency);
+    for (const planMonth of due) amount = amount.add(asset.monthlySchedule[planMonth - 1]!);
+    if (amount.isZero()) return;
+
+    const entry = this.postMachineEntry(
+      disposedOn,
+      voucherId,
+      `Depreciation up to disposal ${asset.name}`,
+      [
+        { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ],
+    );
+
+    const amounts = this.monthAmounts(asset, due, amount);
+    due.forEach((planMonth, index) => {
+      asset.recordDepreciation(planMonth, disposedOn, amounts[index]!, entry);
+    });
+    this.assets.save(asset);
+  }
+
   private disposalProceedsAccount(): string {
     return this.assetAccount('disposalProceedsAccount');
   }

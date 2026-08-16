@@ -31,7 +31,10 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `asset-service.ts` skipped every disposed asset; a pool must run its full term (F-AST-006). Identical fix in both languages, fixture `pool-unaffected-by-disposal`; write-up on the PHP side |
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — the field was in the data format and in `voucher.ts`, but `post-voucher-service.ts` never read it from the input. Now accepted + validated; fixture `supplier-taxation-method`; write-up on the PHP side |
 | NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` books the write-off and the gain/loss; pooled assets exempt. Write-up on the PHP side |
-| NF-022 disposal does not catch up depreciation to the disposal date | **OPEN** (2026-08-16) — mid-year disposal writes off a stale carrying amount; run depreciation first. Write-up on the PHP side |
+| NF-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the due depreciation first; fixture `disposal-catches-up-depreciation`. Write-up on the PHP side |
+| NF-023 machine entries cannot carry a required dimension | **OPEN** (2026-08-16) — a mandatory dimension on the depreciation account blocks every depreciation run. Write-up on the PHP side |
+| NF-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` zeroed everything but `capitalize`. Write-up on the PHP side |
+| NF-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — now `poolReducedOnDisposal` in the pack, refused rather than defaulted. Write-up on the PHP side |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **NF-015**, which turned out to matter here too: giving the persistence adapters their own

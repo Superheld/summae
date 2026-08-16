@@ -145,8 +145,17 @@ export class Asset {
     return sum;
   }
 
+  /**
+   * Carrying amount = cost less what has been depreciated (NF-024).
+   *
+   * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
+   * *pooled* one was: it sits on the pool account and is written down over the pack's term, so
+   * reporting zero for it made the fixed-asset schedule (F-AST-005) understate the balance sheet
+   * it is supposed to explain. The old shortcut was invisible while nothing consumed the value
+   * for pooled assets; the disposal write-off does now.
+   */
   bookValueAt(asOf: CalendarDate | null): Money {
-    if (this.route !== 'capitalize') return this.acquisitionCost.subtract(this.acquisitionCost);
+    if (this.route === 'immediate_expense') return this.acquisitionCost.subtract(this.acquisitionCost);
     return this.acquisitionCost.subtract(this.accumulatedDepreciationAt(asOf));
   }
 

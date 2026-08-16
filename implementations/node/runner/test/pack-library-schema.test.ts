@@ -63,17 +63,22 @@ describe('pack-library files validate against format.schema.json', () => {
     // Guard has teeth: a malformed module is rejected (bad kind, missing required keys).
     expect(validateModule({ kind: 'not-a-real-kind' }), 'validator must reject a bad module').toBe(false);
 
-    // …and the depreciation payload rejects a pool range without its period (F-004): the field is
-    // conditionally required, so a pack can no longer open a pool and leave the duration to the core.
+    // …and the depreciation payload rejects a pool range that leaves a jurisdiction's answer to the
+    // core: the period (F-004, poolYears) and whether a disposal reduces the pool (NF-019,
+    // poolReducedOnDisposal) are both conditionally required next to poolMax.
     const validateDepreciation = ajv.getSchema(`${schema.$id}#/$defs/depreciationData`) as ValidateFunction;
     const poolRange = { validFrom: '2018-01-01', validTo: null, immediateMax: '250.00', poolMin: '250.01', poolMax: '1000.00' };
     expect(
-      validateDepreciation({ gwgThresholds: [poolRange] }),
+      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolReducedOnDisposal: false }] }),
       'a pool range without poolYears must be rejected',
     ).toBe(false);
     expect(
       validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5 }] }),
-      'the same range with poolYears must pass',
+      'a pool range without poolReducedOnDisposal must be rejected',
+    ).toBe(false);
+    expect(
+      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5, poolReducedOnDisposal: false }] }),
+      'the same range with both answers must pass',
     ).toBe(true);
 
     const violations: string[] = [];

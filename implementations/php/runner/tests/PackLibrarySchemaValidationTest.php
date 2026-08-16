@@ -43,18 +43,24 @@ final class PackLibrarySchemaValidationTest extends TestCase
             'validator must reject a bad module',
         );
 
-        // …and the depreciation payload rejects a pool range without its period (F-004): the field is
-        // conditionally required, so a pack can no longer open a pool and leave the duration to the core.
+        // …and the depreciation payload rejects a pool range that leaves a jurisdiction's answer to
+        // the core: the period (F-004, poolYears) and whether a disposal reduces the pool (NF-019,
+        // poolReducedOnDisposal) are both conditionally required next to poolMax.
         $poolRange = '{"validFrom":"2018-01-01","validTo":null,"immediateMax":"250.00","poolMin":"250.01","poolMax":"1000.00"';
-        $withoutYears = json_decode('{"gwgThresholds":[' . $poolRange . '}]}', false, 512, JSON_THROW_ON_ERROR);
-        $withYears = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withoutYears = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolReducedOnDisposal":false}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withoutDisposalRule = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5}]}', false, 512, JSON_THROW_ON_ERROR);
+        $complete = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5,"poolReducedOnDisposal":false}]}', false, 512, JSON_THROW_ON_ERROR);
         self::assertFalse(
             $validator->validate($withoutYears, $base . '#/$defs/depreciationData')->isValid(),
             'a pool range without poolYears must be rejected',
         );
+        self::assertFalse(
+            $validator->validate($withoutDisposalRule, $base . '#/$defs/depreciationData')->isValid(),
+            'a pool range without poolReducedOnDisposal must be rejected',
+        );
         self::assertTrue(
-            $validator->validate($withYears, $base . '#/$defs/depreciationData')->isValid(),
-            'the same range with poolYears must pass',
+            $validator->validate($complete, $base . '#/$defs/depreciationData')->isValid(),
+            'the same range with both answers must pass',
         );
 
         $packDir = dirname(__DIR__, 4) . '/pack-library';

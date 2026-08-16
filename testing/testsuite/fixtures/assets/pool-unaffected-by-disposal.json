@@ -1,6 +1,6 @@
 {
   "fixture": "pool-unaffected-by-disposal",
-  "description": "F-AST-006: der Sammelposten wird jahrgangsbezogen starr aufgelöst — unbeeinflusst davon, ob die einzelnen Wirtschaftsgüter noch da sind. Scheidet eines aus, läuft die AfA unverändert bis zum Ende der Laufzeit weiter; der Posten wird nicht vermindert (die Jurisdiktion, die diese Regel bekannt gemacht hat, schreibt es wörtlich so). Vorher brach die AfA beim Abgang ab: für jedes Restjahr zu wenig Abschreibung und ein zu hoher Gewinn, ohne dass irgendetwas rot wurde. Gegenprobe zum Kapitalisierungs-Fall im selben Fixture — dort ist der Abbruch richtig.",
+  "description": "F-AST-006: der Sammelposten wird jahrgangsbezogen starr aufgelöst — unbeeinflusst davon, ob die einzelnen Wirtschaftsgüter noch da sind — **weil das Pack es so sagt** (`poolReducedOnDisposal: false`). Die Regel steht nicht im Kern: Deutschland vermindert den Sammelposten nicht (§ 6 Abs. 2a EStG), UK und Australien entnehmen Abgänge ihren Pools. Gegenprobe mit der anderen Antwort: `pool-reduced-on-disposal`. Scheidet eines aus, läuft die AfA unverändert bis zum Ende der Laufzeit weiter; der Posten wird nicht vermindert (die Jurisdiktion, die diese Regel bekannt gemacht hat, schreibt es wörtlich so). Vorher brach die AfA beim Abgang ab: für jedes Restjahr zu wenig Abschreibung und ein zu hoher Gewinn, ohne dass irgendetwas rot wurde. Gegenprobe zum Kapitalisierungs-Fall im selben Fixture — dort ist der Abbruch richtig.",
   "covers": [
     "F-AST-006",
     "F-AST-003"
@@ -58,7 +58,8 @@
           "immediateMax": "250.00",
           "poolMin": "250.01",
           "poolMax": "1000.00",
-          "poolYears": 3
+          "poolYears": 3,
+          "poolReducedOnDisposal": false
         }
       ],
       "usefulLife": [

@@ -41,6 +41,7 @@ de-wertpapierdepot
 default-pack-resolves
 depreciation-monthly-allocation
 deviating-fiscal-year
+disposal-catches-up-depreciation
 edge-errors
 entertainment-split
 finalize-reverse-period
@@ -64,6 +65,7 @@ parameter-effect
 partner-and-ec-sales
 payroll-entry
 period-ordering
+pool-reduced-on-disposal
 pool-unaffected-by-disposal
 post-and-invariants
 post-malformed
