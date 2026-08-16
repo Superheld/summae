@@ -102,9 +102,9 @@ Requirement: **Node ≥ 22**. The core ships dual — **ESM** (`import`) and
 `big.js`; the optional `@superheld/summae-knex` adapter adds `knex` + a driver
 (`better-sqlite3` for SQLite, `pg` for Postgres).
 
-> **Publishing status.** All packages are listed in the public registries
-> (v0.1.0) — the commands above (`composer require …` / `pnpm add …`) work
-> directly, with no further configuration.
+> **Publishing status.** All packages are listed in the public registries — the commands
+> above (`composer require …` / `pnpm add …`) work directly, with no further configuration.
+> For the current version see the [CHANGELOG](../../CHANGELOG.md) or the registry entry.
 >
 > If you would rather work from the source repo: Node in the clone with
 > `pnpm install && pnpm build`; PHP via a path/VCS repository pointing at the

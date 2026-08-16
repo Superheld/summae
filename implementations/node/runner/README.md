@@ -4,8 +4,9 @@ Conformance fixture runner: runs the shared test suite (`testing/testsuite/` in 
 repo root) against a **subject** and checks it against the runner contract
 (`testing/testsuite/README.md`).
 
-**Status:** all 45 fixtures green against the `CoreSubject` (@superheld/summae-core,
-in-memory ports), double run byte-deterministic.
+**Status:** the whole suite is green against the `CoreSubject` (@superheld/summae-core,
+in-memory ports) and the database subject, double run byte-deterministic. (The fixture
+count is not pinned here — it drifts; `pnpm fixtures` prints it.)
 
 ## Commands
 

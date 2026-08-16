@@ -35,7 +35,7 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
   (away from zero, *no* banker's rounding).
 - **Core framework-free:** no web/DB frameworks and no
   DB drivers in `packages/core/**` — eslint `no-restricted-imports` enforces it. Structural counterpart to
-  „no `use Illuminate\…` in the core". Adapters become their own packages (from M4 on).
+  „no `use Illuminate\…` in the core". Adapters are their own packages (`knex`, `cli`).
 - **`packages/knex` has its own suite** since 2026-08-16 (`packages/knex/test/adapter.test.ts`,
   NF-015): round-trip through a real column and tenant scoping with two tenants on one database.
   Twin of PHP's `packages/laravel/tests`. Keep the two in step — the defect that made the suite
