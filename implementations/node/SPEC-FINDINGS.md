@@ -32,7 +32,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — the field was in the data format and in `voucher.ts`, but `post-voucher-service.ts` never read it from the input. Now accepted + validated; fixture `supplier-taxation-method`; write-up on the PHP side |
 | NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` books the write-off and the gain/loss; pooled assets exempt. Write-up on the PHP side |
 | NF-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the due depreciation first; fixture `disposal-catches-up-depreciation`. Write-up on the PHP side |
-| NF-023 machine entries cannot carry a required dimension | **OPEN** (2026-08-16) — a mandatory dimension on the depreciation account blocks every depreciation run. Write-up on the PHP side |
+| NF-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions and every machine entry books with them; `packages/knex` carries them through the round trip. Write-up on the PHP side |
 | NF-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` zeroed everything but `capitalize`. Write-up on the PHP side |
 | NF-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — now `poolReducedOnDisposal` in the pack, refused rather than defaulted. Write-up on the PHP side |
 

@@ -558,6 +558,18 @@ export class DatabaseAssetRepository implements AssetRepository {
       depreciations,
       state.disposed === true,
       H.date(state.disposedOn),
+      // NF-023: the asset's dimensions survive the round trip — every machine entry about it reads
+      // them, so losing them here would make depreciation impossible after a restart wherever a
+      // dimension is mandatory.
+      Array.isArray(data.dimensions)
+        ? data.dimensions.flatMap((item: unknown) =>
+            item !== null && typeof item === 'object' &&
+            typeof (item as { type?: unknown }).type === 'string' &&
+            typeof (item as { code?: unknown }).code === 'string'
+              ? [{ type: (item as { type: string }).type, code: (item as { code: string }).code }]
+              : [],
+          )
+        : [],
     );
   }
 

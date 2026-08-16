@@ -58,6 +58,14 @@ rather than missing tests, and both were the quiet kind: no crash, no error, jus
   short-circuited for every route except `capitalize`. Correct for an immediately expensed asset,
   wrong for a pooled one — it sits on the pool account with a real book value, and the fixed-asset
   schedule (F-AST-005) understated the balance sheet it is supposed to explain.
+- **An asset carries its dimensions, so depreciation can run at all (NF-023).** A tenant with a
+  mandatory dimension on the depreciation account could not depreciate: `postMachineEntry` builds
+  its own lines and had no dimension to give, so every run failed with `E_DIMENSION_INVALID`.
+  `acquireAsset` now takes `dimensions`, the asset stores them, and acquisition, the depreciation
+  run, the disposal catch-up and the disposal itself all book with them — both persistence
+  adapters included, so a restart does not undo it. Exempting machine entries from the constraint
+  would have been the easy fix and the wrong one: depreciation per cost centre is what cost
+  accounting is for.
 - **An unknown tax mechanism is refused instead of quietly booked as standard.** `mechanismFor`
   fell back to the standard mechanism for any unregistered name. Since the repertoire is closed —
   a pack picks one of the four and carries no code — an unlisted name is a typo or a pack built

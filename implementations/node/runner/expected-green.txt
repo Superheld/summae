@@ -9,6 +9,7 @@ accounts-and-import
 advance-payment
 allocate-largest-remainder
 allocation-run
+asset-dimensions
 audit-data-export-ads-gl
 audit-data-export-fiscal-year
 audit-trail

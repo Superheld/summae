@@ -60,6 +60,7 @@ export class AssetService {
     if (voucherIdRaw === null) throw new InvalidValue('acquireAsset requires voucherId');
     const voucherId = Uuid.fromString(voucherIdRaw);
     const choice = asString(input.gwgChoice) ?? 'auto';
+    const dimensions = AssetService.parseDimensions(input.dimensions);
 
     const route = this.resolveRoute(choice, cost, acquiredOn);
 
@@ -90,14 +91,15 @@ export class AssetService {
       usefulLifeMonths,
       schedule,
       voucherId,
+      dimensions,
     );
     this.assets.add(asset);
 
     const targetAccount = route === 'immediate_expense' ? this.gwgExpenseAccount() : assetAccount.value;
-    this.postMachineEntry(acquiredOn, voucherId, `Asset acquisition ${name}`, [
+    this.postMachineEntry(acquiredOn, voucherId, `Asset acquisition ${name}`, this.withDimensions(asset, [
       { account: targetAccount, side: 'debit', money: cost.toJSON() },
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
-    ]);
+    ]));
 
     const result = asset.toJSON();
     result.route = route;
@@ -126,7 +128,7 @@ export class AssetService {
     const lines = this.disposalLines(asset, carrying, proceeds, bankAccount, asString(input.proceedsAccount));
 
     if (lines.length > 0) {
-      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, lines);
+      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, this.withDimensions(asset, lines));
     }
 
     return asset.toJSON();
@@ -158,10 +160,10 @@ export class AssetService {
         bookingDate,
         this.depreciationVoucher(asset, fiscalYear, period),
         `Depreciation ${asset.name} ${fiscalYear}${periodLabel}`,
-        [
+        this.withDimensions(asset, [
           { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
           { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
-        ],
+        ]),
       );
 
       const monthAmounts = months.length === 1 ? [amount] : this.monthAmounts(asset, months, amount);
@@ -260,6 +262,32 @@ export class AssetService {
     if (period !== null && year !== null) return year.period(period).end;
     if (year !== null) return year.end;
     return asset.planMonthDate(months[months.length - 1]!);
+  }
+
+  /**
+   * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+   * entry about an asset gets them on every line: the whole event belongs to that cost centre, and
+   * a line without them would be refused wherever the pack makes a dimension mandatory — which is
+   * precisely the case that used to make depreciation impossible to run.
+   */
+  private static parseDimensions(raw: unknown): Array<{ type: string; code: string }> {
+    if (!Array.isArray(raw)) return [];
+    const parsed: Array<{ type: string; code: string }> = [];
+    for (const item of raw) {
+      if (!isRecord(item)) continue;
+      const type = asString(item.type);
+      const code = asString(item.code);
+      if (type !== null && code !== null) parsed.push({ type, code });
+    }
+    return parsed;
+  }
+
+  private withDimensions(
+    asset: Asset,
+    lines: Array<Record<string, unknown>>,
+  ): Array<Record<string, unknown>> {
+    if (asset.dimensions.length === 0) return lines;
+    return lines.map((line) => ({ ...line, dimensions: asset.dimensions.map((d) => ({ ...d })) }));
   }
 
   private postMachineEntry(
@@ -432,10 +460,10 @@ export class AssetService {
       disposedOn,
       voucherId,
       `Depreciation up to disposal ${asset.name}`,
-      [
+      this.withDimensions(asset, [
         { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
         { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
-      ],
+      ]),
     );
 
     const amounts = this.monthAmounts(asset, due, amount);

@@ -56,7 +56,7 @@ a short file.
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
 | NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` now credits the carrying amount off the asset account and books the difference to the pack's `disposalProceedsAccount`/`disposalLossAccount`; pooled assets stay exempt (NF-019). Fixture `pool-unaffected-by-disposal` |
 | NF-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the depreciation that is due before writing off; due follows the schedule's own convention (a plan month falls due on its last day). Fixture `disposal-catches-up-depreciation` |
-| NF-023 machine entries cannot carry a required dimension | **OPEN** (found 2026-08-16) — a tenant with a mandatory dimension on the depreciation account cannot run depreciation at all: `postMachineEntry` has no dimension to give, so `E_DIMENSION_INVALID` blocks both the regular run and the disposal catch-up |
+| NF-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions (`acquireAsset(dimensions)`), and acquisition, depreciation, catch-up and disposal all book with them; both persistence adapters carry them through the round trip. Fixture `asset-dimensions` |
 | NF-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
 | NF-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the NF-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
 
@@ -93,7 +93,7 @@ reported zero book value for assets that are in the balance sheet with a real on
 nothing consumed the value for pooled assets; the NF-021 write-off consumed it, and the disposal
 of a pooled asset under a `poolReducedOnDisposal: true` pack wrote off nothing at all.
 
-### NF-023 — a machine entry cannot carry a required dimension — OPEN
+### NF-023 — a machine entry cannot carry a required dimension — RESOLVED
 
 Found when the disposal catch-up started booking depreciation in `edge-errors`, whose rule module
 makes a cost centre mandatory for 4000–4999. `postMachineEntry` builds its lines itself and has no
@@ -101,10 +101,24 @@ dimension to give, so any tenant that puts a mandatory dimension on the deprecia
 run depreciation **at all** — neither the regular run nor the catch-up. Pre-existing, not caused by
 this work; the fixture dodges it by moving the account out of the range.
 
-The decision it needs: machine entries either inherit a default dimension from the rule module, or
-are exempt from dimension constraints by nature (they are system-generated, not user postings), or
-the constraint stays and the pack must keep such accounts out of dimension ranges. That is a
-policy-kind question — constraint versus expansion — not a line of code.
+**Decided: the asset carries its dimensions.** `acquireAsset` takes `dimensions`, the asset stores
+them, and every machine entry about it — acquisition, the regular run, the disposal catch-up, the
+disposal itself — books every line with them. Both persistence adapters carry them through the
+round trip, so a restart does not silently make depreciation impossible again.
+
+Why not the alternatives:
+
+- *Exempt machine entries from dimension constraints* would have been wrong on the merits.
+  Depreciation is exactly the kind of expense cost accounting wants per cost centre — exempting it
+  guts the constraint at the one place it matters most.
+- *A default dimension in the rule module* answers "which cost centre?" once for every asset in the
+  company, which is not an answer anyone would want.
+- *Leave it to the pack to keep such accounts out of dimension ranges* would have made the pack work
+  around a core limitation.
+
+The chosen way is also plain fixed-asset practice: an asset belongs to a cost centre and its
+depreciation belongs there with it — a master-data fact, not a jurisdiction's rule, so it stays in
+the core without repeating the NF-025 mistake.
 
 ### NF-022 — the disposal does not catch up depreciation to the disposal date — RESOLVED
 

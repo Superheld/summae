@@ -69,6 +69,7 @@ final class AssetService
         $acquiredOn = CalendarDate::of(is_string($input['acquiredOn'] ?? null) ? $input['acquiredOn'] : '');
         $voucherId = is_string($input['voucherId'] ?? null) ? Uuid::fromString($input['voucherId']) : throw new InvalidValue('acquireAsset requires voucherId');
         $choice = is_string($input['gwgChoice'] ?? null) ? $input['gwgChoice'] : 'auto';
+        $dimensions = self::parseDimensions($input['dimensions'] ?? null);
 
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
 
@@ -104,6 +105,7 @@ final class AssetService
             $usefulLifeMonths,
             $schedule,
             $voucherId,
+            $dimensions,
         );
 
         $this->assets->add($asset);
@@ -117,10 +119,10 @@ final class AssetService
             $acquiredOn,
             $voucherId,
             sprintf('Asset acquisition %s', $name),
-            [
+            $this->withDimensions($asset, [
                 ['account' => $targetAccount, 'side' => 'debit', 'money' => $cost->jsonSerialize()],
                 ['account' => $this->counterAccount(), 'side' => 'credit', 'money' => $cost->jsonSerialize()],
-            ],
+            ]),
         );
 
         $result = $asset->jsonSerialize();
@@ -167,7 +169,7 @@ final class AssetService
         $lines = $this->disposalLines($asset, $carrying, $proceeds, $bankAccount, $proceedsAccount);
 
         if ($lines !== []) {
-            $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $lines);
+            $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $this->withDimensions($asset, $lines));
         }
 
         return $asset->jsonSerialize();
@@ -217,10 +219,10 @@ final class AssetService
                 $bookingDate,
                 $this->depreciationVoucher($asset, $fiscalYear, $period),
                 sprintf('Depreciation %s %d%s', $asset->name, $fiscalYear, $period === null ? '' : sprintf('/%02d', $period)),
-                [
+                $this->withDimensions($asset, [
                     ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
                     ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
-                ],
+                ]),
             );
 
             // Record the distribution over the plan months (idempotency + asOf).
@@ -390,6 +392,52 @@ final class AssetService
         $year = $this->fiscalYears->byYear($fiscalYear);
 
         return $year->end ?? $asset->planMonthDate($months[count($months) - 1]);
+    }
+
+    /** @param list<array<string, mixed>> $lines */
+    /**
+     * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+     * entry about an asset gets them on every line: the whole event belongs to that cost centre,
+     * and a line without them would be refused wherever the pack makes a dimension mandatory —
+     * which is precisely the case that used to make depreciation impossible to run.
+     *
+     * @return list<array{type: string, code: string}>
+     */
+    private static function parseDimensions(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $parsed = [];
+        foreach ($raw as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $type = $item['type'] ?? null;
+            $code = $item['code'] ?? null;
+            if (is_string($type) && is_string($code)) {
+                $parsed[] = ['type' => $type, 'code' => $code];
+            }
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * @param  list<array<string, mixed>> $lines
+     * @return list<array<string, mixed>>
+     */
+    private function withDimensions(Asset $asset, array $lines): array
+    {
+        if ($asset->dimensions === []) {
+            return $lines;
+        }
+
+        return array_map(
+            static fn (array $line): array => $line + ['dimensions' => $asset->dimensions],
+            $lines,
+        );
     }
 
     /** @param list<array<string, mixed>> $lines */
@@ -592,7 +640,7 @@ final class AssetService
             $disposedOn,
             $voucherId,
             sprintf('Depreciation up to disposal %s', $asset->name),
-            [
+            $this->withDimensions($asset, [
                 [
                     'account' => $this->depreciationExpenseAccount(),
                     'side' => 'debit',
@@ -603,7 +651,7 @@ final class AssetService
                     'side' => 'credit',
                     'money' => $amount->jsonSerialize(),
                 ],
-            ],
+            ]),
         );
 
         $amounts = $this->monthAmounts($asset, $due, $amount);

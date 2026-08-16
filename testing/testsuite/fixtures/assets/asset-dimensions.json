@@ -1,0 +1,214 @@
+{
+  "fixture": "asset-dimensions",
+  "description": "NF-023: das Anlagegut trägt seine Kostenstelle, und jede maschinelle Buchung dazu erbt sie — Anschaffung, AfA-Lauf und Abgang. Vorher konnte ein Mandant mit Pflichtdimension auf dem AfA-Konto **gar keine Abschreibung buchen**: `postMachineEntry` baut seine Zeilen selbst und hatte keine Dimension zu geben, also scheiterte jeder Lauf an E_DIMENSION_INVALID. Die Alternative — maschinelle Buchungen von der Dimensionspflicht auszunehmen — wäre fachlich falsch gewesen: gerade die AfA ist kostenstellenrelevant, das ist der Kern der KLR. Dass ein Anlagegut zu einer Kostenstelle gehört und seine Abschreibung mit ihm, ist zudem gängige Anlagenbuchhaltung, keine Frage der Jurisdiktion.",
+  "covers": [
+    "F-AST-003",
+    "F-CORE-024"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Kostenstellen GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "0500",
+        "name": "Maschinen",
+        "type": "asset",
+        "subtype": "fixed_asset"
+      },
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "4900",
+        "name": "Erlöse aus Anlagenabgang",
+        "type": "revenue"
+      },
+      {
+        "number": "6500",
+        "name": "Abschreibungen",
+        "type": "expense"
+      },
+      {
+        "number": "6510",
+        "name": "GWG-Aufwand",
+        "type": "expense"
+      },
+      {
+        "number": "6900",
+        "name": "Verlust aus Anlagenabgang",
+        "type": "expense"
+      }
+    ],
+    "ruleModule": {
+      "usefulLife": [
+        {
+          "assetClass": "machinery",
+          "months": 36
+        }
+      ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "6500",
+        "gwgExpenseAccount": "6510",
+        "disposalProceedsAccount": "4900",
+        "disposalLossAccount": "6900"
+      },
+      "dimensionRules": [
+        {
+          "accountRange": {
+            "from": "6500",
+            "to": "6599"
+          },
+          "requiredDimension": "costCenter"
+        }
+      ]
+    },
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "ER-MASCHINE",
+        "voucherDate": "2026-01-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "ABGANG",
+        "voucherDate": "2026-12-31"
+      }
+    ],
+    "dimensionTypes": [
+      {
+        "code": "costCenter",
+        "name": "Kostenstelle"
+      }
+    ],
+    "dimensionValues": [
+      {
+        "typeCode": "costCenter",
+        "code": "FERTIGUNG"
+      },
+      {
+        "typeCode": "costCenter",
+        "code": "VERWALTUNG"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Fräse",
+        "assetClass": "machinery",
+        "assetAccount": "0500",
+        "acquisitionCost": {
+          "amount": "3600.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "dimensions": [
+          {
+            "type": "costCenter",
+            "code": "FERTIGUNG"
+          }
+        ]
+      },
+      "expect": {
+        "comment": "Die Kostenstelle wird einmal am Stammsatz gesetzt — nicht bei jedem der 36 Abschreibungsmonate.",
+        "result": {
+          "id": "$A1",
+          "route": "capitalize",
+          "dimensions": [
+            {
+              "type": "costCenter",
+              "code": "FERTIGUNG"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "Der Kern des Befunds: 6500 verlangt eine Pflicht-Kostenstelle, und der Lauf liefert sie aus dem Anlagegut. Vor dem Fix endete dieser Schritt in E_DIMENSION_INVALID — der Mandant konnte seine Anlagen nicht abschreiben, solange die Regel stand.",
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1200.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "disposeAsset",
+      "input": {
+        "assetId": "$A1",
+        "disposedOn": "2026-12-31",
+        "voucherId": "$V2",
+        "proceeds": {
+          "amount": "3000.00",
+          "currency": "EUR"
+        },
+        "proceedsAccount": "4900"
+      },
+      "expect": {
+        "comment": "Auch der Abgang bucht mit Kostenstelle — Restbuchwert 2400,00 gegen 3000,00 Erlös, also 600,00 Gewinn.",
+        "result": {
+          "id": "$A1",
+          "status": "disposed"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "comment": "1200,00 AfA und 600,00 Gewinn aus dem Abgang; die Maschine ist vom Anlagekonto verschwunden. Bank: −3600,00 Anschaffung + 3000,00 Erlös.",
+        "rows": [
+          {
+            "account": "0500",
+            "debitTotal": "3600.00",
+            "creditTotal": "3600.00",
+            "balance": "0.00"
+          },
+          {
+            "account": "1200",
+            "debitTotal": "3000.00",
+            "creditTotal": "3600.00",
+            "balance": "-600.00"
+          },
+          {
+            "account": "4900",
+            "creditTotal": "600.00",
+            "balance": "-600.00"
+          },
+          {
+            "account": "6500",
+            "debitTotal": "1200.00",
+            "balance": "1200.00"
+          }
+        ]
+      }
+    }
+  ]
+}

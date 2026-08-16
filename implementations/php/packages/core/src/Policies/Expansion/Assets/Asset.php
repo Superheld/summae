@@ -39,11 +39,23 @@ final class Asset implements \JsonSerializable
         public readonly ?int $usefulLifeMonths,
         public readonly array $monthlySchedule,
         public readonly Uuid $voucherId,
+        /**
+         * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by
+         * the machine, month after month, for years — nobody is there to name a dimension at that
+         * moment, and a mandatory one on the depreciation account would otherwise make the run
+         * impossible. The master record answering it once is also how it works in practice: an
+         * asset belongs to a cost centre, and its depreciation belongs there with it.
+         *
+         * @var list<array{type: string, code: string}>
+         */
+        public readonly array $dimensions = [],
     ) {
     }
 
     /**
      * Rehydration from persistence (adapter).
+     *
+     * @param list<array{type: string, code: string}> $dimensions
      *
      * @param list<Money> $monthlySchedule
      * @param list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> $depreciations
@@ -62,8 +74,9 @@ final class Asset implements \JsonSerializable
         array $depreciations,
         bool $disposed,
         ?CalendarDate $disposedOn,
+        array $dimensions = [],
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions);
         $asset->depreciations = $depreciations;
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
@@ -221,6 +234,7 @@ final class Asset implements \JsonSerializable
             'status' => $this->disposed ? 'disposed' : 'active',
             'disposedOn' => $this->disposedOn?->iso,
             'voucherId' => $this->voucherId->value,
+            'dimensions' => $this->dimensions,
         ];
     }
 }
