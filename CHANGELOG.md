@@ -3,6 +3,31 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.9.2 — 2026-08-17
+
+Release infrastructure only — no change to any package's behaviour, and nothing to re-check in
+your books. It is tagged rather than left on the branch because the mechanism it adds can only be
+proven by a real tag push.
+
+### Added
+
+- **The GitHub release writes itself from the CHANGELOG.** A `v*` tag now runs
+  [`release-notes.yml`](.github/workflows/release-notes.yml), which extracts the matching
+  `## X.Y.Z — <date>` section via `bin/changelog-section.sh` and publishes it as the release body.
+  A missing section fails the workflow instead of publishing an empty release, and notes that
+  already have content are never overwritten — improving them by hand afterwards stays safe.
+  This exists because the step was reliably forgotten: **v0.3.0 through v0.8.1 shipped to npm and
+  Packagist with no notes on GitHub at all**, for months, with nothing pointing it out. The notes
+  now come from the file that has to be written anyway.
+
+### Fixed
+
+- **The "Latest" badge no longer follows publication order.** Backfilling the missing notes walked
+  the tags oldest-to-newest, and `gh release create` marks whatever it published last as latest —
+  so the front page announced 0.8.1 while 0.9.1 was already out. The workflow now compares the tag
+  against the newest one in the repository and sets the flag explicitly; a manual run for an older
+  tag can no longer take the badge off the current release.
+
 ## 0.9.1 — 2026-08-17
 
 The dimension round trip in `packages/knex` had no test — the NF-023 hydration parser was
