@@ -3,10 +3,21 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
-## Unreleased
+## 0.9.0 — 2026-08-17
 
-Closing the gate gaps — the requirements that had no test. Two of them turned out to be defects
-rather than missing tests, and both were the quiet kind: no crash, no error, just wrong numbers.
+Closing the gate gaps — the requirements that had no test. Six of them turned out to be defects
+rather than missing tests, and all were the quiet kind: no crash, no error, just wrong numbers.
+Fixed assets carry most of this release, because that is where the untested requirements sat.
+
+### ⚠ Two things break
+
+- **A pack with a pool range must now declare `poolReducedOnDisposal`** next to `poolYears`,
+  or the resolver answers `E_PACK_INCOHERENT`. The shipped `de` pack says `false`; a pack of your
+  own needs the line added. It is required rather than defaulted on purpose — see NF-025 below.
+- **`disposeAsset` books different entries than it did.** It now writes off the carrying amount
+  and books gain or loss, where before it booked only the proceeds. Balance sheet and income
+  statement change for anyone who disposes of assets — the old numbers were wrong, but they were
+  your numbers, so re-check any reports built on them.
 
 ### Fixed
 
