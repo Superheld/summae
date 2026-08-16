@@ -3,6 +3,13 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## 0.9.1 — 2026-08-17
+
+The dimension round trip in `packages/knex` had no test — the NF-023 hydration parser was
+unwatched, and 0.9.0's CI said so after the tag had already shipped. Two tests now drive an asset
+with and without dimensions through a real column and back; the knex coverage floors rose with
+them (branches 56 → 60, lines 88 → 92). No behaviour change: the code was right, nothing proved it.
+
 ## 0.9.0 — 2026-08-17
 
 Closing the gate gaps — the requirements that had no test. Six of them turned out to be defects
