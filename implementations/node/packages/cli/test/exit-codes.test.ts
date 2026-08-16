@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { exitCodeFor } from '../src/exit-codes.js';
+import { allExitCodes, exitCodeFor } from '../src/exit-codes.js';
 
 /**
  * Drift guard for the exit-code mapping (NF-018).
@@ -40,6 +40,19 @@ describe('exit codes', () => {
     const withoutExit = catalogCodes().filter((code) => exitCodeFor(code) === 1);
 
     expect(withoutExit, 'these catalogued codes fall through to exit 1 (NF-018)').toEqual([]);
+  });
+
+  /**
+   * The other direction, and the reason the two lists are compared as sets: a code that has a
+   * number here but no row in the catalogue is invisible to every machine check — the knowledge
+   * base's `validate.py` never sees it, and the test above cannot miss it. `E_NOT_IMPLEMENTED`
+   * sat in exactly that blind spot until 2026-08-16.
+   */
+  it('maps no error code the catalogue does not know', () => {
+    const cataloged = new Set(catalogCodes());
+    const uncataloged = allExitCodes().filter((code) => !cataloged.has(code));
+
+    expect(uncataloged, 'these codes have an exit code but no catalogue row').toEqual([]);
   });
 
   it('gives no two error codes the same exit code', () => {
