@@ -76,6 +76,7 @@ resolver-missing-account-ref
 resolver-policy-invalid
 resolver-referenced-taxcode-missing
 resolver-taxcode-missing-account
+resolver-unknown-mechanism
 reverse-charge
 reverse-clears-open-items
 reverse-settled-item

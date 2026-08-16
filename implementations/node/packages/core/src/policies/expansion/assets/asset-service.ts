@@ -113,15 +113,17 @@ export class AssetService {
     this.assets.save(asset);
 
     const proceeds = isRecord(input.proceeds) ? this.parseMoney(input.proceeds) : null;
-    const proceedsAccount = asString(input.proceedsAccount);
     const bankAccount = asString(input.bankAccount) ?? this.counterAccount();
+    const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
 
-    if (proceeds !== null && proceedsAccount !== null) {
-      const voucherId = asString(input.voucherId) ? Uuid.fromString(asString(input.voucherId)!) : asset.voucherId;
-      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, [
-        { account: bankAccount, side: 'debit', money: proceeds.toJSON() },
-        { account: proceedsAccount, side: 'credit', money: proceeds.toJSON() },
-      ]);
+    // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the pool
+    // keeps running its term, so there is no carrying amount of its own to clear. Only the
+    // proceeds are booked, as before.
+    const carrying = asset.route === 'pool' ? Money.zero(this.baseCurrency) : asset.bookValueAt(disposedOn);
+    const lines = this.disposalLines(asset, carrying, proceeds, bankAccount, asString(input.proceedsAccount));
+
+    if (lines.length > 0) {
+      this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, lines);
     }
 
     return asset.toJSON();
@@ -368,6 +370,59 @@ export class AssetService {
   }
   private gwgExpenseAccount(): string {
     return this.assetAccount('gwgExpenseAccount');
+  }
+  private disposalProceedsAccount(): string {
+    return this.assetAccount('disposalProceedsAccount');
+  }
+  private disposalLossAccount(): string {
+    return this.assetAccount('disposalLossAccount');
+  }
+
+  /**
+   * The disposal entry (F-AST-004). Two things leave the books at once: the asset's carrying
+   * amount, and the difference between that and what the sale brought in.
+   *
+   * This core depreciates *net* — `runDepreciation` credits the asset account directly, there is
+   * no accumulated-depreciation account — so the write-off is a single credit of the carrying
+   * amount against that same account, not the gross form with an offsetting contra account.
+   *
+   * The difference is a gain (proceeds above book value) or a loss (below, including a scrapping
+   * with no proceeds at all), and it goes to the account the pack names for it. Before this,
+   * `dispose` booked only `bank → proceedsAccount`: the asset stayed in the balance sheet at its
+   * carrying amount and the proceeds counted as income in full, overstating profit by exactly
+   * that amount.
+   *
+   * The `proceedsAccount` input parameter still wins over the pack's account — it is documented
+   * and fixtures pass it — but is no longer required for the entry to happen.
+   */
+  private disposalLines(
+    asset: Asset,
+    carrying: Money,
+    proceeds: Money | null,
+    bankAccount: string,
+    proceedsAccountOverride: string | null,
+  ): Array<Record<string, unknown>> {
+    const lines: Array<Record<string, unknown>> = [];
+    const received = proceeds ?? Money.zero(this.baseCurrency);
+
+    if (received.isPositive()) {
+      lines.push({ account: bankAccount, side: 'debit', money: received.toJSON() });
+    }
+    if (carrying.isPositive()) {
+      lines.push({ account: asset.assetAccount.value, side: 'credit', money: carrying.toJSON() });
+    }
+
+    const difference = received.subtract(carrying);
+    if (difference.isPositive()) {
+      const gainAccount = proceedsAccountOverride ?? this.disposalProceedsAccount();
+      lines.push({ account: gainAccount, side: 'credit', money: difference.toJSON() });
+    } else if (!difference.isZero()) {
+      lines.push({ account: this.disposalLossAccount(), side: 'debit', money: difference.negate().toJSON() });
+    }
+
+    // Nothing moved: a fully depreciated asset scrapped without proceeds. Booking a zero entry
+    // would put an empty voucher in the journal for no reason.
+    return lines.length > 1 ? lines : [];
   }
 
   private assetAccount(key: string): string {

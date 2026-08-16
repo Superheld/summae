@@ -1,3 +1,4 @@
+import { DomainError } from '../../../domain-error.js';
 import type { Money } from '../../../substrate/money.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 
@@ -109,13 +110,32 @@ class ExemptMechanism implements TaxMechanism {
 }
 
 const REGISTRY: Record<string, TaxMechanism> = {
+  standard: new StandardMechanism(),
   reverse_charge: new ReverseChargeMechanism(),
   intra_community_supply: new IntraCommunitySupplyMechanism(),
   exempt: new ExemptMechanism(),
 };
-const STANDARD: TaxMechanism = new StandardMechanism();
 
-/** The standard mechanism is the lenient fallback for any unregistered name (old `else` branch). */
+/**
+ * An unregistered name is refused, not quietly standardised. The repertoire is closed (decided
+ * 2026-08-16): a pack names one of these four and carries no code, so a name that is not here is a
+ * typo or a pack built against a newer core — and both used to book plain VAT without a word.
+ * `reverse_charge` misspelled as `reverse-charge` produced a normal tax line, on the normal
+ * account, in the normal VAT return box. Nothing about the output said the mechanism had been
+ * dropped.
+ *
+ * `E_PACK_INCOHERENT` because that is what it is: the modules resolve, but the bundle asks for a
+ * mechanism that does not exist. The resolver calls this too, so a composed pack fails at
+ * `resolvePack`/`init` rather than at the first posting.
+ */
 export function mechanismFor(name: string): TaxMechanism {
-  return REGISTRY[name] ?? STANDARD;
+  const mechanism = REGISTRY[name];
+  if (mechanism === undefined) {
+    throw new DomainError('E_PACK_INCOHERENT', `Unknown tax mechanism: ${name}`, {
+      mechanism: name,
+      known: Object.keys(REGISTRY),
+    });
+  }
+
+  return mechanism;
 }

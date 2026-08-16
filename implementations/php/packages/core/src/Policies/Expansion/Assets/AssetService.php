@@ -149,21 +149,20 @@ final class AssetService
         $proceeds = is_array($input['proceeds'] ?? null) ? $this->parseMoney($input['proceeds']) : null;
         $proceedsAccount = is_string($input['proceedsAccount'] ?? null) ? $input['proceedsAccount'] : null;
         $bankAccount = is_string($input['bankAccount'] ?? null) ? $input['bankAccount'] : $this->counterAccount();
+        $voucherId = is_string($input['voucherId'] ?? null)
+            ? Uuid::fromString($input['voucherId'])
+            : $asset->voucherId;
 
-        if ($proceeds !== null && $proceedsAccount !== null) {
-            $voucherId = is_string($input['voucherId'] ?? null)
-                ? Uuid::fromString($input['voucherId'])
-                : $asset->voucherId;
+        // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the
+        // pool keeps running its term, so there is no carrying amount of its own to clear. Only
+        // the proceeds are booked, as before.
+        $carrying = $asset->route === AssetRoute::Pool
+            ? Money::zero($this->baseCurrency)
+            : $asset->bookValueAt($disposedOn);
+        $lines = $this->disposalLines($asset, $carrying, $proceeds, $bankAccount, $proceedsAccount);
 
-            $this->postMachineEntry(
-                $disposedOn,
-                $voucherId,
-                sprintf('Asset disposal %s', $asset->name),
-                [
-                    ['account' => $bankAccount, 'side' => 'debit', 'money' => $proceeds->jsonSerialize()],
-                    ['account' => $proceedsAccount, 'side' => 'credit', 'money' => $proceeds->jsonSerialize()],
-                ],
-            );
+        if ($lines !== []) {
+            $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $lines);
         }
 
         return $asset->jsonSerialize();
@@ -539,6 +538,76 @@ final class AssetService
     private function gwgExpenseAccount(): string
     {
         return $this->assetAccount('gwgExpenseAccount');
+    }
+
+    private function disposalProceedsAccount(): string
+    {
+        return $this->assetAccount('disposalProceedsAccount');
+    }
+
+    private function disposalLossAccount(): string
+    {
+        return $this->assetAccount('disposalLossAccount');
+    }
+
+    /**
+     * The disposal entry (F-AST-004). Two things leave the books at once: the asset's carrying
+     * amount, and the difference between that and what the sale brought in.
+     *
+     * This core depreciates *net* — runDepreciation credits the asset account directly, there is
+     * no accumulated-depreciation account — so the write-off is a single credit of the carrying
+     * amount against that same account, not the gross form with an offsetting contra account.
+     *
+     * The difference is a gain (proceeds above book value) or a loss (below, including a scrapping
+     * with no proceeds at all), and it goes to the account the pack names for it. Before this,
+     * dispose booked only `bank → proceedsAccount`: the asset stayed in the balance sheet at its
+     * carrying amount and the proceeds counted as income in full, overstating profit by exactly
+     * that amount.
+     *
+     * The `proceedsAccount` input parameter still wins over the pack's account — it is documented
+     * and fixtures pass it — but is no longer required for the entry to happen.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function disposalLines(
+        Asset $asset,
+        Money $carrying,
+        ?Money $proceeds,
+        string $bankAccount,
+        ?string $proceedsAccountOverride,
+    ): array {
+        $lines = [];
+        $received = $proceeds ?? Money::zero($this->baseCurrency);
+
+        if ($received->isPositive()) {
+            $lines[] = ['account' => $bankAccount, 'side' => 'debit', 'money' => $received->jsonSerialize()];
+        }
+        if ($carrying->isPositive()) {
+            $lines[] = [
+                'account' => $asset->assetAccount->value,
+                'side' => 'credit',
+                'money' => $carrying->jsonSerialize(),
+            ];
+        }
+
+        $difference = $received->subtract($carrying);
+        if ($difference->isPositive()) {
+            $lines[] = [
+                'account' => $proceedsAccountOverride ?? $this->disposalProceedsAccount(),
+                'side' => 'credit',
+                'money' => $difference->jsonSerialize(),
+            ];
+        } elseif (!$difference->isZero()) {
+            $lines[] = [
+                'account' => $this->disposalLossAccount(),
+                'side' => 'debit',
+                'money' => $difference->negate()->jsonSerialize(),
+            ];
+        }
+
+        // Nothing moved: a fully depreciated asset scrapped without proceeds. Booking a zero entry
+        // would put an empty voucher in the journal for no reason.
+        return count($lines) > 1 ? $lines : [];
     }
 
     /**
