@@ -50,7 +50,10 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 - **TypeScript stays on 6.x** (checked 2026-08-16). `tsc --noEmit`, `vitest` and `tsup` all pass on
   7.0, but `typescript-eslint` refuses to load against the TS 7 API and aborts `pnpm lint` — and
   lint is part of Definition of Green here. Tracking: typescript-eslint#10940. Do not "fix" the
-  outdated marker by bumping it; the whole gate has to move together.
+  outdated marker by bumping it; the whole gate has to move together. `core`/`cli`/`knex` therefore
+  declare `typescript` themselves: tsup takes it as an **optional peer**, and without a declared
+  version pnpm resolves that peer to the newest TypeScript it can find — which silently broke
+  `pnpm build` (the release workflow's step) while `typecheck`, `lint` and `test` all stayed green.
 - **Pack composition:** resolver `packages/core/src/composition/pack-resolver.ts`; loader (reads the
   shipped `pack-library/`) `runner/src/pack-library.ts`. **Reference** modules/manifests,
   do not duplicate them inline.

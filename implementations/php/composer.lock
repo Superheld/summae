@@ -1010,11 +1010,11 @@
         },
         {
             "name": "superheld/summae-cli",
-            "version": "dev-fix/f-004-pool-period",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "packages/cli",
-                "reference": "13240918120fb2025942a773dcf5f2fb7c0cba77"
+                "reference": "1d2a3776607fbaeff97b5658cb62e4c5585e9616"
             },
             "require": {
                 "php": ">=8.3",
@@ -1028,7 +1028,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "0.6.x-dev"
+                    "dev-main": "0.7.x-dev"
                 }
             },
             "autoload": {
@@ -1059,11 +1059,11 @@
         },
         {
             "name": "superheld/summae-core",
-            "version": "dev-fix/f-004-pool-period",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "63c66375afef70620bc9bd8978d9f2688ac6610c"
+                "reference": "9182bf54b3219d6122f8d8f8928bb86712411a5a"
             },
             "require": {
                 "brick/math": "^0.14.2 || ^0.15 || ^0.16 || ^0.17 || ^0.18",
@@ -1072,7 +1072,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "0.6.x-dev"
+                    "dev-main": "0.7.x-dev"
                 }
             },
             "autoload": {
@@ -1106,11 +1106,11 @@
         },
         {
             "name": "superheld/summae-laravel",
-            "version": "dev-fix/f-004-pool-period",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "packages/laravel",
-                "reference": "fed37febc6300568875bf53c80e4d46ddf105748"
+                "reference": "d4828257930c032269140e0ebb4bb52af77fe1db"
             },
             "require": {
                 "illuminate/database": "^11.0|^12.0|^13.0",
@@ -1121,7 +1121,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "0.6.x-dev"
+                    "dev-main": "0.7.x-dev"
                 },
                 "laravel": {
                     "providers": [
