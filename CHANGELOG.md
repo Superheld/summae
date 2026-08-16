@@ -5,9 +5,20 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
-Internal structure only — no API change, no behaviour change. Both languages stay
-byte-identical, and every gate (conformance `--strict` against both subjects, cross-test,
-PHPStan max, typecheck/lint, coverage floors) is green.
+Both languages stay byte-identical, and every gate (conformance `--strict` against both
+subjects, cross-test, PHPStan max, typecheck/lint, coverage floors) is green.
+
+### Fixed
+
+- **Five error codes no longer exit `1` (NF-018).** `E_SETTLEMENT_EXCEEDS_ENTRY`,
+  `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` and
+  `E_AMOUNT_SCALE_MISMATCH` were in the error catalogue but not in the CLI's exit-code table, so
+  they fell through to `1` — the code that means *unknown error*. A script branching on the exit
+  could not tell a bad `summae init --pack …` or an over-claiming settlement from a summae crash;
+  the JSON on stderr always named the code correctly. They are **appended** at 49–53, so no
+  existing number moves. A new guard test in both languages (`ExitCodesTest`,
+  `exit-codes.test.ts`) reads the catalogue and fails when a code in it has no exit code of its
+  own — the comparison that was missing.
 
 ### Changed
 
