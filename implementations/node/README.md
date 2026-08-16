@@ -5,11 +5,14 @@ conformance suite (`testing/testsuite/` in the repo root), identical data format
 byte-identical determinism. The goal is full parity and, ultimately,
 cross-compatibility with the PHP data.
 
-> Status: **M3 reached** — all **45/45** conformance fixtures green against the
-> in-memory port, double run byte-deterministic. Shared kernel, ledger,
-> open items, tax, EÜR/VAT return, mappings (balance sheet/P&L), assets, costing, partner,
-> createTenant and export (GoBD-Z3/DATEV) are ported. Open: persistence
-> adapter + CLI (M4) and the cross-test against the PHP data.
+> Status: **complete and at parity.** The whole conformance suite is green against both the
+> in-memory port and the persistence adapter, with a byte-deterministic double run; the
+> SF-15 cross-test confirms byte-identical `journalExport` across the language boundary in
+> both directions. Shared kernel, ledger, open items, tax, EÜR/VAT return, mappings (balance
+> sheet/P&L), assets, costing, partner, `createTenant`, export (GoBD-Z3/DATEV), pack
+> composition, persistence (`@superheld/summae-knex`) and CLI (`@superheld/summae-cli`) all
+> ship. (Fixture counts are not pinned here — they drift; `pnpm fixtures` prints the current
+> one.)
 
 ## Stack
 

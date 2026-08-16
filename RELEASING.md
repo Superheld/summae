@@ -9,9 +9,20 @@ How the packages get into the registries. User docs are in the
 
 A git tag `vX.Y.Z` marks a release. Before tagging:
 
-- **Node:** `implementations/node/packages/core/package.json` → set `version` to `X.Y.Z`.
+- **Node: all three published packages**, not just the core — `packages/core`,
+  `packages/cli` and `packages/knex` each carry a `version` in their `package.json`, and the
+  workflow runs `pnpm -r publish`, which publishes every one of them. Bumping only the core
+  ships the other two under their old version.
 - **PHP:** no `version` fields (Composer derives them from the tag; `branch-alias`
   is set).
+
+> **Run `pnpm build` locally before tagging.** It is the one step of the release that
+> `typecheck`, `lint`, `test` and `fixtures` cannot stand in for, and it broke silently once
+> (0.7.0): `tsup` takes `typescript` as an *optional* peer, so a package that does not declare
+> a version of its own lets pnpm resolve that peer to the newest TypeScript it can find — the
+> dts plugin then dies while the whole rest of the gate stays green. `core`/`cli`/`knex`
+> declare `typescript` themselves for exactly this reason; keep it that way, and treat a
+> `pnpm build` failure as a release blocker rather than a local quirk.
 
 ## npm — `@superheld/summae-core`
 

@@ -40,7 +40,7 @@ make sync       # (maintainer) update the testsuite from the internal source
 make shell      # shell in the container
 ```
 
-Postgres is only needed from JOB-012 on: `docker compose --profile db up -d`
+Postgres is only needed for the persistence adapter: `docker compose --profile db up -d`
 (port 54329, user/DB/password: `rechnungswesen`).
 
 ## Iron rules

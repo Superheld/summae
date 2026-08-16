@@ -3,6 +3,30 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## Unreleased
+
+Internal structure only — no API change, no behaviour change. Both languages stay
+byte-identical, and every gate (conformance `--strict` against both subjects, cross-test,
+PHPStan max, typecheck/lint, coverage floors) is green.
+
+### Changed
+
+- **The ledger orchestrator is split.** `Ledger` keeps the operations that write postings
+  (`post`, `correct`, `finalize`, `reverse`) plus the line parsing they share, and is now a thin
+  facade over `SettlementService`, `ChartAdminService` and `FiscalPeriodService`, with
+  `AuditWriter` and `Lookups` carrying what all of them need. The public surface is unchanged —
+  `TenantOperations`, the CLI and both persistence adapters see the same object as before.
+  879 → 520 lines in Node, 1126 → 671 in PHP.
+
+### Decided
+
+- **The tax-mechanism repertoire is closed.** New mechanisms are registered inside the core, in
+  both languages, with a fixture; a pack selects one per tax code and never carries code. The
+  reason is cross-language equivalence: a mechanism plugged in from outside would be different
+  code in PHP than in Node, and the shared fixtures could not check it. What would reopen the
+  question — the *base computation* becoming its own socket — is recorded in
+  `implementations/<language>/packages/core/src/CLAUDE.md`.
+
 ## 0.7.0 — 2026-08-16
 
 The release that closes the findings list. Every open item from 0.6.0 — F-004, NF-008,

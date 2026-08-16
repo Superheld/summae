@@ -7,11 +7,15 @@ implementation, **not** an application. Multiple language implementations with a
 
 ```
 summae/
-├── testing/testsuite/              The compatibility contract: fixtures/ + schema/
-│                           (authoritative for all implementations)
+├── testing/                Every test that is not a unit test
+│   ├── testsuite/          The compatibility contract: fixtures/ + schema/
+│   │                       (authoritative for all implementations)
+│   └── scenarios/          Language-neutral CLI scenarios (walkthrough · regression)
 ├── implementations/
 │   ├── php/                PHP implementation  (core · laravel · cli)
-│   └── node/               Node/TypeScript implementation (core · runner)
+│   └── node/               Node/TypeScript implementation (core · knex · cli)
+├── pack-library/           The shipped packs (default · de · us) — product data
+├── docs/handbuch/          The handbook: the one user-facing document
 ├── compose.yaml, docker/   Docker toolchain (PHP)
 └── Makefile                Orchestration
 ```
