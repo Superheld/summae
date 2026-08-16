@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Wholesale Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" } } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us" } } } },
     { "op": "expandTax",
       "input": {
         "tenant": "$T1",

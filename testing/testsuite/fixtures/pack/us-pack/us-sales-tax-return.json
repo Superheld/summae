@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Filing Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" }, "taxationMethod": "accrual" } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us" }, "taxationMethod": "accrual" } } },
     { "op": "postVoucher", "input": {
         "tenant": "$T1", "voucher": { "voucherNumber": "INV-001", "voucherDate": "2026-02-10" },
         "entryDate": "2026-02-10", "text": "Taxable sale 7%", "taxCode": "SALETAX", "direction": "output",

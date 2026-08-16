@@ -3,6 +3,35 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+## Unreleased
+
+Backlog cleanup — no behaviour change, no API change.
+
+### Added
+
+- **The Laravel service provider has a test** (`ServiceProviderTest`, on `orchestra/testbench`).
+  It was the last file in `packages/laravel` with no coverage, and the only one a Laravel user
+  cannot avoid: auto-discovery, `artisan migrate`, `app(DatabaseTenantFactory::class)`. What it
+  pins is the part that fails quietly rather than loudly — migrations that never register (a user
+  migrates and gets no `summae_*` tables), a factory bound to the default connection while
+  `summae.connection` names another, a config that stops being publishable. The package's
+  coverage floor rose 95 → 98 with it (measured 99.11).
+
+### Changed
+
+- **The pack version is decoupled from 28 fixtures.** It was expected in 32 fixtures but is the
+  actual subject in only four of them, so raising a pack version turned 17 unrelated fixtures red
+  — ones about balance sheets, discounts, EÜR. Now only the fixtures that call `resolvePack`
+  assert it; everywhere else the expectation is `"pack": { "id": "de" }`. Verified by raising the
+  `de` version for real: one fixture red instead of seventeen, and that one is `de-pack-resolves`.
+  Nothing about the checked behaviour changed — `expect` is a subset comparison.
+- **`branch-alias` is part of releasing.** All three `composer.json` files still read
+  `0.7.x-dev` after 0.8.0 shipped; it does not follow the tag and nothing catches it. Corrected
+  to `0.8.x-dev`, and `RELEASING.md` now names the step.
+- **The testsuite README stopped carrying frozen numbers.** Its status line claimed „58 fixtures,
+  38 error codes" long after both had moved; it now points at the tools that know (`make
+  fixtures`, `validate.py`) instead of a count that ages.
+
 ## 0.8.0 — 2026-08-16
 
 A release about the seams between the pieces rather than about new capability. Nothing here

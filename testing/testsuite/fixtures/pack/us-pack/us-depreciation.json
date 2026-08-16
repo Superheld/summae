@@ -5,7 +5,7 @@
   "setup": {},
   "steps": [
     { "op": "createTenant", "input": { "name": "Assets Corp", "baseCurrency": "USD", "pack": "us", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "us", "version": "2026.2" } } } },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "us" } } } },
     { "op": "createVoucher", "input": { "tenant": "$T1", "voucher": { "voucherNumber": "PO-SERVER", "voucherDate": "2026-07-01" } },
       "expect": { "result": { "id": "$V1" } } },
     { "op": "acquireAsset",
