@@ -613,6 +613,7 @@ and tax lines are produced automatically.
 | `voucher.voucherNumber` | string | yes | voucher number |
 | `voucher.voucherDate` | string (date) | yes | missing/invalid → `E_ENTRY_NO_VOUCHER` |
 | `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
+| `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
 | `netLines` | array of `{account, money}` | no | net lines |
@@ -649,6 +650,7 @@ an existing `voucherId`. Takes the same `voucher` object as `postVoucher`
 | `voucher.voucherNumber` | string | no (default `""`) | voucher number |
 | `voucher.voucherDate` | string (date) | **yes** | missing/invalid → `E_ENTRY_NO_VOUCHER` |
 | `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
+| `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `voucher.due`, `serviceDate`, `servicePeriod.{from,to}`, `kind`, `issuer`, `economicYear`, `recurring` | — | no | optional voucher attributes |
 
 Output: `{ "id": <uuid>, "voucherNumber": <string> }`.
@@ -884,18 +886,22 @@ with `gwgThresholds` (dated low-value-asset thresholds), `usefulLife` (useful
 life per `assetClass` in months), and `assetAccounts`
 (`acquisitionCounterAccount`, `depreciationExpenseAccount`,
 `gwgExpenseAccount`). A threshold that opens a pool range (`poolMin`/`poolMax`)
-must also give `poolYears` — the number of years a pooled asset is written off
-over. It is required rather than defaulted: the period is jurisdiction law, so
-the pack states it and the engine never picks a number for you (`acquireAsset`
-answers `E_PACK_INCOHERENT` if it is missing). Asset postings are finalized immediately (GoBD); cost
+must give **two** answers: `poolYears` — the number of years a pooled asset is
+written off over — and `poolReducedOnDisposal` — whether a disposal takes the
+item out of the pool. Both are required rather than defaulted, because both are
+jurisdiction law and neither follows from pooling as such: Germany writes off
+over five years and does *not* reduce the pool on disposal, while the UK and
+Australia do reduce theirs. The engine never picks for you (`acquireAsset` and
+`disposeAsset` answer `E_PACK_INCOHERENT` if either is missing). Asset postings are finalized immediately (GoBD); cost
 accounting is a separate accounting circle and leaves the financial-accounting
 journal untouched.
 
 ```json
 "ruleModule": {
-  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5 } ],
+  "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false } ],
   "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
-  "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
+  "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855",
+                     "disposalProceedsAccount": "8801", "disposalLossAccount": "2320" }
 }
 ```
 
@@ -912,9 +918,10 @@ Records an acquisition and decides the low-value-asset (GWG) routing.
 | `acquiredOn` | string (date) | yes | determines the GWG threshold |
 | `voucherId` | string (UUID) | yes | voucher (missing → `InvalidValue` ⚠) |
 | `gwgChoice` | string | no (`"auto"`) | otherwise `capitalize`/`immediate_expense`/`pool` |
+| `dimensions` | array of `{type, code}` | no | cost centre etc.; **every** machine entry about this asset inherits them |
 
 GWG routing with `auto`: cost ≤ `immediateMax` → `immediate_expense`;
-`poolMin` ≤ cost ≤ `poolMax` → `pool` (60 months, 1/5); otherwise →
+`poolMin` ≤ cost ≤ `poolMax` → `pool` (over `poolYears`, spread evenly); otherwise →
 `capitalize` (useful life from `usefulLife`). Output: serialized asset (`route`,
 `usefulLifeMonths`, …; for `immediate_expense` additionally `expenseAccount`).
 Errors: `E_ASSET_UNKNOWN` (no useful life), `E_ACCOUNT_UNKNOWN`.
@@ -922,21 +929,50 @@ Errors: `E_ASSET_UNKNOWN` (no useful life), `E_ACCOUNT_UNKNOWN`.
 ```json
 { "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0420",
   "acquisitionCost": { "amount": "3000.00", "currency": "EUR" },
-  "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto" }
+  "acquiredOn": "2026-07-01", "voucherId": "$V1", "gwgChoice": "auto",
+  "dimensions": [ { "type": "costCenter", "code": "IT" } ] }
 // → route "capitalize", usefulLifeMonths 36
 ```
 
+> **Set `dimensions` here if any account involved requires one.** Acquisition,
+> every depreciation run and the disposal are machine entries — nobody is present
+> to name a cost centre at that moment, so they take the asset's. Without it, a
+> mandatory dimension on the depreciation account makes depreciation impossible
+> to run at all.
+
 #### disposeAsset
 
-`assetId` (yes), `disposedOn` (yes), `proceeds`/`proceedsAccount` (no, only
-posted together), `bankAccount` (no, default `acquisitionCounterAccount`),
-`voucherId` (no). Output: serialized asset with `status:"disposed"`. Errors:
-`E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`. ⚠ No fixture; documented from code.
+`assetId` (yes), `disposedOn` (yes), `proceeds` (no), `proceedsAccount` (no,
+default: the pack's `disposalProceedsAccount`), `bankAccount` (no, default
+`acquisitionCounterAccount`), `voucherId` (no). Output: serialized asset with
+`status:"disposed"`. Errors: `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`.
+
+The disposal books the whole event, in this order:
+
+1. **Depreciation owed up to `disposedOn`**, if a run has not booked it yet — a
+   plan month falls due on its last day. Without this the write-off would use a
+   stale carrying amount, and those months would never be depreciated at all,
+   since `runDepreciation` skips disposed assets.
+2. **The carrying amount off the asset account**, and the difference to the
+   proceeds as a gain (`disposalProceedsAccount`) or a loss
+   (`disposalLossAccount`) — a scrapping without proceeds is the loss case. A
+   fully depreciated asset scrapped for nothing books no entry rather than an
+   empty one.
+
+**Exception — pooled assets whose pack keeps them in the pool**
+(`poolReducedOnDisposal: false`): nothing is written off, the pool keeps running
+its term, and only the proceeds are booked.
+
+⚠ **The month of departure:** depreciation is owed for plan months that have
+fallen due, so an asset disposed mid-month gets nothing for that month. Whether
+a jurisdiction grants the whole month is a pack question and not answered yet.
 
 #### runDepreciation
 
 Depreciation run, idempotent. `fiscalYear` (yes); with `period` a monthly run,
-without it a yearly run. Distribution via largest-remainder (Σ = acquisition
+without it a yearly run. Disposed assets are skipped — **except** pooled ones
+whose pack does not reduce the pool on disposal: those keep depreciating until
+the term ends, no matter what happened to the individual items. Distribution via largest-remainder (Σ = acquisition
 cost exactly). Output: `{ "entriesCreated", "totalDepreciation" }`, resp. on a
 no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 

@@ -1,10 +1,10 @@
-# Abdeckungsstand (2026-06-21)
+# Abdeckungsstand
 
-Automatisch prüfbar via `python3 validate.py`. **58 Fixtures gesamt** (45 Kern + 13 Pack), dazu 4 Modul-/Pack-Datendateien (keine Fixtures). Die **45 Kern-Fixtures** sind von der PHP- **und** Node-Referenz bestanden (grün gegen In-Memory, Doppellauf deterministisch, PHPStan max; verifiziert 2026-06-14). Die **13 Pack-Fixtures** (`fixtures/pack/`) prüfen die v0.6-Pack-Komposition (Resolver) und sind Gegenstand von Gate 1. Die zwei am 2026-06-09 ergänzten Steuer-Fixtures (`vat-return-reversal`, `vat-return-cash-basis-rounding`) sind damit verbindlich; ihre Verifikation förderte F-010 (Fixture-Erwartung korrigiert) und F-011 (PHP-Bug gefixt) zutage — `../80-implementierung/SPEC-FINDINGS.md`.
+**Die Zahlen stehen nicht hier, sondern in `python3 validate.py`** — sie driften schneller, als sie jemand nachzieht (bis 2026-08-17 behauptete diese Datei 58 Fixtures und 36/38 Codes, real waren es dreistellig bzw. 40/44). Das Skript zählt Fixtures sowie Fehlercode- und Standardfall-Abdeckung gegen den Bestand; grün/rot liefert der Runner (`make fixtures` bzw. `pnpm fixtures --strict`). Was hier bleibt, ist das, was ein Werkzeug nicht sagen kann: welche Lücken bewusst offen sind und warum.
 
-## Fehlercodes: 36 / 38 (2 offen, Gate 1)
+## Fehlercodes
 
-36 der 38 Codes aus `50-spezifikation/fehlerkatalog.md` haben ≥ 1 Fixture. Offen (✗): `E_POLICY_INVALID`, `E_AMOUNT_SCALE_MISMATCH` — beide Pack-Komposition, Fixtures in Gate 1.
+Offen ohne Fixture (✗): `E_AMOUNT_SCALE_MISMATCH` — die Reader-/Writer-Prüfung der Nachkommastellen ist noch nicht gebaut. `E_WORKSPACE_INVALID` und `E_NOT_IMPLEMENTED` sind über Fixtures gar nicht erreichbar und werden pro Sprache durch einen Kontrakt-Test geprüft; `E_UNEXPECTED` ist bewusst kein Katalogcode und wird von `validate.py` nur mitgezählt, weil dessen Regex auch Fließtext greift. `E_POLICY_INVALID` hat seit 2026-08-16 die Fixture `resolver-policy-invalid`.
 
 ## Standardfälle: 26 / 26 ✅
 
