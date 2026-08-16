@@ -54,10 +54,51 @@ a short file.
 | NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
 | NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
+| NF-021 asset disposal never writes off the carrying amount | **OPEN** (found 2026-08-16) — `dispose` books only `bank → proceedsAccount`; the asset account is never relieved, so a disposed asset stays in the balance sheet at its carrying amount and the proceeds land in full as income instead of as a gain against book value. F-AST-004 requires both. `disposalProceedsAccount`/`disposalLossAccount` are validated by the resolver (I3) and booked by nothing. Not fixed unilaterally — see the write-up |
 
 F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16, and NF-019 +
 NF-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
 is empty.**
+
+### NF-021 — asset disposal never writes off the carrying amount — OPEN
+
+`dispose` sets the asset's status and, if proceeds were passed, books exactly one entry:
+`bankAccount → proceedsAccount`. The asset account is never relieved. Two consequences, both
+silent:
+
+- A disposed asset **stays in the balance sheet at its carrying amount**, forever. The fixed-asset
+  line keeps something the company no longer owns.
+- The proceeds land as income **in full**, instead of as a gain or loss against book value. Sell a
+  machine with 1500.00 book value for 2000.00 and the books show 2000.00 income rather than 500.00
+  gain — profit overstated by exactly the carrying amount.
+
+`disposalProceedsAccount` and `disposalLossAccount` are declared in the pack, and the resolver
+*requires* them (I3, `E_PACK_UNRESOLVED_REF` if missing) — but no code path books either of them.
+`proceedsAccount` comes from the caller's input instead.
+
+**Not fixed unilaterally**, because the fix is a design decision, not a missing line:
+1. **Which entry?** The customary form nets it — `bank + accumulated depreciation → asset +
+   gain/loss` — but that presumes gross presentation with an accumulated-depreciation account,
+   and this core depreciates by crediting the asset account directly (net presentation). So the
+   entry is `bank → asset (carrying amount)` plus the difference to `disposalProceedsAccount` or
+   `disposalLossAccount`.
+2. **Depreciation up to the disposal month** would have to run first, otherwise the carrying
+   amount being written off is stale. Today `runDepreciation` is a separate call.
+3. **The pool must be exempt** — NF-019 just established that the pool is not reduced when an item
+   leaves. So this is `route === 'capitalize'` only, and the two rules must not collide.
+4. **Are the pack accounts mandatory or is the input override kept?** Today's `proceedsAccount`
+   input parameter is documented and used by fixtures.
+
+**How it escaped the sweep that found NF-019/NF-020:** F-AST-004 *has* a `covers` link, so it never
+showed up in the list of uncovered requirements. The fixture it points at (`edge-errors`) only
+exercises the error paths — `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, and `status: "disposed"`. It
+asserts no booking at all. A `covers` link means "some fixture names this requirement", not "this
+requirement is checked" — the sweep needs a second pass over the linked ones, not just the
+unlinked.
+
+The fixture `pool-unaffected-by-disposal` written on 2026-08-16 records the wrong behaviour in one
+row (the disposed machine still standing at 2400.00) and says so inline, so the fix has to change
+it visibly rather than silently agreeing with it.
 
 ### NF-019 / NF-020 — found by asking which requirements have no test
 

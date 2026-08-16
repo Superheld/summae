@@ -91,7 +91,7 @@
       "name": "trialBalance",
       "params": { "fiscalYear": 2027, "throughPeriod": 12 },
       "expect": {
-        "comment": "Sammelposten nach zwei von drei Jahren: 900,00 − 300,00 − 300,00 = 300,00 Restwert. Die Maschine steht bei 3600,00 − 1200,00 = 2400,00 und bewegt sich nicht mehr. Bank trägt die beiden Anschaffungen abzüglich des Schrotterlöses vor (−900,00 − 3600,00 + 100,00). Das Erlöskonto 4900 fehlt in der Liste, weil GuV-Konten nicht vortragen und 2027 nichts darauf lief.",
+        "comment": "Sammelposten nach zwei von drei Jahren: 900,00 − 300,00 − 300,00 = 300,00 Restwert. Die Maschine steht bei 3600,00 − 1200,00 = 2400,00 und bewegt sich nicht mehr. **Achtung, Befund NF-021:** dass sie nach ihrem Abgang überhaupt noch mit 2400,00 dasteht, ist falsch — F-AST-004 verlangt, dass der Abgang den Restbuchwert ausbucht. Diese Zeile hält den heutigen, fehlerhaften Zustand fest, damit der Fix ihn sichtbar ändern muss; sie ist keine Zusicherung. Bank trägt die beiden Anschaffungen abzüglich des Schrotterlöses vor (−900,00 − 3600,00 + 100,00). Das Erlöskonto 4900 fehlt in der Liste, weil GuV-Konten nicht vortragen und 2027 nichts darauf lief.",
         "rows": [
           { "account": "0480", "openingBalance": "600.00", "creditTotal": "300.00", "balance": "300.00" },
           { "account": "0500", "openingBalance": "2400.00", "debitTotal": "0.00", "creditTotal": "0.00", "balance": "2400.00" },
