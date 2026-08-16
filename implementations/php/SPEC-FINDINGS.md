@@ -54,13 +54,40 @@ a short file.
 | NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
 | NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
 | NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
-| NF-021 asset disposal never writes off the carrying amount | **OPEN** (found 2026-08-16) — `dispose` books only `bank → proceedsAccount`; the asset account is never relieved, so a disposed asset stays in the balance sheet at its carrying amount and the proceeds land in full as income instead of as a gain against book value. F-AST-004 requires both. `disposalProceedsAccount`/`disposalLossAccount` are validated by the resolver (I3) and booked by nothing. Not fixed unilaterally — see the write-up |
+| NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` now credits the carrying amount off the asset account and books the difference to the pack's `disposalProceedsAccount`/`disposalLossAccount`; pooled assets stay exempt (NF-019). Fixture `pool-unaffected-by-disposal` |
+| NF-022 disposal does not catch up depreciation to the disposal date | **OPEN** (found 2026-08-16 while fixing NF-021) — `bookValueAt` reads what has been *booked*, and the yearly run books on 31.12. Disposing mid-year without running depreciation first writes off too high a carrying amount, so the loss is overstated by the pro-rata share |
 
 F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16, and NF-019 +
 NF-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
 is empty.**
 
-### NF-021 — asset disposal never writes off the carrying amount — OPEN
+### NF-022 — the disposal does not catch up depreciation to the disposal date — OPEN
+
+Fallout from fixing NF-021, and visible only because the write-off exists now. `bookValueAt`
+reports what has actually been **booked**, not what would be owed up to that date; the yearly
+`runDepreciation` books on 31 December. Dispose an asset on 30 June without running depreciation
+first and the carrying amount written off is the one from the start of the year — the loss is
+overstated by exactly the pro-rata share, and the expense lands in the disposal account instead of
+in depreciation.
+
+Deliberately not fixed along the way, because it is a second decision rather than a missing line:
+`dispose` would have to trigger a partial depreciation run of its own, which makes one operation
+write two economically different entries and raises its own questions (which voucher? what if the
+period is already closed? what if the caller *wants* to book depreciation separately, as the
+period-wise `runDepreciation(fiscalYear, period)` path suggests). The honest interim state: run
+depreciation up to the disposal period first, then dispose. `pool-unaffected-by-disposal` does
+exactly that and says so.
+
+### NF-021 — asset disposal never writes off the carrying amount — RESOLVED
+
+> **Resolved 2026-08-16.** `dispose` now books the whole event: the carrying amount is credited
+> off the asset account, and the difference between proceeds and book value goes to the pack's
+> `disposalProceedsAccount` (gain) or `disposalLossAccount` (loss) — the two accounts the resolver
+> had been requiring and nothing had been booking. A scrapping without proceeds is the loss case;
+> a fully depreciated asset scrapped for nothing books no entry at all rather than an empty one.
+> Pooled assets are exempt, because NF-019 established that the pool is not reduced when an item
+> leaves. The write-off is a single credit against the asset account because this core depreciates
+> *net* — there is no accumulated-depreciation account to reverse. Original finding:
 
 `dispose` sets the asset's status and, if proceeds were passed, books exactly one entry:
 `bankAccount → proceedsAccount`. The asset account is never relieved. Two consequences, both

@@ -25,6 +25,21 @@ rather than missing tests, and both were the quiet kind: no crash, no error, jus
   because storing null silently reads as "supplier taxes on accrual", the answer that permits the
   earlier deduction.
 
+- **An asset disposal now writes off the carrying amount (NF-021).** `dispose` booked only
+  `bank → proceedsAccount`: the asset account was never relieved, so a disposed asset **stayed in
+  the balance sheet at its carrying amount** and the proceeds counted as income in full instead of
+  as a gain against book value — profit overstated by exactly the carrying amount. It now books the
+  write-off plus the difference to the pack's `disposalProceedsAccount` (gain) or
+  `disposalLossAccount` (loss) — two accounts the pack resolver had been *requiring* while nothing
+  booked either. Pooled assets stay exempt (see NF-019 above). A fully depreciated asset scrapped
+  for nothing books no entry rather than an empty one.
+
+  ⚠ **Known limit (NF-022):** the write-off uses what has been *booked*. The yearly depreciation
+  run books on 31 December, so disposing mid-year without running depreciation first writes off a
+  stale carrying amount and overstates the loss by the pro-rata share. Run depreciation up to the
+  disposal period first. Making `dispose` catch up on its own is a separate decision — it would
+  make one operation write two economically different entries.
+
 ### Added
 
 - **Three fixtures for requirements that were built but unwatched.** `E_POLICY_INVALID` had no

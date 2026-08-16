@@ -94,6 +94,11 @@ final class RepositoryRoundTripTest extends AdapterTestCase
             'assetAccounts' => [
                 'acquisitionCounterAccount' => '1200',
                 'depreciationExpenseAccount' => '4830',
+                // Since the disposal writes off the carrying amount (F-AST-004), a disposal that
+                // ends below book value needs somewhere to put the loss — this test disposes
+                // without proceeds, so it goes through that path.
+                'disposalLossAccount' => '4855',
+                'disposalProceedsAccount' => '4855',
                 'gwgExpenseAccount' => '4855',
             ],
         ]);
