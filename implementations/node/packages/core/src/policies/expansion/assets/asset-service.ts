@@ -262,7 +262,7 @@ export class AssetService {
     const monthsByYear = new Map<number, number[]>();
     const life = asset.monthlySchedule.length;
     for (let planMonth = 1; planMonth <= life; planMonth++) {
-      const year = asset.planMonthDate(planMonth).year();
+      const year = this.planMonthYear(asset, planMonth);
       const list = monthsByYear.get(year) ?? [];
       list.push(planMonth);
       monthsByYear.set(year, list);
@@ -519,6 +519,29 @@ export class AssetService {
       });
     }
     return thresholds;
+  }
+
+  /**
+   * Which yearly bucket a plan month belongs to.
+   *
+   * The fiscal year that contains the month, when one is set up — NOT its calendar year. Where the
+   * two differ the old shortcut came apart badly: for a fiscal year 07/2026–06/2027 (labelled by its
+   * end year) an asset acquired in September 2026 had its September-to-December months filed under
+   * "2026", a label no fiscal year carries, so no run ever booked them, while months belonging to the
+   * following fiscal year were pulled into this one. Which months belong to a fiscal year is what a
+   * fiscal year is; reading it off the calendar was simply wrong.
+   *
+   * Falls back to the calendar year for a month beyond every fiscal year that has been set up. That is
+   * not a second opinion about the boundary — it keeps the weighting COMPLETE. The yearly amount comes
+   * from allocating the cost across all buckets by month count, so dropping the months that reach past
+   * the last configured year would push their share into the years that remain and write the asset off
+   * too fast. With calendar-year fiscal years the fallback is identical to the answer above; with
+   * deviating ones it is the old behaviour, and it corrects itself as soon as the year is created. The
+   * honest limit: set up the fiscal years an asset runs through.
+   */
+  private planMonthYear(asset: Asset, planMonth: number): number {
+    const date = asset.planMonthDate(planMonth);
+    return this.fiscalYears.forDate(date)?.year ?? date.year();
   }
 
   /**
