@@ -159,6 +159,13 @@ final readonly class DatevExportProjection
             }
 
             $rows[] = [
+                // The batch carries the amount without a sign ("Umsatz ohne Soll/Haben-Kz"): direction
+                // comes from the indicator, and a cancellation is marked as Generalumkehr rather than
+                // by flipping the side or sending a negative number. Since this core reverses by
+                // general reversal (negated amount, unchanged side), abs() alone made the reversal
+                // byte-identical to the posting it cancels — an import doubled the turnover instead of
+                // clearing it. The marker is what tells the two apart.
+                'generalReversal' => $entry->reverses !== null,
                 'amount' => $gross->abs()->amountAsString(),
                 'debitCredit' => $lead->side->value === 'debit' ? 'S' : 'H',
                 'account' => $lead->account->value,
