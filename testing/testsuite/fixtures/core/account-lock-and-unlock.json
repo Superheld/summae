@@ -1,0 +1,91 @@
+{
+  "fixture": "account-lock-and-unlock",
+  "description": "F-CORE-033: a locked account can be unlocked again. `lockAccount` had no counterpart, so a mis-clicked lock could only be repaired by abandoning the account and opening a second one under a new number — which leaves the old one in the chart forever and moves nothing that was posted on it. The question that decided this was whether the irreversibility was LAW: it is not. What the German rules protect against unrecognisable change are postings; for master data they ask that the change be logged, which the audit trail does in both directions — and no other jurisdiction answers it differently either, so nothing about it belongs in a pack. What the lock protects it keeps protecting: while it is locked the account refuses postings, and unlocking changes nothing about the past — every posting ever made on it stays exactly where it is. Both directions are in the trail, as `locked` and `unlocked` with the status diff, which is what makes the sequence readable afterwards.",
+  "covers": ["F-CORE-033", "F-CORE-014"],
+  "setup": {
+    "tenant": { "name": "Sperre GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "6800", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "ER-2", "voucherDate": "2026-03-20" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "lockAccount",
+      "input": { "number": "6800" },
+      "expect": { "result": { "number": "6800", "status": "locked" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01", "voucherId": "$V1", "text": "Bürobedarf auf gesperrtes Konto",
+        "lines": [
+          { "account": "6800", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "error": "E_ACCOUNT_LOCKED",
+        "comment": "The lock has teeth while it lasts — that is what it is for."
+      }
+    },
+    {
+      "op": "unlockAccount",
+      "input": { "number": "6800", "actor": "bruce" },
+      "expect": { "result": { "number": "6800", "status": "active" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-20", "voucherId": "$V2", "text": "Bürobedarf nach Entsperrung",
+        "lines": [
+          { "account": "6800", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Posting again is exactly what unlocking permits, and the only thing it permits.",
+        "result": { "sequenceNumber": 1 }
+      }
+    },
+    {
+      "op": "unlockAccount",
+      "input": { "number": "9999" },
+      "expect": {
+        "error": "E_ACCOUNT_UNKNOWN",
+        "details": { "number": "9999" },
+        "comment": "Same refusal as lockAccount: an account that does not exist cannot be unlocked into existence."
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "accounts",
+      "params": {},
+      "expect": {
+        "comment": "The read side says which state the account is in now — before the `accounts` projection existed, the only honest test for a lock was to post into it and read the refusal.",
+        "accounts": [
+          { "number": "1200", "status": "active" },
+          { "number": "6800", "status": "active" }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": {},
+      "expect": {
+        "comment": "Both directions with their status diff, and the actor as supplied. This is the part the law actually asks for on master data: not that the change be impossible, but that it be traceable.",
+        "records": [
+          { "objectType": "account", "action": "locked", "actor": "system", "changes": { "status": { "from": "active", "to": "locked" } } },
+          { "objectType": "account", "action": "unlocked", "actor": "bruce", "changes": { "status": { "from": "locked", "to": "active" } } },
+          { "objectType": "journalEntry", "action": "created" }
+        ]
+      }
+    }
+  ]
+}

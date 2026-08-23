@@ -7,6 +7,7 @@ namespace Summae\Core\Tests\Composition;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Summae\Core\Composition\TenantOperations;
+use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Substrate\FixedClock;
@@ -52,6 +53,9 @@ final class AuditTrailContractTest extends TestCase
         // under test.
         $tenant->assetService->setRuleModule([
             'usefulLife' => [['assetClass' => 'machinery', 'months' => 60]],
+            // The allowance the asset operations need before they can be audited at all: an
+            // elected special depreciation needs a declared one to draw on.
+            'specialDepreciation' => [['validFrom' => '2024-01-01', 'validTo' => null, 'rate' => '40.00', 'years' => 5]],
             'assetAccounts' => [
                 'acquisitionCounterAccount' => '1200',
                 'depreciationExpenseAccount' => '4830',
@@ -119,6 +123,9 @@ final class AuditTrailContractTest extends TestCase
         // --- ledger ---------------------------------------------------------
         yield 'createAccount' => ['createAccount', 'account', 'created'];
         yield 'lockAccount' => ['lockAccount', 'account', 'locked'];
+        yield 'unlockAccount' => ['unlockAccount', 'account', 'unlocked'];
+        yield 'defineDimensionType' => ['defineDimensionType', 'dimensionType', 'created'];
+        yield 'defineDimensionValue' => ['defineDimensionValue', 'dimensionValue', 'created'];
         yield 'post' => ['post', 'journalEntry', 'created'];
         yield 'correct' => ['correct', 'journalEntry', 'corrected'];
         yield 'finalize' => ['finalize', 'journalEntry', 'finalized'];
@@ -144,6 +151,9 @@ final class AuditTrailContractTest extends TestCase
         yield 'importChartOfAccounts' => ['importChartOfAccounts', 'account', 'created'];
         yield 'acquireAsset' => ['acquireAsset', 'asset', 'acquired'];
         yield 'disposeAsset' => ['disposeAsset', 'asset', 'disposed'];
+        yield 'writeDownAsset' => ['writeDownAsset', 'asset', 'writtenDown'];
+        yield 'bookSpecialDepreciation' => ['bookSpecialDepreciation', 'asset', 'specialDepreciationBooked'];
+        yield 'reportAssetUsage' => ['reportAssetUsage', 'asset', 'usageReported'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
         yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
         yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
@@ -163,11 +173,44 @@ final class AuditTrailContractTest extends TestCase
         ];
     }
 
+    /**
+     * The asset most of the asset cases need — one place, so a changed input shape moves once.
+     *
+     * @param array<string, mixed> $extra
+     */
+    private function acquire(TenantOperations $ops, array $extra = []): string
+    {
+        $voucherId = $this->seed($ops);
+        $ops->execute('createAccount', ['number' => '0400', 'name' => 'Maschinen', 'type' => 'asset']);
+        $ops->execute('createAccount', ['number' => '4830', 'name' => 'AfA', 'type' => 'expense']);
+        /** @var array<string, mixed> $asset */
+        $asset = $ops->execute('acquireAsset', array_merge($this->assetInput($voucherId), $extra));
+        $assetId = $asset['id'] ?? null;
+        self::assertIsString($assetId);
+
+        return $assetId;
+    }
+
     private function runOperation(TenantOperations $ops, string $op): void
     {
         switch ($op) {
             case 'createAccount':
                 $ops->execute('createAccount', ['number' => '1200', 'name' => 'Bank', 'type' => 'asset', 'subtype' => 'bank']);
+
+                return;
+            case 'unlockAccount':
+                $this->seed($ops);
+                $ops->execute('lockAccount', ['number' => '4930']);
+                $ops->execute('unlockAccount', ['number' => '4930']);
+
+                return;
+            case 'defineDimensionType':
+                $ops->execute('defineDimensionType', ['code' => 'costCenter']);
+
+                return;
+            case 'defineDimensionValue':
+                $ops->execute('defineDimensionType', ['code' => 'costCenter']);
+                $ops->execute('defineDimensionValue', ['type' => 'costCenter', 'code' => 'K100']);
 
                 return;
             case 'lockAccount':
@@ -333,6 +376,34 @@ final class AuditTrailContractTest extends TestCase
                 $ops->execute('disposeAsset', ['assetId' => $assetId, 'disposedOn' => '2026-06-30', 'voucherId' => $voucherId]);
 
                 return;
+            case 'writeDownAsset':
+                $ops->execute('writeDownAsset', [
+                    'assetId' => $this->acquire($ops),
+                    'amount' => ['amount' => '1000.00', 'currency' => 'EUR'],
+                    'date' => '2026-06-30',
+                    'reason' => 'Wasserschaden',
+                ]);
+
+                return;
+            case 'bookSpecialDepreciation':
+                $ops->execute('bookSpecialDepreciation', [
+                    'assetId' => $this->acquire($ops, ['specialDepreciation' => true]),
+                    'fiscalYear' => 2026,
+                    'amount' => ['amount' => '500.00', 'currency' => 'EUR'],
+                ]);
+
+                return;
+            case 'reportAssetUsage':
+                $ops->execute('reportAssetUsage', [
+                    'assetId' => $this->acquire($ops, [
+                        'totalUnits' => 100000,
+                        'depreciationMethod' => 'units_of_production',
+                    ]),
+                    'fiscalYear' => 2026,
+                    'units' => 10000,
+                ]);
+
+                return;
             case 'runDepreciation':
                 $this->seed($ops);
                 $ops->execute('runDepreciation', ['fiscalYear' => 2026, 'period' => 12]);
@@ -409,14 +480,12 @@ final class AuditTrailContractTest extends TestCase
         // this fails. `expandTax` is listed as read-only — it computes and changes nothing.
         // `allocate` distributes an amount by largest remainder and returns the parts —
         // pure computation, no journal effect (see the dispatcher). Nothing to log.
+        // Taken from the PUBLISHED surface rather than from a list of its own. A hand-kept copy is
+        // a third place to forget an operation, and it had already fallen behind by seven names:
+        // the ones the dispatcher routed without publishing (F-14) were mutating, unlisted here,
+        // and therefore exempt from the completeness check without anyone deciding that.
         $readOnly = ['expandTax', 'allocate'];
-        $mutating = array_values(array_diff([
-            'expandTax', 'setTaxProfile', 'postVoucher', 'createVoucher', 'post', 'correct',
-            'finalize', 'reverse', 'settle', 'closePeriod', 'reopenPeriod', 'closeFiscalYear',
-            'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
-            'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
-            'releaseCosting', 'lockAccount', 'importChartOfAccounts', 'importMapping',
-        ], $readOnly));
+        $mutating = array_values(array_diff(SystemDescriptionProjection::API_OPERATIONS, $readOnly));
 
         $declared = [];
         foreach (self::auditedOperations() as $case) {

@@ -22,6 +22,23 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **`unlockAccount`** (F-CORE-033) — `lockAccount` had no counterpart, so a mis-clicked lock could
+  only be repaired by abandoning the account and opening a second one under a new number, leaving
+  the old one in the chart forever and moving nothing that was posted on it. The question that
+  decided this was whether the irreversibility was *law*: it is not. What the German rules protect
+  against unrecognisable change are **postings**; for master data they ask that the change be
+  *logged* — which the audit trail does, in both directions, and no other jurisdiction answers it
+  differently either, so nothing about it belongs in a pack. The lock keeps its teeth while it
+  lasts, and unlocking changes nothing about the past. Both directions are audited (`locked` /
+  `unlocked` with the status diff).
+
+  Found on the way, and fixed with it: `systemDescription` under-reported what the audit trail
+  records — five asset actions and both dimension object types were missing from
+  `auditTrail.events`, so the description a Verfahrensdokumentation quotes claimed less than the
+  software does. And the audit-completeness guard kept its own hand-written list of mutating
+  operations, which had fallen behind by the same seven names as the published surface; it now
+  reads `API_OPERATIONS` and covers all 32.
+
 - **Partner master data can be corrected, not only entered** (F-CORE-032). Three gaps that only add
   up once a screen maintains partners: `accountNumbers` and `address` were create-only, so a wrong
   account link was permanent — the partner had to be abandoned and recreated under a new id while

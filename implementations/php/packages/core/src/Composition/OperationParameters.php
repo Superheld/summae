@@ -94,6 +94,10 @@ final class OperationParameters
             'number' => ['type' => 'string', 'required' => true],
             'actor' => ['type' => 'string'],
         ],
+        'unlockAccount' => [
+            'number' => ['type' => 'string', 'required' => true],
+            'actor' => ['type' => 'string'],
+        ],
         'importChartOfAccounts' => [
             'rows' => ['type' => 'array', 'required' => true],
             'format' => ['type' => 'string', 'acceptedWithoutEffect' => true],

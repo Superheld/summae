@@ -836,6 +836,20 @@ Locks an account (`active` → `locked`); afterwards `E_ACCOUNT_LOCKED` on `post
 `number` (yes). Output: serialized account with `status:"locked"`. Error:
 `E_ACCOUNT_UNKNOWN`.
 
+#### unlockAccount
+
+The way back (`locked` → `active`). `number` (yes). Output: serialized account
+with `status:"active"`. Error: `E_ACCOUNT_UNKNOWN`. Both directions are in the
+audit trail, as `locked` and `unlocked` with the status diff.
+
+**Unlocking changes nothing about the past.** A lock stops *new* postings; it
+never hid the old ones, and the account keeps every posting ever made on it.
+That is also why the operation exists at all: the irreversibility of a lock is
+not a legal requirement anywhere — what the law asks of master data is that the
+change be logged, which it is — so a mis-clicked lock should not have to be
+repaired by abandoning the account and opening a second one under a new number.
+Read the current status with the `accounts` projection (§ 7).
+
 #### createFiscalYear
 
 `year` (yes), `start` (yes), `end` (yes). Without explicit periods, 12 months.

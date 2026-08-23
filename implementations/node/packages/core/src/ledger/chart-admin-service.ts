@@ -90,6 +90,19 @@ export class ChartAdminService {
   }
 
   lockAccount(input: Record<string, unknown>): Account {
+    return this.setAccountStatus(input, 'locked');
+  }
+
+  /** The counterpart to `lockAccount` — see `Account.unlock` for why it is core mechanism. */
+  unlockAccount(input: Record<string, unknown>): Account {
+    return this.setAccountStatus(input, 'active');
+  }
+
+  /**
+   * Both directions in one place: the audit record is the whole point of the operation, and two
+   * copies of it would be two chances for one direction to record less than the other.
+   */
+  private setAccountStatus(input: Record<string, unknown>, target: 'locked' | 'active'): Account {
     const actor = this.audit.actorOf(input);
     const number = asString(input.number) ?? '';
     const account = this.accounts.byNumber(AccountNumber.of(number));
@@ -99,9 +112,10 @@ export class ChartAdminService {
     }
 
     const before = account.status();
-    account.lock();
+    if (target === 'locked') account.lock();
+    else account.unlock();
     this.accounts.save(account);
-    this.audit.record(actor, 'account', account.id, 'locked', {
+    this.audit.record(actor, 'account', account.id, target === 'locked' ? 'locked' : 'unlocked', {
       status: { from: before, to: account.status() },
     });
     return account;

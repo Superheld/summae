@@ -111,6 +111,27 @@ final readonly class ChartAdminService
     /** @param array<string, mixed> $input */
     public function lockAccount(array $input): Account
     {
+        return $this->setAccountStatus($input, AccountStatus::Locked);
+    }
+
+    /**
+     * The counterpart to lockAccount — see Account::unlock() for why it is core mechanism.
+     *
+     * @param array<string, mixed> $input
+     */
+    public function unlockAccount(array $input): Account
+    {
+        return $this->setAccountStatus($input, AccountStatus::Active);
+    }
+
+    /**
+     * Both directions in one place: the audit record is the whole point of the operation, and two
+     * copies of it would be two chances for one direction to record less than the other.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function setAccountStatus(array $input, AccountStatus $target): Account
+    {
         $actor = $this->audit->actorOf($input);
         $number = is_string($input['number'] ?? null) ? $input['number'] : '';
         $account = $this->accounts->byNumber(AccountNumber::of($number));
@@ -120,9 +141,13 @@ final readonly class ChartAdminService
         }
 
         $before = $account->status()->value;
-        $account->lock();
+        if ($target === AccountStatus::Locked) {
+            $account->lock();
+        } else {
+            $account->unlock();
+        }
         $this->accounts->save($account);
-        $this->audit->record($actor, 'account', $account->id, 'locked', [
+        $this->audit->record($actor, 'account', $account->id, $target === AccountStatus::Locked ? 'locked' : 'unlocked', [
             'status' => ['from' => $before, 'to' => $account->status()->value],
         ]);
 

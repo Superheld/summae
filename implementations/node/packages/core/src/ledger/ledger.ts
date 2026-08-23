@@ -379,6 +379,10 @@ export class Ledger {
     return this.chart.lockAccount(input);
   }
 
+  unlockAccount(input: Record<string, unknown>): Account {
+    return this.chart.unlockAccount(input);
+  }
+
   importChartOfAccounts(input: Record<string, unknown>): number {
     return this.chart.importChartOfAccounts(input);
   }
