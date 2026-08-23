@@ -24,7 +24,8 @@ document:
 Reproduce every ✅ in this document:
 
 ```bash
-make check && make fixtures        # PHP: PHPStan, unit + contract tests, conformance suite
+make check                         # PHP: PHPStan, unit + contract tests, conformance suite
+                                   # in-memory AND against the database adapter
 cd implementations/node && pnpm test && pnpm fixtures --strict
 make cross                         # both engines against one data set
 ```

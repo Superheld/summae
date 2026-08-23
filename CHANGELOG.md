@@ -10,6 +10,41 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
 
+## 0.10.1 — 2026-08-23
+
+One fix, and it is the kind that only shows up where it matters: **with a real database, three
+services wrote no audit records at all.**
+
+### Fixed
+
+- **`DatabaseTenantFactory` built the tax, asset and costing services without an audit writer.**
+  All three take it as an *optional* argument, so leaving it off compiled, ran, and produced a
+  tenant whose tax-profile changes, asset events and costing runs left no trace — while the
+  in-memory tenant, which every unit test and every default fixture run uses, recorded all of
+  them. The audit trail was thinner in exactly the setup you run in production, and nothing said
+  so. `auditLog` returned 4 records where 6 were expected.
+
+  This is GoBD-relevant: the trail is the centre of the immutability requirement, and "every
+  state-changing operation leaves a trace" is a ✅ row in the conformance document. It held for
+  the in-memory core and not for the adapter.
+
+- **`taxRoundingGranularity` could not be passed to the database factory at all.** A pack asking
+  for per-line rounding got per-voucher rounding as soon as it ran against a database — the two
+  setups would have computed different tax from the same input. The default is unchanged, so
+  nothing moves for a caller who does not pass it; what changes is that passing it is now
+  possible.
+
+### Changed
+
+- **`make check` now runs what CI runs.** It claimed to and did not: the conformance suite ran
+  in-memory only, and without `--strict`. The database run existed solely in the CI workflow, so
+  a defect living in an adapter's own wiring could not be seen locally — which is exactly how the
+  bug above survived. `make fixtures-db` is available on its own; `make fixtures` stays the quick
+  loop for development.
+
+  The lesson generalises beyond this bug: a fake-backed test cannot check what an adapter does
+  when it builds its own object graph.
+
 ## 0.10.0 — 2026-08-23
 
 A legal-conformance review against case law and current tax rules, then everything it found.
