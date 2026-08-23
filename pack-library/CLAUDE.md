@@ -19,7 +19,7 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `mapping` | **projection** (mappings) |
 | `accounts` | fills the (account-less) **substrate** account primitive |
 | `policy` | **parameters** (rounding/scale via `packPolicy`) |
-| *(`constraint` — still missing)* | constraint (today only generic in the core) |
+| `constraint` | **constraint** — today one predicate: `dimensionRules` (which accounts may not be posted without which dimension). Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
   **fails loudly** on missing/incoherent references (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).

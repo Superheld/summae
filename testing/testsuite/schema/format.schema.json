@@ -810,7 +810,8 @@
             "depreciation",
             "policy",
             "assetAccounts",
-            "productionCost"
+            "productionCost",
+            "constraint"
           ]
         },
         "version": {
@@ -829,7 +830,8 @@
               "assetAccounts",
               "policy",
               "depreciation",
-              "productionCost"
+              "productionCost",
+              "constraint"
             ]
           }
         },
@@ -1213,6 +1215,55 @@
       },
       "additionalProperties": false,
       "description": "data eines productionCost-Moduls (v0.6): je Kostenbestandteil, ob er in die Herstellungskosten MUSS (mandatory), DARF (optional, Wahlrecht des Bilanzierenden) oder NICHT DARF (forbidden). Die Summierung ist Kern-Mechanik und für jede Jurisdiktion dieselbe; diese Tabelle ist genau der Teil, der sich unterscheidet — Deutschland § 255 Abs. 2 HGB (Material- und Fertigungsgemeinkosten sowie fertigungsbedingter Werteverzehr Pflicht, allgemeine Verwaltung und freiwillige Sozialleistungen Wahlrecht, Forschung und Vertrieb verboten) gegen US-GAAP ASC 330 (full absorption, allgemeine Verwaltung dagegen Periodenaufwand). Ein Bestandteil, den die Tabelle nicht führt, ist E_PACK_INCOHERENT statt still mitgezählt oder still weggelassen — beides verschöbe die Bilanz."
+    },
+    "constraintData": {
+      "type": "object",
+      "required": [
+        "dimensionRules"
+      ],
+      "properties": {
+        "dimensionRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "accountRange",
+              "requiredDimension"
+            ],
+            "properties": {
+              "accountRange": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "requiredDimension": {
+                "type": "string",
+                "minLength": 1
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Heute genau ein Prädikat: dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend."
     }
   }
 }

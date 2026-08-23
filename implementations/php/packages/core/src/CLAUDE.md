@@ -31,7 +31,10 @@ Real persistence (`laravel`/`knex`) are **own packages** outside of `core`; in
   the **plugs** (data) live in `/pack-library/` and are injected:
   - **`Expansion/`** — intent → balanced postings (Tax · Assets · Costing · settle difference · reverse)
   - **`Projection/`** — journal → view (fold engines + mappings)
-  - **`Constraint/`** — predicate gates (still thin; third kind unfinished)
+  - **`Constraint/`** — predicate gates. Has a pack socket since 2026-08-23 (module kind `constraint`),
+    but exactly one predicate: `dimensionRules` (which accounts may not be posted without which
+    dimension). The shape is settled, the vocabulary is not — a pack still cannot express a rule about
+    a settlement or a deadline
 - **`Composition/`** — resolver · factory · tenant · dispatcher (dependency inversion)
 - **`Records/`** — vouchers/records (Voucher · OpenItem · Audit), **not** a policy kind
 - **`Partner/`** — supporting subdomain (master data), **not** a policy kind

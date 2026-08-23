@@ -140,3 +140,4 @@ xx-1-tax-perline-vs-pervoucher
 xx-2-allocate-scale3
 xx-3-purchase-no-input-tax
 xx-4-open-item-lifecycle-scale3
+xx-5-constraint-dimension-rule

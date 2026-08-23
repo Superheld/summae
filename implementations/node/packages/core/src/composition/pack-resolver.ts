@@ -18,7 +18,7 @@ import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -67,6 +67,7 @@ export interface ResolvedPack {
   assetAccounts: Record<string, unknown> | null;
   depreciation: Record<string, unknown> | null;
   productionCost: Record<string, unknown> | null;
+  dimensionRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
 }
@@ -156,6 +157,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let assetAccounts: Record<string, unknown> | null = null;
   let depreciation: Record<string, unknown> | null = null;
   let productionCost: Record<string, unknown> | null = null;
+  const dimensionRules: Record<string, unknown>[] = [];
   let packPolicyModule: Record<string, unknown> | null = null;
 
   for (const m of sorted) {
@@ -196,6 +198,13 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'productionCost':
         productionCost = m.data;
+        break;
+      case 'constraint':
+        // Constraints add up rather than replace: two modules may each contribute rules, and a later
+        // one silently winning would make the pack order significant.
+        for (const rule of Array.isArray(m.data.dimensionRules) ? m.data.dimensionRules : []) {
+          if (isRecord(rule)) dimensionRules.push(rule);
+        }
         break;
       case 'depreciation':
         depreciation = m.data;
@@ -283,6 +292,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     assetAccounts,
     depreciation,
     productionCost,
+    dimensionRules,
     packPolicy: effectivePolicy,
     profile,
   };
@@ -309,6 +319,8 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // Not spread like depreciation: the CostingService reads it under its own key, because
     // "treatments" is a word another module could plausibly want too.
     productionCost: isRecord(pack.productionCost) ? pack.productionCost : null,
+    // The first constraint plug: which accounts may not be posted without which dimension.
+    dimensionRules: Array.isArray(pack.dimensionRules) ? pack.dimensionRules : [],
     packPolicy: pack.packPolicy,
   };
 }
