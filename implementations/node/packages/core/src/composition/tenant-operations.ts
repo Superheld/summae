@@ -102,6 +102,10 @@ export class TenantOperations {
         ).import(input);
       case 'createPartner':
         return serialize(this.tenant.partnerService.create(input));
+      case 'deactivatePartner':
+        return serialize(this.tenant.partnerService.setStatus(input, 'inactive'));
+      case 'reactivatePartner':
+        return serialize(this.tenant.partnerService.setStatus(input, 'active'));
       case 'updatePartner':
         return serialize(this.tenant.partnerService.update(input));
       case 'acquireAsset':

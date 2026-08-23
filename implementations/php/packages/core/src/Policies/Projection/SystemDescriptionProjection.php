@@ -46,12 +46,13 @@ final readonly class SystemDescriptionProjection
      * @var list<string>
      */
     public const API_OPERATIONS = [
-        'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod', 'correct',
-        'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher', 'defineDimensionType',
-        'defineDimensionValue', 'disposeAsset', 'expandTax', 'finalize', 'importChartOfAccounts',
-        'importMapping', 'lockAccount', 'post', 'postVoucher', 'releaseCosting', 'reopenPeriod',
-        'reportAssetUsage', 'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme',
-        'setTaxProfile', 'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
+        'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
+        'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
+        'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
+        'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
+        'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
+        'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setTaxProfile',
+        'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
     ];
 
     /** @var list<string> */
@@ -137,7 +138,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'voucher', 'actions' => ['created']],
         ['objectType' => 'account', 'actions' => ['created', 'locked', 'unlocked']],
         ['objectType' => 'openItem', 'actions' => ['settled', 'cancelled']],
-        ['objectType' => 'partner', 'actions' => ['created', 'updated']],
+        ['objectType' => 'partner', 'actions' => ['created', 'updated', 'deactivated', 'reactivated']],
         ['objectType' => 'fiscalYear', 'actions' => ['created', 'closed']],
         ['objectType' => 'period', 'actions' => ['closed', 'reopened']],
         ['objectType' => 'taxProfile', 'actions' => ['changed']],

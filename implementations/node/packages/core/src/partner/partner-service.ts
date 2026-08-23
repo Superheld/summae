@@ -82,6 +82,27 @@ export class PartnerService {
     return partner;
   }
 
+  /**
+   * Marks a partner as no longer in use, and takes it back (F-CORE-034).
+   *
+   * Both directions in one place, like the account lock, because the audit record is the point of
+   * the operation and two copies of it would be two chances for one direction to record less.
+   */
+  setStatus(input: Record<string, unknown>, target: 'active' | 'inactive'): Partner {
+    const partner = this.require(input.partnerId);
+    const before = partner.status();
+    if (target === 'inactive') partner.deactivate();
+    else partner.reactivate();
+
+    if (before !== partner.status()) {
+      this.partners.save(partner);
+      this.recordAudit(input, target === 'inactive' ? 'deactivated' : 'reactivated', partner.id, {
+        status: { from: before, to: partner.status() },
+      });
+    }
+    return partner;
+  }
+
   require(partnerId: unknown): Partner {
     let partner: Partner | null = null;
     if (typeof partnerId === 'string' && partnerId !== '') {

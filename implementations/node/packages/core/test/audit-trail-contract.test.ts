@@ -270,6 +270,25 @@ const AUDITED: readonly Case[] = [
       ops.execute('updatePartner', { partnerId: String(partner.id), name: 'Kunde SE' });
     },
   },
+  {
+    op: 'deactivatePartner',
+    objectType: 'partner',
+    action: 'deactivated',
+    run: (ops) => {
+      const partner = ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }) as Record<string, unknown>;
+      ops.execute('deactivatePartner', { partnerId: String(partner.id) });
+    },
+  },
+  {
+    op: 'reactivatePartner',
+    objectType: 'partner',
+    action: 'reactivated',
+    run: (ops) => {
+      const partner = ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }) as Record<string, unknown>;
+      ops.execute('deactivatePartner', { partnerId: String(partner.id) });
+      ops.execute('reactivatePartner', { partnerId: String(partner.id) });
+    },
+  },
   // --- vouchers, settlements, assets, costing ------------------------------
   {
     op: 'createVoucher',

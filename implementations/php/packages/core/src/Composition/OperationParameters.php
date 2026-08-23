@@ -157,6 +157,14 @@ final class OperationParameters
             'address' => ['type' => 'object'],
             'actor' => ['type' => 'string'],
         ],
+        'deactivatePartner' => [
+            'partnerId' => ['type' => 'string', 'required' => true],
+            'actor' => ['type' => 'string'],
+        ],
+        'reactivatePartner' => [
+            'partnerId' => ['type' => 'string', 'required' => true],
+            'actor' => ['type' => 'string'],
+        ],
         'updatePartner' => [
             'partnerId' => ['type' => 'string', 'required' => true],
             'name' => ['type' => 'string'],

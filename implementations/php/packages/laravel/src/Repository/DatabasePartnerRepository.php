@@ -83,6 +83,8 @@ final readonly class DatabasePartnerRepository implements PartnerRepository
             is_int($data['paymentTermsDays'] ?? null) ? $data['paymentTermsDays'] : null,
             $accountNumbers,
             $address,
+            // A partner written before the status existed rehydrates as active — which is what it was.
+            ($data['status'] ?? null) === 'inactive' ? 'inactive' : 'active',
         );
     }
 

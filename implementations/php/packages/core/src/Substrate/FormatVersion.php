@@ -19,5 +19,5 @@ namespace Summae\Core\Substrate;
  */
 final class FormatVersion
 {
-    public const string CURRENT = '0.6';
+    public const string CURRENT = '0.7';
 }

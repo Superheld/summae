@@ -39,6 +39,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-031 | Eine Projektion journal MUSS das Journal gefenstert (fiscalYear + fromDate/toDate) und seitenweise (offset/limit) liefern — vollständig je Buchung (alle Zeilen, Kontonummer UND -name), ohne Hashes. Blättern zählt BUCHUNGEN, nicht Zeilen; `count` nennt die Gesamtzahl im Fenster vor dem Blättern. | 14 |
 | F-CORE-032 | Partner-Stammdaten MÜSSEN korrekt anlegbar UND korrigierbar sein: `name` ist Pflicht (leer/whitespace ⇒ `E_INPUT_INVALID`), `kind` nur `customer`/`supplier`/`both`, `accountNumbers`/`address` per updatePartner änderbar (ersetzend), `paymentTermsDays: null` löscht den Zahlungsterm wie `vatId: null` die USt-IdNr. Kein deletePartner — die Bücher behalten, worauf sie verweisen. | 21 |
 | F-CORE-033 | Zu `lockAccount` MUSS es `unlockAccount` geben (`locked` → `active`), beide mit Audit-Eintrag (`locked`/`unlocked` + Status-Diff). Die Unumkehrbarkeit einer Kontosperre ist **kein** Rechtserfordernis — geschützt wird die Buchung, bei Stammdaten verlangt die GoBD nur die Protokollierung; deshalb Substrat und nicht Pack. | — |
+| F-CORE-034 | Ein Partner MUSS als „nicht mehr in Gebrauch" markierbar und wieder aktivierbar sein (`deactivatePartner`/`reactivatePartner`, `status` am Datensatz, beide Richtungen im Audit-Trail). **Zustand, keine Kontrolle:** ein inaktiver Partner weist nichts ab — ob ein Picker ihn noch anbietet, ist App-Workflow. Ersetzt kein `deletePartner`: die Bücher behalten, worauf sie verweisen. | 21 |
 
 ## F-TAX — Steuern
 

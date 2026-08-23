@@ -339,9 +339,13 @@ want to serve, you create one module:
 | depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
 | rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
 
+`formatVersion` names the **data format the file was authored against**, not the pack's own
+version — a shipped module may declare an older one and stay perfectly valid, because a module
+carries nothing the later formats changed. Write the current one (`0.7`) in a new file.
+
 Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 ```json
-{ "formatVersion": "0.6", "id": "de-ust", "kind": "tax", "version": "2026.1",
+{ "formatVersion": "0.7", "id": "de-ust", "kind": "tax", "version": "2026.1",
   "contributes": ["taxCodes"], "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": { "taxCodes": [ { "code": "USt19", "versions": [
     { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard",
@@ -351,8 +355,8 @@ Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
 `packPolicy` + `defaults`:
 ```json
-{ "formatVersion": "0.6", "id": "de", "version": "2026.3",
-  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.2" },
+{ "formatVersion": "0.7", "id": "de", "version": "2026.4",
+  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.3" },
                { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
   "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
   "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
@@ -968,7 +972,22 @@ which made a wrong account link permanent — the only way back was a new partne
 under a new id, while every open item stayed on the old one.
 
 There is deliberately **no `deletePartner`**: books keep what they referenced,
-and an id that open items point at must not vanish.
+and an id that open items point at must not vanish. What a partner does have is
+a status — see `deactivatePartner`.
+
+#### deactivatePartner / reactivatePartner
+
+`partnerId` (yes). Output: serialized partner with `status:"inactive"` resp.
+`"active"`. Error: `E_PARTNER_UNKNOWN`. Both are audited (`deactivated` /
+`reactivated` with the status diff).
+
+**A state, not a control.** An inactive partner refuses nothing: its open items
+still settle, its vouchers still read, and a posting that names it is not
+rejected. Whether a picker still offers it is your workflow — the library
+records the fact, the application decides what follows from it. That is the
+difference to `lockAccount`, which does refuse postings, and the two words are
+different on purpose. The status is part of the partner record and of the
+`journalExport` partner stream (data format 0.7).
 
 ### 6.4 Assets & cost accounting
 
@@ -1682,7 +1701,7 @@ tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.6"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.7"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
@@ -1773,7 +1792,7 @@ verified. Binding it to an authenticated identity is your application's job.
 
 ```json
 // params {}
-{ "formatVersion": "0.6", "pack": { "id": "de", "version": "2026.4" },
+{ "formatVersion": "0.7", "pack": { "id": "de", "version": "2026.4" },
   "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
                     "enforcedBy": "No delete or update path exists on the journal repository." } ],
   "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }

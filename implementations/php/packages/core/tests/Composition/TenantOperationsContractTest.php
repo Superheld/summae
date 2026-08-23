@@ -32,7 +32,7 @@ final class TenantOperationsContractTest extends TestCase
         'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
         'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
         'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
-        'defineDimensionType', 'defineDimensionValue',
+        'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
     ];
 
     /** @var list<string> */
