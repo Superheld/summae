@@ -1,0 +1,258 @@
+{
+  "fixture": "units-of-production",
+  "description": "Depreciation by output rather than by time. An asset that wears by use — a lorry, a press, a copier — may in some jurisdictions be written off along its actual output, and that changes what a plan can be: time-based depreciation knows at acquisition what every future period will take, output-based depreciation cannot, because the number comes from goods movements and meter readings that are not in the books. So this asset has no schedule at all and the yearly run passes it by; the caller reports the meter and the core does the arithmetic. A 120,000.00 lorry expected to run 300,000 km takes 36,000.00 for its first 90,000 km, then 44,000.00 for the next 110,000. The arithmetic is CUMULATIVE, which is the part worth pinning: each report splits the cost between what the asset has now given and what it has not, then books the difference against what is already written off. Period-by-period rounding would drift and leave a stray cent on a fully used-up asset; this way the report that reaches the total output lands on the cost exactly. Outliving the estimate is not an error — the third report claims 150,000 km where only 100,000 were left — but there is no more cost to write off, so the booking is capped at the book value and the answer says `capped`. After that the asset is done, and further output is refused rather than silently booked as nothing.",
+  "covers": [
+    "F-AST-002"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "0350",
+        "name": "Fuhrpark",
+        "type": "asset",
+        "subtype": "fixed_asset"
+      },
+      {
+        "number": "4830",
+        "name": "AfA",
+        "type": "expense"
+      },
+      {
+        "number": "4855",
+        "name": "GWG-Sofortabschreibung",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      },
+      {
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31"
+      },
+      {
+        "year": 2028,
+        "start": "2028-01-01",
+        "end": "2028-12-31"
+      },
+      {
+        "year": 2029,
+        "start": "2029-01-01",
+        "end": "2029-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "ER-LKW",
+        "voucherDate": "2026-01-01"
+      }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [
+        {
+          "validFrom": "2018-01-01",
+          "validTo": null,
+          "immediateMax": "800.00",
+          "poolMin": "250.01",
+          "poolMax": "1000.00",
+          "poolYears": 5,
+          "poolReducedOnDisposal": false,
+          "poolProRataInFirstYear": false
+        }
+      ],
+      "usefulLife": [
+        {
+          "assetClass": "truck",
+          "months": 108
+        }
+      ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "gwgExpenseAccount": "4855"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Sattelzug",
+        "assetClass": "truck",
+        "assetAccount": "0350",
+        "acquisitionCost": {
+          "amount": "120000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "gwgChoice": "capitalize",
+        "depreciationMethod": "units_of_production"
+      },
+      "expect": {
+        "comment": "Ohne erwartete Gesamtleistung gibt es nichts, woran die Abschreibung hängt",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Sattelzug",
+        "assetClass": "truck",
+        "assetAccount": "0350",
+        "acquisitionCost": {
+          "amount": "120000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "gwgChoice": "capitalize",
+        "totalUnits": 300000
+      },
+      "expect": {
+        "comment": "Gesamtleistung ohne das Verfahren hätte keine Wirkung — deshalb abgelehnt statt ignoriert",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Sattelzug",
+        "assetClass": "truck",
+        "assetAccount": "0350",
+        "acquisitionCost": {
+          "amount": "120000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "gwgChoice": "capitalize",
+        "depreciationMethod": "units_of_production",
+        "totalUnits": 300000
+      },
+      "expect": {
+        "result": {
+          "route": "capitalize",
+          "depreciationMethod": "units_of_production",
+          "id": "$A1"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "Der Jahreslauf hat hier nichts zu tun — es gibt keinen Plan",
+        "result": {
+          "alreadyRun": true,
+          "entriesCreated": 0
+        }
+      }
+    },
+    {
+      "op": "reportAssetUsage",
+      "input": {
+        "assetId": "$A1",
+        "fiscalYear": 2026,
+        "units": 90000
+      },
+      "expect": {
+        "comment": "120.000,00 × 90.000/300.000 = 36.000,00",
+        "result": {
+          "amount": "36000.00",
+          "reportedUnits": 90000,
+          "capped": false,
+          "bookValue": "84000.00"
+        }
+      }
+    },
+    {
+      "op": "reportAssetUsage",
+      "input": {
+        "assetId": "$A1",
+        "fiscalYear": 2027,
+        "units": 110000
+      },
+      "expect": {
+        "comment": "Kumuliert 200.000 → Ziel 80.000,00, bereits gebucht 36.000,00 → 44.000,00",
+        "result": {
+          "amount": "44000.00",
+          "reportedUnits": 200000,
+          "capped": false,
+          "bookValue": "40000.00"
+        }
+      }
+    },
+    {
+      "op": "reportAssetUsage",
+      "input": {
+        "assetId": "$A1",
+        "fiscalYear": 2028,
+        "units": 150000
+      },
+      "expect": {
+        "comment": "Mehr Leistung als erwartet — kein Fehler, aber es ist nichts mehr abzuschreiben",
+        "result": {
+          "amount": "40000.00",
+          "reportedUnits": 300000,
+          "capped": true,
+          "bookValue": "0.00"
+        }
+      }
+    },
+    {
+      "op": "reportAssetUsage",
+      "input": {
+        "assetId": "$A1",
+        "fiscalYear": 2029,
+        "units": 5000
+      },
+      "expect": {
+        "comment": "Abgeschrieben ist abgeschrieben — eine stille 0,00-Buchung wäre die schlechtere Antwort",
+        "error": "E_INPUT_INVALID"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2028,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "0350",
+            "balance": "0.00"
+          },
+          {
+            "account": "1200",
+            "balance": "-120000.00"
+          },
+          {
+            "account": "4830",
+            "balance": "40000.00"
+          }
+        ]
+      }
+    }
+  ]
+}

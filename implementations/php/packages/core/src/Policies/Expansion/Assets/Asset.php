@@ -28,6 +28,8 @@ final class Asset implements \JsonSerializable
      */
     private bool $scheduleRevised = false;
 
+    private int $reportedUnits = 0;
+
     private bool $disposed = false;
 
     private ?CalendarDate $disposedOn = null;
@@ -92,7 +94,36 @@ final class Asset implements \JsonSerializable
          */
         public readonly ?Money $specialDepreciationBudget = null,
         public readonly ?int $specialDepreciationWindowEnd = null,
+        /**
+         * Total expected output of the asset, where depreciation follows use rather than time —
+         * kilometres for a lorry, operating hours for a press, copies for a machine.
+         *
+         * It changes what "a year" means. Time-based depreciation knows at acquisition what every
+         * future period will take; output-based depreciation cannot, because the number comes from
+         * outside the books. So there is no schedule to build and the yearly run has nothing to do
+         * here: usage is reported as it happens, and each report books the difference between what
+         * the asset has now given and what has already been written off.
+         */
+        public readonly ?int $totalUnits = null,
     ) {
+    }
+
+    /** Units reported so far — never more than `totalUnits`, which is what caps the last booking. */
+    public function reportedUnits(): int
+    {
+        return $this->reportedUnits;
+    }
+
+    public function recordUsage(CalendarDate $date, Money $amount, Uuid $entryId, int $unitsAfter): void
+    {
+        $this->reportedUnits = $unitsAfter;
+        $this->depreciations[] = [
+            'planMonth' => 0,
+            'date' => $date,
+            'amount' => $amount,
+            'entryId' => $entryId,
+            'kind' => 'usage',
+        ];
     }
 
     /** What is left of the additional allowance. */
@@ -222,8 +253,11 @@ final class Asset implements \JsonSerializable
         bool $scheduleRevised = false,
         ?Money $specialDepreciationBudget = null,
         ?int $specialDepreciationWindowEnd = null,
+        ?int $totalUnits = null,
+        int $reportedUnits = 0,
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod, $specialDepreciationBudget, $specialDepreciationWindowEnd);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod, $specialDepreciationBudget, $specialDepreciationWindowEnd, $totalUnits);
+        $asset->reportedUnits = $reportedUnits;
         // A booking written before write-downs existed is a planned one — that is what it was.
         $asset->depreciations = array_map(
             static fn (array $booking): array => $booking + ['kind' => 'planned'],

@@ -88,6 +88,8 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             'scheduleRevised' => $asset->scheduleWasRevised(),
             'specialDepreciationBudget' => $asset->specialDepreciationBudget?->jsonSerialize(),
             'specialDepreciationWindowEnd' => $asset->specialDepreciationWindowEnd,
+            'totalUnits' => $asset->totalUnits,
+            'reportedUnits' => $asset->reportedUnits(),
         ];
     }
 
@@ -160,6 +162,8 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             ($data['scheduleRevised'] ?? false) === true,
             self::optionalMoney($data['specialDepreciationBudget'] ?? null),
             is_int($data['specialDepreciationWindowEnd'] ?? null) ? $data['specialDepreciationWindowEnd'] : null,
+            is_int($data['totalUnits'] ?? null) ? $data['totalUnits'] : null,
+            is_int($data['reportedUnits'] ?? null) ? $data['reportedUnits'] : 0,
         );
     }
 

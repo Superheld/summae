@@ -1013,6 +1013,36 @@ its term, and only the proceeds are booked.
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
 
+#### reportAssetUsage
+
+Depreciation by output. `assetId` (yes), `fiscalYear` (yes), `units` (yes, a whole
+number ≥ 1 — the output *since the last report*), `voucherId` (no — a machine voucher
+`LAFA-…` is created otherwise). Output: `{ "assetId", "entryId", "amount",
+"reportedUnits", "totalUnits", "capped", "bookValue" }`. Errors: `E_ASSET_UNKNOWN`,
+`E_ASSET_DISPOSED`, `E_INPUT_INVALID` (the asset is not depreciated by output, is
+already fully written off, or the report writes off nothing).
+
+Chosen at acquisition with `"depreciationMethod": "units_of_production"` and
+`"totalUnits"` (the expected total output — kilometres, operating hours, copies).
+Either without the other is refused rather than ignored.
+
+```json
+{ "assetId": "…", "fiscalYear": 2026, "units": 90000 }
+```
+
+Such an asset has **no schedule**, and `runDepreciation` passes it by. Time-based
+depreciation knows at acquisition what every future period will take; this one cannot,
+because the number comes from goods movements and meter readings that are not in the
+books.
+
+The arithmetic is cumulative: each report splits the acquisition cost between what the
+asset has now given and what it has not, and books the difference against what is
+already written off. Computing each period on its own would let rounding drift and
+leave a stray cent on a fully used-up asset; this way the report that reaches the total
+output lands on the cost exactly. Outliving the estimate is not an error — the booking
+is capped at the book value and `capped` says so — but once the asset is written off,
+further output is refused rather than booked as a silent `0.00`.
+
 #### bookSpecialDepreciation
 
 An additional allowance next to the ordinary plan. `assetId` (yes), `fiscalYear`

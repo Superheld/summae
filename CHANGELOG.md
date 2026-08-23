@@ -83,6 +83,19 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **`reportAssetUsage` — depreciation by output (`units_of_production`).** An asset that wears by use
+  rather than by time — a lorry, a press, a copier — may in some jurisdictions be written off along
+  its actual output, and that changes what a plan can be: the number comes from goods movements and
+  meter readings that are not in the books. Such an asset has no schedule and `runDepreciation` passes
+  it by; the caller reports the meter instead.
+
+  The arithmetic is cumulative, which is the part that matters. Each report splits the cost between
+  what the asset has now given and what it has not, and books the difference against what is already
+  written off — so the report that reaches the total output lands on the cost exactly, where
+  period-by-period rounding would drift. Outliving the estimate is not an error: the booking is capped
+  at the book value and says `capped`. Once written off, further output is refused rather than booked
+  as a silent `0.00`.
+
 - **`bookSpecialDepreciation` — an additional allowance next to the plan.** Some jurisdictions let a
   business deduct an extra share of an asset's cost within its first few years, freely distributed
   over them (Germany: § 7g Abs. 5 EStG, 20 % until 2023 and 40 % from 2024, over five years — now in

@@ -97,6 +97,8 @@ export class TenantOperations {
         return this.tenant.assetService.acquire(input);
       case 'disposeAsset':
         return this.tenant.assetService.dispose(input);
+      case 'reportAssetUsage':
+        return this.tenant.assetService.reportAssetUsage(input);
       case 'bookSpecialDepreciation':
         return this.tenant.assetService.bookSpecialDepreciation(input);
       case 'writeDownAsset':

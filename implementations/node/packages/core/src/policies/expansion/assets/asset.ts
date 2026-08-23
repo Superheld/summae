@@ -38,6 +38,8 @@ export class Asset {
    */
   private scheduleRevised = false;
 
+  private reportedUnitsValue = 0;
+
   private disposed = false;
   private disposedOn: CalendarDate | null = null;
 
@@ -96,7 +98,28 @@ export class Asset {
      */
     readonly specialDepreciationBudget: Money | null = null,
     readonly specialDepreciationWindowEnd: number | null = null,
+    /**
+     * Total expected output of the asset, where depreciation follows use rather than time —
+     * kilometres for a lorry, operating hours for a press, copies for a machine.
+     *
+     * It changes what "a year" means. Time-based depreciation knows at acquisition what every future
+     * period will take; output-based depreciation cannot, because the number comes from outside the
+     * books. So there is no schedule to build and the yearly run has nothing to do here: usage is
+     * reported as it happens, and each report books the difference between what the asset has now
+     * given and what has already been written off.
+     */
+    readonly totalUnits: number | null = null,
   ) {}
+
+  /** Units reported so far — never more than `totalUnits`, which is what caps the last booking. */
+  reportedUnits(): number {
+    return this.reportedUnitsValue;
+  }
+
+  recordUsage(date: CalendarDate, amount: Money, entryId: Uuid, unitsAfter: number): void {
+    this.reportedUnitsValue = unitsAfter;
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'usage' });
+  }
 
   /** What is left of the additional allowance. */
   specialDepreciationRemaining(): Money | null {
@@ -254,6 +277,8 @@ export class Asset {
     scheduleRevised = false,
     specialDepreciationBudget: Money | null = null,
     specialDepreciationWindowEnd: number | null = null,
+    totalUnits: number | null = null,
+    reportedUnits = 0,
   ): Asset {
     const asset = new Asset(
       id,
@@ -271,7 +296,9 @@ export class Asset {
       depreciationMethod,
       specialDepreciationBudget,
       specialDepreciationWindowEnd,
+      totalUnits,
     );
+    asset.reportedUnitsValue = reportedUnits;
     for (const booking of depreciations) {
       asset.depreciations.push({
         planMonth: booking.planMonth,
