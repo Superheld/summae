@@ -93,6 +93,17 @@ final class AssetService
 
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
         $explicitLife = self::parseUsefulLifeMonths($input['usefulLifeMonths'] ?? null);
+        $method = self::parseMethod($input['depreciationMethod'] ?? null);
+
+        // Same reasoning as the useful life: a method cannot apply to a route that has no schedule
+        // of its own, and accepting it in silence would suggest it took effect.
+        if ($method !== 'straight_line' && $route !== AssetRoute::Capitalize) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "%s"', $route->value),
+                ['depreciationMethod' => $method, 'route' => $route->value],
+            );
+        }
 
         // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
         // immediately expensed one has no schedule at all, so a life given with either route
@@ -114,7 +125,9 @@ final class AssetService
             // however complete the table is — and without this parameter an asset class missing from
             // the pack was simply unusable.
             $usefulLifeMonths = $explicitLife ?? $this->usefulLifeMonths($assetClass);
-            $schedule = $cost->allocateEvenly($usefulLifeMonths);
+            $schedule = $method === 'declining_balance'
+                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn)
+                : $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
             // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
@@ -144,6 +157,7 @@ final class AssetService
             $voucherId,
             $dimensions,
             $this->planStartFor($route, $acquiredOn),
+            $method,
         );
 
         $this->assets->add($asset);
@@ -349,14 +363,25 @@ final class AssetService
             return [[], Money::zero($this->baseCurrency)];
         }
 
-        $years = array_keys($monthsByYear);
-        $weights = array_map(static fn (int $year): int => count($monthsByYear[$year]), $years);
-        $yearAmounts = $asset->acquisitionCost->allocate(...$weights);
-        $yearIndex = array_search($fiscalYear, $years, true);
-        if ($yearIndex === false) {
-            return [[], Money::zero($this->baseCurrency)];
+        if ($asset->scheduleIsAuthoritative()) {
+            // A declining-balance plan cannot be re-derived from month counts — each year depends on
+            // what the previous one left. The schedule IS the plan, so the year's target is simply
+            // the sum of its months. Straight line keeps re-allocating, which is what pins its
+            // rounding to the values every existing fixture expects.
+            $yearAmount = Money::zero($this->baseCurrency);
+            foreach ($monthsByYear[$fiscalYear] as $planMonth) {
+                $yearAmount = $yearAmount->add($asset->monthlySchedule[$planMonth - 1]);
+            }
+        } else {
+            $years = array_keys($monthsByYear);
+            $weights = array_map(static fn (int $year): int => count($monthsByYear[$year]), $years);
+            $yearAmounts = $asset->acquisitionCost->allocate(...$weights);
+            $yearIndex = array_search($fiscalYear, $years, true);
+            if ($yearIndex === false) {
+                return [[], Money::zero($this->baseCurrency)];
+            }
+            $yearAmount = $yearAmounts[$yearIndex];
         }
-        $yearAmount = $yearAmounts[$yearIndex];
 
         $openMonths = [];
         $bookedAmount = Money::zero($this->baseCurrency);
@@ -654,6 +679,120 @@ final class AssetService
         $year = $this->fiscalYears->forDate($date);
 
         return $year === null ? $date->year() : $year->year;
+    }
+
+    /**
+     * The depreciation method the caller asked for. Straight line when absent — the method every
+     * jurisdiction allows and the only one this core knew until 2026-08-23.
+     */
+    private static function parseMethod(mixed $value): string
+    {
+        if ($value === null) {
+            return 'straight_line';
+        }
+
+        if ($value !== 'straight_line' && $value !== 'declining_balance') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+                ['depreciationMethod' => DomainError::rejectedValue($value)],
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * A declining-balance plan, with the switch to straight line built in.
+     *
+     * Each year takes a fixed percentage of what is LEFT, so the amounts fall and never quite reach
+     * zero on their own — which is why every declining-balance regime pairs the method with a switch
+     * to straight line over the remaining life, and why the final year simply takes the remainder.
+     * Without that last step an asset would keep a residue forever.
+     *
+     * The switch is taken automatically at the first year where straight line over the remaining
+     * life yields more. It is a permission rather than a duty, but no one entitled to it declines
+     * it — an option nobody ever sets differently is better expressed as the behaviour.
+     *
+     * Rate, factor and the window come from the pack: the mechanism is shared (Germany applies it
+     * both to movables and, at a different rate, to new residential buildings), the numbers are not.
+     * Both the percentage and the remaining-life figure go through `allocate`, so the cents fall
+     * where the rest of the core puts them.
+     *
+     * @return list<Money>
+     */
+    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn): array
+    {
+        $rule = $this->decliningBalanceRule($acquiredOn);
+        $years = intdiv($usefulLifeMonths + 11, 12);
+
+        // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the
+        // rate is a property of the asset's life and does not change as the balance falls.
+        $straightLineRate = 100 / $years;
+        $rate = min($rule['factor'] * $straightLineRate, (float) $rule['maxRate']);
+        $ratePermille = (string) round($rate, 4);
+
+        $schedule = [];
+        $remaining = $cost;
+
+        for ($year = 1; $year <= $years; $year++) {
+            $remainingYears = $years - $year + 1;
+
+            if ($year === $years) {
+                $amount = $remaining;
+            } else {
+                $declining = $remaining->allocate($ratePermille, (string) round(100 - $rate, 4))[0];
+                $straightLine = $remaining->allocate(...array_fill(0, $remainingYears, 1))[0];
+                $amount = $declining->compareTo($straightLine) >= 0 ? $declining : $straightLine;
+            }
+
+            $remaining = $remaining->subtract($amount);
+
+            foreach ($amount->allocateEvenly(12) as $monthAmount) {
+                $schedule[] = $monthAmount;
+            }
+        }
+
+        return array_slice($schedule, 0, $usefulLifeMonths);
+    }
+
+    /**
+     * The declining-balance rule in force on the acquisition date. Refused rather than defaulted,
+     * like every other pack question here: a core that invents a rate has one jurisdiction's tax
+     * policy in the substrate, and these rates are the most short-lived numbers in the whole pack —
+     * Germany's current one applies to a window of two and a half years.
+     *
+     * @return array{factor: int, maxRate: string}
+     */
+    private function decliningBalanceRule(CalendarDate $acquiredOn): array
+    {
+        foreach (is_array($this->ruleModule['decliningBalance'] ?? null) ? $this->ruleModule['decliningBalance'] : [] as $raw) {
+            if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
+                continue;
+            }
+
+            $validFrom = CalendarDate::of($raw['validFrom']);
+            $validTo = is_string($raw['validTo'] ?? null) ? CalendarDate::of($raw['validTo']) : null;
+
+            if ($acquiredOn->isBefore($validFrom) || ($validTo !== null && $acquiredOn->isAfter($validTo))) {
+                continue;
+            }
+
+            $factor = is_int($raw['factor'] ?? null) ? $raw['factor'] : null;
+            $maxRate = is_string($raw['maxRate'] ?? null) ? $raw['maxRate'] : null;
+
+            if ($factor === null || $factor < 1 || $maxRate === null) {
+                continue;
+            }
+
+            return ['factor' => $factor, 'maxRate' => $maxRate];
+        }
+
+        throw new DomainError(
+            'E_PACK_INCOHERENT',
+            sprintf('declining-balance depreciation was asked for, but the pack declares no rule in force on %s', $acquiredOn->iso),
+            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso],
+        );
     }
 
     /**

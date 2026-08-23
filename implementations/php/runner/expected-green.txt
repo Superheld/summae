@@ -28,6 +28,7 @@ de-afa-nutzungsdauern
 de-bewirtung
 de-bilanz-guv
 de-complete-override-remove-equals-base
+de-degressive-afa
 de-eingangsrechnung
 de-euer
 de-ig-lieferung
@@ -41,6 +42,7 @@ de-vat-return
 de-vorsteuer-ermaessigt
 de-wertabgabe
 de-wertpapierdepot
+declining-balance-depreciation
 default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation

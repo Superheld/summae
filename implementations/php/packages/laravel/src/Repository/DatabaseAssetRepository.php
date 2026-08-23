@@ -139,6 +139,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             // wherever a dimension is mandatory.
             self::dimensions($data['dimensions'] ?? null),
             Hydrator::date($data['depreciationStart'] ?? null),
+            is_string($data['depreciationMethod'] ?? null) ? $data['depreciationMethod'] : null,
         );
     }
 

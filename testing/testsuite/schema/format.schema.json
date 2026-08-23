@@ -734,10 +734,47 @@
             },
             "additionalProperties": false
           }
+        },
+        "decliningBalance": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "validFrom",
+              "validTo",
+              "factor",
+              "maxRate"
+            ],
+            "properties": {
+              "validFrom": {
+                "$ref": "#/$defs/date"
+              },
+              "validTo": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "factor": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxRate": {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d{1,4})?$"
+              }
+            },
+            "additionalProperties": false,
+            "description": "Degressive AfA: Satz = min(factor × linearer Satz, maxRate), jeweils vom Restbuchwert, mit automatischem Wechsel auf linear sobald linear über die Restnutzungsdauer mehr ergibt. Die Mechanik ist Kern und wird geteilt; Faktor, Deckel und Gültigkeitsfenster sind Pack-Daten, weil genau sie sich unterscheiden — Deutschland: bewegliche Wirtschaftsgüter, Anschaffung 01.07.2025–31.12.2027, Faktor 3, höchstens 30 % (§ 7 Abs. 2 EStG); für neue Wohngebäude gilt dieselbe Mechanik mit anderem Satz (§ 7 Abs. 5a EStG). Fehlt für ein Anschaffungsdatum eine Regel, ist die Wahl der Methode E_PACK_INCOHERENT statt eines geratenen Satzes."
+          }
         }
       },
       "additionalProperties": false,
-      "description": "data eines depreciation-Moduls (v0.6): GWG-/de-minimis-Grenzen + Nutzungsdauern. Die Mechanik (linear, pro rata) ist Kern; hier stehen nur Daten."
+      "description": "data eines depreciation-Moduls (v0.6): GWG-/de-minimis-Grenzen + Nutzungsdauern. Die Mechanik (linear und degressiv, pro rata, Methodenwechsel) ist Kern; hier stehen nur Daten."
     },
     "module": {
       "type": "object",

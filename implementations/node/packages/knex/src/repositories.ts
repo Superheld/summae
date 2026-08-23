@@ -578,6 +578,7 @@ export class DatabaseAssetRepository implements AssetRepository {
           )
         : [],
       H.date(data.depreciationStart),
+      typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
     );
   }
 

@@ -63,7 +63,28 @@ final class Asset implements \JsonSerializable
          * rehydrate to exactly the behaviour they had.
          */
         public readonly ?CalendarDate $depreciationStart = null,
+        /**
+         * How the schedule was built. Straight line spreads the cost flat, so the yearly run can
+         * re-derive a year's share from the month counts; declining balance cannot, because each
+         * year depends on what is left after the one before. The schedule then IS the plan and has
+         * to be read rather than recomputed — that is the only thing this field decides.
+         *
+         * Null means straight line, so assets written before the field existed rehydrate unchanged.
+         */
+        public readonly ?string $depreciationMethod = null,
     ) {
+    }
+
+    /** Straight line unless the pack offered, and the caller chose, something else. */
+    public function method(): string
+    {
+        return $this->depreciationMethod ?? 'straight_line';
+    }
+
+    /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
+    public function scheduleIsAuthoritative(): bool
+    {
+        return $this->method() !== 'straight_line';
     }
 
     /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
@@ -96,8 +117,9 @@ final class Asset implements \JsonSerializable
         ?CalendarDate $disposedOn,
         array $dimensions = [],
         ?CalendarDate $depreciationStart = null,
+        ?string $depreciationMethod = null,
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod);
         $asset->depreciations = $depreciations;
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
@@ -256,6 +278,7 @@ final class Asset implements \JsonSerializable
             'disposedOn' => $this->disposedOn?->iso,
             'voucherId' => $this->voucherId->value,
             'dimensions' => $this->dimensions,
+            'depreciationMethod' => $this->method(),
         ];
     }
 }

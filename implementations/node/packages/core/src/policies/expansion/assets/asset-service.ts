@@ -83,6 +83,7 @@ export class AssetService {
 
     const route = this.resolveRoute(choice, cost, acquiredOn);
     const explicitLife = AssetService.parseUsefulLifeMonths(input.usefulLifeMonths);
+    const method = AssetService.parseMethod(input.depreciationMethod);
 
     // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
     // immediately expensed one has no schedule at all, so a life given with either route cannot be
@@ -96,6 +97,16 @@ export class AssetService {
       );
     }
 
+    // Same reasoning as the useful life: a method cannot apply to a route that has no schedule of
+    // its own, and accepting it in silence would suggest it took effect.
+    if (method !== 'straight_line' && route !== 'capitalize') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "${route}"`,
+        { depreciationMethod: method, route },
+      );
+    }
+
     let usefulLifeMonths: number | null = null;
     const schedule: Money[] = [];
     if (route === 'capitalize') {
@@ -104,7 +115,11 @@ export class AssetService {
       // complete the table is — and without this parameter an asset class missing from the pack was
       // simply unusable.
       usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
-      schedule.push(...cost.allocateEvenly(usefulLifeMonths));
+      schedule.push(
+        ...(method === 'declining_balance'
+          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn)
+          : cost.allocateEvenly(usefulLifeMonths)),
+      );
     } else if (route === 'pool') {
       // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
@@ -129,6 +144,7 @@ export class AssetService {
       voucherId,
       dimensions,
       this.planStartFor(route, acquiredOn),
+      method,
     );
     this.assets.add(asset);
 
@@ -270,12 +286,24 @@ export class AssetService {
     const months = monthsByYear.get(fiscalYear);
     if (months === undefined) return [[], zero];
 
-    const years = [...monthsByYear.keys()];
-    const weights = years.map((year) => monthsByYear.get(year)!.length);
-    const yearAmounts = asset.acquisitionCost.allocate(...weights);
-    const yearIndex = years.indexOf(fiscalYear);
-    if (yearIndex === -1) return [[], zero];
-    const yearAmount = yearAmounts[yearIndex]!;
+    let yearAmount: Money;
+    if (asset.scheduleIsAuthoritative()) {
+      // A declining-balance plan cannot be re-derived from month counts — each year depends on what
+      // the previous one left. The schedule IS the plan, so the year's target is simply the sum of
+      // its months. Straight line keeps re-allocating, which is what pins its rounding to the values
+      // every existing fixture expects.
+      yearAmount = zero;
+      for (const planMonth of months) {
+        yearAmount = yearAmount.add(asset.monthlySchedule[planMonth - 1]!);
+      }
+    } else {
+      const years = [...monthsByYear.keys()];
+      const weights = years.map((year) => monthsByYear.get(year)!.length);
+      const yearAmounts = asset.acquisitionCost.allocate(...weights);
+      const yearIndex = years.indexOf(fiscalYear);
+      if (yearIndex === -1) return [[], zero];
+      yearAmount = yearAmounts[yearIndex]!;
+    }
 
     const openMonths: number[] = [];
     let bookedAmount = zero;
@@ -542,6 +570,103 @@ export class AssetService {
   private planMonthYear(asset: Asset, planMonth: number): number {
     const date = asset.planMonthDate(planMonth);
     return this.fiscalYears.forDate(date)?.year ?? date.year();
+  }
+
+  /**
+   * The depreciation method the caller asked for. Straight line when absent — the method every
+   * jurisdiction allows and the only one this core knew until 2026-08-23.
+   */
+  private static parseMethod(value: unknown): string {
+    if (value === null || value === undefined) return 'straight_line';
+
+    if (value !== 'straight_line' && value !== 'declining_balance') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+        { depreciationMethod: rejectedValue(value) },
+      );
+    }
+
+    return value;
+  }
+
+  /**
+   * A declining-balance plan, with the switch to straight line built in.
+   *
+   * Each year takes a fixed percentage of what is LEFT, so the amounts fall and never quite reach
+   * zero on their own — which is why every declining-balance regime pairs the method with a switch to
+   * straight line over the remaining life, and why the final year simply takes the remainder. Without
+   * that last step an asset would keep a residue forever.
+   *
+   * The switch is taken automatically at the first year where straight line over the remaining life
+   * yields more. It is a permission rather than a duty, but no one entitled to it declines it — an
+   * option nobody ever sets differently is better expressed as the behaviour.
+   *
+   * Rate, factor and the window come from the pack: the mechanism is shared (Germany applies it both
+   * to movables and, at a different rate, to new residential buildings), the numbers are not. Both the
+   * percentage and the remaining-life figure go through allocate, so the cents fall where the rest of
+   * the core puts them.
+   */
+  private decliningBalanceSchedule(cost: Money, usefulLifeMonths: number, acquiredOn: CalendarDate): Money[] {
+    const rule = this.decliningBalanceRule(acquiredOn);
+    const years = Math.ceil(usefulLifeMonths / 12);
+
+    // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the rate is
+    // a property of the asset's life and does not change as the balance falls.
+    const straightLineRate = 100 / years;
+    const rate = Math.min(rule.factor * straightLineRate, Number(rule.maxRate));
+    const rateWeight = String(Math.round(rate * 10000) / 10000);
+    const restWeight = String(Math.round((100 - rate) * 10000) / 10000);
+
+    const schedule: Money[] = [];
+    let remaining = cost;
+
+    for (let year = 1; year <= years; year++) {
+      const remainingYears = years - year + 1;
+
+      let amount: Money;
+      if (year === years) {
+        amount = remaining;
+      } else {
+        const declining = remaining.allocate(rateWeight, restWeight)[0]!;
+        const straightLine = remaining.allocate(...Array.from({ length: remainingYears }, () => 1))[0]!;
+        amount = declining.compareTo(straightLine) >= 0 ? declining : straightLine;
+      }
+
+      remaining = remaining.subtract(amount);
+      schedule.push(...amount.allocateEvenly(12));
+    }
+
+    return schedule.slice(0, usefulLifeMonths);
+  }
+
+  /**
+   * The declining-balance rule in force on the acquisition date. Refused rather than defaulted, like
+   * every other pack question here: a core that invents a rate has one jurisdiction's tax policy in
+   * the substrate, and these rates are the most short-lived numbers in the whole pack — Germany's
+   * current one applies to a window of two and a half years.
+   */
+  private decliningBalanceRule(acquiredOn: CalendarDate): { factor: number; maxRate: string } {
+    const raw = Array.isArray(this.ruleModule.decliningBalance) ? this.ruleModule.decliningBalance : [];
+    for (const item of raw) {
+      if (!isRecord(item) || typeof item.validFrom !== 'string') continue;
+
+      const validFrom = CalendarDate.of(item.validFrom);
+      const validTo = typeof item.validTo === 'string' ? CalendarDate.of(item.validTo) : null;
+      if (acquiredOn.isBefore(validFrom) || (validTo !== null && acquiredOn.isAfter(validTo))) continue;
+
+      const factor = typeof item.factor === 'number' && Number.isSafeInteger(item.factor) ? item.factor : null;
+      const maxRate = typeof item.maxRate === 'string' ? item.maxRate : null;
+      if (factor === null || factor < 1 || maxRate === null) continue;
+
+      return { factor, maxRate };
+    }
+
+    throw new DomainError(
+      'E_PACK_INCOHERENT',
+      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso}`,
+      { field: 'decliningBalance', acquiredOn: acquiredOn.iso },
+    );
   }
 
   /**
