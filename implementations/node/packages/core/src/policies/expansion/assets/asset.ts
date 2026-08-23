@@ -51,7 +51,26 @@ export class Asset {
      * centre, and its depreciation belongs there with it.
      */
     readonly dimensions: ReadonlyArray<{ type: string; code: string }> = [],
+    /**
+     * First month of the depreciation plan. Normally the month of acquisition — pro rata temporis,
+     * which is what linear depreciation asks for in most jurisdictions.
+     *
+     * A pooled asset can be different: where a jurisdiction dissolves its pool in equal *fiscal-year*
+     * fractions, the first year is not shortened by the acquisition month, so the plan starts at the
+     * beginning of the fiscal year the asset was acquired in. Which of the two applies is pack data
+     * (`poolProRataInFirstYear`), never a decision of this class — the asset is simply told where its
+     * plan begins.
+     *
+     * Null means "same as acquisition", so persisted assets written before this field existed
+     * rehydrate to exactly the behaviour they had.
+     */
+    readonly depreciationStart: CalendarDate | null = null,
   ) {}
+
+  /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
+  planStart(): CalendarDate {
+    return this.depreciationStart ?? this.acquiredOn;
+  }
 
   isDisposed(): boolean {
     return this.disposed;
@@ -74,7 +93,7 @@ export class Asset {
   }
 
   planMonthDate(planMonth: number): CalendarDate {
-    return lastDayOfMonthAfter(this.acquiredOn, planMonth - 1);
+    return lastDayOfMonthAfter(this.planStart(), planMonth - 1);
   }
 
   isMonthBooked(planMonth: number): boolean {
@@ -119,6 +138,7 @@ export class Asset {
     disposed: boolean,
     disposedOn: CalendarDate | null,
     dimensions: ReadonlyArray<{ type: string; code: string }> = [],
+    depreciationStart: CalendarDate | null = null,
   ): Asset {
     const asset = new Asset(
       id,
@@ -132,6 +152,7 @@ export class Asset {
       monthlySchedule,
       voucherId,
       dimensions,
+      depreciationStart,
     );
     for (const booking of depreciations) {
       asset.depreciations.push({

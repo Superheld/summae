@@ -518,7 +518,14 @@ export class DatabaseAssetRepository implements AssetRepository {
   }
 
   private payload(asset: Asset): Record<string, unknown> {
-    return { ...asset.toJSON(), monthlySchedule: asset.monthlySchedule.map((amount) => amount.toJSON()) };
+    return {
+      ...asset.toJSON(),
+      monthlySchedule: asset.monthlySchedule.map((amount) => amount.toJSON()),
+      // Kept out of toJSON() on purpose: the plan start is bookkeeping mechanics, not part of the
+      // asset register an auditor reads. Losing it here would silently move a pooled asset's plan
+      // back to its acquisition month after a restart.
+      depreciationStart: asset.depreciationStart?.iso ?? null,
+    };
   }
 
   private state(asset: Asset): Record<string, unknown> {
@@ -570,6 +577,7 @@ export class DatabaseAssetRepository implements AssetRepository {
               : [],
           )
         : [],
+      H.date(data.depreciationStart),
     );
   }
 

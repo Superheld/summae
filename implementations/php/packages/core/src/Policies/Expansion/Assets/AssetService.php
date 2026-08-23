@@ -126,6 +126,7 @@ final class AssetService
             $schedule,
             $voucherId,
             $dimensions,
+            $this->planStartFor($route, $acquiredOn),
         );
 
         $this->assets->add($asset);
@@ -542,7 +543,7 @@ final class AssetService
     /**
      * The threshold row in force on the acquisition date — the first whose validity window contains it.
      *
-     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}|null
+     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool, poolProRataInFirstYear: ?bool}|null
      */
     private function applicableThreshold(CalendarDate $acquiredOn): ?array
     {
@@ -582,7 +583,7 @@ final class AssetService
     }
 
     /**
-     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}>
+     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool, poolProRataInFirstYear: ?bool}>
      */
     private function thresholds(): array
     {
@@ -602,6 +603,9 @@ final class AssetService
                 'poolYears' => is_int($raw['poolYears'] ?? null) && $raw['poolYears'] >= 1 ? $raw['poolYears'] : null,
                 'poolReducedOnDisposal' => is_bool($raw['poolReducedOnDisposal'] ?? null)
                     ? $raw['poolReducedOnDisposal']
+                    : null,
+                'poolProRataInFirstYear' => is_bool($raw['poolProRataInFirstYear'] ?? null)
+                    ? $raw['poolProRataInFirstYear']
                     : null,
             ];
         }
@@ -723,6 +727,76 @@ final class AssetService
         }
 
         return $threshold['poolReducedOnDisposal'];
+    }
+
+    /**
+     * Does the pool's first year get shortened by the acquisition month?
+     *
+     * Germany says no: the pool is dissolved in the fiscal year it is formed and the following
+     * ones by equal fractions, so an asset bought in November still carries a full fraction in
+     * that year, and the term ends after `poolYears` fiscal years. Treating a pool like ordinary
+     * linear depreciation — pro rata from the month of acquisition — understated the first year
+     * and invented a last one.
+     *
+     * Other pool regimes answer this differently, which is why the pack has to say it rather than
+     * the core assuming it — the same reason `poolYears` (SPEC-004) and `poolReducedOnDisposal`
+     * (IMPL-019) are pack data. The schema requires the field alongside `poolMax`, so this fires
+     * only for hand-fed rule data that never went through a pack.
+     */
+    private function poolProRataInFirstYear(CalendarDate $acquiredOn): bool
+    {
+        $threshold = $this->applicableThreshold($acquiredOn);
+        if ($threshold === null || !is_bool($threshold['poolProRataInFirstYear'] ?? null)) {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'gwgThresholds: a pool range (poolMin/poolMax) without poolProRataInFirstYear — the pack must say whether the first year is shortened by the acquisition month',
+                ['field' => 'poolProRataInFirstYear', 'acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $threshold['poolProRataInFirstYear'];
+    }
+
+    /**
+     * Where the depreciation plan starts. Capitalised assets start in the month of acquisition
+     * (pro rata temporis). A pooled asset whose pack dissolves the pool in whole fiscal-year
+     * fractions starts at the beginning of the fiscal year it was acquired in — that, and nothing
+     * else, is what makes the first year full and the term end after `poolYears` years.
+     */
+    private function planStartFor(AssetRoute $route, CalendarDate $acquiredOn): ?CalendarDate
+    {
+        if ($route !== AssetRoute::Pool) {
+            return null;
+        }
+
+        $year = $this->fiscalYears->forDate($acquiredOn);
+
+        // Acquired on the first day of the fiscal year? Then both answers produce the same plan,
+        // and the pack is not asked. That is deliberate and mirrors `poolReducedOnDisposal`, which
+        // is only demanded when something is actually disposed: a pack owes an answer where the
+        // answer changes the books, not everywhere. It is also what keeps rule data written before
+        // this field existed working for the case where it cannot matter — the guarantee that a
+        // *pack* carries the field is the schema's job, not this method's.
+        if ($year !== null && $acquiredOn->iso === $year->start->iso) {
+            return null;
+        }
+
+        if ($this->poolProRataInFirstYear($acquiredOn)) {
+            return null;
+        }
+
+        if ($year === null) {
+            throw new DomainError(
+                'E_PERIOD_UNKNOWN',
+                sprintf(
+                    'the pool for an asset acquired on %s is dissolved in whole fiscal-year fractions, but no fiscal year contains that date',
+                    $acquiredOn->iso,
+                ),
+                ['acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $year->start;
     }
 
     /** A pooled asset that its pack keeps in the pool after disposal — the write-off does not apply. */

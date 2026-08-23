@@ -64,21 +64,29 @@ describe('pack-library files validate against format.schema.json', () => {
     expect(validateModule({ kind: 'not-a-real-kind' }), 'validator must reject a bad module').toBe(false);
 
     // …and the depreciation payload rejects a pool range that leaves a jurisdiction's answer to the
-    // core: the period (SPEC-004, poolYears) and whether a disposal reduces the pool (IMPL-019,
-    // poolReducedOnDisposal) are both conditionally required next to poolMax.
+    // core. Three questions are conditionally required next to poolMax: the period (SPEC-004,
+    // poolYears), whether a disposal reduces the pool (IMPL-019, poolReducedOnDisposal), and whether
+    // the first year is shortened by the acquisition month (poolProRataInFirstYear). Each one a pack
+    // may omit is one a jurisdiction inherits from whoever wrote the core.
     const validateDepreciation = ajv.getSchema(`${schema.$id}#/$defs/depreciationData`) as ValidateFunction;
     const poolRange = { validFrom: '2018-01-01', validTo: null, immediateMax: '250.00', poolMin: '250.01', poolMax: '1000.00' };
     expect(
-      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolReducedOnDisposal: false }] }),
+      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolReducedOnDisposal: false, poolProRataInFirstYear: false }] }),
       'a pool range without poolYears must be rejected',
     ).toBe(false);
     expect(
-      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5 }] }),
+      validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5, poolProRataInFirstYear: false }] }),
       'a pool range without poolReducedOnDisposal must be rejected',
     ).toBe(false);
     expect(
       validateDepreciation({ gwgThresholds: [{ ...poolRange, poolYears: 5, poolReducedOnDisposal: false }] }),
-      'the same range with both answers must pass',
+      'a pool range without poolProRataInFirstYear must be rejected',
+    ).toBe(false);
+    expect(
+      validateDepreciation({
+        gwgThresholds: [{ ...poolRange, poolYears: 5, poolReducedOnDisposal: false, poolProRataInFirstYear: false }],
+      }),
+      'the same range with all three answers must pass',
     ).toBe(true);
 
     const violations: string[] = [];

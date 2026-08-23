@@ -49,7 +49,27 @@ final class Asset implements \JsonSerializable
          * @var list<array{type: string, code: string}>
          */
         public readonly array $dimensions = [],
+        /**
+         * First month of the depreciation plan. Normally the month of acquisition — pro rata
+         * temporis, which is what linear depreciation asks for in most jurisdictions.
+         *
+         * A pooled asset can be different: where a jurisdiction dissolves its pool in equal
+         * *fiscal-year* fractions, the first year is not shortened by the acquisition month, so
+         * the plan starts at the beginning of the fiscal year the asset was acquired in. Which of
+         * the two applies is pack data (`poolProRataInFirstYear`), never a decision of this class —
+         * the asset is simply told where its plan begins.
+         *
+         * Null means "same as acquisition", so persisted assets written before this field existed
+         * rehydrate to exactly the behaviour they had.
+         */
+        public readonly ?CalendarDate $depreciationStart = null,
     ) {
+    }
+
+    /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
+    public function planStart(): CalendarDate
+    {
+        return $this->depreciationStart ?? $this->acquiredOn;
     }
 
     /**
@@ -75,8 +95,9 @@ final class Asset implements \JsonSerializable
         bool $disposed,
         ?CalendarDate $disposedOn,
         array $dimensions = [],
+        ?CalendarDate $depreciationStart = null,
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart);
         $asset->depreciations = $depreciations;
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
@@ -110,7 +131,7 @@ final class Asset implements \JsonSerializable
     /** Calendar year+month of the plan month (1-based). */
     public function planMonthDate(int $planMonth): CalendarDate
     {
-        $start = new \DateTimeImmutable($this->acquiredOn->iso);
+        $start = new \DateTimeImmutable($this->planStart()->iso);
         $month = $start->modify(sprintf('first day of +%d months', $planMonth - 1));
 
         return CalendarDate::of($month->modify('last day of this month')->format('Y-m-d'));

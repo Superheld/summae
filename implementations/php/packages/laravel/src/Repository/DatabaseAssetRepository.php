@@ -68,6 +68,10 @@ final readonly class DatabaseAssetRepository implements AssetRepository
                 static fn (Money $amount): array => $amount->jsonSerialize(),
                 $asset->monthlySchedule,
             ),
+            // Kept out of jsonSerialize() on purpose: the plan start is bookkeeping mechanics, not
+            // part of the asset register an auditor reads. Losing it here would silently move a
+            // pooled asset's plan back to its acquisition month after a restart.
+            'depreciationStart' => $asset->depreciationStart?->iso,
         ];
     }
 
@@ -134,6 +138,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             // reads them, so losing them here would make depreciation impossible after a restart
             // wherever a dimension is mandatory.
             self::dimensions($data['dimensions'] ?? null),
+            Hydrator::date($data['depreciationStart'] ?? null),
         );
     }
 
