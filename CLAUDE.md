@@ -15,7 +15,8 @@ Multiple language implementations are meant to have an *identical API and identi
 data format*; this is verified via a language-neutral conformance suite (`testing/testsuite/`).
 
 Repo layout:
-- `testing/` — **one home for every test that is not a unit test.** `testsuite/` = the compatibility contract (`fixtures/**.json` + `schema/`, shared by all implementations, mirrored read-only) · `scenarios/` = language-neutral CLI scenarios (`walkthrough/` + `regression/`). Unit tests are the exception and stay next to their code. Which kind to write where: `testing/README.md`.
+- `testing/` — **one home for every test that is not a unit test.** `testsuite/` = the compatibility contract (`fixtures/**.json` + `schema/` + `fehlerkatalog.md`, shared by all implementations, **append-only**) · `scenarios/` = language-neutral CLI scenarios (`walkthrough/` + `regression/`). Unit tests are the exception and stay next to their code. Which kind to write where: `testing/README.md`.
+- `knowledge/` — **the authoring side**: domain knowledge, requirements (`F-…`/`NF-…`/`SF-…`), domain model, the prose spec, build reports, pack docs. For whoever *builds* summae; `docs/` is for whoever *uses* it. Still German, unlike everything shipped — see `knowledge/README.md`. Project/strategy material (roadmaps, decision log, governance) deliberately stays outside this public repo.
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
 - `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
@@ -116,16 +117,24 @@ fixture in both languages" + spec retrofit → `implementations/<language>/docs/
   `DeterministicIdGenerator`.
 - **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
 
-## testing/testsuite/ is read-only
+## testing/testsuite/ is append-only
 
-Fixtures are the normative source and live in the **knowledge base** (sister repo
-„Rechnungswesen"). They are mirrored here via `make sync` (`rsync --delete` —
-whatever is here and not in the source gets deleted; **do not put your own files
-in `testing/testsuite/`**) and **never edited here**. Fixtures are append-only:
-behavior change = new fixture, never silent editing. Contradiction between
-spec/fixture/model → **do not guess, do not bend the fixture**, but document it in the
-`SPEC-FINDINGS.md` of the respective implementation and continue building with the
-next most plausible behavior.
+Fixtures are the normative source and are **authored here** (since 2026-08-23; they used to
+live in an external knowledge base and be mirrored in by `make sync`, which is why older docs
+call this tree read-only — the knowledge base is now `knowledge/` in this repo, so source and
+copy collapsed into one). Alongside them live the machine-readable spec parts they exercise:
+`schema/format.schema.json`, `schema/api-parameters.json`, `fehlerkatalog.md`.
+
+**Append-only is the rule that matters, and it did not come from the mirror.** A behavior
+change is a *new* fixture, never a quiet edit to an existing one — an edited fixture rewrites
+what the contract always said, and every implementation that agreed with the old expectation
+silently becomes "wrong" retroactively. Contradiction between spec/fixture/model → **do not
+guess, do not bend the fixture**, but document it in the `SPEC-FINDINGS.md` of the respective
+implementation and continue building with the next most plausible behavior.
+
+**One mirror remains:** `pack-library/` is still authored outside and comes in via `make sync`
+(`bin/sync-pack-library.sh`, `rsync --delete` — whatever is here and not in the source gets
+deleted). Do not edit it here.
 
 ## Conventions (language-neutral)
 
@@ -210,9 +219,9 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    the wrong type is rejected, never coerced; an absent one keeps its documented default. The core
    reads no files, so each language carries the table as a constant — and a test per language asserts
    the constant equals that file, which is what makes drift impossible. **Adding a parameter means
-   editing the declaration in the knowledge base**, not the constant.
-6. **An error code lives in two places at once.** A new code needs its row in the knowledge base's
-   `fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
+   editing `testing/testsuite/schema/api-parameters.json` first**, not the constant.
+6. **An error code lives in two places at once.** A new code needs its row in
+   `testing/testsuite/fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
    never reordered). `ExitCodesTest`/`exit-codes.test.ts` compare the two as sets in both
    directions, so half the work fails the build.
 

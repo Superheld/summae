@@ -71,10 +71,10 @@ every implementation must satisfy all fixtures byte-identically and
 deterministically. Fixtures are **append-only** — a behavior change becomes a
 new fixture; existing ones are never silently edited.
 
-> **Maintainer note:** The authoring home of the fixtures lives in a separate,
-> internal knowledge base. `bin/sync-testsuite.sh` (or `make sync`) mirrors them
-> here — a one-way street, for maintainers only. Consumers and CI never need
-> this: the committed `testing/testsuite/` is self-contained and authoritative.
+> **Maintainer note:** Fixtures are authored in `testing/testsuite/` itself. They used to be
+> mirrored in from an external knowledge base; that base is now `knowledge/` in this repo, so
+> the copy was retired along with its sync script. The one mirror that remains is
+> `pack-library/` (`make sync`), whose source is still authored outside.
 
 ## Quick test
 

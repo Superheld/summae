@@ -26,8 +26,8 @@ stan:         ## PHPStan (level max)
 
 check: stan test  ## Alles, was CI prüft
 
-sync:         ## Testsuite aus der Wissensbasis synchronisieren (Einbahnstraße)
-	./bin/sync-testsuite.sh
+sync:         ## Pack-Library aus der Wissensbasis spiegeln (Einbahnstraße, letzter Spiegel)
+	./bin/sync-pack-library.sh
 
 shell:        ## Shell im PHP-Container
 	$(PHP) bash
