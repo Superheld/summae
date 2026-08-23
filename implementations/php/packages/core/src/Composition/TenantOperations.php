@@ -18,6 +18,7 @@ use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
+use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
 use Summae\Core\Policies\Projection\UnfinalizedEntriesProjection;
 use Summae\Core\Policies\Projection\VatReturnProjection;
@@ -126,6 +127,7 @@ final readonly class TenantOperations
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
+            'systemDescription' => (new SystemDescriptionProjection($tenant->id, $tenant->name, $tenant->baseCurrency))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'journalExport' => (new JournalExportProjection(

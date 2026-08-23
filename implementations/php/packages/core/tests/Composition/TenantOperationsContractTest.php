@@ -7,6 +7,7 @@ namespace Summae\Core\Tests\Composition;
 use PHPUnit\Framework\TestCase;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Core\DomainError;
+use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Substrate\FixedClock;
@@ -36,7 +37,7 @@ final class TenantOperationsContractTest extends TestCase
     private const PROJECTIONS = [
         'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'unfinalizedEntries', 'assetRegister',
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
-        'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport',
+        'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
     ];
 
     private function freshOps(): TenantOperations
@@ -103,5 +104,49 @@ final class TenantOperationsContractTest extends TestCase
         } catch (DomainError $error) {
             self::assertSame('E_NOT_IMPLEMENTED', $error->errorCode);
         }
+    }
+
+    public function testPublishesExactlyTheOperationsThisContractPins(): void
+    {
+        // systemDescription publishes the operation and projection lists as part of the
+        // technical system documentation (F-IO-007). The literal lists in this class are an
+        // independent oracle: they come from the API spec, not from the code. Comparing the
+        // two means a name dropped from the published list and a `case` dropped from the
+        // dispatcher cannot cancel each other out and leave the description quietly lying.
+        $published = SystemDescriptionProjection::API_OPERATIONS;
+        $pinned = self::OPERATIONS;
+        sort($published);
+        sort($pinned);
+
+        self::assertSame($pinned, $published);
+    }
+
+    public function testPublishesExactlyTheProjectionsThisContractPins(): void
+    {
+        $published = SystemDescriptionProjection::API_PROJECTIONS;
+        $pinned = self::PROJECTIONS;
+        sort($published);
+        sort($pinned);
+
+        self::assertSame($pinned, $published);
+    }
+
+    public function testDescribesItselfWithoutParametersAndNamesItsOwnLimits(): void
+    {
+        /** @var array<string, mixed> $description */
+        $description = $this->freshOps()->project('systemDescription', []);
+
+        self::assertIsString($description['formatVersion'] ?? null);
+        self::assertIsArray($description['invariants'] ?? null);
+        self::assertGreaterThan(5, count($description['invariants']));
+
+        /** @var list<string> $notProvided */
+        $notProvided = $description['notProvided'];
+        $mentionsTheActorLimit = array_filter($notProvided, static fn (string $l): bool => str_contains($l, 'never verified'));
+        self::assertNotEmpty($mentionsTheActorLimit);
+
+        /** @var array<string, mixed> $auditTrail */
+        $auditTrail = $description['auditTrail'];
+        self::assertFalse($auditTrail['actorIsAuthenticated']);
     }
 }

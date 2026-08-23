@@ -29,7 +29,6 @@ const FIXTURE_ROOT = join(REPO_ROOT, 'testing', 'testsuite', 'fixtures');
  */
 const NOT_FIXTURE_BACKED: Record<string, string> = {
   'F-IO-004': 'cross-language data exchange — proven by `make cross`, which a fixture cannot express',
-  'F-IO-007': 'cited as an OPEN item (unimplemented MUST), not as evidence',
 };
 
 function readDoc(): string {

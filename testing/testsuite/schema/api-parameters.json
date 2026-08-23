@@ -140,6 +140,7 @@
         "type": "integer"
       }
     },
+    "systemDescription": {},
     "journalExport": {
       "fiscalYear": {
         "type": "integer",

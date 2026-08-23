@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  API_OPERATIONS,
+  API_PROJECTIONS,
   Currency,
   DeterministicIdGenerator,
   DomainError,
@@ -28,7 +30,7 @@ const OPERATIONS = [
 const PROJECTIONS = [
   'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'unfinalizedEntries', 'assetRegister',
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
-  'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport',
+  'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
 ] as const;
 
 function freshOps(): TenantOperations {
@@ -78,5 +80,30 @@ describe('TenantOperations contract surface', () => {
       expect(error).toBeInstanceOf(DomainError);
       expect((error as DomainError).errorCode).toBe('E_NOT_IMPLEMENTED');
     }
+  });
+});
+
+describe('the published API surface equals the dispatcher surface', () => {
+  // systemDescription publishes the operation and projection lists as part of the technical
+  // system documentation (F-IO-007). The literal lists at the top of this file are an
+  // independent oracle: they come from the API spec, not from the code. Comparing the two
+  // means a name dropped from the published list and a `case` dropped from the dispatcher
+  // cannot cancel each other out and leave the description quietly lying.
+  it('publishes exactly the operations this contract pins', () => {
+    expect([...API_OPERATIONS].sort()).toEqual([...OPERATIONS].sort());
+  });
+
+  it('publishes exactly the projections this contract pins', () => {
+    expect([...API_PROJECTIONS].sort()).toEqual([...PROJECTIONS].sort());
+  });
+
+  it('describes itself without parameters and names its own limits', () => {
+    const description = freshOps().project('systemDescription', {}) as Record<string, unknown>;
+    expect(description.formatVersion).toBeTypeOf('string');
+    expect(Array.isArray(description.invariants)).toBe(true);
+    expect((description.invariants as unknown[]).length).toBeGreaterThan(5);
+    const notProvided = description.notProvided as string[];
+    expect(notProvided.some((line) => line.includes('never verified'))).toBe(true);
+    expect((description.auditTrail as Record<string, unknown>).actorIsAuthenticated).toBe(false);
   });
 });

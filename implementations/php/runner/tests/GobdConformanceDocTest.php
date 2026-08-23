@@ -32,7 +32,6 @@ final class GobdConformanceDocTest extends TestCase
      */
     private const NOT_FIXTURE_BACKED = [
         'F-IO-004' => 'cross-language data exchange — proven by `make cross`, which a fixture cannot express',
-        'F-IO-007' => 'cited as an OPEN item (unimplemented MUST), not as evidence',
     ];
 
     private static function repoRoot(): string
@@ -155,10 +154,12 @@ final class GobdConformanceDocTest extends TestCase
     public function testEveryCitedRequirementIsCoveredOrDeclaredAnException(): void
     {
         $covered = self::coveredRequirements();
-        $unbacked = array_values(array_filter(
-            self::citedRequirements(self::doc()),
-            static fn (string $id): bool => !in_array($id, $covered, true) && !array_key_exists($id, self::NOT_FIXTURE_BACKED),
-        ));
+        $unbacked = [];
+        foreach (self::citedRequirements(self::doc()) as $id) {
+            if (!in_array($id, $covered, true) && !array_key_exists($id, self::NOT_FIXTURE_BACKED)) {
+                $unbacked[] = $id;
+            }
+        }
 
         self::assertSame(
             [],
@@ -173,10 +174,12 @@ final class GobdConformanceDocTest extends TestCase
         // The reverse guard: once a fixture DOES cover one of these, the excuse must go, or
         // the list quietly turns into a place where real coverage hides.
         $covered = self::coveredRequirements();
-        $stale = array_values(array_filter(
-            array_keys(self::NOT_FIXTURE_BACKED),
-            static fn (string $id): bool => in_array($id, $covered, true),
-        ));
+        $stale = [];
+        foreach (array_keys(self::NOT_FIXTURE_BACKED) as $id) {
+            if (in_array($id, $covered, true)) {
+                $stale[] = $id;
+            }
+        }
 
         self::assertSame([], $stale, 'these are listed as not fixture-backed but a fixture now covers them — remove the entry');
     }

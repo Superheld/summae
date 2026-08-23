@@ -73,6 +73,8 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
     olderThanDays: { type: 'integer' },
     fiscalYear: { type: 'integer' },
   },
+  // Takes no parameters: the description is a property of the software, not of a query.
+  systemDescription: {},
   journalExport: {
     fiscalYear: { type: 'integer', required: true },
     format: { type: 'string' },

@@ -1,0 +1,255 @@
+{
+  "fixture": "system-description",
+  "description": "F-IO-007: das Package MUSS eine technische Systembeschreibung erzeugen können — der Baustein der Verfahrensdokumentation (GoBD Rz. 151 ff.), den eine Bibliothek überhaupt liefern kann. Die anderen drei Teile (allgemeine Beschreibung, Anwender-, Betriebsdokumentation) beschreiben die Installation und die Prozesse des Anwenders; die technische beschreibt die Software und ist damit maschinell erzeugbar. Die Fixture nagelt beide Sprachen auf dieselbe Beschreibung fest: dieselben Invarianten, dieselbe API-Oberfläche, dieselben Audit-Ereignisse — und vor allem dieselbe Grenzziehung. `actorIsAuthenticated: false` steht ausdrücklich drin: die Beschreibung, die ein Prüfer bekommt, muss sagen, dass der Akteur mitgeschrieben und nie verifiziert wird. Das Setup trägt ein Konto und ein Geschäftsjahr, obwohl die Beschreibung nicht davon abhängt: der Cross-Test findet die Mandanten-ID über eine persistierte Zeile, und ein Bestand ohne jede Zeile hätte dort als rot gezählt statt als leer.",
+  "covers": [
+    "F-IO-007"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": []
+  },
+  "steps": [],
+  "projections": [
+    {
+      "name": "systemDescription",
+      "params": {},
+      "expect": {
+        "formatVersion": "0.6",
+        "tenant": {
+          "name": "Fixture GmbH",
+          "baseCurrency": "EUR"
+        },
+        "journal": {
+          "appendOnly": true,
+          "ordering": "sequenceNumber",
+          "lifecycle": [
+            "entered",
+            "finalized"
+          ],
+          "correction": "reversal with back-reference (`reverses` / `reversedBy`)",
+          "dates": {
+            "voucherDate": "date on the voucher",
+            "entryDate": "bookkeeping date, zoneless",
+            "recordedAt": "moment of recording, canonical UTC timestamp"
+          }
+        },
+        "invariants": [
+          {
+            "id": "balanced-posting",
+            "statement": "Every posting balances: the sum of its lines is zero.",
+            "enforcedBy": "Rejected on write with E_ENTRY_UNBALANCED; never checked on read."
+          },
+          {
+            "id": "append-only-journal",
+            "statement": "The journal is append-only. Nothing is deleted, nothing is overwritten.",
+            "enforcedBy": "No delete or update path exists on the journal repository."
+          },
+          {
+            "id": "immutable-after-finalization",
+            "statement": "A finalized posting cannot be changed; a correction is a reversal that references the original.",
+            "enforcedBy": "JournalEntry refuses the change itself (E_ENTRY_FINALIZED); reverse writes a new entry carrying `reverses`."
+          },
+          {
+            "id": "gapless-numbering",
+            "statement": "Journal numbers are gapless; the number is assigned atomically while posting.",
+            "enforcedBy": "Number assignment is the serialization point of `post` in the persistence adapter."
+          },
+          {
+            "id": "mandatory-voucher",
+            "statement": "No posting without exactly one voucher reference.",
+            "enforcedBy": "voucherId is not nullable; an unknown one is E_VOUCHER_UNKNOWN."
+          },
+          {
+            "id": "closed-periods",
+            "statement": "A closed period accepts no further postings; periods close in order.",
+            "enforcedBy": "E_PERIOD_CLOSED on every write into a closed period."
+          },
+          {
+            "id": "projections-not-stored-balances",
+            "statement": "Every balance, trial balance, balance sheet, income statement and VAT return is recomputed from the journal.",
+            "enforcedBy": "No balance is stored anywhere; there is no second source to diverge from."
+          },
+          {
+            "id": "exact-money",
+            "statement": "Amounts are exact decimals, never floating point. Rounding is commercial half-up, away from zero.",
+            "enforcedBy": "Money is built on a decimal library (brick/math in PHP, big.js in Node)."
+          },
+          {
+            "id": "determinism",
+            "statement": "The same input produces a byte-identical result, in every implementation.",
+            "enforcedBy": "Injectable Clock and IdGenerator, canonical JSON (RFC 8785), sorting by Unicode code point; the conformance suite runs twice and compares."
+          },
+          {
+            "id": "audit-trail",
+            "statement": "Every state-changing operation writes an audit record with actor, timestamp, object and before/after values.",
+            "enforcedBy": "Enumerating contract test over all state-changing operations, in both implementations."
+          },
+          {
+            "id": "zoneless-dates",
+            "statement": "Posting and voucher dates carry no time zone, so no shift can move a posting into another period.",
+            "enforcedBy": "CalendarDate stores an ISO date and does its arithmetic without the host date type."
+          }
+        ],
+        "auditTrail": {
+          "actorIsAuthenticated": false,
+          "events": [
+            {
+              "objectType": "journalEntry",
+              "actions": [
+                "created",
+                "corrected",
+                "finalized",
+                "reversed"
+              ]
+            },
+            {
+              "objectType": "voucher",
+              "actions": [
+                "created"
+              ]
+            },
+            {
+              "objectType": "account",
+              "actions": [
+                "created",
+                "locked"
+              ]
+            },
+            {
+              "objectType": "openItem",
+              "actions": [
+                "settled",
+                "cancelled"
+              ]
+            },
+            {
+              "objectType": "partner",
+              "actions": [
+                "created",
+                "updated"
+              ]
+            },
+            {
+              "objectType": "fiscalYear",
+              "actions": [
+                "created",
+                "closed"
+              ]
+            },
+            {
+              "objectType": "period",
+              "actions": [
+                "closed",
+                "reopened"
+              ]
+            },
+            {
+              "objectType": "taxProfile",
+              "actions": [
+                "changed"
+              ]
+            },
+            {
+              "objectType": "mapping",
+              "actions": [
+                "imported"
+              ]
+            },
+            {
+              "objectType": "allocationScheme",
+              "actions": [
+                "changed"
+              ]
+            },
+            {
+              "objectType": "asset",
+              "actions": [
+                "acquired",
+                "disposed"
+              ]
+            },
+            {
+              "objectType": "depreciationRun",
+              "actions": [
+                "completed"
+              ]
+            },
+            {
+              "objectType": "costingRun",
+              "actions": [
+                "created",
+                "released"
+              ]
+            }
+          ]
+        },
+        "capabilities": {
+          "operations": [
+            "acquireAsset",
+            "allocate",
+            "closeFiscalYear",
+            "closePeriod",
+            "correct",
+            "createAccount",
+            "createFiscalYear",
+            "createPartner",
+            "createVoucher",
+            "disposeAsset",
+            "expandTax",
+            "finalize",
+            "importChartOfAccounts",
+            "importMapping",
+            "lockAccount",
+            "post",
+            "postVoucher",
+            "releaseCosting",
+            "reopenPeriod",
+            "reverse",
+            "runCosting",
+            "runDepreciation",
+            "setAllocationScheme",
+            "setTaxProfile",
+            "settle",
+            "updatePartner"
+          ],
+          "projections": [
+            "accountSheet",
+            "assetRegister",
+            "auditDataExport",
+            "auditLog",
+            "balanceSheet",
+            "cashBasisReport",
+            "costAllocationSheet",
+            "datevExport",
+            "ecSalesList",
+            "incomeStatement",
+            "journalExport",
+            "openItems",
+            "systemDescription",
+            "trialBalance",
+            "unfinalizedEntries",
+            "vatReturn"
+          ]
+        }
+      }
+    }
+  ]
+}
