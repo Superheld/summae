@@ -36,25 +36,30 @@ final readonly class SystemDescriptionProjection
 {
     /**
      * Every operation and projection the dispatcher answers. This is the list the description
-     * publishes; TenantOperationsContractTest holds its own literal copy and asserts both
-     * agree, so a case dropped from the dispatcher and a name dropped from here cannot cancel
-     * each other out.
+     * publishes; `TenantOperationsContractTest` holds its own literal copy and asserts both
+     * agree, in **both** directions: every published name resolves to a handler, and every
+     * routed name is published. The second direction was missing for a long time — seven
+     * finished, documented, fixture-covered capabilities were routed and unpublished, and an
+     * embedding app validating its calls against this list could not call them at all. A
+     * surface larger than its declaration is the same defect as one smaller than it.
      *
      * @var list<string>
      */
     public const API_OPERATIONS = [
-        'acquireAsset', 'allocate', 'closeFiscalYear', 'closePeriod', 'correct', 'createAccount',
-        'createFiscalYear', 'createPartner', 'createVoucher', 'disposeAsset', 'expandTax', 'finalize',
-        'importChartOfAccounts', 'importMapping', 'lockAccount', 'post', 'postVoucher', 'releaseCosting',
-        'reopenPeriod', 'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setTaxProfile',
-        'settle', 'updatePartner'
+        'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod', 'correct',
+        'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher', 'defineDimensionType',
+        'defineDimensionValue', 'disposeAsset', 'expandTax', 'finalize', 'importChartOfAccounts',
+        'importMapping', 'lockAccount', 'post', 'postVoucher', 'releaseCosting', 'reopenPeriod',
+        'reportAssetUsage', 'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme',
+        'setTaxProfile', 'settle', 'updatePartner', 'writeDownAsset'
     ];
 
     /** @var list<string> */
     public const API_PROJECTIONS = [
         'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet', 'cashBasisReport', 'cashJournal',
         'costAllocationSheet', 'datevExport', 'ecSalesList', 'incomeStatement', 'journalExport',
-        'openItems', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn'
+        'openItems', 'overheadRates', 'productionCost', 'systemDescription', 'trialBalance',
+        'unfinalizedEntries', 'vatReturn'
     ];
 
     /**

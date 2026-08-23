@@ -175,6 +175,28 @@ versioning per SemVer (0.x: minor may break).
 
 ### Fixed
 
+- **Seven routed capabilities were not published, and nothing asked.** The dispatcher answered
+  `writeDownAsset`, `bookSpecialDepreciation`, `reportAssetUsage`, `defineDimensionType`,
+  `defineDimensionValue`, `overheadRates` and `productionCost` — all finished, documented and
+  fixture-covered — while `systemDescription` named none of them. The contract test only ever asked
+  one direction (every published name resolves to a handler), so a surface larger than its
+  declaration passed a green suite in both languages. For an embedding application that validates
+  its calls against the published list, an unpublished operation does not exist: the app that
+  reported this had no außerplanmäßige Abschreibung, no Sonderabschreibung and no Leistungs-AfA on
+  its fixed-asset screen, because the three operations were unreachable by contract.
+
+  All seven are now published, and the contract test compares **both** directions in both
+  languages — it reads the dispatcher's own source for the routed names, because a `switch`/`match`
+  has no runtime shape to enumerate. The `system-description` fixture carries the larger surface, as
+  it does whenever the API grows: a description that does not mention a capability the software has
+  lies by omission.
+
+- **The manual was missing four published names.** `cashJournal`, `unfinalizedEntries`,
+  `systemDescription` and the `allocate` operation had no section in `docs/handbuch/README.md` —
+  published, tested, and undiscoverable. All four are documented now, and a new guard in both
+  languages fails the build when a published name has no heading in the manual. Coverage of the
+  documentation, next to the walkthrough scenarios that already gate its correctness.
+
 - **A yearly depreciation run before a mid-year disposal left the asset account below zero.**
   `runDepreciation({ fiscalYear })` books the whole year in one entry dated 31 December. A disposal
   on 30 September then read the carrying amount *as of the disposal date*, treated that entry as

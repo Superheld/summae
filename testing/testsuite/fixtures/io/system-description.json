@@ -206,6 +206,7 @@
           "operations": [
             "acquireAsset",
             "allocate",
+            "bookSpecialDepreciation",
             "closeFiscalYear",
             "closePeriod",
             "correct",
@@ -213,6 +214,8 @@
             "createFiscalYear",
             "createPartner",
             "createVoucher",
+            "defineDimensionType",
+            "defineDimensionValue",
             "disposeAsset",
             "expandTax",
             "finalize",
@@ -223,13 +226,15 @@
             "postVoucher",
             "releaseCosting",
             "reopenPeriod",
+            "reportAssetUsage",
             "reverse",
             "runCosting",
             "runDepreciation",
             "setAllocationScheme",
             "setTaxProfile",
             "settle",
-            "updatePartner"
+            "updatePartner",
+            "writeDownAsset"
           ],
           "projections": [
             "accountSheet",
@@ -245,6 +250,8 @@
             "incomeStatement",
             "journalExport",
             "openItems",
+            "overheadRates",
+            "productionCost",
             "systemDescription",
             "trialBalance",
             "unfinalizedEntries",

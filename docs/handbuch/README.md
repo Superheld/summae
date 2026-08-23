@@ -1189,6 +1189,21 @@ Release (`draft` → `released`). `runId` (yes). Output:
 `{ "runId", "status": "released" }`. Errors: `E_COSTING_RUN_UNKNOWN`,
 `E_COSTING_RUN_RELEASED`.
 
+#### allocate
+
+`total` (yes, Money), `weights` (yes, list of numbers or numeric strings).
+Output: `{ "parts": [Money…], "total": Money }`. **Writes nothing** — no
+journal entry, no state; it is the largest-remainder split of `Money.allocate`
+(§ 8) reachable through the same dispatcher as everything else, so a caller that
+only speaks the API can split an amount without reimplementing the rounding.
+
+The scale comes from the tenant's currency (the pack's `currencyScale`), and the
+remainder goes to the earliest parts, so `100.00` over three equal weights is
+`33.34 / 33.33 / 33.33` and the sum is exactly the total. Use it wherever an
+amount has to be distributed before it is posted — a cost split, an instalment
+plan, an allocation key — rather than dividing in your own code and posting a
+rounding difference.
+
 ---
 
 ## 7. API reference: projections
@@ -1240,6 +1255,56 @@ as-of evaluations.
 // params { "from": "2026-01-01", "to": "2026-12-31" }
 { "records": [ { "objectType": "journalEntry", "action": "corrected",
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
+```
+
+### cashJournal — cash book (Kassenbuch)
+
+`fiscalYear` (**yes**). Reports every account of subtype `cash`, so the pack (or
+your chart) decides what counts as a cash register — nothing is flagged on the
+posting. Output: `fiscalYear`, `accounts[]` with `account`, `name`,
+`openingBalance`, `movements[]` and `closingBalance`; plus `negativeBalances[]`
+and `cashCountable`.
+
+Each movement carries `sequenceNumber`, `entryDate`, `voucherId`, `text`,
+`side`, `money` and the **`runningBalance` after it**. The opening balance
+carries over from the years before — a drawer does not start empty in January.
+
+⚠ **`cashCountable` is the point of the projection.** A cash balance can never
+be negative: you cannot hold less than no cash. The running balance is checked
+at **every** movement, not at the close, because a day that dips below zero and
+recovers is exactly what a closing balance hides. Every such point lands in
+`negativeBalances[]` (`account`, `sequenceNumber`, `entryDate`,
+`runningBalance`), and `cashCountable` is `false` while that list is non-empty.
+Reported, never blocked — whether it stops a workflow is your application's
+decision.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "fiscalYear": 2026, "cashCountable": false,
+  "accounts": [ { "account": "1600", "openingBalance": "150.00", "closingBalance": "40.00" } ],
+  "negativeBalances": [ { "account": "1600", "entryDate": "2026-03-04", "runningBalance": "-60.00" } ] }
+```
+
+### unfinalizedEntries — postings still open
+
+`asOf` (no, default: today by the injected clock), `olderThanDays` (no, default
+`0`), `fiscalYear` (no). Output: `asOf`, `olderThanDays`, `count`,
+`oldestAgeInDays` and `entries[]` with `entryId`, `sequenceNumber`, `entryDate`,
+`recordedAt`, `fiscalYear`, `period`, `ageInDays` and `text`, in journal order.
+
+The age is measured from the **`entryDate`**, not from `recordedAt`: a posting
+recorded late for an old date is precisely the case a finalization deadline is
+about, and measuring from the moment of recording would hide it.
+
+Which age is too old is **not** the library's answer. GoBD asks for finalization
+"at the latest with the VAT return", which is one jurisdiction's rule; the
+substrate only makes the deadline observable. Pass your own `olderThanDays` and
+decide what happens.
+
+```json
+// params { "asOf": "2026-03-31", "olderThanDays": 30 }
+{ "asOf": "2026-03-31", "olderThanDays": 30, "count": 2, "oldestAgeInDays": 74,
+  "entries": [ { "sequenceNumber": 7, "entryDate": "2026-01-16", "ageInDays": 74, "text": "Miete Januar" } ] }
 ```
 
 ### openItems — open-item list
@@ -1525,6 +1590,43 @@ verified against current DATEV documentation.
 ```
 
 ---
+
+### systemDescription — technical system description
+
+No parameters. Output: `formatVersion`, `tenant` (`id`, `name`,
+`baseCurrency`), `pack` (the manifest identity the tenant was composed from, or
+`null` for an inline rule bundle), `journal` (append-only, ordering, lifecycle,
+correction rule, the three dates), `invariants[]`, `auditTrail`,
+`capabilities` and `notProvided[]`.
+
+This is the **Verfahrensdokumentation** building block a library can supply
+(GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and
+processes and no library can write them. The technical one is different: what
+the engine enforces, which operations exist, how the journal behaves and what
+the stored format looks like are facts about the software — and stating them by
+hand means stating them wrong within a release. So this projection reports them
+from the same constants the engine runs on.
+
+Each entry in `invariants[]` names the mechanism that makes it true
+(`enforcedBy`), so the claim can be checked rather than believed.
+`capabilities.operations` / `.projections` are the **published API surface**:
+what the dispatcher routes and this list names are held equal by a contract test
+in both languages, in both directions — a capability the software has but does
+not publish is a description that lies by omission, and a published name that
+routes nowhere is a promise it cannot keep. If your application validates its
+calls against summae's surface, this is the list to validate against.
+
+`notProvided[]` states the limits in the same breath — most importantly that the
+actor in the audit trail is recorded **as supplied by the caller** and never
+verified. Binding it to an authenticated identity is your application's job.
+
+```json
+// params {}
+{ "formatVersion": "0.6", "pack": { "id": "de", "version": "2026.4" },
+  "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
+                    "enforcedBy": "No delete or update path exists on the journal repository." } ],
+  "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
+```
 
 ## 8. Value objects
 
