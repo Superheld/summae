@@ -200,7 +200,78 @@ final readonly class VatReturnProjection
         return [
             'keys' => $result,
             'payload' => $payload->jsonSerialize(),
+            'gapWarnings' => $this->gapWarnings($year, $quarter, $month, $asOf),
         ];
+    }
+
+    /**
+     * Postings that touch a tax account without a tax code (F-TAX-013).
+     *
+     * The return is built from tax-*coded* postings — `taxTag` is what carries the reporting key and
+     * the base. That is a defensible design and it is silent: posting expense / input tax / bank by
+     * hand balances, satisfies every invariant, and shows correct figures on the accounts and in the
+     * trial balance. Only vatReturn reports zero, because nothing told it which key the amount
+     * belongs to. The books look right everywhere except the one place that decides what is filed,
+     * and an application's seed script fell into it on the first attempt.
+     *
+     * So the warning lives here, at the figures, rather than in a projection of its own that whoever
+     * files the return may not open. It is **not** a refusal: correction postings legitimately touch
+     * these accounts, and a library that blocked them would be wrong more often than the caller.
+     *
+     * Which accounts count is the pack's answer, not this code's: `tax_in` and `tax_out` are
+     * subtypes the chart assigns, so a jurisdiction without input-tax deduction simply has no
+     * `tax_in` account and produces no such warning.
+     *
+     * The window is the posting's tax date in both taxation methods. An untagged line has nothing to
+     * attach it to a settlement, so the cash-basis question "when did the money move" has no answer
+     * for it — which is part of what makes it worth reporting.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function gapWarnings(int $year, int $quarter, int $month, ?CalendarDate $asOf): array
+    {
+        $warnings = [];
+
+        foreach ($this->journal->all() as $entry) {
+            $voucher = $this->vouchers->byId($entry->voucherId);
+            $taxDate = $entry->reverses !== null || $voucher === null ? $entry->entryDate : $voucher->taxDate();
+            if (!self::inPeriod($taxDate, $year, $quarter, $month)) {
+                continue;
+            }
+            if ($asOf !== null && $entry->entryDate->isAfter($asOf)) {
+                continue;
+            }
+
+            foreach ($entry->lines() as $line) {
+                if ($line->taxTag !== null) {
+                    continue;
+                }
+                $account = $this->accounts->byId($line->accountId);
+                $subtype = $account?->subtype;
+                if ($subtype !== 'tax_in' && $subtype !== 'tax_out') {
+                    continue;
+                }
+
+                $warnings[] = [
+                    'reason' => 'tax_account_without_tax_code',
+                    'sequenceNumber' => $entry->sequenceNumber,
+                    'entryDate' => $entry->entryDate->iso,
+                    'account' => $account->number->value,
+                    'side' => $line->side->value,
+                    'money' => $line->money->jsonSerialize(),
+                ];
+            }
+        }
+
+        // Journal order, then account: the order the postings happened in is the order somebody
+        // checking them will work through.
+        usort($warnings, static function (array $a, array $b): int {
+            $bySeq = $a['sequenceNumber'] <=> $b['sequenceNumber'];
+
+            return $bySeq !== 0 ? $bySeq : strcmp((string) $a['account'], (string) $b['account']);
+        });
+
+        return $warnings;
     }
 
     /**

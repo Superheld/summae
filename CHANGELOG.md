@@ -22,6 +22,16 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **`vatReturn.gapWarnings` — the silent tax gap says something now** (F-TAX-013). The return is
+  built from tax-*coded* postings, so a hand-written `expense / input tax / bank` entry balances,
+  satisfies every invariant, shows correct figures on the accounts and in the trial balance, and
+  contributes nothing to the filing. The books looked right everywhere except the one place that
+  decides what is filed — an embedding application's seed script fell into it on the first attempt.
+  Every line in the filing window that touches a `tax_in`/`tax_out` account without a tax code is
+  now listed with its posting, account, side and amount. Reported, never blocked: a correction
+  posting legitimately touches those accounts, and refusing it would stop the repair along with the
+  mistake.
+
 - **`unlockAccount`** (F-CORE-033) — `lockAccount` had no counterpart, so a mis-clicked lock could
   only be repaired by abandoning the account and opening a second one under a new number, leaving
   the old one in the chart forever and moving nothing that was posted on it. The question that

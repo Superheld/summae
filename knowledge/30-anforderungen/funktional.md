@@ -55,6 +55,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-TAX-010 | Unentgeltliche Wertabgaben MÜSSEN als Buchungsmuster mit USt abbildbar sein (VA-wirksam; EÜR-wirksam ohne Zahlungsfluss, Regel R7). | 20 |
 | F-TAX-011 | Die Steuerregelversion MUSS nach dem Leistungsdatum gewählt werden (§ 27 UStG); VA-Zuordnung bei Soll-Versteuerung folgt dem Leistungsdatum. | — |
 | F-TAX-012 | Eine Projektion ecSalesList MUSS ig. Umsätze je USt-IdNr. und Zeitraum liefern (ZM-Grundlage; Übermittlung App-Sache). | 21 |
+| F-TAX-013 | `vatReturn` MUSS in `gapWarnings[]` melden, wenn eine Buchung ein Steuerkonto (`tax_in`/`tax_out`) ohne Steuerschlüssel berührt — solche Beträge gehen in keine Kennzahl ein. Melden, nicht verhindern (Korrekturbuchungen dürfen das). | — |
 
 ## F-AST — Anlagen
 

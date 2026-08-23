@@ -1543,12 +1543,30 @@ select a window here. Accrual taxation
 counts by posting/service date; cash taxation follows the open-item settlements
 (`settledAt`, partial payments pro rata). Output: `keys` (each `reportingKey` →
 `{base, tax}`; `base` officially rounded down to full euros, `tax` to the cent),
-`payload` (Money: Σ output tax − Σ input tax).
+`payload` (Money: Σ output tax − Σ input tax) and `gapWarnings[]`.
+
+⚠ **`gapWarnings` is the field to read before filing.** The return is built from
+tax-*coded* postings — the tax tag carries the reporting key. A posting made by
+hand onto a tax account (`subtype` `tax_in`/`tax_out`) has no such tag, so it
+balances, satisfies every invariant, shows correct figures on the accounts and
+in the trial balance, and contributes **nothing** to the return. Every such line
+in the window is listed here with `reason`
+(`tax_account_without_tax_code`), `sequenceNumber`, `entryDate`, `account`,
+`side` and `money`, in journal order.
+
+It is reported, never blocked: a correction posting legitimately touches a tax
+account, and refusing it would stop the repair along with the mistake. An empty
+list is the statement "nothing in this period bypassed the tax codes". Which
+accounts count comes from the chart, so a jurisdiction without input-tax
+deduction has no `tax_in` account and never sees the warning.
 
 ```json
 // params { "year": 2026, "quarter": 2, "asOf": "2026-07-01" }
 { "keys": { "81": { "base": "1000.00", "tax": "190.00" }, "66": { "tax": "19.00" } },
-  "payload": { "amount": "171.00", "currency": "EUR" } }
+  "payload": { "amount": "171.00", "currency": "EUR" },
+  "gapWarnings": [ { "reason": "tax_account_without_tax_code", "sequenceNumber": 7,
+                     "entryDate": "2026-04-12", "account": "1576", "side": "debit",
+                     "money": { "amount": "14.25", "currency": "EUR" } } ] }
 ```
 
 ### incomeStatement — income statement (GuV)
