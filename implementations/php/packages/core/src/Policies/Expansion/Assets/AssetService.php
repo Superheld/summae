@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Assets;
 
 use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Records\Voucher;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
@@ -46,7 +47,26 @@ final class AssetService
         private readonly Ledger $ledger,
         private readonly IdGenerator $ids,
         private array $ruleModule = [],
+        // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+        // nothing in them says *an asset was acquired*. These records carry the asset event
+        // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+        // tenant, like the configuration singletons.
+        private readonly ?Uuid $tenantId = null,
+        private readonly ?AuditWriter $audit = null,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array<string, array{from: mixed, to: mixed}> $changes
+     */
+    private function trace(array $input, string $objectType, Uuid $objectId, string $action, array $changes): void
+    {
+        if ($this->audit === null) {
+            return;
+        }
+
+        $this->audit->record($this->audit->actorOf($input), $objectType, $objectId, $action, $changes);
     }
 
     /** @param array<string, mixed> $ruleModule */
@@ -125,6 +145,13 @@ final class AssetService
             ]),
         );
 
+        $this->trace($input, 'asset', $asset->id, 'acquired', [
+            'name' => ['from' => null, 'to' => $name],
+            'assetClass' => ['from' => null, 'to' => $assetClass],
+            'acquiredOn' => ['from' => null, 'to' => $acquiredOn->iso],
+            'route' => ['from' => null, 'to' => $route->value],
+        ]);
+
         $result = $asset->jsonSerialize();
         $result['route'] = $route->value;
         if ($route === AssetRoute::ImmediateExpense) {
@@ -171,6 +198,11 @@ final class AssetService
         if ($lines !== []) {
             $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $this->withDimensions($asset, $lines));
         }
+
+        $this->trace($input, 'asset', $asset->id, 'disposed', [
+            'status' => ['from' => 'active', 'to' => 'disposed'],
+            'disposedOn' => ['from' => null, 'to' => $disposedOn->iso],
+        ]);
 
         return $asset->jsonSerialize();
     }
@@ -237,6 +269,17 @@ final class AssetService
             $this->assets->save($asset);
             $entriesCreated++;
             $total = $total->add($amount);
+        }
+
+        // A run that created nothing is still an event: "someone ran depreciation for this
+        // period and it was already done" is exactly what an auditor reconstructing a timeline
+        // wants to see, and leaving it out would make repeated runs invisible.
+        if ($this->tenantId !== null) {
+            $this->trace($input, 'depreciationRun', $this->tenantId, 'completed', [
+                'fiscalYear' => ['from' => null, 'to' => $fiscalYear],
+                'period' => ['from' => null, 'to' => $period],
+                'entriesCreated' => ['from' => null, 'to' => $entriesCreated],
+            ]);
         }
 
         if ($entriesCreated === 0) {

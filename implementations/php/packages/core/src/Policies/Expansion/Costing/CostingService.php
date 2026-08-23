@@ -169,6 +169,13 @@ final class CostingService
 
         $run = new CostingRun($this->ids->next(), $periodRef, $version, $primary, $after, $grandTotal);
         $this->runs[$run->id->value] = $run;
+        if ($this->audit !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'created', [
+                'period' => ['from' => null, 'to' => $periodRef->fiscalYear . '/' . $periodRef->period],
+                'version' => ['from' => null, 'to' => $version],
+                'status' => ['from' => null, 'to' => $run->status()],
+            ]);
+        }
 
         return $run;
     }
@@ -177,7 +184,13 @@ final class CostingService
     public function release(array $input): CostingRun
     {
         $run = $this->requireRun($input['runId'] ?? null);
+        $before = $run->status();
         $run->release();
+        if ($this->audit !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'released', [
+                'status' => ['from' => $before, 'to' => $run->status()],
+            ]);
+        }
 
         return $run;
     }

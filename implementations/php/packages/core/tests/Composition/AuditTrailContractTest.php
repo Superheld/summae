@@ -34,31 +34,33 @@ use Summae\Core\Tenant;
 final class AuditTrailContractTest extends TestCase
 {
     /**
-     * Operations that mutate but are not yet pinned here. Each one is a gap, not an
-     * exemption: they post through the ledger (so the journalEntry trace exists) but write
-     * no record of their own — `acquireAsset` leaves "journalEntry/created" and nothing
-     * saying an asset was acquired. Shrinking this list is the work; growing it needs a
-     * reason in the commit.
+     * Operations that mutate but are not yet pinned here. The list is EMPTY, and keeping it
+     * that way is the point: every state-changing operation in the dispatcher now writes a
+     * record of its own kind, not merely the `journalEntry/created` its postings leave
+     * behind. An entry here needs a reason in the commit that adds it.
      *
      * @var list<string>
      */
-    private const UNCOVERED_KNOWN = [
-        'postVoucher',
-        'createVoucher',
-        'settle',
-        'acquireAsset',
-        'disposeAsset',
-        'runDepreciation',
-        'allocate',
-        'runCosting',
-        'releaseCosting',
-        'importChartOfAccounts',
-    ];
+    private const UNCOVERED_KNOWN = [];
 
     private function freshOps(): TenantOperations
     {
         $clock = FixedClock::at('2026-06-07T12:00:00+02:00');
         $tenant = Tenant::inMemory('Audit GmbH', Currency::of('EUR'), $clock, new DeterministicIdGenerator($clock));
+        // The asset operations need the pack data they would normally be composed with;
+        // without it `acquireAsset` fails on the missing useful life instead of on the thing
+        // under test.
+        $tenant->assetService->setRuleModule([
+            'usefulLife' => [['assetClass' => 'machinery', 'months' => 60]],
+            'assetAccounts' => [
+                'acquisitionCounterAccount' => '1200',
+                'depreciationExpenseAccount' => '4830',
+                'accumulatedDepreciationAccount' => '0400',
+                'gwgExpenseAccount' => '4930',
+                'disposalGainAccount' => '8400',
+                'disposalLossAccount' => '4930',
+            ],
+        ]);
 
         return new TenantOperations($tenant);
     }
@@ -135,6 +137,30 @@ final class AuditTrailContractTest extends TestCase
         // --- partners --------------------------------------------------------
         yield 'createPartner' => ['createPartner', 'partner', 'created'];
         yield 'updatePartner' => ['updatePartner', 'partner', 'updated'];
+        // --- vouchers, settlements, assets, costing --------------------------
+        yield 'createVoucher' => ['createVoucher', 'voucher', 'created'];
+        yield 'postVoucher' => ['postVoucher', 'voucher', 'created'];
+        yield 'settle' => ['settle', 'openItem', 'settled'];
+        yield 'importChartOfAccounts' => ['importChartOfAccounts', 'account', 'created'];
+        yield 'acquireAsset' => ['acquireAsset', 'asset', 'acquired'];
+        yield 'disposeAsset' => ['disposeAsset', 'asset', 'disposed'];
+        yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
+        yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
+        yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
+    }
+
+    /** @return array<string, mixed> */
+    private function assetInput(string $voucherId): array
+    {
+        return [
+            'name' => 'Maschine',
+            'assetClass' => 'machinery',
+            'assetAccount' => '0400',
+            'acquisitionCost' => ['amount' => '5000.00', 'currency' => 'EUR'],
+            'acquiredOn' => '2026-01-15',
+            'usefulLifeYears' => 5,
+            'voucherId' => $voucherId,
+        ];
     }
 
     private function runOperation(TenantOperations $ops, string $op): void
@@ -228,6 +254,104 @@ final class AuditTrailContractTest extends TestCase
                 $ops->execute('updatePartner', ['partnerId' => $partnerId, 'name' => 'Kunde SE']);
 
                 return;
+            case 'createVoucher':
+                $this->seed($ops);
+
+                return;
+            case 'postVoucher':
+                $this->seed($ops);
+                $ops->execute('postVoucher', [
+                    'voucher' => ['voucherNumber' => 'ER-2026-002', 'voucherDate' => '2026-01-21'],
+                    'entryDate' => '2026-01-21',
+                    'text' => 'Direktbuchung',
+                    'lines' => [
+                        ['account' => '4930', 'side' => 'debit', 'money' => ['amount' => '100.00', 'currency' => 'EUR']],
+                        ['account' => '1200', 'side' => 'credit', 'money' => ['amount' => '100.00', 'currency' => 'EUR']],
+                    ],
+                ]);
+
+                return;
+            case 'settle':
+                $voucherId = $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1400', 'name' => 'Forderungen', 'type' => 'asset', 'subtype' => 'ar']);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erlöse', 'type' => 'revenue']);
+                $ops->execute('post', [
+                    'entryDate' => '2026-01-20',
+                    'voucherId' => $voucherId,
+                    'text' => 'Rechnung',
+                    'lines' => [
+                        ['account' => '1400', 'side' => 'debit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                        ['account' => '8400', 'side' => 'credit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                    ],
+                ]);
+                // The payment is an ordinary posting; `settle` then points that entry at the open item.
+                /** @var array<string, mixed> $payment */
+                $payment = $ops->execute('post', [
+                    'entryDate' => '2026-01-25',
+                    'voucherId' => $voucherId,
+                    'text' => 'Zahlung',
+                    'lines' => [
+                        ['account' => '1200', 'side' => 'debit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                        ['account' => '1400', 'side' => 'credit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                    ],
+                ]);
+                /** @var array<string, mixed> $open */
+                $open = $ops->project('openItems', []);
+                /** @var list<array<string, mixed>> $items */
+                $items = is_array($open['items'] ?? null) ? $open['items'] : [];
+                $entryId = $payment['id'] ?? null;
+                $itemId = $items[0]['id'] ?? null;
+                self::assertIsString($entryId);
+                self::assertIsString($itemId);
+                $ops->execute('settle', [
+                    'entryId' => $entryId,
+                    'allocations' => [['openItemId' => $itemId, 'money' => ['amount' => '119.00', 'currency' => 'EUR']]],
+                ]);
+
+                return;
+            case 'importChartOfAccounts':
+                $ops->execute('importChartOfAccounts', [
+                    'rows' => [['number' => '4980', 'name' => 'Sonstiges', 'type' => 'expense']],
+                ]);
+
+                return;
+            case 'acquireAsset':
+                $voucherId = $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '0400', 'name' => 'Maschinen', 'type' => 'asset']);
+                $ops->execute('createAccount', ['number' => '4830', 'name' => 'AfA', 'type' => 'expense']);
+                $ops->execute('acquireAsset', $this->assetInput($voucherId));
+
+                return;
+            case 'disposeAsset':
+                $voucherId = $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '0400', 'name' => 'Maschinen', 'type' => 'asset']);
+                $ops->execute('createAccount', ['number' => '4830', 'name' => 'AfA', 'type' => 'expense']);
+                /** @var array<string, mixed> $asset */
+                $asset = $ops->execute('acquireAsset', $this->assetInput($voucherId));
+                $assetId = $asset['id'] ?? null;
+                self::assertIsString($assetId);
+                $ops->execute('disposeAsset', ['assetId' => $assetId, 'disposedOn' => '2026-06-30', 'voucherId' => $voucherId]);
+
+                return;
+            case 'runDepreciation':
+                $this->seed($ops);
+                $ops->execute('runDepreciation', ['fiscalYear' => 2026, 'period' => 12]);
+
+                return;
+            case 'runCosting':
+                $this->seed($ops);
+                $ops->execute('runCosting', ['fiscalYear' => 2026, 'period' => 1]);
+
+                return;
+            case 'releaseCosting':
+                $this->seed($ops);
+                /** @var array<string, mixed> $run */
+                $run = $ops->execute('runCosting', ['fiscalYear' => 2026, 'period' => 1]);
+                $runId = $run['runId'] ?? null;
+                self::assertIsString($runId);
+                $ops->execute('releaseCosting', ['runId' => $runId]);
+
+                return;
             default:
                 self::fail(sprintf('no run recipe for %s', $op));
         }
@@ -283,7 +407,9 @@ final class AuditTrailContractTest extends TestCase
     {
         // The guard against the guard: a new mutating operation must be added above, or
         // this fails. `expandTax` is listed as read-only — it computes and changes nothing.
-        $readOnly = ['expandTax'];
+        // `allocate` distributes an amount by largest remainder and returns the parts —
+        // pure computation, no journal effect (see the dispatcher). Nothing to log.
+        $readOnly = ['expandTax', 'allocate'];
         $mutating = array_values(array_diff([
             'expandTax', 'setTaxProfile', 'postVoucher', 'createVoucher', 'post', 'correct',
             'finalize', 'reverse', 'settle', 'closePeriod', 'reopenPeriod', 'closeFiscalYear',

@@ -141,7 +141,7 @@ export class Tenant {
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);
-    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);
+    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids, tenantId, auditWriter);
     const costing = new CostingService(baseCurrency, accounts, journal, ids, tenantId, auditWriter);
     const partnerService = new PartnerService(partners, audit, clock, ids);
 

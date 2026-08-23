@@ -120,12 +120,27 @@ export class CostingService {
 
     const run = new CostingRun(this.ids.next(), periodRef, version, primary, after, grandTotal);
     this.runs.set(run.id.value, run);
+    if (this.audit !== null) {
+      this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'created', {
+        period: { from: null, to: `${periodRef.fiscalYear}/${periodRef.period}` },
+        version: { from: null, to: version },
+        status: { from: null, to: run.status() },
+      });
+    }
+
     return run;
   }
 
   release(input: Record<string, unknown>): CostingRun {
     const run = this.requireRun(input.runId);
+    const before = run.status();
     run.release();
+    if (this.audit !== null) {
+      this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'released', {
+        status: { from: before, to: run.status() },
+      });
+    }
+
     return run;
   }
 

@@ -31,6 +31,19 @@ const TENANT = { name: 'Audit GmbH', baseCurrency: 'EUR' };
 function freshOps(): TenantOperations {
   const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
   const tenant = Tenant.inMemory(TENANT.name, Currency.of(TENANT.baseCurrency), clock, new DeterministicIdGenerator(clock));
+  // The asset operations need the pack data they would normally be composed with; without it
+  // `acquireAsset` fails on the missing useful life instead of on the thing under test.
+  tenant.assetService.setRuleModule({
+    usefulLife: [{ assetClass: 'machinery', months: 60 }],
+    assetAccounts: {
+      acquisitionCounterAccount: '1200',
+      depreciationExpenseAccount: '4830',
+      accumulatedDepreciationAccount: '0400',
+      gwgExpenseAccount: '4930',
+      disposalGainAccount: '8400',
+      disposalLossAccount: '4930',
+    },
+  });
   return new TenantOperations(tenant);
 }
 
@@ -191,7 +204,7 @@ const AUDITED: readonly Case[] = [
         steps: [{ sender: 'HK1', receivers: [{ code: 'K1', share: '1' }] }],
       }),
   },
-  // --- partners & open items ----------------------------------------------
+  // --- partners -----------------------------------------------------------
   {
     op: 'createPartner',
     objectType: 'partner',
@@ -209,6 +222,141 @@ const AUDITED: readonly Case[] = [
         role: 'customer',
       }) as Record<string, unknown>;
       ops.execute('updatePartner', { partnerId: String(partner.id), name: 'Kunde SE' });
+    },
+  },
+  // --- vouchers, settlements, assets, costing ------------------------------
+  {
+    op: 'createVoucher',
+    objectType: 'voucher',
+    action: 'created',
+    run: (ops) => void seed(ops),
+  },
+  {
+    op: 'postVoucher',
+    objectType: 'voucher',
+    action: 'created',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('postVoucher', {
+        voucher: { voucherNumber: 'ER-2026-002', voucherDate: '2026-01-21' },
+        entryDate: '2026-01-21',
+        text: 'Direktbuchung',
+        lines: [
+          { account: '4930', side: 'debit', money: { amount: '100.00', currency: 'EUR' } },
+          { account: '1200', side: 'credit', money: { amount: '100.00', currency: 'EUR' } },
+        ],
+      });
+    },
+  },
+  {
+    op: 'settle',
+    objectType: 'openItem',
+    action: 'settled',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      ops.execute('createAccount', { number: '1400', name: 'Forderungen', type: 'asset', subtype: 'ar' });
+      ops.execute('createAccount', { number: '8400', name: 'Erlöse', type: 'revenue' });
+      ops.execute('post', {
+        entryDate: '2026-01-20',
+        voucherId,
+        text: 'Rechnung',
+        lines: [
+          { account: '1400', side: 'debit', money: { amount: '119.00', currency: 'EUR' } },
+          { account: '8400', side: 'credit', money: { amount: '119.00', currency: 'EUR' } },
+        ],
+      });
+      // The payment is an ordinary posting; `settle` then points that entry at the open item.
+      const payment = ops.execute('post', {
+        entryDate: '2026-01-25',
+        voucherId,
+        text: 'Zahlung',
+        lines: [
+          { account: '1200', side: 'debit', money: { amount: '119.00', currency: 'EUR' } },
+          { account: '1400', side: 'credit', money: { amount: '119.00', currency: 'EUR' } },
+        ],
+      }) as Record<string, unknown>;
+      const items = ops.project('openItems', {}) as { items?: Array<Record<string, unknown>> };
+      const itemId = String((items.items ?? [])[0]?.id);
+      ops.execute('settle', {
+        entryId: String(payment.id),
+        allocations: [{ openItemId: itemId, money: { amount: '119.00', currency: 'EUR' } }],
+      });
+    },
+  },
+  {
+    op: 'importChartOfAccounts',
+    objectType: 'account',
+    action: 'created',
+    run: (ops) =>
+      void ops.execute('importChartOfAccounts', {
+        rows: [{ number: '4980', name: 'Sonstiges', type: 'expense' }],
+      }),
+  },
+  {
+    op: 'acquireAsset',
+    objectType: 'asset',
+    action: 'acquired',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      ops.execute('createAccount', { number: '0400', name: 'Maschinen', type: 'asset' });
+      ops.execute('createAccount', { number: '4830', name: 'AfA', type: 'expense' });
+      ops.execute('acquireAsset', {
+        name: 'Maschine',
+        assetClass: 'machinery',
+        assetAccount: '0400',
+        acquisitionCost: { amount: '5000.00', currency: 'EUR' },
+        acquiredOn: '2026-01-15',
+        usefulLifeYears: 5,
+        voucherId,
+      });
+    },
+  },
+  {
+    op: 'disposeAsset',
+    objectType: 'asset',
+    action: 'disposed',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      ops.execute('createAccount', { number: '0400', name: 'Maschinen', type: 'asset' });
+      ops.execute('createAccount', { number: '4830', name: 'AfA', type: 'expense' });
+      const asset = ops.execute('acquireAsset', {
+        name: 'Maschine',
+        assetClass: 'machinery',
+        assetAccount: '0400',
+        acquisitionCost: { amount: '5000.00', currency: 'EUR' },
+        acquiredOn: '2026-01-15',
+        usefulLifeYears: 5,
+        voucherId,
+      }) as Record<string, unknown>;
+      ops.execute('disposeAsset', { assetId: String(asset.id), disposedOn: '2026-06-30', voucherId });
+    },
+  },
+  {
+    op: 'runDepreciation',
+    objectType: 'depreciationRun',
+    action: 'completed',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('runDepreciation', { fiscalYear: 2026, period: 12 });
+    },
+  },
+  {
+    op: 'runCosting',
+    objectType: 'costingRun',
+    action: 'created',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('runCosting', { fiscalYear: 2026, period: 1 });
+    },
+  },
+  {
+    op: 'releaseCosting',
+    objectType: 'costingRun',
+    action: 'released',
+    run: (ops) => {
+      seed(ops);
+      const run = ops.execute('runCosting', { fiscalYear: 2026, period: 1 }) as Record<string, unknown>;
+      ops.execute('releaseCosting', { runId: String(run.runId) });
     },
   },
 ];
@@ -259,7 +407,9 @@ describe('audit-trail completeness contract', () => {
     // The guard against the guard: a new mutating operation must be added above, or this
     // fails. Read-only names are listed explicitly so that adding one does not silently
     // widen the exemption.
-    const READ_ONLY = new Set(['expandTax']);
+    // `allocate` distributes an amount by largest remainder and returns the parts —
+    // pure computation, no journal effect (see the dispatcher). Nothing to log.
+    const READ_ONLY = new Set(['expandTax', 'allocate']);
     const declared = new Set(AUDITED.map((c) => c.op));
     const mutating = [
       'expandTax', 'setTaxProfile', 'postVoucher', 'createVoucher', 'post', 'correct',
@@ -279,20 +429,9 @@ describe('audit-trail completeness contract', () => {
 });
 
 /**
- * Operations that mutate but are not yet pinned here. Each one is a gap, not an exemption:
- * they post through the ledger (so the journalEntry trace exists) but write no record of
- * their own — `acquireAsset` leaves "journalEntry/created" and nothing saying an asset was
- * acquired. Shrinking this list is the work; growing it needs a reason in the commit.
+ * Operations that mutate but are not yet pinned here. The list is EMPTY, and keeping it that
+ * way is the point: every state-changing operation in the dispatcher now writes a record of
+ * its own kind, not merely the `journalEntry/created` its postings leave behind. An entry
+ * here needs a reason in the commit that adds it.
  */
-const UNCOVERED_KNOWN: readonly string[] = [
-  'postVoucher',
-  'createVoucher',
-  'settle',
-  'acquireAsset',
-  'disposeAsset',
-  'runDepreciation',
-  'allocate',
-  'runCosting',
-  'releaseCosting',
-  'importChartOfAccounts',
-];
+const UNCOVERED_KNOWN: readonly string[] = [];

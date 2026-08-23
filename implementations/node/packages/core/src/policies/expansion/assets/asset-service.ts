@@ -1,4 +1,5 @@
 import { DomainError } from '../../../domain-error.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { Ledger } from '../../../ledger/ledger.js';
 import { Voucher } from '../../../records/voucher.js';
 import type { AssetRepository, FiscalYearRepository, VoucherRepository } from '../../../port.js';
@@ -44,7 +45,24 @@ export class AssetService {
     private readonly vouchers: VoucherRepository,
     private readonly ledger: Ledger,
     private readonly ids: IdGenerator,
+    // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+    // nothing in them says *an asset was acquired*. These records carry the asset event
+    // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+    // tenant, like the configuration singletons.
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
+
+  private trace(
+    input: Record<string, unknown>,
+    objectType: string,
+    objectId: Uuid,
+    action: string,
+    changes: Record<string, { from: unknown; to: unknown }>,
+  ): void {
+    if (this.audit === null) return;
+    this.audit.record(this.audit.actorOf(input), objectType, objectId, action, changes);
+  }
 
   setRuleModule(ruleModule: Record<string, unknown>): void {
     this.ruleModule = ruleModule;
@@ -101,6 +119,13 @@ export class AssetService {
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
     ]));
 
+    this.trace(input, 'asset', asset.id, 'acquired', {
+      name: { from: null, to: name },
+      assetClass: { from: null, to: assetClass },
+      acquiredOn: { from: null, to: acquiredOn.iso },
+      route: { from: null, to: route },
+    });
+
     const result = asset.toJSON();
     result.route = route;
     if (route === 'immediate_expense') result.expenseAccount = targetAccount;
@@ -130,6 +155,11 @@ export class AssetService {
     if (lines.length > 0) {
       this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, this.withDimensions(asset, lines));
     }
+
+    this.trace(input, 'asset', asset.id, 'disposed', {
+      status: { from: 'active', to: 'disposed' },
+      disposedOn: { from: null, to: disposedOn.iso },
+    });
 
     return asset.toJSON();
   }
@@ -174,6 +204,17 @@ export class AssetService {
       this.assets.save(asset);
       entriesCreated++;
       total = total.add(amount);
+    }
+
+    // A run that created nothing is still an event: "someone ran depreciation for this
+    // period and it was already done" is exactly what an auditor reconstructing a timeline
+    // wants to see, and leaving it out would make repeated runs invisible.
+    if (this.tenantId !== null) {
+      this.trace(input, 'depreciationRun', this.tenantId, 'completed', {
+        fiscalYear: { from: null, to: fiscalYear },
+        period: { from: null, to: period },
+        entriesCreated: { from: null, to: entriesCreated },
+      });
     }
 
     if (entriesCreated === 0) return { alreadyRun: true, entriesCreated: 0 };
