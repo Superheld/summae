@@ -37,7 +37,7 @@ const PROJECTIONS = [
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
-  'overheadRates', 'productionCost',
+  'overheadRates', 'productionCost', 'accounts', 'fiscalYears',
 ] as const;
 
 /**

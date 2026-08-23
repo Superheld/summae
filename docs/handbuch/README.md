@@ -1257,6 +1257,51 @@ as-of evaluations.
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 
+### accounts — the chart of accounts
+
+No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`
+and `status`, ordered by account number. Nothing else — no balances (that is
+`trialBalance`), no movements (`accountSheet`), no hashes.
+
+The two fields worth naming are the two that were hard to get before.
+**`subtype`** says what an account is *for* — which one is the bank, which the
+cash box, which receivables and payables — and it is what an application should
+use to preselect a counter account. Reading the **pack** instead is the trap: the
+pack is the chart the tenant *started* from, and one `createAccount` later it is
+a guess. **`status`** is the read side of `lockAccount`; a locked account stays
+in the list, because it is still part of the chart and merely refuses postings.
+
+```json
+// params {}
+{ "accounts": [
+  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active" },
+  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked" } ] }
+```
+
+### fiscalYears — fiscal years and period status
+
+`fiscalYear` (no, scopes to one year). Output: `fiscalYears[]` with `year`,
+`start`, `end`, `status` and `periods[]` (`period`, `start`, `end`, `status`),
+ordered by year and period number.
+
+This is the read side of `closePeriod`, `reopenPeriod` and `closeFiscalYear`.
+Use it rather than replaying `auditLog`: the log is a **trail, not a state**, and
+reconstructing "period 3 is open" from it goes wrong the moment a period is
+closed by something that did not pass through your application.
+
+`start` and `end` are what make a period *list* possible. A fiscal year running
+July to June has twelve periods that are not the twelve calendar months, and
+period 1 is July — an application that assumes otherwise offers input the ledger
+will refuse. A year's own `status` is separate from its periods': closing every
+period does not close the year, `closeFiscalYear` does.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "fiscalYears": [ { "year": 2026, "start": "2025-07-01", "end": "2026-06-30", "status": "open",
+  "periods": [ { "period": 1, "start": "2025-07-01", "end": "2025-07-31", "status": "closed" },
+               { "period": 2, "start": "2025-08-01", "end": "2025-08-31", "status": "open" } ] } ] }
+```
+
 ### cashJournal — cash book (Kassenbuch)
 
 `fiscalYear` (**yes**). Reports every account of subtype `cash`, so the pack (or
@@ -1311,13 +1356,17 @@ decide what happens.
 
 `asOf` (no, cutoff date), `kind` (no, `receivable`/`payable`), `partnerId` (no).
 Items with a remaining amount of 0 as of the cutoff date drop out. Output:
-`items[]` with `id`, `kind`, `voucherNumber`, `partnerId`, `due`, `money` (original,
-Money), `remaining` (Money), `status`.
+`items[]` with `id`, `kind`, `voucherNumber`, `partnerId`, `partnerName`, `due`,
+`money` (original, Money), `remaining` (Money), `status`.
 
-`partnerId` and `due` are `null` where none is known — present and null, so "no partner
-recorded" / "no date agreed" stays distinguishable from "this view does not say". `due`
-comes from the **voucher**, so every item created by one voucher shares it; an instalment
-plan with a different date per part has no place to record that yet.
+`partnerId`, `partnerName` and `due` are `null` where none is known — present and null, so
+"no partner recorded" / "no date agreed" stays distinguishable from "this view does not
+say". `due` comes from the **voucher**, so every item created by one voucher shares it; an
+instalment plan with a different date per part has no place to record that yet.
+
+`partnerName` is the name the partner has **now**, read from the master record rather than
+copied onto the item when it was opened: an open item is a claim against whoever the partner
+is today, and a renamed customer must not be dunned under its old name.
 
 ```json
 // params { "asOf": "2026-02-20", "kind": "receivable" }

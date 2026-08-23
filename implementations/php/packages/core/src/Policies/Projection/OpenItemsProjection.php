@@ -8,6 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Substrate\OpenItemKind;
 use Summae\Core\Port\JournalRepository;
+use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Substrate\CalendarDate;
@@ -22,6 +23,7 @@ final readonly class OpenItemsProjection
         private OpenItemRepository $openItems,
         private VoucherRepository $vouchers,
         private JournalRepository $journal,
+        private PartnerRepository $partners,
     ) {
     }
 
@@ -110,6 +112,13 @@ final readonly class OpenItemsProjection
      * Null where the voucher names no date: present and null, so "no date agreed" stays
      * distinguishable from "this view does not say".
      *
+     * `partnerName` joined the same way and for the same reason (F-CORE-030). The list could name
+     * the invoice but not the customer, and resolving the id meant a second projection inside one
+     * view — which is exactly the mixing an application's read layer is supposed to avoid. A
+     * dunning notice without a recipient is not a notice. Null where the partner is unknown or was
+     * never recorded, so a missing partner does not turn into an empty string that reads like a
+     * name.
+     *
      * @return array<string, mixed>
      */
     private function serializeItem(OpenItem $item, ?CalendarDate $asOf): array
@@ -121,6 +130,7 @@ final readonly class OpenItemsProjection
             'kind' => $item->kind->value,
             'voucherNumber' => $voucher?->voucherNumber,
             'partnerId' => $item->partnerId?->value,
+            'partnerName' => $item->partnerId === null ? null : $this->partners->byId($item->partnerId)?->name(),
             'due' => $voucher?->due?->iso,
             'money' => $item->money->jsonSerialize(),
             'remaining' => $item->remainingAt($asOf)->jsonSerialize(),
