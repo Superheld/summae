@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import {
   type PackManifest,
   type PackModule,
+  findManifest,
   resolvePack,
   ruleModulesFromResolved,
 } from '@superheld/summae-core';
@@ -50,8 +51,12 @@ export function loadPackLibrary(dir: string): { modules: PackModule[]; manifests
  */
 export function packToRules(packId: string, libDir: string): Record<string, unknown> {
   const lib = loadPackLibrary(libDir);
-  const manifest = lib.manifests.find((m) => m.id === packId);
-  if (manifest === undefined) {
+  // Selection is the core's rule (highest version wins when none is pinned), so `summae init
+  // --pack de` picks the same manifest the conformance runner would.
+  let manifest;
+  try {
+    manifest = findManifest(lib.manifests, packId);
+  } catch {
     throw new Error(`Pack "${packId}" not found in the library (${libDir})`);
   }
   const rm = ruleModulesFromResolved(resolvePack(manifest, lib.modules));

@@ -129,6 +129,7 @@ export {
 export { PostVoucherService } from './composition/post-voucher-service.js';
 export { TenantFactory } from './composition/tenant-factory.js';
 export {
+  findManifest,
   resolvePack,
   ruleModulesFromResolved,
   type ResolvedPack,

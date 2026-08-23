@@ -6,6 +6,7 @@ namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
 use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
+use Summae\Core\Substrate\CanonicalJson;
 
 /**
  * Pack resolver (`resolvePack`) — pure resolution of a manifest against a
@@ -29,6 +30,48 @@ final class PackResolver
     ];
     private const array ROUNDING_MODES = ['halfUpAwayFromZero', 'halfEven'];
     private const array TAX_GRANULARITIES = ['perVoucher', 'perLine'];
+
+    /**
+     * Pick a manifest out of a store by id, optionally pinned to a version.
+     *
+     * A published `(id, version)` names one bundle for good, so a library may hold several
+     * versions of the same pack side by side and an old pin keeps resolving what it always
+     * resolved. A request without a version means "current", and current is the **highest**
+     * version by code point — the same rule module references already follow. Picking the
+     * first match instead would make the answer depend on directory iteration order, which
+     * is not the same on two machines.
+     *
+     * @param list<array<mixed>> $manifests
+     *
+     * @return array<mixed>
+     */
+    public static function findManifest(array $manifests, ?string $id, ?string $version = null): array
+    {
+        $candidates = [];
+        foreach ($manifests as $manifest) {
+            if (
+                self::str($manifest['id'] ?? null) === $id
+                && ($version === null || self::str($manifest['version'] ?? null) === $version)
+            ) {
+                $candidates[] = $manifest;
+            }
+        }
+
+        if ($candidates === []) {
+            throw new DomainError('E_PACK_UNRESOLVED_REF', sprintf(
+                'Manifest not found: %s%s',
+                $id ?? '',
+                $version === null ? '' : '@' . $version,
+            ));
+        }
+
+        usort(
+            $candidates,
+            static fn (array $a, array $b): int => strcmp(self::str($a['version'] ?? null) ?? '', self::str($b['version'] ?? null) ?? ''),
+        );
+
+        return $candidates[count($candidates) - 1];
+    }
 
     /**
      * @param array<mixed>       $manifest
@@ -287,7 +330,7 @@ final class PackResolver
             'defaults' => is_array($manifest['defaults'] ?? null) ? $manifest['defaults'] : [],
         ];
 
-        return [
+        $resolvedPack = [
             'id' => $manifestId,
             'version' => $manifestVersion,
             'chartOfAccounts' => ['accounts' => $accounts],
@@ -300,6 +343,25 @@ final class PackResolver
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
         ];
+        $resolvedPack['contentDigest'] = self::contentDigest($resolvedPack);
+
+        return $resolvedPack;
+    }
+
+    /**
+     * Fingerprint of everything a resolution produced.
+     *
+     * `version` is written by hand and can therefore lag behind, or stay put while the modules
+     * underneath it move — which is exactly how one version number came to name several different
+     * bundles. This one is derived, so nobody can forget to change it: two resolutions carrying the
+     * same digest are the same pack, and the same version with two digests is a broken promise
+     * somebody can now see. The version is part of the input, so a pure relabel changes it too.
+     *
+     * @param array<mixed> $resolvedPack without the digest itself
+     */
+    private static function contentDigest(array $resolvedPack): string
+    {
+        return hash('sha256', CanonicalJson::encode($resolvedPack));
     }
 
     /**
@@ -325,7 +387,11 @@ final class PackResolver
         return [
             // The identity travels with the bundle so a tenant can say which pack it runs on
             // (systemDescription / F-IO-007). Everything else here is rules; this is provenance.
-            'pack' => ['id' => $pack['id'] ?? null, 'version' => $pack['version'] ?? null],
+            'pack' => [
+                'id' => $pack['id'] ?? null,
+                'version' => $pack['version'] ?? null,
+                'contentDigest' => $pack['contentDigest'] ?? null,
+            ],
             'profiles' => [$profile],
             'chartsOfAccounts' => [[
                 'id' => self::str($profile['chartOfAccounts'] ?? null) ?? '',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Cli;
 
 use Summae\Core\Composition\PackResolver;
+use Summae\Core\DomainError;
 
 /**
  * Loads the shipped pack library for the CLI and resolves a pack to the
@@ -29,14 +30,11 @@ final class PackLibrary
     {
         [$modules, $manifests] = self::load($libDir);
 
-        $manifest = null;
-        foreach ($manifests as $candidate) {
-            if (($candidate['id'] ?? null) === $packId) {
-                $manifest = $candidate;
-                break;
-            }
-        }
-        if ($manifest === null) {
+        // Selection is the core's rule (highest version wins when none is pinned), so `summae init
+        // --pack de` picks the same manifest the conformance runner would.
+        try {
+            $manifest = PackResolver::findManifest($manifests, $packId);
+        } catch (DomainError) {
             throw new \RuntimeException(sprintf('Pack "%s" not found in the library (%s)', $packId, $libDir));
         }
 

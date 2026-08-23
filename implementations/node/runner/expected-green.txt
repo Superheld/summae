@@ -47,7 +47,6 @@ de-euer-mapping-gap
 de-ig-lieferung
 de-jahresgang
 de-kleinunternehmer
-de-pack-resolves
 de-reverse-charge
 de-ig-erwerb
 de-ausfuhr
@@ -63,7 +62,6 @@ declining-balance-asset-class
 asset-write-down
 special-depreciation
 units-of-production
-default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation
 deviating-fiscal-year
@@ -129,7 +127,6 @@ us-depreciation
 us-exempt-sale
 us-fiscal-year
 us-nexus
-us-pack-resolves
 us-sales-tax
 us-sales-tax-return
 us-schedule-c
@@ -147,3 +144,7 @@ xx-2-allocate-scale3
 xx-3-purchase-no-input-tax
 xx-4-open-item-lifecycle-scale3
 xx-5-constraint-dimension-rule
+de-pack-resolves-current
+default-pack-resolves-current
+us-pack-resolves-current
+xx-6-pack-version-pinning

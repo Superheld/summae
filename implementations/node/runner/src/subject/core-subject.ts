@@ -14,6 +14,7 @@ import {
   type PackManifest,
   type PackModule,
   type PeriodDefinition,
+  findManifest,
   resolvePack,
   ruleModulesFromResolved,
   TaxCodeRegistry,
@@ -67,6 +68,9 @@ export class CoreSubject implements Subject {
   private ruleModules: Record<string, unknown> = {};
   private packModules: PackModule[] = [];
   private packManifests: PackManifest[] = [];
+
+  /** Manifests the fixture brought itself, without the library. */
+  private inlineManifests: PackManifest[] = [];
   private readonly tenants = new Map<string, Tenant>();
 
   constructor(
@@ -111,11 +115,11 @@ export class CoreSubject implements Subject {
       ...(moduleList as unknown as PackModule[]),
       ...this.library.modules,
     ];
-    this.packManifests = [
+    this.inlineManifests = [
       ...(asRecordList(setup.manifests) as unknown as PackManifest[]),
       ...(pack && isRecord(pack.manifest) ? [pack.manifest as unknown as PackManifest] : []),
-      ...this.library.manifests,
     ];
+    this.packManifests = [...this.inlineManifests, ...this.library.manifests];
 
     const tenantData = isRecord(setup.tenant) ? setup.tenant : null;
     if (tenantData === null) {
@@ -227,7 +231,7 @@ export class CoreSubject implements Subject {
       const created = factory.create({ ...input, profile: asString(resolved.profile.id) ?? '' });
       this.tenants.set(created.tenant.id.value, created.tenant);
       const { profile: _profile, ...rest } = created.result;
-      return { ...rest, pack: { id: resolved.id, version: resolved.version } };
+      return { ...rest, pack: { id: resolved.id, version: resolved.version, contentDigest: resolved.contentDigest } };
     }
     const factory = new TenantFactory(this.ruleModules, clock, new DeterministicIdGenerator(clock));
     const created = factory.create(input);
@@ -241,6 +245,7 @@ export class CoreSubject implements Subject {
     return {
       id: resolved.id,
       version: resolved.version,
+      contentDigest: resolved.contentDigest,
       accountCount: resolved.chartOfAccounts.accounts.length,
       chartOfAccounts: resolved.chartOfAccounts,
       taxCodes: resolved.taxCodes,
@@ -251,18 +256,20 @@ export class CoreSubject implements Subject {
     };
   }
 
-  /** Resolve manifest reference: `manifest` as string id (+ `version`) or as `{id, version}`. */
+  /**
+   * Resolve manifest reference: `manifest` as string id (+ `version`) or as `{id, version}`.
+   *
+   * Inline before library, and the whole id at once: a fixture that brings its own manifest must
+   * stay unreachable for the shipped library, or a pack release could decide what a fixture
+   * resolves. Which of several versions wins is the core's rule, not a second copy of it here —
+   * the CLI asks the same question and must get the same answer.
+   */
   private findManifest(ref: Record<string, unknown>): PackManifest {
     const raw = ref.manifest;
     const id = isRecord(raw) ? asString(raw.id) : asString(raw);
     const version = isRecord(raw) ? asString(raw.version) : asString(ref.version);
-    const found = this.packManifests.find(
-      (m) => m.id === id && (version === null || m.version === version),
-    );
-    if (found === undefined) {
-      throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest not found: ${String(id)}`);
-    }
-    return found;
+    const inline = this.inlineManifests.filter((m) => m.id === id);
+    return findManifest(inline.length > 0 ? inline : this.packManifests, id, version);
   }
 
   /** Routing: explicit tenant reference, otherwise setup tenant, otherwise last created. */

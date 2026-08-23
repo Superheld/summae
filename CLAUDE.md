@@ -135,6 +135,20 @@ silently becomes "wrong" retroactively. Contradiction between spec/fixture/model
 guess, do not bend the fixture**, but document it in the `SPEC-FINDINGS.md` of the respective
 implementation and continue building with the next most plausible behavior.
 
+**Retiring a fixture is the one exception, and it is narrow.** Append-only stops a fixture from
+being *edited*; it does not claim a fixture can never have pinned the wrong thing. The three
+`*-pack-resolves` fixtures pinned the version and the account count of a **shipped pack** — so the
+`de` pack could neither gain an account nor publish a version without the suite going red, which is
+the opposite of what a contract is for. Such a fixture is **superseded**, never edited and never
+deleted: the file stays byte-identical, a successor pins the behaviour that was actually meant, and
+`testing/testsuite/superseded.json` records which is which and why. The runner skips what is listed
+there, and `SupersededFixturesTest`/`superseded-fixtures.test.ts` check the register in both
+languages — an entry must name a real fixture and a real successor that really runs. **The test is
+whether the expectation was ever a contract at all**, not whether it is inconvenient: a fixture that
+pins *behaviour* is never retired, it is argued with. Product data (a pack's version, the size of
+its chart) belongs to the product; mechanism (that a pinned version keeps resolving what it always
+resolved) belongs in a fixture that owns its own data, like `xx-6-pack-version-pinning`.
+
 **One mirror remains:** `pack-library/` is still authored outside and comes in via `make sync`
 (`bin/sync-pack-library.sh`, `rsync --delete` — whatever is here and not in the source gets
 deleted). Do not edit it here.
