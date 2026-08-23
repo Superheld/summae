@@ -1023,6 +1023,16 @@ The disposal books the whole event, in this order:
    fully depreciated asset scrapped for nothing books no entry rather than an
    empty one.
 
+The carrying amount is the acquisition cost less **everything already
+depreciated**, whatever date those entries carry — not the value the asset had
+on `disposedOn`. The difference shows when a yearly run has already booked the
+whole year on 31 December and the asset then leaves in September: the year keeps
+its twelve months of depreciation, and the disposal takes what is left as its
+gain or loss. The income statement carries the same total either way; only the
+split between depreciation and disposal result moves. Reading the value as of
+the disposal date instead would write off more than stands on the account and
+leave an asset account with a credit balance (IMPL-026).
+
 **Exception — pooled assets whose pack keeps them in the pool**
 (`poolReducedOnDisposal: false`): nothing is written off, the pool keeps running
 its term, and only the proceeds are booked.
