@@ -1,0 +1,136 @@
+{
+  "fixture": "declining-balance-asset-class",
+  "description": "Two declining-balance regimes in force at the same time, and the rule that keeps them apart. Germany runs one for movables (factor 3, capped at 30 %, acquisitions from mid-2025 to the end of 2027) and a separate one for new residential buildings (5 % of the residual value, a window running from late 2023 to late 2029) — the windows overlap, so on any date in 2026 both entries are in force at once. Until now the core took the first entry that matched the date, so the building silently inherited the movables entry — and note what that costs: its cap of 30 % never even binds at a 400-month life, the rate is 3 x 2.9412 % = 8.8235 %, giving 35,294.00 in year one instead of 20,000.00. Not a rounding difference, not an error either; just 76 % too much depreciation with nothing to indicate it. An entry may now name the asset classes it covers, and a class-specific entry beats a general one REGARDLESS OF FILE ORDER — that is the part worth pinning, because order-dependence would make appending a line above another change what it means. Here the general entry deliberately comes first: the building (400,000.00 over 400 months, so min(3 x 2.9412 %, 5 %) = 5 %) takes 20,000.00, while the machine on the same date still takes its 30 % = 3,000.00. A pack entry without the field keeps covering every class, which is what every pack written before this distinction said.",
+  "covers": [
+    "F-AST-002"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0090", "name": "Wohngebäude", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "0320", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "KV-HAUS", "voucherDate": "2026-01-01" },
+      { "id": "$V2", "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [
+        {
+          "validFrom": "2018-01-01",
+          "validTo": null,
+          "immediateMax": "800.00",
+          "poolMin": "250.01",
+          "poolMax": "1000.00",
+          "poolYears": 5,
+          "poolReducedOnDisposal": false,
+          "poolProRataInFirstYear": false
+        }
+      ],
+      "usefulLife": [
+        { "assetClass": "machine", "months": 60 }
+      ],
+      "decliningBalance": [
+        {
+          "validFrom": "2025-07-01",
+          "validTo": "2027-12-31",
+          "factor": 3,
+          "maxRate": "30.00"
+        },
+        {
+          "validFrom": "2023-10-01",
+          "validTo": "2029-09-30",
+          "factor": 3,
+          "maxRate": "5.00",
+          "assetClasses": ["residential-building"]
+        }
+      ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "gwgExpenseAccount": "4855"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Mehrfamilienhaus",
+        "assetClass": "residential-building",
+        "assetAccount": "0090",
+        "acquisitionCost": { "amount": "400000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "gwgChoice": "capitalize",
+        "usefulLifeMonths": 400,
+        "depreciationMethod": "declining_balance"
+      },
+      "expect": {
+        "result": {
+          "comment": "Nutzungsdauer je Anschaffung: die Tabelle im Pack kennt keine Datumsdimension, und für Wohngebäude hängt der lineare Satz am Fertigstellungsjahr — eine Zahl zu tabellieren wäre für Altbauten falsch",
+          "route": "capitalize",
+          "usefulLifeMonths": 400,
+          "depreciationMethod": "declining_balance",
+          "id": "$A1"
+        }
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Fertigungsmaschine",
+        "assetClass": "machine",
+        "assetAccount": "0320",
+        "acquisitionCost": { "amount": "10000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V2",
+        "gwgChoice": "capitalize",
+        "depreciationMethod": "declining_balance"
+      },
+      "expect": {
+        "result": {
+          "comment": "Gleiches Datum, kein Klassen-Eintrag — der allgemeine Eintrag greift weiter",
+          "route": "capitalize",
+          "usefulLifeMonths": 60,
+          "depreciationMethod": "declining_balance",
+          "id": "$A2"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "400.000,00 × 5 % = 20.000,00 (nicht 120.000,00 nach dem Satz für bewegliche Güter) + 10.000,00 × 30 % = 3.000,00",
+          "entriesCreated": 2,
+          "totalDepreciation": { "amount": "23000.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "0090", "balance": "380000.00" },
+          { "account": "0320", "balance": "7000.00" },
+          { "account": "1200", "balance": "-410000.00" },
+          { "account": "4830", "balance": "23000.00" }
+        ]
+      }
+    }
+  ]
+}

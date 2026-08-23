@@ -117,7 +117,7 @@ export class AssetService {
       usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
       schedule.push(
         ...(method === 'declining_balance'
-          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn)
+          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn, assetClass)
           : cost.allocateEvenly(usefulLifeMonths)),
       );
     } else if (route === 'pool') {
@@ -607,8 +607,13 @@ export class AssetService {
    * percentage and the remaining-life figure go through allocate, so the cents fall where the rest of
    * the core puts them.
    */
-  private decliningBalanceSchedule(cost: Money, usefulLifeMonths: number, acquiredOn: CalendarDate): Money[] {
-    const rule = this.decliningBalanceRule(acquiredOn);
+  private decliningBalanceSchedule(
+    cost: Money,
+    usefulLifeMonths: number,
+    acquiredOn: CalendarDate,
+    assetClass: string,
+  ): Money[] {
+    const rule = this.decliningBalanceRule(acquiredOn, assetClass);
     const years = Math.ceil(usefulLifeMonths / 12);
 
     // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the rate is
@@ -641,13 +646,25 @@ export class AssetService {
   }
 
   /**
-   * The declining-balance rule in force on the acquisition date. Refused rather than defaulted, like
-   * every other pack question here: a core that invents a rate has one jurisdiction's tax policy in
-   * the substrate, and these rates are the most short-lived numbers in the whole pack — Germany's
-   * current one applies to a window of two and a half years.
+   * The declining-balance rule in force on the acquisition date, for this kind of asset. Refused
+   * rather than defaulted, like every other pack question here: a core that invents a rate has one
+   * jurisdiction's tax policy in the substrate, and these rates are the most short-lived numbers in
+   * the whole pack — Germany's current one applies to a window of two and a half years.
+   *
+   * Two entries can be in force at once, because a jurisdiction may run one declining-balance regime
+   * for movables and another for buildings over overlapping windows — Germany does exactly that. So
+   * an entry may name the asset classes it covers, and **a class-specific entry wins over a general
+   * one no matter which comes first in the file.** Order-independence is the point: a rule that
+   * changed meaning when someone appended a line above it would be a trap, and the general entry is
+   * the one a pack author is most likely to add later.
+   *
+   * An entry without `assetClasses` covers every class, which is what a pack written before this
+   * distinction existed says — those keep computing what they always did.
    */
-  private decliningBalanceRule(acquiredOn: CalendarDate): { factor: number; maxRate: string } {
+  private decliningBalanceRule(acquiredOn: CalendarDate, assetClass: string): { factor: number; maxRate: string } {
     const raw = Array.isArray(this.ruleModule.decliningBalance) ? this.ruleModule.decliningBalance : [];
+    let general: { factor: number; maxRate: string } | null = null;
+
     for (const item of raw) {
       if (!isRecord(item) || typeof item.validFrom !== 'string') continue;
 
@@ -659,13 +676,22 @@ export class AssetService {
       const maxRate = typeof item.maxRate === 'string' ? item.maxRate : null;
       if (factor === null || factor < 1 || maxRate === null) continue;
 
-      return { factor, maxRate };
+      const classes = Array.isArray(item.assetClasses) ? item.assetClasses : null;
+
+      if (classes === null) {
+        general ??= { factor, maxRate };
+        continue;
+      }
+
+      if (classes.includes(assetClass)) return { factor, maxRate };
     }
+
+    if (general !== null) return general;
 
     throw new DomainError(
       'E_PACK_INCOHERENT',
-      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso}`,
-      { field: 'decliningBalance', acquiredOn: acquiredOn.iso },
+      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso} for asset class "${assetClass}"`,
+      { field: 'decliningBalance', acquiredOn: acquiredOn.iso, assetClass },
     );
   }
 

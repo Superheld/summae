@@ -31,6 +31,7 @@ de-bewirtung
 de-bilanz-guv
 de-complete-override-remove-equals-base
 de-degressive-afa
+de-degressive-afa-wohngebaeude
 de-eingangsrechnung
 de-euer
 de-euer-kleinunternehmer
@@ -48,6 +49,7 @@ de-vorsteuer-ermaessigt
 de-wertabgabe
 de-wertpapierdepot
 declining-balance-depreciation
+declining-balance-asset-class
 default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation

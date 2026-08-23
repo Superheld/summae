@@ -10,6 +10,37 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
 
+## Unreleased
+
+### Added
+
+- **Declining-balance depreciation can now tell asset classes apart.** A pack may have two
+  declining-balance regimes in force at once — Germany runs one for movables and another for new
+  residential buildings over overlapping windows — and the core took whichever entry came first
+  in the file. A building therefore inherited the movables entry, and the damage is not what the
+  headline rates suggest: at a 400-month life the movables cap of 30 % never binds, so the rate
+  came out at 3 × 2.9412 % = 8.8235 % and the first year booked 35,294.00 where 20,000.00 was
+  due. No error, no crash, 76 % too much depreciation.
+
+  A `decliningBalance` entry may now name the `assetClasses` it covers, and **a class-specific
+  entry wins over a general one regardless of file order** — order-independence being the point,
+  since a rule that changed meaning when someone appended a line above it would be a trap. An
+  entry without the field still covers every class, so every pack written before this keeps
+  computing exactly what it did.
+
+- **The `de` pack carries § 7 Abs. 5a EStG**: 5 % of the residual value for new residential
+  buildings acquired between 1 October 2023 and 30 September 2029. The useful life comes with the
+  acquisition rather than from the pack's table, deliberately: for a residential building the
+  straight-line rate depends on the year of completion, and the table has no date dimension, so
+  one tabled figure would be wrong for every older building.
+
+### Fixed
+
+- **The v0.10.0 release notes now carry a warning.** That version's PHP `summae-laravel` package
+  builds a database-backed tenant without an audit writer. Packagist has no per-version
+  deprecation, so the warning sits where someone landing on that version actually reads it. The
+  npm packages of 0.10.0 are byte-identical to 0.10.1 and are not affected.
+
 ## 0.10.1 — 2026-08-23
 
 One fix, and it is the kind that only shows up where it matters: **with a real database, three
