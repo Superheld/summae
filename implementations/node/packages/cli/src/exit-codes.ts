@@ -68,6 +68,11 @@ const CODES: readonly string[] = [
   // regardless: reserving the number costs nothing, and it lets `exit-codes.test.ts` demand the
   // catalogue *without an exception list* — an exception list is the hole IMPL-018 came through.
   'E_AMOUNT_SCALE_MISMATCH',
+  // Appended 2026-08-23. The simultaneous-equation method solves the whole allocation scheme at
+  // once; a scheme in which a group of cost centres passes everything among themselves and never
+  // reaches one that keeps it has no solution at all. Refused, because there is no number to give
+  // — cost that circulates forever is a modelling mistake, not a small residue.
+  'E_COSTING_UNSOLVABLE',
 ];
 
 export function exitCodeFor(errorCode: string): number {

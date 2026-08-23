@@ -1009,20 +1009,43 @@ no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 
 #### setAllocationScheme
 
-Allocation scheme (step-ladder). `method` (no, default `"step_ladder"`),
-`steps[]` (`sender` yes, `receivers[].code` yes, `receivers[].share` no, default
-`"1"`). Output: `{ "valid", "method", "stepCount" }`. Errors:
-`E_COSTING_CYCLE`; missing `sender` → `InvalidValue` ⚠.
+Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` yes,
+`receivers[].code` yes, `receivers[].share` no, default `"1"`). Output:
+`{ "valid", "method", "stepCount" }`. Errors: `E_INPUT_INVALID` (a method summae does
+not perform — it is refused, never approximated), `E_COSTING_CYCLE`; missing `sender`
+→ `InvalidValue` ⚠.
 
 ```json
 { "method": "step_ladder", "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] } ] }
 ```
 
+Two methods:
+
+- **`step_ladder`** — one pass in the order the steps are given. The scheme has to be
+  acyclic (`E_COSTING_CYCLE`), because in one pass a centre that has already been
+  emptied cannot receive anything back.
+- **`simultaneous`** — all cost centres solved at once as a linear system, so centres
+  that serve *each other* are allowed. Use it whenever the power plant heats the
+  workshop and the workshop maintains the power plant: there is no order in which one
+  of them can go first without sending on cost it has not received yet. Only a
+  **closed** circle is refused (`E_COSTING_UNSOLVABLE`) — one where a group of centres
+  passes everything among themselves and nothing ever reaches a centre that keeps it.
+
+```json
+{ "method": "simultaneous", "steps": [ { "sender": "ST", "receivers": [ { "code": "RE", "share": "20" }, { "code": "FE", "share": "80" } ] }, { "sender": "RE", "receivers": [ { "code": "ST", "share": "10" }, { "code": "FE", "share": "90" } ] } ] }
+```
+
+The textbook's third procedure, the *direct* method (German *Anbauverfahren*), needs no
+mechanism of its own: it is the step ladder with a scheme in which auxiliary centres send
+only to main ones. Leaving the auxiliary-to-auxiliary edges out of the scheme *is* the
+method.
+
 #### runCosting
 
 Costing run: primary costs from expense lines carrying a `costCenter` dimension,
-then allocation. `fiscalYear` (yes), `period` (yes). Output:
-`{ "runId", "status": "draft", "version" }`.
+then allocation by the method the scheme was set with. `fiscalYear` (yes), `period`
+(yes). Output: `{ "runId", "status": "draft", "version" }`. Errors:
+`E_COSTING_UNSOLVABLE` (see `setAllocationScheme`).
 
 #### releaseCosting
 
@@ -1115,10 +1138,13 @@ plan with a different date per part has no place to record that yet.
 
 ### costAllocationSheet — cost allocation sheet (BAB)
 
-`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). ⚠ `fiscalYear`/`period`
-present in fixtures, but not evaluated. Output: `runId`, `status`, `version`,
-`primary[]` and `afterAllocation[]` (each `{costCenter, total}`), `grandTotal`
-(strings).
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). `fiscalYear`/`period` are optional
+and, if given, have to agree with the run — a mismatch is `E_INPUT_INVALID` rather
+than the run's own period returned under someone else's label. Output: `runId`,
+`status`, `version`, `method` (which procedure produced these numbers — the two answer
+the same question differently, so a sheet that does not say cannot be checked against
+anything), `primary[]` and `afterAllocation[]` (each `{costCenter, total}`),
+`grandTotal` (strings).
 
 ```json
 // clearing total 4000 is preserved, sender VW ends at 0
