@@ -42,6 +42,7 @@ de-vorsteuer-ermaessigt
 de-wertabgabe
 de-wertpapierdepot
 default-pack-resolves
+depreciation-deviating-fiscal-year
 depreciation-monthly-allocation
 deviating-fiscal-year
 disposal-catches-up-depreciation

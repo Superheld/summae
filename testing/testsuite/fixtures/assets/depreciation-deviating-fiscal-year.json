@@ -1,0 +1,73 @@
+{
+  "fixture": "depreciation-deviating-fiscal-year",
+  "description": "Depreciation follows the fiscal year, not the calendar year. The yearly run grouped an asset's plan months by the CALENDAR year of each month and then matched that number against the requested fiscal year. With a fiscal year equal to the calendar year the two coincide and everything is right; with a deviating one they come apart, and not by a rounding error. For a fiscal year 07/2026–06/2027 (labelled 2027 by its end year) and an asset acquired in September 2026 over twelve months, the run for 2027 saw only the plan months whose calendar year is 2027 — it booked the eight months January to August 2027, two of which lie in the NEXT fiscal year, and the four months September to December 2026 were never booked by any run at all, because no fiscal year is labelled 2026. The asset kept a carrying amount it should not have, permanently, and profit was overstated for as long as it did. What is pinned here: the 2027 run covers September 2026 to June 2027 (ten months), the 2028 run covers the remaining two, and together they write the asset off in full. Substrate, not pack: which months belong to a fiscal year is what a fiscal year IS.",
+  "covers": ["F-AST-002", "F-CORE-016"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0320", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2027, "start": "2026-07-01", "end": "2027-06-30" },
+      { "year": 2028, "start": "2027-07-01", "end": "2028-06-30" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-MASCH-9", "voucherDate": "2026-09-01" }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false, "poolProRataInFirstYear": false } ],
+      "usefulLife": [ { "assetClass": "twelve-months", "months": 12 } ],
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine", "assetClass": "twelve-months", "assetAccount": "0320",
+        "acquisitionCost": { "amount": "1200.00", "currency": "EUR" },
+        "acquiredOn": "2026-09-01", "voucherId": "$V1", "gwgChoice": "capitalize"
+      },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 12, "id": "$A1" } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2027 },
+      "expect": {
+        "result": {
+          "comment": "Wirtschaftsjahr 07/2026–06/2027 enthält die Planmonate September 2026 bis Juni 2027 = 10 von 12. Nach Kalenderjahr gerechnet wären es 8 (Januar–August 2027), davon zwei aus dem Folgejahr.",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "1000.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2028 },
+      "expect": {
+        "result": {
+          "comment": "Rest: Juli und August 2027. Nach Kalenderjahr gerechnet wäre hier gar nichts mehr gekommen, und 400,00 wären nie abgeschrieben worden.",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "200.00", "currency": "EUR" }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2028, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Vollständig abgeschrieben — der Restbuchwert ist null, nicht 400,00",
+        "rows": [
+          { "account": "0320", "balance": "0.00" },
+          { "account": "1200", "balance": "-1200.00" },
+          { "account": "4830", "balance": "200.00" }
+        ]
+      }
+    }
+  ]
+}
