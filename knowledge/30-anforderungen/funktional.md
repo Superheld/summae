@@ -11,7 +11,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-003 | Jede Buchung MUSS genau einen Beleg (`voucher`) referenzieren; progressive und retrograde Prüfung MUSS über die Referenzkette möglich sein. | alle |
 | F-CORE-004 | Perioden MÜSSEN schließbar sein (nur in Reihenfolge); Buchungen in geschlossene Perioden werden abgewiesen. | 07 |
 | F-CORE-005 | Kontenrahmen MÜSSEN als versionierte Daten importierbar sein; Kontenpläne sind mandantenspezifisch ableitbar. | 13 |
-| F-CORE-006 | Buchungspositionen MÜSSEN frei definierbare Dimensionen tragen können; Kostenstelle/Kostenträger/Produkt werden als Standardtypen mitgeliefert. | 12 |
+| F-CORE-006 | Buchungspositionen MÜSSEN frei definierbare Dimensionen tragen können. **Präzisiert 2026-08-24:** Typen und Werte sind *Mandanten*-Stammdaten (`defineDimensionType`/`defineDimensionValue`) — eine Jurisdiktion hat keine Meinung darüber, wie eine Firma ihre Kostenstellen nennt; das Pack liefert nur `dimensionRules` (welche Konten ohne welche Dimension nicht bebucht werden dürfen). Der Typcode `costCenter` ist Kern-Vokabular (Primärkosten-Einlass der KLR), nicht Pack-Daten. „Standardtypen mitgeliefert" beschrieb einen später verworfenen Entwurf. | 12 |
 | F-CORE-007 | Eigene Konten MÜSSEN jederzeit anlegbar sein (innerhalb der Kontenplan-Systematik). | 13 |
 | F-CORE-008 | Die EÜR MUSS als Projektion über zahlungswirksame Buchungen erzeugbar sein (Regeln R1–R6, bewiesen). | 08 |
 | F-CORE-009 | Zahlungen MÜSSEN offene Posten referenzieren (auch Teilausgleich, proportionale Kategorie-Aufteilung). | 04 |

@@ -18,6 +18,24 @@
       "supersededBy": "default-pack-resolves-current",
       "on": "2026-08-23",
       "reason": "Same weld as de-pack-resolves: `default` frozen at 2026.1 with its account count. Untouched so far only because nothing has needed to change in the neutral pack yet."
+    },
+    {
+      "fixture": "de-jahresgang",
+      "supersededBy": "de-jahresgang-current",
+      "on": "2026-08-24",
+      "reason": "Pinned `accountCount: 41` on the shipped `de` pack while testing something else entirely (a full year through the German pack). The same weld as de-pack-resolves, one fixture further on: the chart could not gain an account without this going red. It went red the moment the pack gained the operating-expense accounts an embedding app asked for. The successor drives exactly the same year and pins everything about it except the size of the product's catalogue."
+    },
+    {
+      "fixture": "de-wertpapierdepot",
+      "supersededBy": "de-wertpapierdepot-current",
+      "on": "2026-08-24",
+      "reason": "Same weld as de-jahresgang: `accountCount: 41` pinned in passing by a fixture about securities held as current assets."
+    },
+    {
+      "fixture": "de-euer-mapping-gap",
+      "supersededBy": "de-euer-mapping-gap-current",
+      "on": "2026-08-24",
+      "reason": "A rarer case, and the register is the right place to say why it is not an edited expectation. The fixture pins a MECHANISM that still holds: an account a user adds after the fact, which the mapping does not know, is reported in `gapWarnings` instead of being filed silently under its own name. What it rested on was product data — it used account 6050 because the shipped DE chart happened to have nothing there. When the pack gained its operating-expense accounts (6030–6090, so the chart could finally be extended safely) and de-euer moved to ranges, 6050 became a mapped account and the fixture asserted the opposite of what the pack does. The successor pins the same mechanism on 6200, which lies outside every position of every DE mapping by design. The mechanism was never wrong; the example was borrowed from the product."
     }
   ]
 }

@@ -20,6 +20,34 @@ versioning per SemVer (0.x: minor may break).
   `customer`/`supplier`/`both` instead of any string. A caller that relied on either has to change;
   everything that already sent proper master data is unaffected.
 
+### Changed
+
+- **The DE pack can be extended without a statement losing the accounts** (`de@2026.4`). The trap
+  was the finding, not the missing accounts: `de-guv` mapped position 6 by the **range** 6000–6099
+  while `de-euer` position A5 listed explicit `numbers: ["6000","6700"]`, so an account added at
+  6035 flowed into the income statement and vanished from the EÜR — same chart, same posting, two
+  statements disagreeing, and nothing saying so. `de-euer` now maps by range like `de-guv`, carved
+  around the three numbers the law treats individually (entertainment deductible / non-deductible,
+  carrying amount on disposal). Seven operating-expense accounts follow (6030–6090: rooms, energy,
+  telephone, vehicles, tools, insurance, bank charges), which is what an embedding app asked for and
+  what is only safe *after* the mappings agree. Fixture `de-aufwandskonten-erweiterbar` pins the
+  property rather than the account list. Superseded module files stay in `de-pack/versions/`, so
+  `de@2026.3` keeps resolving to exactly what it always did.
+
+- **The `de-pack` README stops overpromising SKR03/04.** "Remain loadable via
+  `importChartOfAccounts`" was true in the narrow sense — the accounts get created — and false in
+  the sense a reader takes: all three mappings reference *this* chart's numbers, so an SKR03 tenant
+  gets a balance sheet, an income statement and an EÜR that find almost nothing. The README now says
+  what the limitation is, and the extendable bands are documented alongside it.
+
+- **Three fixtures superseded, none edited.** `de-jahresgang` and `de-wertpapierdepot` pinned
+  `accountCount: 41` in passing — the same weld `de-pack-resolves` was retired for, and the reason
+  the chart could not grow. `de-euer-mapping-gap` is the rarer case: the mechanism it pins (an
+  account the mapping does not know is *reported*, not filed silently) still holds, but its example
+  account 6050 became a mapped account when the pack grew. Its successor pins the same mechanism on
+  a number that lies outside every DE mapping by design. Reasons in
+  `testing/testsuite/superseded.json`.
+
 ### Added
 
 - **`journal` — a journal read that is both cheap and lossless** (F-CORE-031). The plainest view a
