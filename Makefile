@@ -1,10 +1,20 @@
 COMPOSE = docker compose
 PHP     = $(COMPOSE) run --rm php
 
-.PHONY: build install test stan check sync shell fixtures cross
+.PHONY: build install test stan check sync shell fixtures fixtures-strict fixtures-db cross
 
-fixtures:     ## Konformitäts-Fixtures gegen den Kern laufen lassen
+fixtures:     ## Konformitäts-Fixtures gegen den Kern (schnell, beim Entwickeln)
 	$(PHP) php runner/bin/run-fixtures.php
+
+fixtures-strict: ## Dieselben Fixtures, aber eine neu-grüne ohne Eintrag ist ein Fehler
+	$(PHP) php runner/bin/run-fixtures.php --strict
+
+fixtures-db:  ## Dieselben Fixtures gegen den DATENBANK-Adapter (SQLite)
+	# Der Lauf, der die in-memory-Gates nicht ersetzen können: die Adapter bauen den Tenant
+	# selbst, und was sie dabei weglassen, sieht kein Test, der gegen Fakes läuft. Genau so
+	# blieb ein fehlender AuditWriter in DatabaseTenantFactory unbemerkt, bis CI ihn fand —
+	# lokal war alles grün, weil `check` diesen Lauf nicht kannte.
+	$(PHP) php runner/bin/run-fixtures.php --strict --subject=database
 
 cross:        ## SF-15 Cross-Test (beide Richtungen): PHP <-> Node auf geteilter SQLite
 	$(PHP) php runner/bin/cross-export.php
@@ -24,7 +34,7 @@ test:         ## PHPUnit + Coverage-Gate (Boden je Paket, siehe coverage-gate.ph
 stan:         ## PHPStan (level max)
 	$(PHP) vendor/bin/phpstan analyse
 
-check: stan test  ## Alles, was CI prüft
+check: stan test fixtures-strict fixtures-db  ## Alles, was CI für PHP prüft — jetzt wirklich
 
 sync:         ## Pack-Library aus der Wissensbasis spiegeln (Einbahnstraße, letzter Spiegel)
 	./bin/sync-pack-library.sh
