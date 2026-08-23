@@ -90,7 +90,7 @@ export class Ledger {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
     this.chart = new ChartAdminService(accounts, ids, this.auditWriter);
-    this.periods = new FiscalPeriodService(fiscalYears, journal, ids);
+    this.periods = new FiscalPeriodService(fiscalYears, journal, ids, this.auditWriter);
   }
 
   post(input: Record<string, unknown>): PostResult {
@@ -289,7 +289,7 @@ export class Ledger {
       });
     }
 
-    // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+    // IMPL-008: a reversal clears the open items the reversed entry produced — but only while they
     // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
     // item would drop that movement out of the open-item history while the ledger keeps it. The
     // line SAP draws with F5308: undo the settlement first, or post a credit note.
@@ -307,6 +307,17 @@ export class Ledger {
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
     const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
 
+    // A reversal may carry its own voucher. It used to inherit the reversed entry's one
+    // unconditionally and drop any `voucherId` in the input without a word — so a caller who
+    // supplied a cancellation document got no error, no hint, and a posting pointing at the wrong
+    // paper. Inheriting stays the default, because a reversal without its own document is a normal
+    // case and no posting may be voucher-less; supplying one is now honoured, and an unknown id
+    // fails like everywhere else (E_VOUCHER_UNKNOWN).
+    const reversalVoucherId =
+      input.voucherId === null || input.voucherId === undefined
+        ? original.voucherId
+        : this.requireVoucher(input.voucherId).id;
+
     const reversal = new JournalEntry(
       this.ids.next(),
       this.journal.nextSequenceNumber(fiscalYear.year),
@@ -314,7 +325,7 @@ export class Ledger {
       original.voucherDate,
       this.auditWriter.now(),
       new PeriodRef(fiscalYear.year, period.number),
-      original.voucherId,
+      reversalVoucherId,
       text,
       original.lines().map((line) => line.negated()),
       original.id,

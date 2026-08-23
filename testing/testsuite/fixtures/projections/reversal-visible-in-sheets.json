@@ -1,0 +1,175 @@
+{
+  "fixture": "reversal-visible-in-sheets",
+  "description": "A reversal must be recognisable AS a reversal in the sheets an auditor reads, not only in the export. The journal has carried `reverses`/`reversedBy` since the beginning and `journalExport` publishes both, but `cashJournal` and `accountSheet` showed a reversal as an ordinary opposite movement: a reader saw +100.00 and −100.00 and could not tell whether a mistake was corrected or a genuine receipt was removed. That distinction is exactly what a formal audit turns on (BFH 29.07.2025, X R 23/21 and X R 24/21: a system that permits cancellations without showing them in its output is formally defective, and no proof of manipulation is required for that to matter). Both projections now carry `reversesEntry` on the reversing movement and `reversedByEntry` on the reversed one — journal sequence numbers rather than UUIDs, because these two views are read by a person who looks the counterpart up by its number. Substrate, not pack: the traceability of a correction is mechanism, and it holds in every jurisdiction. One detail makes the gap worse than it sounds: this core reverses by *general reversal* — EntryLine::negated keeps the side and negates the amount — so a reversed cash receipt appears in the cash book as a debit of −100.00, not as a credit. Without a marker a reader sees a negative amount on the debit side and has nothing telling them why.",
+  "covers": [
+    "F-CORE-002"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1000",
+        "name": "Kasse",
+        "type": "asset",
+        "subtype": "cash"
+      },
+      {
+        "number": "4400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "KB-2026-001",
+        "voucherDate": "2026-01-05"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "KB-2026-002",
+        "voucherDate": "2026-01-09"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-05",
+        "voucherId": "$V1",
+        "text": "Bareinnahme",
+        "lines": [
+          {
+            "account": "1000",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4400",
+            "side": "credit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1,
+          "status": "entered",
+          "id": "$E1"
+        }
+      }
+    },
+    {
+      "op": "finalize",
+      "input": {
+        "finalizeUntil": "2026-01-05"
+      },
+      "expect": {
+        "result": {
+          "finalizedCount": 1
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": {
+        "entryId": "$E1",
+        "entryDate": "2026-01-09",
+        "voucherId": "$V2",
+        "text": "Storno Bareinnahme"
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 2,
+          "id": "$E2",
+          "reverses": "$E1"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashJournal",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "fiscalYear": 2026,
+        "cashCountable": true,
+        "negativeBalances": [],
+        "accounts": [
+          {
+            "account": "1000",
+            "openingBalance": "0.00",
+            "closingBalance": "0.00",
+            "movements": [
+              {
+                "comment": "Die stornierte Buchung nennt ihre Stornobuchung — ohne das ist nicht erkennbar, dass sie aufgehoben wurde",
+                "sequenceNumber": 1,
+                "side": "debit",
+                "runningBalance": "100.00",
+                "reversesEntry": null,
+                "reversedByEntry": 2
+              },
+              {
+                "comment": "Generalumkehr: gleiche Seite, negativer Betrag. Die Stornobuchung nennt die Buchung, die sie aufhebt — genau die Angabe, deren Fehlen den formellen Mangel ausmacht",
+                "sequenceNumber": 2,
+                "side": "debit",
+                "runningBalance": "0.00",
+                "reversesEntry": 1,
+                "reversedByEntry": null,
+                "money": {
+                  "amount": "-100.00",
+                  "currency": "EUR"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "accountSheet",
+      "params": {
+        "account": "1000",
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "account": "1000",
+        "openingBalance": "0.00",
+        "closingBalance": "0.00",
+        "lines": [
+          {
+            "sequenceNumber": 1,
+            "side": "debit",
+            "reversesEntry": null,
+            "reversedByEntry": 2
+          },
+          {
+            "sequenceNumber": 2,
+            "side": "debit",
+            "reversesEntry": 1,
+            "reversedByEntry": null
+          }
+        ]
+      }
+    }
+  ]
+}

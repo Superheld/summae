@@ -111,4 +111,31 @@ final class CalendarDateTest extends TestCase
         self::assertSame($last, CalendarDate::of($from)->lastDayOfMonth()->iso);
         self::assertSame($next, CalendarDate::of($from)->firstDayOfNextMonth()->iso);
     }
+
+    /** @return array<string, array{string, string, int}> */
+    public static function dayDifferenceProvider(): array
+    {
+        // The same table is in the Node calendar-date.test.ts. `daysSince` is what makes the
+        // finalization deadline observable (F-CORE-027), so a one-day drift between the
+        // languages would show up as a different number in the same audit report.
+        return [
+            'same day' => ['2026-03-16', '2026-03-16', 0],
+            'two days' => ['2026-03-16', '2026-03-14', 2],
+            'across months' => ['2026-03-16', '2026-02-01', 43],
+            'year boundary' => ['2026-01-01', '2025-12-31', 1],
+            'across a leap day' => ['2024-03-01', '2024-02-28', 2],
+            'no leap day' => ['2023-03-01', '2023-02-28', 1],
+            '2000 IS a leap year' => ['2000-03-01', '2000-02-28', 2],
+            '1900 is NOT a leap year' => ['1900-03-01', '1900-02-28', 1],
+            'the old 0-99 band' => ['0050-03-01', '0050-02-01', 28],
+            'two millennia' => ['2026-01-01', '0001-01-01', 739616],
+            'negative when earlier' => ['2026-02-01', '2026-03-16', -43],
+        ];
+    }
+
+    #[DataProvider('dayDifferenceProvider')]
+    public function testDayDifference(string $later, string $earlier, int $days): void
+    {
+        self::assertSame($days, CalendarDate::of($later)->daysSince(CalendarDate::of($earlier)));
+    }
 }

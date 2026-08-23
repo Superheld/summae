@@ -6,11 +6,13 @@ namespace Summae\Core\Policies\Expansion\Tax;
 
 use Brick\Math\BigDecimal;
 use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Tax expansion (tax-modell.md): side-effect-free — pure function.
@@ -31,6 +33,10 @@ final readonly class TaxService
         private JournalRepository $journal,
         // Pack parameter: 'perVoucher' (tax once per code) | 'perLine' (per line).
         private string $taxRoundingGranularity = 'perVoucher',
+        // The tax profile is a tenant-level singleton: it has no identity of its own, so the
+        // audit record names the tenant as the object it belongs to (F-CORE-014 "Steuerschlüssel").
+        private ?Uuid $tenantId = null,
+        private ?AuditWriter $audit = null,
     ) {
     }
 
@@ -242,7 +248,14 @@ final readonly class TaxService
             }
         }
 
+        $before = $this->profile->smallBusinessAt($validFrom);
         $this->profile->setSmallBusiness($validFrom, (bool) ($smallBusiness['value'] ?? false));
+        if ($this->audit !== null && $this->tenantId !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'taxProfile', $this->tenantId, 'changed', [
+                'smallBusiness' => ['from' => $before, 'to' => (bool) ($smallBusiness['value'] ?? false)],
+                'validFrom' => ['from' => null, 'to' => $validFrom->iso],
+            ]);
+        }
 
         return $this->profile;
     }

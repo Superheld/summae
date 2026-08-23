@@ -14,7 +14,7 @@ type Section = 'assets' | 'liabilitiesAndEquity';
 /**
  * Balance sheet as a projection (SF-10): cumulative as of the reporting date. A position with
  * includesNetIncome contains the cumulative net income + its own balance.
- * Side (v0.5/F-007): `side` at the root node; assets = debit−credit,
+ * Side (v0.5/SPEC-007): `side` at the root node; assets = debit−credit,
  * liabilitiesAndEquity = credit−debit. Default: assets.
  */
 export class BalanceSheetProjection {

@@ -2,16 +2,74 @@
   "formatVersion": "0.6",
   "id": "de-afa",
   "kind": "depreciation",
-  "version": "2026.2",
-  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Nutzungsdauern aus AfA-Tabellen)",
-  "contributes": ["depreciation"],
+  "version": "2026.5",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV, degressive AfA §7 Abs. 2 EStG)",
+  "contributes": [
+    "depreciation"
+  ],
   "dependsOn": [],
   "data": {
     "gwgThresholds": [
-      { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false }
+      {
+        "validFrom": "2018-01-01",
+        "validTo": null,
+        "immediateMax": "800.00",
+        "poolMin": "250.01",
+        "poolMax": "1000.00",
+        "poolYears": 5,
+        "poolReducedOnDisposal": false,
+        "poolProRataInFirstYear": false
+      }
     ],
     "usefulLife": [
-      { "assetClass": "it-hardware", "months": 36 }
+      {
+        "assetClass": "it-hardware",
+        "months": 36
+      },
+      {
+        "assetClass": "printer",
+        "months": 36
+      },
+      {
+        "assetClass": "copier",
+        "months": 84
+      },
+      {
+        "assetClass": "passenger-car",
+        "months": 72
+      },
+      {
+        "assetClass": "truck",
+        "months": 108
+      },
+      {
+        "assetClass": "bicycle",
+        "months": 84
+      },
+      {
+        "assetClass": "office-furniture",
+        "months": 156
+      },
+      {
+        "assetClass": "storage-equipment",
+        "months": 168
+      },
+      {
+        "assetClass": "mobile-air-conditioner",
+        "months": 132
+      },
+      {
+        "assetClass": "telephone-system",
+        "months": 120
+      }
+    ],
+    "decliningBalance": [
+      {
+        "validFrom": "2025-07-01",
+        "validTo": "2027-12-31",
+        "factor": 3,
+        "maxRate": "30.00"
+      }
     ]
   }
 }

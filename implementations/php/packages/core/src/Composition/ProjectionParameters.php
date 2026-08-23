@@ -54,6 +54,7 @@ final class ProjectionParameters
         'vatReturn' => [
             'year' => ['type' => 'integer', 'required' => true],
             'quarter' => ['type' => 'integer'],
+            'month' => ['type' => 'integer'],
             'asOf' => ['type' => 'date'],
         ],
         'ecSalesList' => [
@@ -71,6 +72,16 @@ final class ProjectionParameters
         'auditLog' => [
             'from' => ['type' => 'date'],
             'to' => ['type' => 'date'],
+        ],
+        'unfinalizedEntries' => [
+            'asOf' => ['type' => 'date'],
+            'olderThanDays' => ['type' => 'integer'],
+            'fiscalYear' => ['type' => 'integer'],
+        ],
+        // Takes no parameters: the description is a property of the software, not of a query.
+        'systemDescription' => [],
+        'cashJournal' => [
+            'fiscalYear' => ['type' => 'integer', 'required' => true],
         ],
         'journalExport' => [
             'fiscalYear' => ['type' => 'integer', 'required' => true],

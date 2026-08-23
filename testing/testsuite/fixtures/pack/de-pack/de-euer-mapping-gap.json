@@ -1,0 +1,46 @@
+{
+  "fixture": "de-euer-mapping-gap",
+  "description": "The cash-basis statement names the accounts that found no position, instead of quietly filing them under their own account name. R6 says a category is the mapping label, otherwise the account's own name — that fallback is right and keeps the money visible, but on its own it is also silent, and this is the statement that gets copied onto an official form. An account that falls back appears under a name matching no line of that form, and nothing said so. The income statement has warned about its gaps since it gained its catch-all; the cash-basis one did not, which was the wrong way round: the statement WITHOUT diagnostics was the one that goes to the tax office. `PackCompletenessTest` now guards the SHIPPED packs, but it cannot guard an account a user adds afterwards — which is exactly what happens here, and exactly when the warning has to appear. Note what does not change: the amount stays in the report and the totals stay right. The warning is added, nothing is moved.",
+  "covers": ["F-IO-003"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Erweitert GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "6050", "name": "Fahrzeugkosten", "type": "expense" },
+      "expect": { "result": { "number": "6050" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-KFZ", "voucherDate": "2026-05-04" },
+        "entryDate": "2026-05-04", "text": "Tanken",
+        "lines": [
+          { "account": "6050", "side": "debit", "money": { "amount": "120.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "120.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "expect": {
+        "comment": "Der Betrag bleibt in der Rechnung — unter dem Kontonamen, weil de-euer für 6050 keine Position kennt. Neu ist die Meldung, dass genau das passiert ist.",
+        "expenses": [
+          { "category": "Fahrzeugkosten", "amount": "120.00" }
+        ],
+        "gapWarnings": [
+          { "account": "6050", "assignedTo": "Fahrzeugkosten" }
+        ]
+      }
+    }
+  ]
+}

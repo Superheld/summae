@@ -9,7 +9,7 @@ use Summae\Laravel\Repository\Hydrator;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * NF-015: the two pieces every repository leans on.
+ * IMPL-015: the two pieces every repository leans on.
  *
  * `Hydrator` is where the shared data format is actually produced and consumed — PHP writes these
  * JSON documents, Node reads them (SF-15). Its defensive branches (a column that is not a string, a

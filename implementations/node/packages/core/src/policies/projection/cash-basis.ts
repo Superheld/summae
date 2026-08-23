@@ -38,7 +38,7 @@ export class CashBasisProjection {
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
     // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
-    // throw an uncaught InvalidValue, in PHP it returned an empty report (NF-006/NF-009). Both
+    // throw an uncaught InvalidValue, in PHP it returned an empty report (IMPL-006/IMPL-009). Both
     // were wrong in the same place — a missing required parameter must say so.
     if (!isIntegerParam(params.year)) {
       throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"', {
@@ -63,6 +63,8 @@ export class CashBasisProjection {
 
     const income = new Map<string, Money>();
     const expenses = new Map<string, Money>();
+    // Accounts that fell back to their own name because the mapping assigns them no position.
+    const gapAccounts = new Map<string, string>();
     const addTo = (bucket: Map<string, Money>, label: string, amount: Money): void => {
       bucket.set(label, (bucket.get(label) ?? Money.zero(this.baseCurrency)).add(amount));
     };
@@ -116,15 +118,25 @@ export class CashBasisProjection {
             addTo(expenses, taxLeaf.label, amount);
           }
         } else if (account.type === 'revenue') {
-          addTo(income, this.label(mapping, account), amount);
+          addTo(income, this.label(mapping, account, gapAccounts), amount);
         } else if (account.type === 'expense') {
-          addTo(expenses, this.label(mapping, account), amount);
+          addTo(expenses, this.label(mapping, account, gapAccounts), amount);
         }
         // R4/R5: assets, loans, private, pass-through items — neutral.
       }
     }
 
-    return { income: this.serializeBucket(income), expenses: this.serializeBucket(expenses) };
+    // Sorted by account number (code points) for determinism; only accounts that actually
+    // contributed are named, which is what a reader of THIS report needs.
+    const gapWarnings = [...gapAccounts.keys()]
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map((account) => ({ account, assignedTo: gapAccounts.get(account)! }));
+
+    return {
+      income: this.serializeBucket(income),
+      expenses: this.serializeBucket(expenses),
+      gapWarnings,
+    };
   }
 
   private assertCalendarYearFiscalYears(year: number): void {
@@ -204,10 +216,23 @@ export class CashBasisProjection {
     return Money.fromCalculation(new Big(amount.abs().amountAsString()).times(ratio), this.baseCurrency);
   }
 
-  private label(mapping: Mapping | null, account: Account): string {
+  /**
+   * R6: category = mapping label, otherwise the account's own name.
+   *
+   * The fallback keeps the money visible, and that is the important half — but on its own it is also
+   * silent, and this report is the one that gets copied onto an official form. An account that falls
+   * back appears under a name that matches no line of that form, and nothing said so. The income
+   * statement has warned about its gaps since it gained the catch-all; this one did not, which is the
+   * wrong way round: the statement WITHOUT diagnostics was the statement that goes to the tax office.
+   *
+   * Only when a mapping was requested at all — without one every account "falls back" by definition,
+   * and warning about all of them would be noise, not information.
+   */
+  private label(mapping: Mapping | null, account: Account, gapAccounts: Map<string, string>): string {
     if (mapping !== null) {
       const leaf = mapping.leafFor(account.number.value);
       if (leaf !== null) return leaf.label;
+      gapAccounts.set(account.number.value, account.name);
     }
     return account.name;
   }

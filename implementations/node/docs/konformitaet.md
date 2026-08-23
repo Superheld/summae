@@ -67,7 +67,7 @@ When spec, fixture and model contradict each other or something is missing: **do
 change the fixture.** Instead:
 
 1. Document in [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) (What / Where / chosen behavior /
-   proposal), as `NF-…`.
+   proposal), as `IMPL-…`.
 2. Continue building with the next most plausible behavior.
 3. The finding flows back via the knowledge base (decision log) and returns as a refined
    spec + new/changed fixtures.

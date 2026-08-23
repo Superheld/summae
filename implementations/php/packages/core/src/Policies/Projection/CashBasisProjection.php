@@ -61,7 +61,7 @@ final readonly class CashBasisProjection
     public function compute(array $params): array
     {
         // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
-        // throw an uncaught InvalidValue, here it returned an empty report (NF-006/NF-009). Both
+        // throw an uncaught InvalidValue, here it returned an empty report (IMPL-006/IMPL-009). Both
         // were wrong in the same place — a missing required parameter must say so.
         if (Parameters::asInteger($params['year'] ?? null) === null) {
             throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"');
@@ -89,6 +89,9 @@ final readonly class CashBasisProjection
         $income = [];
         /** @var array<string, Money> $expenses */
         $expenses = [];
+        // Accounts that fell back to their own name because the mapping assigns them no position.
+        /** @var array<string, string> $gapAccounts number -> category it fell back to */
+        $gapAccounts = [];
 
 
         foreach ($this->journal->all() as $entry) {
@@ -160,17 +163,29 @@ final readonly class CashBasisProjection
                         $expenses = self::addTo($expenses, $taxLeaf['label'], $amount);
                     }
                 } elseif ($account->type === AccountType::Revenue) {
-                    $income = self::addTo($income, $this->label($mapping, $account), $amount);
+                    $income = self::addTo($income, $this->label($mapping, $account, $gapAccounts), $amount);
                 } elseif ($account->type === AccountType::Expense) {
-                    $expenses = self::addTo($expenses, $this->label($mapping, $account), $amount);
+                    $expenses = self::addTo($expenses, $this->label($mapping, $account, $gapAccounts), $amount);
                 }
                 // R4/R5: assets, loans, private, pass-through items — neutral.
             }
         }
 
+        // Sorted by account number (code points) for determinism; only accounts that actually
+        // contributed are named, which is what a reader of THIS report needs. The cast back to
+        // string is not cosmetic — PHP turns a numeric string used as an array key into an int.
+        $gaps = array_map(strval(...), array_keys($gapAccounts));
+        sort($gaps, SORT_STRING);
+
+        $gapWarnings = [];
+        foreach ($gaps as $account) {
+            $gapWarnings[] = ['account' => $account, 'assignedTo' => $gapAccounts[$account]];
+        }
+
         return [
             'income' => $this->serializeBucket($income),
             'expenses' => $this->serializeBucket($expenses),
+            'gapWarnings' => $gapWarnings,
         ];
     }
 
@@ -316,7 +331,22 @@ final readonly class CashBasisProjection
     }
 
     /** R6: Mapping-Label, sonst Kontoname. */
-    private function label(?Mapping $mapping, Account $account): string
+    /**
+     * R6: category = mapping label, otherwise the account's own name.
+     *
+     * The fallback keeps the money visible, and that is the important half — but on its own it is
+     * also silent, and this report is the one that gets copied onto an official form. An account
+     * that falls back appears under a name that matches no line of that form, and nothing said so.
+     * The income statement has warned about its gaps since it gained the catch-all; this one did
+     * not, which is the wrong way round: the statement WITHOUT diagnostics was the statement that
+     * goes to the tax office. So a fallback is recorded here, and the caller gets `gapWarnings`.
+     *
+     * Only when a mapping was requested at all — without one every account "falls back" by
+     * definition, and warning about all of them would be noise, not information.
+     *
+     * @param array<string, string> $gapAccounts account number -> category it fell back to
+     */
+    private function label(?Mapping $mapping, Account $account, array &$gapAccounts): string
     {
         if ($mapping !== null) {
             $leaf = $mapping->leafFor($account->number->value);
@@ -324,6 +354,8 @@ final readonly class CashBasisProjection
             if ($leaf !== null) {
                 return $leaf['label'];
             }
+
+            $gapAccounts[$account->number->value] = $account->name;
         }
 
         return $account->name;

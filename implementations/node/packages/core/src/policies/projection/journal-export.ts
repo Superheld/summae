@@ -24,7 +24,7 @@ function withoutNulls(row: Record<string, unknown>): Record<string, unknown> {
 /**
  * GoBD-Z3 export (SF-14): manifest with SHA-256 stream hashes over RFC-8785-
  * canonicalized rows, field catalog, journal complete in sequenceNumber
- * order. auditLog is always part of the export (v0.5/F-005).
+ * order. auditLog is always part of the export (v0.5/SPEC-005).
  */
 /**
  * The only journal format there is. Declared as a set rather than inlined so adding a second one

@@ -32,7 +32,7 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
   DB drivers in `packages/core/**` — eslint `no-restricted-imports` enforces it. Structural counterpart to
   „no `use Illuminate\…` in the core". Adapters are their own packages (`knex`, `cli`).
 - **`packages/knex` has its own suite** since 2026-08-16 (`packages/knex/test/adapter.test.ts`,
-  NF-015): round-trip through a real column and tenant scoping with two tenants on one database.
+  IMPL-015): round-trip through a real column and tenant scoping with two tenants on one database.
   Twin of PHP's `packages/laravel/tests`. Keep the two in step — the defect that made the suite
   necessary (every `byId`/`save` ignoring `tenant_id`) was identical in both languages.
 - **Persistence (M4):** via **Knex** as schema/query builder (direct counterpart to
@@ -80,7 +80,7 @@ Release process: `RELEASING.md` (repo root).
   „adding a new operation/projection", spec retrofit, determinism hooks.
 - `docs/konformitaet.md` — compatibility contract, how the runner works, cross-impl pitfalls,
   cross-test (`make cross`), SPEC-FINDINGS escalation path.
-- `SPEC-FINDINGS.md` — documented contradictions spec/fixture/model (`NF-…`).
+- `SPEC-FINDINGS.md` — documented contradictions spec/fixture/model (`SPEC-…` / `IMPL-…`).
 
 The **language-neutral build principles** (pack = primarily data/plug, 1:1 mirroring, test-driven,
 framework-free) are in the root `CLAUDE.md`; patterns list in `docs/architektur.md`, the recipe

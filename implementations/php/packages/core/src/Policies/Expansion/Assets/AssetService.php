@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Assets;
 
 use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Records\Voucher;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
@@ -46,7 +47,26 @@ final class AssetService
         private readonly Ledger $ledger,
         private readonly IdGenerator $ids,
         private array $ruleModule = [],
+        // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+        // nothing in them says *an asset was acquired*. These records carry the asset event
+        // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+        // tenant, like the configuration singletons.
+        private readonly ?Uuid $tenantId = null,
+        private readonly ?AuditWriter $audit = null,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array<string, array{from: mixed, to: mixed}> $changes
+     */
+    private function trace(array $input, string $objectType, Uuid $objectId, string $action, array $changes): void
+    {
+        if ($this->audit === null) {
+            return;
+        }
+
+        $this->audit->record($this->audit->actorOf($input), $objectType, $objectId, $action, $changes);
     }
 
     /** @param array<string, mixed> $ruleModule */
@@ -72,14 +92,44 @@ final class AssetService
         $dimensions = self::parseDimensions($input['dimensions'] ?? null);
 
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
+        $explicitLife = self::parseUsefulLifeMonths($input['usefulLifeMonths'] ?? null);
+        $method = self::parseMethod($input['depreciationMethod'] ?? null);
+
+        // Same reasoning as the useful life: a method cannot apply to a route that has no schedule
+        // of its own, and accepting it in silence would suggest it took effect.
+        if ($method !== 'straight_line' && $route !== AssetRoute::Capitalize) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "%s"', $route->value),
+                ['depreciationMethod' => $method, 'route' => $route->value],
+            );
+        }
+
+        // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
+        // immediately expensed one has no schedule at all, so a life given with either route
+        // cannot be honoured — and dropping it in silence would let a caller believe a number
+        // took effect that never did.
+        if ($explicitLife !== null && $route !== AssetRoute::Capitalize) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('acquireAsset: "usefulLifeMonths" applies to a capitalised asset, not to route "%s"', $route->value),
+                ['usefulLifeMonths' => $explicitLife, 'route' => $route->value],
+            );
+        }
 
         $usefulLifeMonths = null;
         $schedule = [];
         if ($route === AssetRoute::Capitalize) {
-            $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
-            $schedule = $cost->allocateEvenly($usefulLifeMonths);
+            // The caller's own figure wins over the class average. A table of class averages cannot
+            // serve a jurisdiction that lets a taxpayer prove a shorter life for an individual asset,
+            // however complete the table is — and without this parameter an asset class missing from
+            // the pack was simply unusable.
+            $usefulLifeMonths = $explicitLife ?? $this->usefulLifeMonths($assetClass);
+            $schedule = $method === 'declining_balance'
+                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn)
+                : $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is
+            // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
             // would have inherited it silently. The pack says over how long; the core only spreads it
             // evenly (disposals leave the plan untouched, as before).
@@ -106,6 +156,8 @@ final class AssetService
             $schedule,
             $voucherId,
             $dimensions,
+            $this->planStartFor($route, $acquiredOn),
+            $method,
         );
 
         $this->assets->add($asset);
@@ -124,6 +176,13 @@ final class AssetService
                 ['account' => $this->counterAccount(), 'side' => 'credit', 'money' => $cost->jsonSerialize()],
             ]),
         );
+
+        $this->trace($input, 'asset', $asset->id, 'acquired', [
+            'name' => ['from' => null, 'to' => $name],
+            'assetClass' => ['from' => null, 'to' => $assetClass],
+            'acquiredOn' => ['from' => null, 'to' => $acquiredOn->iso],
+            'route' => ['from' => null, 'to' => $route->value],
+        ]);
 
         $result = $asset->jsonSerialize();
         $result['route'] = $route->value;
@@ -171,6 +230,11 @@ final class AssetService
         if ($lines !== []) {
             $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $this->withDimensions($asset, $lines));
         }
+
+        $this->trace($input, 'asset', $asset->id, 'disposed', [
+            'status' => ['from' => 'active', 'to' => 'disposed'],
+            'disposedOn' => ['from' => null, 'to' => $disposedOn->iso],
+        ]);
 
         return $asset->jsonSerialize();
     }
@@ -239,6 +303,17 @@ final class AssetService
             $total = $total->add($amount);
         }
 
+        // A run that created nothing is still an event: "someone ran depreciation for this
+        // period and it was already done" is exactly what an auditor reconstructing a timeline
+        // wants to see, and leaving it out would make repeated runs invisible.
+        if ($this->tenantId !== null) {
+            $this->trace($input, 'depreciationRun', $this->tenantId, 'completed', [
+                'fiscalYear' => ['from' => null, 'to' => $fiscalYear],
+                'period' => ['from' => null, 'to' => $period],
+                'entriesCreated' => ['from' => null, 'to' => $entriesCreated],
+            ]);
+        }
+
         if ($entriesCreated === 0) {
             return ['alreadyRun' => true, 'entriesCreated' => 0];
         }
@@ -281,22 +356,32 @@ final class AssetService
         $life = count($asset->monthlySchedule);
 
         for ($planMonth = 1; $planMonth <= $life; $planMonth++) {
-            $year = $asset->planMonthDate($planMonth)->year();
-            $monthsByYear[$year][] = $planMonth;
+            $monthsByYear[$this->planMonthYear($asset, $planMonth)][] = $planMonth;
         }
 
         if (!isset($monthsByYear[$fiscalYear])) {
             return [[], Money::zero($this->baseCurrency)];
         }
 
-        $years = array_keys($monthsByYear);
-        $weights = array_map(static fn (int $year): int => count($monthsByYear[$year]), $years);
-        $yearAmounts = $asset->acquisitionCost->allocate(...$weights);
-        $yearIndex = array_search($fiscalYear, $years, true);
-        if ($yearIndex === false) {
-            return [[], Money::zero($this->baseCurrency)];
+        if ($asset->scheduleIsAuthoritative()) {
+            // A declining-balance plan cannot be re-derived from month counts — each year depends on
+            // what the previous one left. The schedule IS the plan, so the year's target is simply
+            // the sum of its months. Straight line keeps re-allocating, which is what pins its
+            // rounding to the values every existing fixture expects.
+            $yearAmount = Money::zero($this->baseCurrency);
+            foreach ($monthsByYear[$fiscalYear] as $planMonth) {
+                $yearAmount = $yearAmount->add($asset->monthlySchedule[$planMonth - 1]);
+            }
+        } else {
+            $years = array_keys($monthsByYear);
+            $weights = array_map(static fn (int $year): int => count($monthsByYear[$year]), $years);
+            $yearAmounts = $asset->acquisitionCost->allocate(...$weights);
+            $yearIndex = array_search($fiscalYear, $years, true);
+            if ($yearIndex === false) {
+                return [[], Money::zero($this->baseCurrency)];
+            }
+            $yearAmount = $yearAmounts[$yearIndex];
         }
-        $yearAmount = $yearAmounts[$yearIndex];
 
         $openMonths = [];
         $bookedAmount = Money::zero($this->baseCurrency);
@@ -396,7 +481,7 @@ final class AssetService
 
     /** @param list<array<string, mixed>> $lines */
     /**
-     * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+     * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
      * entry about an asset gets them on every line: the whole event belongs to that cost centre,
      * and a line without them would be refused wherever the pack makes a dimension mandatory —
      * which is precisely the case that used to make depreciation impossible to run.
@@ -499,7 +584,7 @@ final class AssetService
     /**
      * The threshold row in force on the acquisition date — the first whose validity window contains it.
      *
-     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}|null
+     * @return array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool, poolProRataInFirstYear: ?bool}|null
      */
     private function applicableThreshold(CalendarDate $acquiredOn): ?array
     {
@@ -520,7 +605,7 @@ final class AssetService
     /**
      * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
      * range without saying over how long is incomplete, and picking a number here would put a statute
-     * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+     * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
      * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
      */
     private function poolYears(CalendarDate $acquiredOn): int
@@ -539,7 +624,7 @@ final class AssetService
     }
 
     /**
-     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool}>
+     * @return list<array{validFrom: string, validTo: ?string, immediateMax: string, poolMin: ?string, poolMax: ?string, poolYears: ?int, poolReducedOnDisposal: ?bool, poolProRataInFirstYear: ?bool}>
      */
     private function thresholds(): array
     {
@@ -560,10 +645,178 @@ final class AssetService
                 'poolReducedOnDisposal' => is_bool($raw['poolReducedOnDisposal'] ?? null)
                     ? $raw['poolReducedOnDisposal']
                     : null,
+                'poolProRataInFirstYear' => is_bool($raw['poolProRataInFirstYear'] ?? null)
+                    ? $raw['poolProRataInFirstYear']
+                    : null,
             ];
         }
 
         return $thresholds;
+    }
+
+    /**
+     * Which yearly bucket a plan month belongs to.
+     *
+     * The fiscal year that contains the month, when one is set up — NOT its calendar year. Where
+     * the two differ the old shortcut came apart badly: for a fiscal year 07/2026–06/2027 (labelled
+     * by its end year) an asset acquired in September 2026 had its September-to-December months
+     * filed under "2026", a label no fiscal year carries, so no run ever booked them, while months
+     * belonging to the following fiscal year were pulled into this one. Which months belong to a
+     * fiscal year is what a fiscal year is; reading it off the calendar was simply wrong.
+     *
+     * Falls back to the calendar year for a month beyond every fiscal year that has been set up.
+     * That is not a second opinion about the boundary — it keeps the weighting COMPLETE. The yearly
+     * amount comes from allocating the cost across all buckets by month count, so dropping the
+     * months that reach past the last configured year would push their share into the years that
+     * remain and write the asset off too fast. With calendar-year fiscal years the fallback is
+     * identical to the answer above; with deviating ones it is the old behaviour, and it corrects
+     * itself as soon as the year is created. The honest limit: set up the fiscal years an asset
+     * runs through.
+     */
+    private function planMonthYear(Asset $asset, int $planMonth): int
+    {
+        $date = $asset->planMonthDate($planMonth);
+        $year = $this->fiscalYears->forDate($date);
+
+        return $year === null ? $date->year() : $year->year;
+    }
+
+    /**
+     * The depreciation method the caller asked for. Straight line when absent — the method every
+     * jurisdiction allows and the only one this core knew until 2026-08-23.
+     */
+    private static function parseMethod(mixed $value): string
+    {
+        if ($value === null) {
+            return 'straight_line';
+        }
+
+        if ($value !== 'straight_line' && $value !== 'declining_balance') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+                ['depreciationMethod' => DomainError::rejectedValue($value)],
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * A declining-balance plan, with the switch to straight line built in.
+     *
+     * Each year takes a fixed percentage of what is LEFT, so the amounts fall and never quite reach
+     * zero on their own — which is why every declining-balance regime pairs the method with a switch
+     * to straight line over the remaining life, and why the final year simply takes the remainder.
+     * Without that last step an asset would keep a residue forever.
+     *
+     * The switch is taken automatically at the first year where straight line over the remaining
+     * life yields more. It is a permission rather than a duty, but no one entitled to it declines
+     * it — an option nobody ever sets differently is better expressed as the behaviour.
+     *
+     * Rate, factor and the window come from the pack: the mechanism is shared (Germany applies it
+     * both to movables and, at a different rate, to new residential buildings), the numbers are not.
+     * Both the percentage and the remaining-life figure go through `allocate`, so the cents fall
+     * where the rest of the core puts them.
+     *
+     * @return list<Money>
+     */
+    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn): array
+    {
+        $rule = $this->decliningBalanceRule($acquiredOn);
+        $years = intdiv($usefulLifeMonths + 11, 12);
+
+        // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the
+        // rate is a property of the asset's life and does not change as the balance falls.
+        $straightLineRate = 100 / $years;
+        $rate = min($rule['factor'] * $straightLineRate, (float) $rule['maxRate']);
+        $ratePermille = (string) round($rate, 4);
+
+        $schedule = [];
+        $remaining = $cost;
+
+        for ($year = 1; $year <= $years; $year++) {
+            $remainingYears = $years - $year + 1;
+
+            if ($year === $years) {
+                $amount = $remaining;
+            } else {
+                $declining = $remaining->allocate($ratePermille, (string) round(100 - $rate, 4))[0];
+                $straightLine = $remaining->allocate(...array_fill(0, $remainingYears, 1))[0];
+                $amount = $declining->compareTo($straightLine) >= 0 ? $declining : $straightLine;
+            }
+
+            $remaining = $remaining->subtract($amount);
+
+            foreach ($amount->allocateEvenly(12) as $monthAmount) {
+                $schedule[] = $monthAmount;
+            }
+        }
+
+        return array_slice($schedule, 0, $usefulLifeMonths);
+    }
+
+    /**
+     * The declining-balance rule in force on the acquisition date. Refused rather than defaulted,
+     * like every other pack question here: a core that invents a rate has one jurisdiction's tax
+     * policy in the substrate, and these rates are the most short-lived numbers in the whole pack —
+     * Germany's current one applies to a window of two and a half years.
+     *
+     * @return array{factor: int, maxRate: string}
+     */
+    private function decliningBalanceRule(CalendarDate $acquiredOn): array
+    {
+        foreach (is_array($this->ruleModule['decliningBalance'] ?? null) ? $this->ruleModule['decliningBalance'] : [] as $raw) {
+            if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
+                continue;
+            }
+
+            $validFrom = CalendarDate::of($raw['validFrom']);
+            $validTo = is_string($raw['validTo'] ?? null) ? CalendarDate::of($raw['validTo']) : null;
+
+            if ($acquiredOn->isBefore($validFrom) || ($validTo !== null && $acquiredOn->isAfter($validTo))) {
+                continue;
+            }
+
+            $factor = is_int($raw['factor'] ?? null) ? $raw['factor'] : null;
+            $maxRate = is_string($raw['maxRate'] ?? null) ? $raw['maxRate'] : null;
+
+            if ($factor === null || $factor < 1 || $maxRate === null) {
+                continue;
+            }
+
+            return ['factor' => $factor, 'maxRate' => $maxRate];
+        }
+
+        throw new DomainError(
+            'E_PACK_INCOHERENT',
+            sprintf('declining-balance depreciation was asked for, but the pack declares no rule in force on %s', $acquiredOn->iso),
+            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso],
+        );
+    }
+
+    /**
+     * A useful life given per acquisition: a whole number of months, at least one. JSON has no
+     * int/float split, so 60.0 is the same value as 60 — but 60.4 is a caller's mistake and not a
+     * number to round into shape.
+     */
+    private static function parseUsefulLifeMonths(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $months = is_float($value) && $value === floor($value) ? (int) $value : $value;
+
+        if (!is_int($months) || $months < 1) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "usefulLifeMonths" must be a whole number of months, at least 1',
+                ['usefulLifeMonths' => DomainError::rejectedValue($value)],
+            );
+        }
+
+        return $months;
     }
 
     private function usefulLifeMonths(string $assetClass): int
@@ -596,7 +849,7 @@ final class AssetService
     }
 
     /**
-     * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+     * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
      *
      * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
      * asset's last months of depreciation never happened at all: runDepreciation skips disposed
@@ -666,7 +919,7 @@ final class AssetService
      * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
      * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
      * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-     * statute back into the core — which is exactly what NF-019 accidentally did before this.
+     * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
      */
     private function poolReducedOnDisposal(CalendarDate $acquiredOn): bool
     {
@@ -680,6 +933,76 @@ final class AssetService
         }
 
         return $threshold['poolReducedOnDisposal'];
+    }
+
+    /**
+     * Does the pool's first year get shortened by the acquisition month?
+     *
+     * Germany says no: the pool is dissolved in the fiscal year it is formed and the following
+     * ones by equal fractions, so an asset bought in November still carries a full fraction in
+     * that year, and the term ends after `poolYears` fiscal years. Treating a pool like ordinary
+     * linear depreciation — pro rata from the month of acquisition — understated the first year
+     * and invented a last one.
+     *
+     * Other pool regimes answer this differently, which is why the pack has to say it rather than
+     * the core assuming it — the same reason `poolYears` (SPEC-004) and `poolReducedOnDisposal`
+     * (IMPL-019) are pack data. The schema requires the field alongside `poolMax`, so this fires
+     * only for hand-fed rule data that never went through a pack.
+     */
+    private function poolProRataInFirstYear(CalendarDate $acquiredOn): bool
+    {
+        $threshold = $this->applicableThreshold($acquiredOn);
+        if ($threshold === null || !is_bool($threshold['poolProRataInFirstYear'] ?? null)) {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'gwgThresholds: a pool range (poolMin/poolMax) without poolProRataInFirstYear — the pack must say whether the first year is shortened by the acquisition month',
+                ['field' => 'poolProRataInFirstYear', 'acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $threshold['poolProRataInFirstYear'];
+    }
+
+    /**
+     * Where the depreciation plan starts. Capitalised assets start in the month of acquisition
+     * (pro rata temporis). A pooled asset whose pack dissolves the pool in whole fiscal-year
+     * fractions starts at the beginning of the fiscal year it was acquired in — that, and nothing
+     * else, is what makes the first year full and the term end after `poolYears` years.
+     */
+    private function planStartFor(AssetRoute $route, CalendarDate $acquiredOn): ?CalendarDate
+    {
+        if ($route !== AssetRoute::Pool) {
+            return null;
+        }
+
+        $year = $this->fiscalYears->forDate($acquiredOn);
+
+        // Acquired on the first day of the fiscal year? Then both answers produce the same plan,
+        // and the pack is not asked. That is deliberate and mirrors `poolReducedOnDisposal`, which
+        // is only demanded when something is actually disposed: a pack owes an answer where the
+        // answer changes the books, not everywhere. It is also what keeps rule data written before
+        // this field existed working for the case where it cannot matter — the guarantee that a
+        // *pack* carries the field is the schema's job, not this method's.
+        if ($year !== null && $acquiredOn->iso === $year->start->iso) {
+            return null;
+        }
+
+        if ($this->poolProRataInFirstYear($acquiredOn)) {
+            return null;
+        }
+
+        if ($year === null) {
+            throw new DomainError(
+                'E_PERIOD_UNKNOWN',
+                sprintf(
+                    'the pool for an asset acquired on %s is dissolved in whole fiscal-year fractions, but no fiscal year contains that date',
+                    $acquiredOn->iso,
+                ),
+                ['acquiredOn' => $acquiredOn->iso],
+            );
+        }
+
+        return $year->start;
     }
 
     /** A pooled asset that its pack keeps in the pool after disposal — the write-off does not apply. */
@@ -759,7 +1082,7 @@ final class AssetService
     }
 
     /**
-     * v0.5/F-004: asset accounts come from the rule-module block
+     * v0.5/SPEC-004: asset accounts come from the rule-module block
      * `assetAccounts` — no more name heuristic.
      */
     private function assetAccount(string $key): string

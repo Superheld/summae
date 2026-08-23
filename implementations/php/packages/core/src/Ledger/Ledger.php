@@ -81,7 +81,7 @@ final readonly class Ledger
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
         $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter);
-        $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids);
+        $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids, $this->auditWriter);
     }
 
     /**
@@ -350,7 +350,7 @@ final readonly class Ledger
             ), ['entryId' => $original->id->value]);
         }
 
-        // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+        // IMPL-008: a reversal clears the open items the reversed entry produced — but only while they
         // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
         // item would drop that movement out of the open-item history while the ledger keeps it. The
         // line SAP draws with F5308: undo the settlement first, or post a credit note.
@@ -370,6 +370,17 @@ final readonly class Ledger
 
         $text = is_string($input['text'] ?? null) ? $input['text'] : sprintf('Reversal %d', $original->sequenceNumber);
 
+        // A reversal may carry its own voucher. It used to inherit the reversed entry's one
+        // unconditionally and drop any `voucherId` in the input without a word — so a caller who
+        // supplied a cancellation document got no error, no hint, and a posting pointing at the
+        // wrong paper. Inheriting stays the default, because a reversal without its own document
+        // is a normal case and no posting may be voucher-less; supplying one is now honoured, and
+        // an unknown id fails like everywhere else (E_VOUCHER_UNKNOWN).
+        $voucherId = $input['voucherId'] ?? null;
+        $reversalVoucherId = $voucherId === null
+            ? $original->voucherId
+            : $this->requireVoucher($voucherId)->id;
+
         $reversal = new JournalEntry(
             $this->ids->next(),
             $this->journal->nextSequenceNumber($fiscalYear->year),
@@ -377,7 +388,7 @@ final readonly class Ledger
             $original->voucherDate,
             $this->auditWriter->now(),
             new PeriodRef($fiscalYear->year, $period->number),
-            $original->voucherId,
+            $reversalVoucherId,
             $text,
             array_map(static fn (EntryLine $line): EntryLine => $line->negated(), $original->lines()),
             reverses: $original->id,
@@ -571,7 +582,7 @@ final readonly class Ledger
         }
 
         if ($voucher === null) {
-            // v0.5/F-001: a set but unknown voucherId has its own
+            // v0.5/SPEC-001: a set but unknown voucherId has its own
             // code (reference step, after "voucherId missing").
             throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
                 'Voucher %s does not exist',

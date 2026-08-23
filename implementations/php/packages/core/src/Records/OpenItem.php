@@ -95,7 +95,7 @@ final class OpenItem implements \JsonSerializable
         $remaining = $this->remainingAt($asOf);
 
         if ($remaining->isZero()) {
-            // A cancelled item is closed but was never paid (NF-008). Reporting it as `settled`
+            // A cancelled item is closed but was never paid (IMPL-008). Reporting it as `settled`
             // would read as "the money came in", which is the opposite of what a reversal means.
             foreach ($this->settlementsUpTo($asOf) as $settlement) {
                 if ($settlement->cause === SettlementCause::Cancellation) {

@@ -15,6 +15,24 @@ import type { OpenItem } from '../../records/open-item.js';
 import type { TaxCodeRegistry } from '../expansion/tax/tax-code-registry.js';
 import type { TaxProfile } from '../expansion/tax/tax-profile.js';
 import { integerOr } from './parameters.js';
+import { DomainError, rejectedValue } from '../../domain-error.js';
+
+/**
+ * Does a date fall in the requested filing period?
+ *
+ * Three windows, and which one applies is the caller's to say: a month, a quarter, or — when neither
+ * is given — the whole year. The month matters more than it looks: for a business above the threshold
+ * the monthly period is not a convenience but the prescribed one, and the only alternative an app had
+ * was to call twice cumulatively and subtract. That difference is not the period's figure once
+ * cash-basis taxation or a reversal is involved, which is why it had to become a window here rather
+ * than arithmetic there.
+ */
+function inPeriod(date: CalendarDate, year: number, quarter: number, month: number): boolean {
+  if (date.year() !== year) return false;
+  if (month !== 0) return date.month() === month;
+  return quarter === 0 || Math.floor((date.month() - 1) / 3) + 1 === quarter;
+}
+
 
 interface KeyAmount {
   base: Money;
@@ -46,6 +64,22 @@ export class VatReturnProjection {
   compute(params: Record<string, unknown>): Record<string, unknown> {
     const year = integerOr(params.year, 0);
     const quarter = integerOr(params.quarter, 0);
+    const month = integerOr(params.month, 0);
+
+    // Both would describe two different windows, and picking one silently is how a return gets filed
+    // for the wrong period. Absent is still "the whole year".
+    if (quarter !== 0 && month !== 0) {
+      throw new DomainError('E_INPUT_INVALID', 'vatReturn: give either "quarter" or "month", not both', {
+        quarter,
+        month,
+      });
+    }
+
+    if (month !== 0 && (month < 1 || month > 12)) {
+      throw new DomainError('E_INPUT_INVALID', 'vatReturn: "month" must be between 1 and 12', {
+        month: rejectedValue(params.month),
+      });
+    }
     const asOf = typeof params.asOf === 'string' ? CalendarDate.of(params.asOf) : null;
 
     const zero = Money.zero(this.baseCurrency);
@@ -65,15 +99,15 @@ export class VatReturnProjection {
         if (contributions.size === 0) continue;
         for (const share of this.allocateToSettlements(item, contributions)) {
           if (asOf !== null && share.settledAt.isAfter(asOf)) continue;
-          if (this.inQuarter(share.settledAt, year, quarter)) add(share.key, share.base, share.tax);
+          if (inPeriod(share.settledAt, year, quarter, month)) add(share.key, share.base, share.tax);
         }
       }
 
       for (const entry of this.journal.all()) {
-        if (!this.inQuarter(entry.entryDate, year, quarter)) continue;
+        if (!inPeriod(entry.entryDate, year, quarter, month)) continue;
         if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
         if (this.openItems.byOriginEntry(entry.id).length > 0) continue;
-        // NF-005: this loop's premise is "no open item ⇒ the money moved at posting time"
+        // IMPL-005: this loop's premise is "no open item ⇒ the money moved at posting time"
         // (a cash sale). A reversal has no open item of its own, but it is not a cash
         // movement either. When the entry it reverses carries open items, its tax already
         // follows those items' settlements above — counting it here would declare a
@@ -91,13 +125,13 @@ export class VatReturnProjection {
       for (const entry of this.journal.all()) {
         let taxDate: CalendarDate;
         if (entry.reverses !== null) {
-          // F-011: a tax correction counts by its own posting date.
+          // SPEC-011: a tax correction counts by its own posting date.
           taxDate = entry.entryDate;
         } else {
           const voucher = this.vouchers.byId(entry.voucherId);
           taxDate = voucher === null ? entry.entryDate : voucher.taxDate();
         }
-        if (!this.inQuarter(taxDate, year, quarter)) continue;
+        if (!inPeriod(taxDate, year, quarter, month)) continue;
         if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
         for (const [key, contribution] of this.entryContributions(entry, directions)) {
           add(key, contribution.base, contribution.tax);
@@ -220,7 +254,7 @@ export class VatReturnProjection {
     const total = new Big(item.money.amountAsString());
 
     for (const settlement of item.settlements()) {
-      // NF-008: a cancellation closes the item without any money moving. Counting it here would
+      // IMPL-008: a cancellation closes the item without any money moving. Counting it here would
       // declare cash-basis VAT for a reversed invoice that was never paid — the exact opposite of
       // what the reversal means. Skipped before `remaining` is touched, so the proportional split
       // of any real payments is unaffected.
@@ -260,8 +294,4 @@ export class VatReturnProjection {
     );
   }
 
-  private inQuarter(date: CalendarDate, year: number, quarter: number): boolean {
-    if (date.year() !== year) return false;
-    return quarter === 0 || Math.floor((date.month() - 1) / 3) + 1 === quarter;
-  }
 }

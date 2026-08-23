@@ -53,10 +53,10 @@ const CODES: readonly string[] = [
   // Appended 2026-08-16 (R-3): correcting the LINES of an entry that produced open items would
   // leave the subledger describing a posting that no longer exists. Text stays correctable.
   'E_ENTRY_HAS_OPEN_ITEMS',
-  // Appended 2026-08-16 (NF-008): reversing an entry whose open item already carries a settlement
+  // Appended 2026-08-16 (IMPL-008): reversing an entry whose open item already carries a settlement
   // would drop money that actually moved out of the open-item history.
   'E_ENTRY_HAS_SETTLED_ITEMS',
-  // Appended 2026-08-16 (NF-018). These five were in the error catalogue and thrown by the core,
+  // Appended 2026-08-16 (IMPL-018). These five were in the error catalogue and thrown by the core,
   // but not in this list — so they exited `1`, the code that means "unknown error", and a script
   // branching on the exit could not tell them from a summae crash. It hit every `summae init
   // --pack …` (the three pack codes) and every settlement that over-claims its entry.
@@ -66,7 +66,7 @@ const CODES: readonly string[] = [
   'E_POLICY_INVALID',
   // Declared in the catalogue, not yet thrown anywhere (its fixture is still open). Mapped
   // regardless: reserving the number costs nothing, and it lets `exit-codes.test.ts` demand the
-  // catalogue *without an exception list* — an exception list is the hole NF-018 came through.
+  // catalogue *without an exception list* — an exception list is the hole IMPL-018 came through.
   'E_AMOUNT_SCALE_MISMATCH',
 ];
 

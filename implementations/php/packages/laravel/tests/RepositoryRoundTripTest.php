@@ -10,7 +10,7 @@ use Summae\Core\Substrate\Uuid;
 use Summae\Core\Tenant;
 
 /**
- * NF-015: what goes into the database must come back out of it unchanged.
+ * IMPL-015: what goes into the database must come back out of it unchanged.
  *
  * The suites that touch this adapter today (conformance `--subject=database`, the SF-15 cross test)
  * both write and read within one process, so a field that never leaves the object graph looks

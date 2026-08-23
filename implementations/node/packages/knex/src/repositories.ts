@@ -518,7 +518,14 @@ export class DatabaseAssetRepository implements AssetRepository {
   }
 
   private payload(asset: Asset): Record<string, unknown> {
-    return { ...asset.toJSON(), monthlySchedule: asset.monthlySchedule.map((amount) => amount.toJSON()) };
+    return {
+      ...asset.toJSON(),
+      monthlySchedule: asset.monthlySchedule.map((amount) => amount.toJSON()),
+      // Kept out of toJSON() on purpose: the plan start is bookkeeping mechanics, not part of the
+      // asset register an auditor reads. Losing it here would silently move a pooled asset's plan
+      // back to its acquisition month after a restart.
+      depreciationStart: asset.depreciationStart?.iso ?? null,
+    };
   }
 
   private state(asset: Asset): Record<string, unknown> {
@@ -558,7 +565,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       depreciations,
       state.disposed === true,
       H.date(state.disposedOn),
-      // NF-023: the asset's dimensions survive the round trip — every machine entry about it reads
+      // IMPL-023: the asset's dimensions survive the round trip — every machine entry about it reads
       // them, so losing them here would make depreciation impossible after a restart wherever a
       // dimension is mandatory.
       Array.isArray(data.dimensions)
@@ -570,6 +577,8 @@ export class DatabaseAssetRepository implements AssetRepository {
               : [],
           )
         : [],
+      H.date(data.depreciationStart),
+      typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
     );
   }
 

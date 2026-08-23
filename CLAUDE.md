@@ -15,7 +15,8 @@ Multiple language implementations are meant to have an *identical API and identi
 data format*; this is verified via a language-neutral conformance suite (`testing/testsuite/`).
 
 Repo layout:
-- `testing/` — **one home for every test that is not a unit test.** `testsuite/` = the compatibility contract (`fixtures/**.json` + `schema/`, shared by all implementations, mirrored read-only) · `scenarios/` = language-neutral CLI scenarios (`walkthrough/` + `regression/`). Unit tests are the exception and stay next to their code. Which kind to write where: `testing/README.md`.
+- `testing/` — **one home for every test that is not a unit test.** `testsuite/` = the compatibility contract (`fixtures/**.json` + `schema/` + `fehlerkatalog.md`, shared by all implementations, **append-only**) · `scenarios/` = language-neutral CLI scenarios (`walkthrough/` + `regression/`). Unit tests are the exception and stay next to their code. Which kind to write where: `testing/README.md`.
+- `knowledge/` — **the authoring side**: domain knowledge, requirements (`F-…`/`NF-…`/`SF-…`), domain model, the prose spec, build reports, pack docs. For whoever *builds* summae; `docs/` is for whoever *uses* it. Still German, unlike everything shipped — see `knowledge/README.md`. Project/strategy material (roadmaps, decision log, governance) deliberately stays outside this public repo.
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
 - `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
@@ -28,9 +29,15 @@ summae provides **capabilities** (GoBD-compliant posting, reports, exports); leg
 user must by X…*" = app. Library, not an app: **no UI, no server, no forced DB**
 (persistence behind an interface), multi-tenant at the data level. Deliberately **out of scope**
 (not „not yet built" — don't start it by accident): UI/frontend · ELSTER / authority submission ·
-e-invoice creation/parsing (XRechnung/ZUGFeRD) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+e-invoice creation/parsing (XRechnung/ZUGFeRD) · **the GoBD Z3 `index.xml` mapping** (the
+self-describing data set incl. field catalogue is `journalExport`; turning it into the
+DTD-conforming data carrier is the app's — `datenformat.md`: "a mapping, not an invention", and
+no test goes red for its absence) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
 are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
-*posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax).
+*posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax) ·
+**cost-accounting steering instruments** (planned-cost/variance, activity-based, contribution-margin — decided
+2026-08-23; the *balance-sheet* part of cost accounting, production cost per § 255 Abs. 2 HGB for inventory
+valuation, is deliberately **in** scope and simply not built yet).
 
 ## Architecture (the big picture)
 
@@ -74,7 +81,7 @@ assumption). A pack is composable (take it curated / adapt it / build your own �
 belongs in the pack as data. **The stronger test, because a statute rarely arrives quoted:**
 *would another jurisdiction answer this differently?* A rule translated into a plain condition
 reads like mechanism — `route !== 'pool'` was § 6 Abs. 2a EStG, and neither the code nor its
-comment gave it away (NF-025). Full picture + honest build status: `docs/architektur.md`.
+comment gave it away (IMPL-025). Full picture + honest build status: `docs/architektur.md`.
 
 **Pack & modules (brief).** Three layers: **substrate** → **policy kinds** (sockets in the core) → **pack** (on top).
 A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+`data`); a **pack**
@@ -113,16 +120,24 @@ fixture in both languages" + spec retrofit → `implementations/<language>/docs/
   `DeterministicIdGenerator`.
 - **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
 
-## testing/testsuite/ is read-only
+## testing/testsuite/ is append-only
 
-Fixtures are the normative source and live in the **knowledge base** (sister repo
-„Rechnungswesen"). They are mirrored here via `make sync` (`rsync --delete` —
-whatever is here and not in the source gets deleted; **do not put your own files
-in `testing/testsuite/`**) and **never edited here**. Fixtures are append-only:
-behavior change = new fixture, never silent editing. Contradiction between
-spec/fixture/model → **do not guess, do not bend the fixture**, but document it in the
-`SPEC-FINDINGS.md` of the respective implementation and continue building with the
-next most plausible behavior.
+Fixtures are the normative source and are **authored here** (since 2026-08-23; they used to
+live in an external knowledge base and be mirrored in by `make sync`, which is why older docs
+call this tree read-only — the knowledge base is now `knowledge/` in this repo, so source and
+copy collapsed into one). Alongside them live the machine-readable spec parts they exercise:
+`schema/format.schema.json`, `schema/api-parameters.json`, `fehlerkatalog.md`.
+
+**Append-only is the rule that matters, and it did not come from the mirror.** A behavior
+change is a *new* fixture, never a quiet edit to an existing one — an edited fixture rewrites
+what the contract always said, and every implementation that agreed with the old expectation
+silently becomes "wrong" retroactively. Contradiction between spec/fixture/model → **do not
+guess, do not bend the fixture**, but document it in the `SPEC-FINDINGS.md` of the respective
+implementation and continue building with the next most plausible behavior.
+
+**One mirror remains:** `pack-library/` is still authored outside and comes in via `make sync`
+(`bin/sync-pack-library.sh`, `rsync --delete` — whatever is here and not in the source gets
+deleted). Do not edit it here.
 
 ## Conventions (language-neutral)
 
@@ -133,6 +148,15 @@ next most plausible behavior.
 - Doc references always **annotated**: briefly note what's found there.
 - Git: **never directly on shared branches** (`main`, `develop`) — one branch per task
   (`job/…`, `chore/…`, `fix/…`); merge via `--no-ff` when green.
+- **ID namespaces are disjoint by prefix — never by padding.** Four families, and a *requirement*
+  never shares a prefix with a *finding*: **`F-<AREA>-nnn`** functional requirement
+  (`30-anforderungen/funktional.md`, areas CORE/TAX/AST/KLR/IO) · **`NF-n[.n]`** non-functional
+  requirement (`30-anforderungen/nicht-funktional.md`) · **`SF-nn`** standard case
+  (`30-anforderungen/lieferumfang.md`) · **`SPEC-nnn` / `SPEC-Cnn` / `IMPL-nnn`** findings
+  (`SPEC-FINDINGS.md`). Fixtures name only requirements in `covers`. Until 2026-08-23 the
+  findings ran as `F-0xx`/`NF-0xx`, which a reader — and a grep — could tell from the
+  requirements only by a leading zero or a missing area word; the mapping is at the top of
+  `implementations/php/SPEC-FINDINGS.md`. A new series gets its own word, not a number range.
 
 Language-specific conventions, build and test commands: in
 `implementations/<language>/CLAUDE.md`.
@@ -180,7 +204,7 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
    streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
-   does not declare is a finding (e.g. NF-002/F-008 `includeNonCash`), not a convenience.
+   does not declare is a finding (e.g. IMPL-002/SPEC-008 `includeNonCash`), not a convenience.
 2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.
@@ -198,10 +222,18 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    the wrong type is rejected, never coerced; an absent one keeps its documented default. The core
    reads no files, so each language carries the table as a constant — and a test per language asserts
    the constant equals that file, which is what makes drift impossible. **Adding a parameter means
-   editing the declaration in the knowledge base**, not the constant.
-6. **An error code lives in two places at once.** A new code needs its row in the knowledge base's
-   `fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
+   editing `testing/testsuite/schema/api-parameters.json` first**, not the constant.
+6. **An error code lives in two places at once.** A new code needs its row in
+   `testing/testsuite/fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
    never reordered). `ExitCodesTest`/`exit-codes.test.ts` compare the two as sets in both
    directions, so half the work fails the build.
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.
+
+**GoBD claims are a census, not a slogan.** `docs/gobd-conformance.md` maps every GoBD obligation to
+one of three statuses — verified (naming the fixture/test), open (named and scoped), or not verifiable
+in a library (and therefore the embedding app's, collected in the summae-app repo's
+`GOBD-APP-OBLIGATIONS.md`). Two rules when touching it: a row only becomes ✅ when a *named* test fails
+without it — never because the code looks right; and an open row is deleted only when it is built, never
+because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
+law — the litmus test applies here too.

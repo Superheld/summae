@@ -94,7 +94,7 @@ final class SchemaValidationTest extends TestCase
             }
         }
 
-        // v0.5/F-005: schema manifest now knows streams + hashAlgorithm —
+        // v0.5/SPEC-005: schema manifest now knows streams + hashAlgorithm —
         // the full manifest validates.
         $manifestDecoded = json_decode(json_encode($manifest, JSON_THROW_ON_ERROR), false);
         $manifestResult = $validator->validate($manifestDecoded, $schema->{'$id'} . '#/$defs/manifest');

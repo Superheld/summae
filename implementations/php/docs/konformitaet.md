@@ -60,7 +60,7 @@ From `determinismus.md` of the knowledge base — each has its own fixtures:
 - Exports additionally validate against `testing/testsuite/schema/format.schema.json`
   (JSON Schema draft 2020-12).
 - Spec status: v0.5 (data format). The loop implementation → findings → spec →
-  retrofit was run through fully once (F-001…F-007).
+  retrofit was run through fully once (SPEC-001…SPEC-007).
 
 ## SPEC-FINDINGS — the escalation path
 
@@ -73,5 +73,5 @@ When spec, fixture, and model contradict each other or something is missing:
 3. The finding flows back through the knowledge base (decision log) and returns
    as a sharpened spec + new/changed fixtures.
 
-This is not a stopgap but the intended back channel — it resolved F-001…F-007
+This is not a stopgap but the intended back channel — it resolved SPEC-001…SPEC-007
 cleanly (history in [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md)).

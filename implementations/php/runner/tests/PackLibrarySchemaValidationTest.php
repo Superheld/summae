@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * against testing/testsuite/schema/format.schema.json — the same schema SchemaValidationTest
  * validates journalExport streams against, now extended to the pack format (mirrors the
  * Node pack-library-schema test). A field the engine reads but the schema does not
- * declare is a finding (the NF-002/F-008 class), not a convenience.
+ * declare is a finding (the IMPL-002/SPEC-008 class), not a convenience.
  *
  * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
  * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. `mapping`,
@@ -44,12 +44,15 @@ final class PackLibrarySchemaValidationTest extends TestCase
         );
 
         // …and the depreciation payload rejects a pool range that leaves a jurisdiction's answer to
-        // the core: the period (F-004, poolYears) and whether a disposal reduces the pool (NF-019,
-        // poolReducedOnDisposal) are both conditionally required next to poolMax.
+        // the core. Three questions are conditionally required next to poolMax: the period (SPEC-004,
+        // poolYears), whether a disposal reduces the pool (IMPL-019, poolReducedOnDisposal), and
+        // whether the first year is shortened by the acquisition month (poolProRataInFirstYear).
+        // Each one a pack may omit is one a jurisdiction inherits from whoever wrote the core.
         $poolRange = '{"validFrom":"2018-01-01","validTo":null,"immediateMax":"250.00","poolMin":"250.01","poolMax":"1000.00"';
-        $withoutYears = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolReducedOnDisposal":false}]}', false, 512, JSON_THROW_ON_ERROR);
-        $withoutDisposalRule = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5}]}', false, 512, JSON_THROW_ON_ERROR);
-        $complete = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5,"poolReducedOnDisposal":false}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withoutYears = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolReducedOnDisposal":false,"poolProRataInFirstYear":false}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withoutDisposalRule = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5,"poolProRataInFirstYear":false}]}', false, 512, JSON_THROW_ON_ERROR);
+        $withoutProRataRule = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5,"poolReducedOnDisposal":false}]}', false, 512, JSON_THROW_ON_ERROR);
+        $complete = json_decode('{"gwgThresholds":[' . $poolRange . ',"poolYears":5,"poolReducedOnDisposal":false,"poolProRataInFirstYear":false}]}', false, 512, JSON_THROW_ON_ERROR);
         self::assertFalse(
             $validator->validate($withoutYears, $base . '#/$defs/depreciationData')->isValid(),
             'a pool range without poolYears must be rejected',
@@ -58,9 +61,13 @@ final class PackLibrarySchemaValidationTest extends TestCase
             $validator->validate($withoutDisposalRule, $base . '#/$defs/depreciationData')->isValid(),
             'a pool range without poolReducedOnDisposal must be rejected',
         );
+        self::assertFalse(
+            $validator->validate($withoutProRataRule, $base . '#/$defs/depreciationData')->isValid(),
+            'a pool range without poolProRataInFirstYear must be rejected',
+        );
         self::assertTrue(
             $validator->validate($complete, $base . '#/$defs/depreciationData')->isValid(),
-            'the same range with both answers must pass',
+            'the same range with all three answers must pass',
         );
 
         $packDir = dirname(__DIR__, 4) . '/pack-library';

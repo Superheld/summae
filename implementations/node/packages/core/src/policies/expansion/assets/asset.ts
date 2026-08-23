@@ -44,14 +44,52 @@ export class Asset {
     readonly monthlySchedule: Money[],
     readonly voucherId: Uuid,
     /**
-     * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by the
+     * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by the
      * machine, month after month, for years — nobody is there to name a dimension at that moment,
      * and a mandatory one on the depreciation account would otherwise make the run impossible. The
      * master record answering it once is also how it works in practice: an asset belongs to a cost
      * centre, and its depreciation belongs there with it.
      */
     readonly dimensions: ReadonlyArray<{ type: string; code: string }> = [],
+    /**
+     * First month of the depreciation plan. Normally the month of acquisition — pro rata temporis,
+     * which is what linear depreciation asks for in most jurisdictions.
+     *
+     * A pooled asset can be different: where a jurisdiction dissolves its pool in equal *fiscal-year*
+     * fractions, the first year is not shortened by the acquisition month, so the plan starts at the
+     * beginning of the fiscal year the asset was acquired in. Which of the two applies is pack data
+     * (`poolProRataInFirstYear`), never a decision of this class — the asset is simply told where its
+     * plan begins.
+     *
+     * Null means "same as acquisition", so persisted assets written before this field existed
+     * rehydrate to exactly the behaviour they had.
+     */
+    readonly depreciationStart: CalendarDate | null = null,
+    /**
+     * How the schedule was built. Straight line spreads the cost flat, so the yearly run can
+     * re-derive a year's share from the month counts; declining balance cannot, because each year
+     * depends on what is left after the one before. The schedule then IS the plan and has to be read
+     * rather than recomputed — that is the only thing this field decides.
+     *
+     * Null means straight line, so assets written before the field existed rehydrate unchanged.
+     */
+    readonly depreciationMethod: string | null = null,
   ) {}
+
+  /** Straight line unless the pack offered, and the caller chose, something else. */
+  method(): string {
+    return this.depreciationMethod ?? 'straight_line';
+  }
+
+  /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
+  scheduleIsAuthoritative(): boolean {
+    return this.method() !== 'straight_line';
+  }
+
+  /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
+  planStart(): CalendarDate {
+    return this.depreciationStart ?? this.acquiredOn;
+  }
 
   isDisposed(): boolean {
     return this.disposed;
@@ -74,7 +112,7 @@ export class Asset {
   }
 
   planMonthDate(planMonth: number): CalendarDate {
-    return lastDayOfMonthAfter(this.acquiredOn, planMonth - 1);
+    return lastDayOfMonthAfter(this.planStart(), planMonth - 1);
   }
 
   isMonthBooked(planMonth: number): boolean {
@@ -119,6 +157,8 @@ export class Asset {
     disposed: boolean,
     disposedOn: CalendarDate | null,
     dimensions: ReadonlyArray<{ type: string; code: string }> = [],
+    depreciationStart: CalendarDate | null = null,
+    depreciationMethod: string | null = null,
   ): Asset {
     const asset = new Asset(
       id,
@@ -132,6 +172,8 @@ export class Asset {
       monthlySchedule,
       voucherId,
       dimensions,
+      depreciationStart,
+      depreciationMethod,
     );
     for (const booking of depreciations) {
       asset.depreciations.push({
@@ -156,7 +198,7 @@ export class Asset {
   }
 
   /**
-   * Carrying amount = cost less what has been depreciated (NF-024).
+   * Carrying amount = cost less what has been depreciated (IMPL-024).
    *
    * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
    * *pooled* one was: it sits on the pool account and is written down over the pack's term, so
@@ -203,6 +245,7 @@ export class Asset {
       disposedOn: this.disposedOn?.iso ?? null,
       voucherId: this.voucherId.value,
       dimensions: this.dimensions.map((d) => ({ type: d.type, code: d.code })),
+      depreciationMethod: this.method(),
     };
   }
 }

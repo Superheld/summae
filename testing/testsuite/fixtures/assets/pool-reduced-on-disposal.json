@@ -1,6 +1,6 @@
 {
   "fixture": "pool-reduced-on-disposal",
-  "description": "Die Gegenprobe zu `pool-unaffected-by-disposal`: dasselbe Wirtschaftsgut, derselbe Ablauf, nur sagt das Regelmodul hier `poolReducedOnDisposal: true` — und der Abgang schreibt den Restbuchwert aus, statt den Pool weiterlaufen zu lassen. Zwei Pakete, zwei Antworten, ein Kern. Genau das ist der Punkt: „der Sammelposten wird durch einen Abgang nicht vermindert\" ist keine Eigenschaft des Poolens, sondern die Antwort einer Jurisdiktion (Deutschland, § 6 Abs. 2a EStG); UK und Australien entnehmen Abgänge ihren Pools. Stünde die Regel im Kern, erbte jede andere Jurisdiktion sie stillschweigend — derselbe Fehler, den F-004 für die Pool-Dauer behoben hat.",
+  "description": "Die Gegenprobe zu `pool-unaffected-by-disposal`: dasselbe Wirtschaftsgut, derselbe Ablauf, nur sagt das Regelmodul hier `poolReducedOnDisposal: true` — und der Abgang schreibt den Restbuchwert aus, statt den Pool weiterlaufen zu lassen. Zwei Pakete, zwei Antworten, ein Kern. Genau das ist der Punkt: „der Sammelposten wird durch einen Abgang nicht vermindert\" ist keine Eigenschaft des Poolens, sondern die Antwort einer Jurisdiktion (Deutschland, § 6 Abs. 2a EStG); UK und Australien entnehmen Abgänge ihren Pools. Stünde die Regel im Kern, erbte jede andere Jurisdiktion sie stillschweigend — derselbe Fehler, den SPEC-004 für die Pool-Dauer behoben hat.",
   "covers": ["F-AST-006", "F-PACK-POLICY-001"],
   "setup": {
     "tenant": { "name": "Pool-Abgang Ltd", "baseCurrency": "EUR" },

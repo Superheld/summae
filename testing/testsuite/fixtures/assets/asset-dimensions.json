@@ -1,6 +1,6 @@
 {
   "fixture": "asset-dimensions",
-  "description": "NF-023: das Anlagegut trägt seine Kostenstelle, und jede maschinelle Buchung dazu erbt sie — Anschaffung, AfA-Lauf und Abgang. Vorher konnte ein Mandant mit Pflichtdimension auf dem AfA-Konto **gar keine Abschreibung buchen**: `postMachineEntry` baut seine Zeilen selbst und hatte keine Dimension zu geben, also scheiterte jeder Lauf an E_DIMENSION_INVALID. Die Alternative — maschinelle Buchungen von der Dimensionspflicht auszunehmen — wäre fachlich falsch gewesen: gerade die AfA ist kostenstellenrelevant, das ist der Kern der KLR. Dass ein Anlagegut zu einer Kostenstelle gehört und seine Abschreibung mit ihm, ist zudem gängige Anlagenbuchhaltung, keine Frage der Jurisdiktion.",
+  "description": "IMPL-023: das Anlagegut trägt seine Kostenstelle, und jede maschinelle Buchung dazu erbt sie — Anschaffung, AfA-Lauf und Abgang. Vorher konnte ein Mandant mit Pflichtdimension auf dem AfA-Konto **gar keine Abschreibung buchen**: `postMachineEntry` baut seine Zeilen selbst und hatte keine Dimension zu geben, also scheiterte jeder Lauf an E_DIMENSION_INVALID. Die Alternative — maschinelle Buchungen von der Dimensionspflicht auszunehmen — wäre fachlich falsch gewesen: gerade die AfA ist kostenstellenrelevant, das ist der Kern der KLR. Dass ein Anlagegut zu einer Kostenstelle gehört und seine Abschreibung mit ihm, ist zudem gängige Anlagenbuchhaltung, keine Frage der Jurisdiktion.",
   "covers": [
     "F-AST-003",
     "F-CORE-024"

@@ -186,7 +186,7 @@
         "proceedsAccount": "4900"
       },
       "expect": {
-        "comment": "Die Charge wird verschrottet und bringt 100,00 Schrotterlös. Abgang bewusst NACH dem AfA-Lauf: `bookValueAt` liest den gebuchten Stand, und der Jahreslauf bucht per 31.12. Wer mitten im Jahr abgeht, ohne die anteilige AfA vorher zu buchen, bucht einen zu hohen Restwert aus — die AfA bis zum Abgangsmonat holt `dispose` nicht selbst nach (Befund NF-022).",
+        "comment": "Die Charge wird verschrottet und bringt 100,00 Schrotterlös. Abgang bewusst NACH dem AfA-Lauf: `bookValueAt` liest den gebuchten Stand, und der Jahreslauf bucht per 31.12. Wer mitten im Jahr abgeht, ohne die anteilige AfA vorher zu buchen, bucht einen zu hohen Restwert aus — die AfA bis zum Abgangsmonat holt `dispose` nicht selbst nach (Befund IMPL-022).",
         "result": {
           "id": "$A1",
           "status": "disposed"
@@ -201,7 +201,7 @@
         "voucherId": "$V3"
       },
       "expect": {
-        "comment": "Die Maschine geht ohne Erlös ab: Restbuchwert 3600,00 − 1200,00 = 2400,00 wird vom Anlagekonto ausgebucht und landet als Verlust auf 6900. Vor dem NF-021-Fix passierte hier gar nichts — die Maschine stand danach weiter mit 2400,00 in der Bilanz.",
+        "comment": "Die Maschine geht ohne Erlös ab: Restbuchwert 3600,00 − 1200,00 = 2400,00 wird vom Anlagekonto ausgebucht und landet als Verlust auf 6900. Vor dem IMPL-021-Fix passierte hier gar nichts — die Maschine stand danach weiter mit 2400,00 in der Bilanz.",
         "result": {
           "id": "$A2",
           "status": "disposed"

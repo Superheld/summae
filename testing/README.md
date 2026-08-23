@@ -20,9 +20,10 @@ So the short version:
 > **Unit tests sit next to the code, per language. Everything cross-language is data, and
 > all of that data is under `testing/`.**
 
-The one thing to remember before writing a file here: `testing/testsuite/` is a *mirror* of
-the knowledge base and gets overwritten wholesale by `make sync`. New scenarios go in
-`testing/scenarios/`; new fixtures are authored in the knowledge base. Details in § 2.
+The one thing to remember before writing a file here: `testing/testsuite/` is the normative
+cross-language contract, and its fixtures are **append-only** — a behaviour change is a new
+fixture, never an edit to an existing one. New scenarios go in `testing/scenarios/`. Details
+in § 2.
 
 ---
 
@@ -59,26 +60,33 @@ Current inventory (see `git ls-files '*test*'` for the live list):
 - **Runner** — comparator, fixture loader/runner, schema validation, placeholder handling
 - **CLI** — `CliSmokeTest` / `cli.smoke.test.ts`, plus the scenario runner (§ 3)
 
-## 2. Conformance fixtures — authored in the knowledge base, mirrored here
+## 2. Conformance fixtures — authored here
 
 **The normative cross-language contract.** One canonical expectation per behaviour; every
 implementation is checked against it, which is how N languages stay equivalent without N²
 comparisons.
 
-- **Authored in:** `../70-testsuite/fixtures/**.json` (the knowledge base, next to the spec)
-- **Mirrored to:** `testing/testsuite/` via `make sync` — `rsync --delete`
+- **Authored in:** `testing/testsuite/fixtures/**.json`
 - **Run with:** `pnpm fixtures --strict` / `make fixtures`
 
-⚠ **Never create or edit anything under `summae/testsuite/`.** The sync deletes whatever is
-not in the source, so work done there is lost at the next sync. A new fixture is written in
-the knowledge base and then synced.
+Alongside the fixtures live the machine-readable parts of the spec they exercise:
+`testing/testsuite/schema/format.schema.json`, `testing/testsuite/schema/api-parameters.json`
+and `testing/testsuite/fehlerkatalog.md`. The prose spec is in
+[`../knowledge/50-spezifikation/`](../knowledge/50-spezifikation/) and points at these; they
+never point back.
 
-Also mirrored from the knowledge base: `testing/testsuite/schema/` (from `50-spezifikation/schema/`),
-`testing/testsuite/fehlerkatalog.md` (the error catalogue) and `pack-library/` (the shipped packs).
-Same rule for all of them — the copy here is a mirror, not a source.
+> **This used to be a mirror.** Until 2026-08-23 the fixtures were authored in a knowledge
+> base outside the repository and copied in by `make sync` (`rsync --delete`), so editing them
+> here meant losing the work at the next sync. The knowledge base moved into `knowledge/`, and
+> with source and copy in the same repository the copy stopped earning its keep: this tree is
+> now the source. Edit fixtures here. The one remaining mirror is `pack-library/`
+> (`make sync` → `bin/sync-pack-library.sh`), whose source is still authored outside.
 
-The knowledge base is **not under version control**, so there is no undo. Adding a file is
-safe; before changing an existing one, drop a copy into `../archiv/`.
+**The rule that did survive: fixtures are append-only.** A behaviour change is a *new* fixture,
+never a quiet edit to an existing one — that discipline was never about the mirror, and losing
+`rsync --delete` does not loosen it. Contradiction between spec, fixture and model → do not
+guess and do not bend the fixture; record it in the implementation's `SPEC-FINDINGS.md` and
+build on with the next most plausible behaviour.
 
 `runner/expected-green.txt` (per implementation) lists the fixtures that must stay green —
 a regression guard for CI independent of `--strict`. A new fixture goes into **both** lists

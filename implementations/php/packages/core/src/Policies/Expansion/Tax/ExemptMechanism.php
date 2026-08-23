@@ -10,7 +10,7 @@ use Summae\Core\Substrate\Money;
  * Exempt supply: tax-free — no tax line, base tagged for reporting. Mechanically like an
  * intra-community supply but a distinct mechanism, so projections that single out IC supplies
  * (the EC sales list) do not pick it up. Lets an exempt code post without a rejected 0.00 tax
- * line (the reason a plain rate-0 standard code could not — NF-004/F-010).
+ * line (the reason a plain rate-0 standard code could not — IMPL-004/SPEC-010).
  */
 final class ExemptMechanism implements TaxMechanism
 {

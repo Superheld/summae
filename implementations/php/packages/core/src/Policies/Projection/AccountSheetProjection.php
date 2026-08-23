@@ -82,6 +82,9 @@ final readonly class AccountSheetProjection
 
         $running = $opening;
         $lines = [];
+        // See CashJournalProjection: an account sheet that shows a reversal as an ordinary opposite
+        // movement leaves the reader unable to tell a correction from a removal.
+        $reversals = ReversalIndex::of($this->journal);
 
         foreach ($this->journal->forFiscalYear($fiscalYear) as $entry) {
             if ($entry->periodRef->period > $throughPeriod) {
@@ -104,7 +107,7 @@ final readonly class AccountSheetProjection
                     'side' => $line->side->value,
                     'money' => $line->money->jsonSerialize(),
                     'runningBalance' => $running->amountAsString(),
-                ];
+                ] + $reversals->forEntry($entry);
             }
         }
 

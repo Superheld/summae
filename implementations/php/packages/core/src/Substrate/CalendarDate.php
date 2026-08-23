@@ -29,6 +29,35 @@ final readonly class CalendarDate implements \JsonSerializable, \Stringable
         return new self($iso);
     }
 
+    /**
+     * Whole days from $other up to this date; negative when this date is earlier.
+     * Zoneless subtraction — no hours, no DST, no leap seconds to lose a day to.
+     */
+    public function daysSince(self $other): int
+    {
+        return $this->dayNumber() - $other->dayNumber();
+    }
+
+    /**
+     * Days since the civil epoch (1970-01-01), by Howard Hinnant's `days_from_civil`.
+     * Hand-rolled so the Node twin can compute it identically without the host Date
+     * (IMPL-009); proleptic Gregorian, which is what a zoneless bookkeeping date is.
+     */
+    private function dayNumber(): int
+    {
+        $year = (int) substr($this->iso, 0, 4);
+        $month = (int) substr($this->iso, 5, 2);
+        $day = (int) substr($this->iso, 8, 2);
+
+        $y = $month <= 2 ? $year - 1 : $year;
+        $era = (int) floor($y / 400);
+        $yoe = $y - $era * 400;                                          // [0, 399]
+        $doy = intdiv(153 * ($month + ($month > 2 ? -3 : 9)) + 2, 5) + $day - 1; // [0, 365]
+        $doe = $yoe * 365 + intdiv($yoe, 4) - intdiv($yoe, 100) + $doy;  // [0, 146096]
+
+        return $era * 146097 + $doe - 719468;
+    }
+
     public function compareTo(self $other): int
     {
         return strcmp($this->iso, $other->iso) <=> 0;

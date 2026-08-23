@@ -26,6 +26,21 @@ function iso(year: number, month: number, day: number): string {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+/**
+ * Days since the civil epoch (1970-01-01), by Howard Hinnant's `days_from_civil`.
+ * Hand-rolled for the same reason as the rest of this file: the host `Date` is out of
+ * the substrate, so year 0042 subtracts like any other year. Valid for the proleptic
+ * Gregorian calendar, which is what a zoneless bookkeeping date is.
+ */
+function daysFromCivil(year: number, month: number, day: number): number {
+  const y = month <= 2 ? year - 1 : year;
+  const era = Math.floor(y / 400);
+  const yoe = y - era * 400; // [0, 399]
+  const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1; // [0, 365]
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy; // [0, 146096]
+  return era * 146097 + doe - 719468;
+}
+
 export class CalendarDate {
   private constructor(readonly iso: string) {}
 
@@ -41,6 +56,22 @@ export class CalendarDate {
       throw new InvalidValue(`Not a valid calendar date: "${value}"`);
     }
     return new CalendarDate(value);
+  }
+
+  /**
+   * Whole days from `other` up to this date; negative when this date is earlier.
+   * Zoneless subtraction — no hours, no DST, no leap seconds to lose a day to.
+   */
+  daysSince(other: CalendarDate): number {
+    return this.dayNumber() - other.dayNumber();
+  }
+
+  private dayNumber(): number {
+    return daysFromCivil(
+      Number(this.iso.slice(0, 4)),
+      Number(this.iso.slice(5, 7)),
+      Number(this.iso.slice(8, 10)),
+    );
   }
 
   compareTo(other: CalendarDate): number {

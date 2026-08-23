@@ -1,4 +1,5 @@
-import { DomainError } from '../../../domain-error.js';
+import { DomainError, rejectedValue } from '../../../domain-error.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { Ledger } from '../../../ledger/ledger.js';
 import { Voucher } from '../../../records/voucher.js';
 import type { AssetRepository, FiscalYearRepository, VoucherRepository } from '../../../port.js';
@@ -27,6 +28,7 @@ interface Threshold {
   poolMax: string | null;
   poolYears: number | null;
   poolReducedOnDisposal: boolean | null;
+  poolProRataInFirstYear: boolean | null;
 }
 
 /**
@@ -44,7 +46,24 @@ export class AssetService {
     private readonly vouchers: VoucherRepository,
     private readonly ledger: Ledger,
     private readonly ids: IdGenerator,
+    // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+    // nothing in them says *an asset was acquired*. These records carry the asset event
+    // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+    // tenant, like the configuration singletons.
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
+
+  private trace(
+    input: Record<string, unknown>,
+    objectType: string,
+    objectId: Uuid,
+    action: string,
+    changes: Record<string, { from: unknown; to: unknown }>,
+  ): void {
+    if (this.audit === null) return;
+    this.audit.record(this.audit.actorOf(input), objectType, objectId, action, changes);
+  }
 
   setRuleModule(ruleModule: Record<string, unknown>): void {
     this.ruleModule = ruleModule;
@@ -63,14 +82,46 @@ export class AssetService {
     const dimensions = AssetService.parseDimensions(input.dimensions);
 
     const route = this.resolveRoute(choice, cost, acquiredOn);
+    const explicitLife = AssetService.parseUsefulLifeMonths(input.usefulLifeMonths);
+    const method = AssetService.parseMethod(input.depreciationMethod);
+
+    // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
+    // immediately expensed one has no schedule at all, so a life given with either route cannot be
+    // honoured — and dropping it in silence would let a caller believe a number took effect that
+    // never did.
+    if (explicitLife !== null && route !== 'capitalize') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `acquireAsset: "usefulLifeMonths" applies to a capitalised asset, not to route "${route}"`,
+        { usefulLifeMonths: explicitLife, route },
+      );
+    }
+
+    // Same reasoning as the useful life: a method cannot apply to a route that has no schedule of
+    // its own, and accepting it in silence would suggest it took effect.
+    if (method !== 'straight_line' && route !== 'capitalize') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "${route}"`,
+        { depreciationMethod: method, route },
+      );
+    }
 
     let usefulLifeMonths: number | null = null;
     const schedule: Money[] = [];
     if (route === 'capitalize') {
-      usefulLifeMonths = this.usefulLifeMonths(assetClass);
-      schedule.push(...cost.allocateEvenly(usefulLifeMonths));
+      // The caller's own figure wins over the class average. A table of class averages cannot serve a
+      // jurisdiction that lets a taxpayer prove a shorter life for an individual asset, however
+      // complete the table is — and without this parameter an asset class missing from the pack was
+      // simply unusable.
+      usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
+      schedule.push(
+        ...(method === 'declining_balance'
+          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn)
+          : cost.allocateEvenly(usefulLifeMonths)),
+      );
     } else if (route === 'pool') {
-      // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is one
+      // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
       // inherited it silently. The pack says over how long; the core only spreads it evenly.
       const poolYears = this.poolYears(acquiredOn);
@@ -92,6 +143,8 @@ export class AssetService {
       schedule,
       voucherId,
       dimensions,
+      this.planStartFor(route, acquiredOn),
+      method,
     );
     this.assets.add(asset);
 
@@ -100,6 +153,13 @@ export class AssetService {
       { account: targetAccount, side: 'debit', money: cost.toJSON() },
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
     ]));
+
+    this.trace(input, 'asset', asset.id, 'acquired', {
+      name: { from: null, to: name },
+      assetClass: { from: null, to: assetClass },
+      acquiredOn: { from: null, to: acquiredOn.iso },
+      route: { from: null, to: route },
+    });
 
     const result = asset.toJSON();
     result.route = route;
@@ -130,6 +190,11 @@ export class AssetService {
     if (lines.length > 0) {
       this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, this.withDimensions(asset, lines));
     }
+
+    this.trace(input, 'asset', asset.id, 'disposed', {
+      status: { from: 'active', to: 'disposed' },
+      disposedOn: { from: null, to: disposedOn.iso },
+    });
 
     return asset.toJSON();
   }
@@ -176,6 +241,17 @@ export class AssetService {
       total = total.add(amount);
     }
 
+    // A run that created nothing is still an event: "someone ran depreciation for this
+    // period and it was already done" is exactly what an auditor reconstructing a timeline
+    // wants to see, and leaving it out would make repeated runs invisible.
+    if (this.tenantId !== null) {
+      this.trace(input, 'depreciationRun', this.tenantId, 'completed', {
+        fiscalYear: { from: null, to: fiscalYear },
+        period: { from: null, to: period },
+        entriesCreated: { from: null, to: entriesCreated },
+      });
+    }
+
     if (entriesCreated === 0) return { alreadyRun: true, entriesCreated: 0 };
     return { entriesCreated, totalDepreciation: total.toJSON() };
   }
@@ -202,7 +278,7 @@ export class AssetService {
     const monthsByYear = new Map<number, number[]>();
     const life = asset.monthlySchedule.length;
     for (let planMonth = 1; planMonth <= life; planMonth++) {
-      const year = asset.planMonthDate(planMonth).year();
+      const year = this.planMonthYear(asset, planMonth);
       const list = monthsByYear.get(year) ?? [];
       list.push(planMonth);
       monthsByYear.set(year, list);
@@ -210,12 +286,24 @@ export class AssetService {
     const months = monthsByYear.get(fiscalYear);
     if (months === undefined) return [[], zero];
 
-    const years = [...monthsByYear.keys()];
-    const weights = years.map((year) => monthsByYear.get(year)!.length);
-    const yearAmounts = asset.acquisitionCost.allocate(...weights);
-    const yearIndex = years.indexOf(fiscalYear);
-    if (yearIndex === -1) return [[], zero];
-    const yearAmount = yearAmounts[yearIndex]!;
+    let yearAmount: Money;
+    if (asset.scheduleIsAuthoritative()) {
+      // A declining-balance plan cannot be re-derived from month counts — each year depends on what
+      // the previous one left. The schedule IS the plan, so the year's target is simply the sum of
+      // its months. Straight line keeps re-allocating, which is what pins its rounding to the values
+      // every existing fixture expects.
+      yearAmount = zero;
+      for (const planMonth of months) {
+        yearAmount = yearAmount.add(asset.monthlySchedule[planMonth - 1]!);
+      }
+    } else {
+      const years = [...monthsByYear.keys()];
+      const weights = years.map((year) => monthsByYear.get(year)!.length);
+      const yearAmounts = asset.acquisitionCost.allocate(...weights);
+      const yearIndex = years.indexOf(fiscalYear);
+      if (yearIndex === -1) return [[], zero];
+      yearAmount = yearAmounts[yearIndex]!;
+    }
 
     const openMonths: number[] = [];
     let bookedAmount = zero;
@@ -265,7 +353,7 @@ export class AssetService {
   }
 
   /**
-   * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+   * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
    * entry about an asset gets them on every line: the whole event belongs to that cost centre, and
    * a line without them would be refused wherever the pack makes a dimension mandatory — which is
    * precisely the case that used to make depreciation impossible to run.
@@ -346,7 +434,7 @@ export class AssetService {
   /**
    * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
    * range without saying over how long is incomplete, and picking a number here would put a statute
-   * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+   * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
    * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
    */
   private poolYears(acquiredOn: CalendarDate): number {
@@ -366,8 +454,62 @@ export class AssetService {
    * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
    * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
    * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-   * statute back into the core — which is exactly what NF-019 accidentally did before this.
+   * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
    */
+  /**
+   * Does the pool's first year get shortened by the acquisition month?
+   *
+   * Germany says no: the pool is dissolved in the fiscal year it is formed and the following ones by
+   * equal fractions, so an asset bought in November still carries a full fraction in that year, and
+   * the term ends after `poolYears` fiscal years. Treating a pool like ordinary linear depreciation —
+   * pro rata from the month of acquisition — understated the first year and invented a last one.
+   *
+   * Other pool regimes answer this differently, which is why the pack has to say it rather than the
+   * core assuming it — the same reason `poolYears` (SPEC-004) and `poolReducedOnDisposal` (IMPL-019)
+   * are pack data.
+   */
+  private poolProRataInFirstYear(acquiredOn: CalendarDate): boolean {
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null || threshold.poolProRataInFirstYear === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'gwgThresholds: a pool range (poolMin/poolMax) without poolProRataInFirstYear — the pack must say whether the first year is shortened by the acquisition month',
+        { field: 'poolProRataInFirstYear', acquiredOn: acquiredOn.iso },
+      );
+    }
+    return threshold.poolProRataInFirstYear;
+  }
+
+  /**
+   * Where the depreciation plan starts. Capitalised assets start in the month of acquisition (pro rata
+   * temporis). A pooled asset whose pack dissolves the pool in whole fiscal-year fractions starts at
+   * the beginning of the fiscal year it was acquired in — that, and nothing else, is what makes the
+   * first year full and the term end after `poolYears` years.
+   */
+  private planStartFor(route: AssetRoute, acquiredOn: CalendarDate): CalendarDate | null {
+    if (route !== 'pool') return null;
+
+    const year = this.fiscalYears.forDate(acquiredOn);
+
+    // Acquired on the first day of the fiscal year? Then both answers produce the same plan, and the
+    // pack is not asked. That is deliberate and mirrors `poolReducedOnDisposal`, which is only demanded
+    // when something is actually disposed: a pack owes an answer where the answer changes the books,
+    // not everywhere. The guarantee that a *pack* carries the field is the schema's job.
+    if (year !== null && acquiredOn.iso === year.start.iso) return null;
+
+    if (this.poolProRataInFirstYear(acquiredOn)) return null;
+
+    if (year === null) {
+      throw new DomainError(
+        'E_PERIOD_UNKNOWN',
+        `the pool for an asset acquired on ${acquiredOn.iso} is dissolved in whole fiscal-year fractions, but no fiscal year contains that date`,
+        { acquiredOn: acquiredOn.iso },
+      );
+    }
+
+    return year.start;
+  }
+
   private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
     const threshold = this.applicableThreshold(acquiredOn);
     if (threshold === null || threshold.poolReducedOnDisposal === null) {
@@ -400,9 +542,150 @@ export class AssetService {
           ? item.poolYears
           : null,
         poolReducedOnDisposal: typeof item.poolReducedOnDisposal === 'boolean' ? item.poolReducedOnDisposal : null,
+        poolProRataInFirstYear:
+          typeof item.poolProRataInFirstYear === 'boolean' ? item.poolProRataInFirstYear : null,
       });
     }
     return thresholds;
+  }
+
+  /**
+   * Which yearly bucket a plan month belongs to.
+   *
+   * The fiscal year that contains the month, when one is set up — NOT its calendar year. Where the
+   * two differ the old shortcut came apart badly: for a fiscal year 07/2026–06/2027 (labelled by its
+   * end year) an asset acquired in September 2026 had its September-to-December months filed under
+   * "2026", a label no fiscal year carries, so no run ever booked them, while months belonging to the
+   * following fiscal year were pulled into this one. Which months belong to a fiscal year is what a
+   * fiscal year is; reading it off the calendar was simply wrong.
+   *
+   * Falls back to the calendar year for a month beyond every fiscal year that has been set up. That is
+   * not a second opinion about the boundary — it keeps the weighting COMPLETE. The yearly amount comes
+   * from allocating the cost across all buckets by month count, so dropping the months that reach past
+   * the last configured year would push their share into the years that remain and write the asset off
+   * too fast. With calendar-year fiscal years the fallback is identical to the answer above; with
+   * deviating ones it is the old behaviour, and it corrects itself as soon as the year is created. The
+   * honest limit: set up the fiscal years an asset runs through.
+   */
+  private planMonthYear(asset: Asset, planMonth: number): number {
+    const date = asset.planMonthDate(planMonth);
+    return this.fiscalYears.forDate(date)?.year ?? date.year();
+  }
+
+  /**
+   * The depreciation method the caller asked for. Straight line when absent — the method every
+   * jurisdiction allows and the only one this core knew until 2026-08-23.
+   */
+  private static parseMethod(value: unknown): string {
+    if (value === null || value === undefined) return 'straight_line';
+
+    if (value !== 'straight_line' && value !== 'declining_balance') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+        { depreciationMethod: rejectedValue(value) },
+      );
+    }
+
+    return value;
+  }
+
+  /**
+   * A declining-balance plan, with the switch to straight line built in.
+   *
+   * Each year takes a fixed percentage of what is LEFT, so the amounts fall and never quite reach
+   * zero on their own — which is why every declining-balance regime pairs the method with a switch to
+   * straight line over the remaining life, and why the final year simply takes the remainder. Without
+   * that last step an asset would keep a residue forever.
+   *
+   * The switch is taken automatically at the first year where straight line over the remaining life
+   * yields more. It is a permission rather than a duty, but no one entitled to it declines it — an
+   * option nobody ever sets differently is better expressed as the behaviour.
+   *
+   * Rate, factor and the window come from the pack: the mechanism is shared (Germany applies it both
+   * to movables and, at a different rate, to new residential buildings), the numbers are not. Both the
+   * percentage and the remaining-life figure go through allocate, so the cents fall where the rest of
+   * the core puts them.
+   */
+  private decliningBalanceSchedule(cost: Money, usefulLifeMonths: number, acquiredOn: CalendarDate): Money[] {
+    const rule = this.decliningBalanceRule(acquiredOn);
+    const years = Math.ceil(usefulLifeMonths / 12);
+
+    // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the rate is
+    // a property of the asset's life and does not change as the balance falls.
+    const straightLineRate = 100 / years;
+    const rate = Math.min(rule.factor * straightLineRate, Number(rule.maxRate));
+    const rateWeight = String(Math.round(rate * 10000) / 10000);
+    const restWeight = String(Math.round((100 - rate) * 10000) / 10000);
+
+    const schedule: Money[] = [];
+    let remaining = cost;
+
+    for (let year = 1; year <= years; year++) {
+      const remainingYears = years - year + 1;
+
+      let amount: Money;
+      if (year === years) {
+        amount = remaining;
+      } else {
+        const declining = remaining.allocate(rateWeight, restWeight)[0]!;
+        const straightLine = remaining.allocate(...Array.from({ length: remainingYears }, () => 1))[0]!;
+        amount = declining.compareTo(straightLine) >= 0 ? declining : straightLine;
+      }
+
+      remaining = remaining.subtract(amount);
+      schedule.push(...amount.allocateEvenly(12));
+    }
+
+    return schedule.slice(0, usefulLifeMonths);
+  }
+
+  /**
+   * The declining-balance rule in force on the acquisition date. Refused rather than defaulted, like
+   * every other pack question here: a core that invents a rate has one jurisdiction's tax policy in
+   * the substrate, and these rates are the most short-lived numbers in the whole pack — Germany's
+   * current one applies to a window of two and a half years.
+   */
+  private decliningBalanceRule(acquiredOn: CalendarDate): { factor: number; maxRate: string } {
+    const raw = Array.isArray(this.ruleModule.decliningBalance) ? this.ruleModule.decliningBalance : [];
+    for (const item of raw) {
+      if (!isRecord(item) || typeof item.validFrom !== 'string') continue;
+
+      const validFrom = CalendarDate.of(item.validFrom);
+      const validTo = typeof item.validTo === 'string' ? CalendarDate.of(item.validTo) : null;
+      if (acquiredOn.isBefore(validFrom) || (validTo !== null && acquiredOn.isAfter(validTo))) continue;
+
+      const factor = typeof item.factor === 'number' && Number.isSafeInteger(item.factor) ? item.factor : null;
+      const maxRate = typeof item.maxRate === 'string' ? item.maxRate : null;
+      if (factor === null || factor < 1 || maxRate === null) continue;
+
+      return { factor, maxRate };
+    }
+
+    throw new DomainError(
+      'E_PACK_INCOHERENT',
+      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso}`,
+      { field: 'decliningBalance', acquiredOn: acquiredOn.iso },
+    );
+  }
+
+  /**
+   * A useful life given per acquisition: a whole number of months, at least one. JSON has no
+   * int/float split, so 60.0 is the same value as 60 — but 60.4 is a caller's mistake and not a
+   * number to round into shape.
+   */
+  private static parseUsefulLifeMonths(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "usefulLifeMonths" must be a whole number of months, at least 1',
+        { usefulLifeMonths: rejectedValue(value) },
+      );
+    }
+
+    return value;
   }
 
   private usefulLifeMonths(assetClass: string): number {
@@ -428,7 +711,7 @@ export class AssetService {
     return this.assetAccount('gwgExpenseAccount');
   }
   /**
-   * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+   * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
    *
    * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
    * asset's last months of depreciation never happened at all: `runDepreciation` skips disposed

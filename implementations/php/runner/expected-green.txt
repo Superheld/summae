@@ -1,10 +1,10 @@
-
 # DE-Pack (Gate 2): vollständiges Deutschland-Pack auf neutralem Rahmen
 # Fixtures, die grün sein MÜSSEN (Regressions-Schutz für CI).
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
 # US-Pack (us): own US chart + sales/use tax + GAAP mappings + cash-basis Schedule C + MACRS
 # Wird je Job erweitert; M3 = alle Fixtures + --strict.
+
 accounts-and-import
 advance-payment
 allocate-largest-remainder
@@ -13,33 +13,43 @@ asset-dimensions
 audit-data-export-ads-gl
 audit-data-export-fiscal-year
 audit-trail
+audit-trail-period-and-config
 balance-sheet-gap
 balance-sheet-mapping
 cash-basis-ten-day-rule
+cash-journal
 cent-invoice
 correct-open-items
 costing-run-unknown
 create-tenant-profile
 customer-credit-note
 datev-export
+datev-general-reversal
 de-afa-lauf
+de-afa-nutzungsdauern
 de-bewirtung
 de-bilanz-guv
 de-complete-override-remove-equals-base
+de-degressive-afa
 de-eingangsrechnung
 de-euer
+de-euer-kleinunternehmer
+de-euer-mapping-gap
 de-ig-lieferung
 de-jahresgang
 de-kleinunternehmer
 de-pack-resolves
 de-reverse-charge
 de-skonto
+de-system-description
 de-ust7-ermaessigt
 de-vat-return
 de-vorsteuer-ermaessigt
 de-wertabgabe
 de-wertpapierdepot
+declining-balance-depreciation
 default-pack-resolves
+depreciation-deviating-fiscal-year
 depreciation-monthly-allocation
 deviating-fiscal-year
 disposal-catches-up-depreciation
@@ -49,7 +59,7 @@ finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
 gwg-and-depreciation
-gwg-pool-period
+gwg-pool-fiscal-year-fraction
 gwg-pool-period
 income-statement-gap
 input-invalid
@@ -59,6 +69,7 @@ mixed-tax-rates
 money-transit
 monthly-income-statement
 non-cash-benefit
+open-items-partner-and-due
 open-items-settlement
 opening-balance-takeover
 parameter-contract
@@ -80,8 +91,10 @@ resolver-policy-invalid
 resolver-referenced-taxcode-missing
 resolver-taxcode-missing-account
 resolver-unknown-mechanism
+reversal-visible-in-sheets
 reverse-charge
 reverse-clears-open-items
+reverse-own-voucher
 reverse-settled-item
 service-date-rate-change
 settlement-bad-debt
@@ -89,10 +102,12 @@ settlement-bound
 settlement-discount
 small-business-switch
 supplier-taxation-method
+system-description
 tax-expansion
 tenant-from-de-complete-posts-identically
 trial-balance-columns
 two-year-carryover
+unfinalized-entries
 us-balance-income
 us-contra-revenue
 us-depreciation
@@ -104,10 +119,12 @@ us-sales-tax
 us-sales-tax-return
 us-schedule-c
 us-use-tax
+useful-life-override
 vat-cash-basis-reversal-unpaid
 vat-return
 vat-return-cash-basis
 vat-return-cash-basis-rounding
+vat-return-month
 vat-return-reversal
 voucher-unknown
 xx-1-tax-perline-vs-pervoucher

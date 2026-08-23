@@ -40,7 +40,7 @@ final class Asset implements \JsonSerializable
         public readonly array $monthlySchedule,
         public readonly Uuid $voucherId,
         /**
-         * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by
+         * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by
          * the machine, month after month, for years — nobody is there to name a dimension at that
          * moment, and a mandatory one on the depreciation account would otherwise make the run
          * impossible. The master record answering it once is also how it works in practice: an
@@ -49,7 +49,48 @@ final class Asset implements \JsonSerializable
          * @var list<array{type: string, code: string}>
          */
         public readonly array $dimensions = [],
+        /**
+         * First month of the depreciation plan. Normally the month of acquisition — pro rata
+         * temporis, which is what linear depreciation asks for in most jurisdictions.
+         *
+         * A pooled asset can be different: where a jurisdiction dissolves its pool in equal
+         * *fiscal-year* fractions, the first year is not shortened by the acquisition month, so
+         * the plan starts at the beginning of the fiscal year the asset was acquired in. Which of
+         * the two applies is pack data (`poolProRataInFirstYear`), never a decision of this class —
+         * the asset is simply told where its plan begins.
+         *
+         * Null means "same as acquisition", so persisted assets written before this field existed
+         * rehydrate to exactly the behaviour they had.
+         */
+        public readonly ?CalendarDate $depreciationStart = null,
+        /**
+         * How the schedule was built. Straight line spreads the cost flat, so the yearly run can
+         * re-derive a year's share from the month counts; declining balance cannot, because each
+         * year depends on what is left after the one before. The schedule then IS the plan and has
+         * to be read rather than recomputed — that is the only thing this field decides.
+         *
+         * Null means straight line, so assets written before the field existed rehydrate unchanged.
+         */
+        public readonly ?string $depreciationMethod = null,
     ) {
+    }
+
+    /** Straight line unless the pack offered, and the caller chose, something else. */
+    public function method(): string
+    {
+        return $this->depreciationMethod ?? 'straight_line';
+    }
+
+    /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
+    public function scheduleIsAuthoritative(): bool
+    {
+        return $this->method() !== 'straight_line';
+    }
+
+    /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
+    public function planStart(): CalendarDate
+    {
+        return $this->depreciationStart ?? $this->acquiredOn;
     }
 
     /**
@@ -75,8 +116,10 @@ final class Asset implements \JsonSerializable
         bool $disposed,
         ?CalendarDate $disposedOn,
         array $dimensions = [],
+        ?CalendarDate $depreciationStart = null,
+        ?string $depreciationMethod = null,
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod);
         $asset->depreciations = $depreciations;
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
@@ -110,7 +153,7 @@ final class Asset implements \JsonSerializable
     /** Calendar year+month of the plan month (1-based). */
     public function planMonthDate(int $planMonth): CalendarDate
     {
-        $start = new \DateTimeImmutable($this->acquiredOn->iso);
+        $start = new \DateTimeImmutable($this->planStart()->iso);
         $month = $start->modify(sprintf('first day of +%d months', $planMonth - 1));
 
         return CalendarDate::of($month->modify('last day of this month')->format('Y-m-d'));
@@ -168,7 +211,7 @@ final class Asset implements \JsonSerializable
     }
 
     /**
-     * Carrying amount = cost less what has been depreciated (NF-024).
+     * Carrying amount = cost less what has been depreciated (IMPL-024).
      *
      * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
      * *pooled* one was: it sits on the pool account and is written down over the pack's term, so
@@ -235,6 +278,7 @@ final class Asset implements \JsonSerializable
             'disposedOn' => $this->disposedOn?->iso,
             'voucherId' => $this->voucherId->value,
             'dimensions' => $this->dimensions,
+            'depreciationMethod' => $this->method(),
         ];
     }
 }

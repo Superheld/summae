@@ -1,0 +1,46 @@
+{
+  "fixture": "de-degressive-afa",
+  "description": "DE-Pack: the declining-balance rule reintroduced for movable assets acquired between 1 July 2025 and 31 December 2027 — factor 3, capped at 30 % (§ 7 Abs. 2 EStG). The mechanism lives in the core and is shared; what the pack carries is the factor, the cap and above all the WINDOW, which is the most short-lived kind of number a pack holds: this one lasts two and a half years. An acquisition outside it gets no invented rate — asking for the method is E_PACK_INCOHERENT rather than a silent fallback to a figure the core made up. Here a machine bought in January 2026 with a five-year life: min(3 x 20 %, 30 %) = 30 %, so 36,000.00 x 30 % = 10,800.00 in the first year against 7,200.00 straight line.",
+  "covers": ["F-AST-002", "SF-05"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Maschinenbau GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V1" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Fertigungsmaschine", "assetClass": "machine", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "36000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize",
+        "usefulLifeMonths": 60, "depreciationMethod": "declining_balance"
+      },
+      "expect": {
+        "result": {
+          "comment": "Nutzungsdauer je Anschaffung, weil die AfA-Tabelle keine Klasse \"machine\" führt — Maschinen sind branchenabhängig",
+          "route": "capitalize",
+          "usefulLifeMonths": 60,
+          "depreciationMethod": "declining_balance"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "36.000,00 × 30 % = 10.800,00 — linear wären es 7.200,00",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "10800.00", "currency": "EUR" }
+        }
+      }
+    }
+  ]
+}

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection\Mapping;
 
 use Summae\Core\DomainError;
-use Summae\Core\Substrate\Account;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
+use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Mapping import (api.md): overlap (one account in multiple
@@ -21,6 +23,10 @@ final readonly class MappingImporter
     public function __construct(
         private AccountRepository $accounts,
         private MappingRegistry $registry,
+        // A mapping is tenant-level configuration; like the tax profile it has no identity of
+        // its own, so the audit record names the tenant and puts the kind into the diff.
+        private ?Uuid $tenantId = null,
+        private ?AuditWriter $audit = null,
     ) {
     }
 
@@ -59,6 +65,13 @@ final readonly class MappingImporter
         }
 
         $this->registry->add($mapping);
+
+        if ($this->audit !== null && $this->tenantId !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'mapping', $this->tenantId, 'imported', [
+                'kind' => ['from' => null, 'to' => $mapping->kind],
+                'mappingId' => ['from' => null, 'to' => $mapping->id],
+            ]);
+        }
 
         return [
             'imported' => true,

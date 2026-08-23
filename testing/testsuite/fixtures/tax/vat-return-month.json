@@ -1,0 +1,305 @@
+{
+  "fixture": "vat-return-month",
+  "description": "The VAT return can be drawn for a single month, because for most businesses that IS the filing period. The projection took `year` and `quarter`, plus `asOf` for a cut-off date — so a quarterly filer was served and a monthly one was not, and monthly filing is not an edge case: it is mandatory wherever the previous year's tax exceeded a threshold (Germany: 9,000 EUR since 2025, § 18 Abs. 2 UStG), which any mid-sized business passes. The workaround an app would have to invent — two cumulative calls and subtract — is exactly the arithmetic it must not do: under cash-basis taxation and with reversals the difference of two cumulative figures is not the period's figure. `datevExport` already had fromPeriod/throughPeriod, so the shape existed in the house. Asking for a month AND a quarter is refused rather than silently preferring one, and neither given still means the whole year.",
+  "covers": [
+    "F-TAX-004"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "4400",
+        "name": "Erlöse 19%",
+        "type": "revenue"
+      },
+      {
+        "number": "3100",
+        "name": "Umsatzsteuer",
+        "type": "liability",
+        "subtype": "tax_out"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "taxCodes": [
+      {
+        "code": "USt19",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "19.00",
+            "mechanism": "standard",
+            "taxAccount": "3100",
+            "reportingKey": "81"
+          }
+        ]
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-JUL",
+        "voucherDate": "2026-07-10"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "AR-AUG",
+        "voucherDate": "2026-08-14"
+      },
+      {
+        "id": "$V3",
+        "voucherNumber": "AR-SEP",
+        "voucherDate": "2026-09-02"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-07-10",
+        "voucherId": "$V1",
+        "text": "Juli",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4400",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "1000.00",
+                "currency": "EUR"
+              }
+            }
+          },
+          {
+            "account": "3100",
+            "side": "credit",
+            "money": {
+              "amount": "190.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "1000.00",
+                "currency": "EUR"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-08-14",
+        "voucherId": "$V2",
+        "text": "August",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "2380.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4400",
+            "side": "credit",
+            "money": {
+              "amount": "2000.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "2000.00",
+                "currency": "EUR"
+              }
+            }
+          },
+          {
+            "account": "3100",
+            "side": "credit",
+            "money": {
+              "amount": "380.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "2000.00",
+                "currency": "EUR"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 2
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-09-02",
+        "voucherId": "$V3",
+        "text": "September",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "595.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4400",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "500.00",
+                "currency": "EUR"
+              }
+            }
+          },
+          {
+            "account": "3100",
+            "side": "credit",
+            "money": {
+              "amount": "95.00",
+              "currency": "EUR"
+            },
+            "taxTag": {
+              "code": "USt19",
+              "appliedVersion": "2024-01-01",
+              "reportingKey": "81",
+              "baseMoney": {
+                "amount": "500.00",
+                "currency": "EUR"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 3
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": {
+        "year": 2026,
+        "month": 8
+      },
+      "expect": {
+        "comment": "Nur August — nicht kumuliert bis August, und nicht das Quartal",
+        "keys": {
+          "81": {
+            "base": "2000.00",
+            "tax": "380.00"
+          }
+        },
+        "payload": {
+          "amount": "380.00",
+          "currency": "EUR"
+        }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": {
+        "year": 2026,
+        "quarter": 3
+      },
+      "expect": {
+        "comment": "Dasselbe Quartal zum Vergleich: Juli bis September zusammen. Das Quartalsfenster bleibt unverändert.",
+        "keys": {
+          "81": {
+            "base": "3500.00",
+            "tax": "665.00"
+          }
+        },
+        "payload": {
+          "amount": "665.00",
+          "currency": "EUR"
+        }
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": {
+        "year": 2026
+      },
+      "expect": {
+        "comment": "Ohne Fenster weiterhin das ganze Jahr",
+        "keys": {
+          "81": {
+            "base": "3500.00",
+            "tax": "665.00"
+          }
+        },
+        "payload": {
+          "amount": "665.00",
+          "currency": "EUR"
+        }
+      }
+    }
+  ]
+}

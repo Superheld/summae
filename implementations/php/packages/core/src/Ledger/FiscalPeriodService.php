@@ -25,6 +25,7 @@ final readonly class FiscalPeriodService
         private FiscalYearRepository $fiscalYears,
         private JournalRepository $journal,
         private IdGenerator $ids,
+        private AuditWriter $audit,
     ) {
     }
 
@@ -80,6 +81,11 @@ final readonly class FiscalPeriodService
 
         $fiscalYear = FiscalYear::create($this->ids->next(), $year, $start, $end);
         $this->fiscalYears->add($fiscalYear);
+        $this->audit->record($this->audit->actorOf($input), 'fiscalYear', $fiscalYear->id, 'created', [
+            'year' => ['from' => null, 'to' => $year],
+            'start' => ['from' => null, 'to' => $start->iso],
+            'end' => ['from' => null, 'to' => $end->iso],
+        ]);
 
         return $fiscalYear;
     }
@@ -90,6 +96,10 @@ final readonly class FiscalPeriodService
         $fiscalYear = $this->requireFiscalYear($input['fiscalYear'] ?? null);
         $period = $fiscalYear->closePeriod($this->periodNumber($input));
         $this->fiscalYears->save($fiscalYear);
+        $this->audit->record($this->audit->actorOf($input), 'period', $fiscalYear->id, 'closed', [
+            'period' => ['from' => null, 'to' => $fiscalYear->year . '/' . $period->number],
+            'status' => ['from' => 'open', 'to' => $period->status()->value],
+        ]);
 
         return $period;
     }
@@ -100,6 +110,10 @@ final readonly class FiscalPeriodService
         $fiscalYear = $this->requireFiscalYear($input['fiscalYear'] ?? null);
         $period = $fiscalYear->reopenPeriod($this->periodNumber($input));
         $this->fiscalYears->save($fiscalYear);
+        $this->audit->record($this->audit->actorOf($input), 'period', $fiscalYear->id, 'reopened', [
+            'period' => ['from' => null, 'to' => $fiscalYear->year . '/' . $period->number],
+            'status' => ['from' => 'closed', 'to' => $period->status()->value],
+        ]);
 
         return $period;
     }
@@ -126,6 +140,9 @@ final readonly class FiscalPeriodService
 
         $fiscalYear->close();
         $this->fiscalYears->save($fiscalYear);
+        $this->audit->record($this->audit->actorOf($input), 'fiscalYear', $fiscalYear->id, 'closed', [
+            'status' => ['from' => 'open', 'to' => 'closed'],
+        ]);
 
         return $fiscalYear;
     }
