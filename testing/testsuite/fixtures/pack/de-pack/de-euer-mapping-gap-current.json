@@ -1,0 +1,104 @@
+{
+  "fixture": "de-euer-mapping-gap-current",
+  "description": "The cash-basis statement names the accounts that found no position, instead of quietly filing them under their own account name. R6 says a category is the mapping label, otherwise the account's own name — that fallback is right and keeps the money visible, but on its own it is also silent, and this is the statement that gets copied onto an official form. An account that falls back appears under a name matching no line of that form, and nothing said so. The income statement has warned about its gaps since it gained its catch-all; the cash-basis one did not, which was the wrong way round: the statement WITHOUT diagnostics was the one that goes to the tax office. `PackCompletenessTest` now guards the SHIPPED packs, but it cannot guard an account a user adds afterwards — which is exactly what happens here, and exactly when the warning has to appear. Note what does not change: the amount stays in the report and the totals stay right. The warning is added, nothing is moved. | Successor to `de-euer-mapping-gap`. The mechanism it pins is unchanged and still the point; what had to move is the example. The predecessor added account 6050 because the shipped chart had nothing there — so the fixture's proof that 'an account the mapping does not know is reported' rested on the chart NOT knowing 6050, which is product data. When the DE pack gained its operating-expense accounts (6030–6090) and de-euer moved from an explicit number list to ranges, 6050 became a mapped account and the fixture asserted the opposite of what the pack now does. The successor uses 6200, which lies outside every position of every DE mapping by design — the chart has no accounts between 6100 and 6299 and no statement claims that band — so what is pinned is the mechanism rather than a gap in the product.",
+  "covers": [
+    "F-IO-003"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Erweitert GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "createAccount",
+      "input": {
+        "tenant": "$T1",
+        "number": "6200",
+        "name": "Fahrzeugkosten",
+        "type": "expense"
+      },
+      "expect": {
+        "result": {
+          "number": "6200"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "ER-KFZ",
+          "voucherDate": "2026-05-04"
+        },
+        "entryDate": "2026-05-04",
+        "text": "Tanken",
+        "lines": [
+          {
+            "account": "6200",
+            "side": "debit",
+            "money": {
+              "amount": "120.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "120.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": {
+        "tenant": "$T1",
+        "year": 2026,
+        "asOf": "2026-12-31",
+        "mapping": "de-euer"
+      },
+      "expect": {
+        "comment": "Der Betrag bleibt in der Rechnung — unter dem Kontonamen, weil de-euer für 6200 keine Position kennt. Neu ist die Meldung, dass genau das passiert ist.",
+        "expenses": [
+          {
+            "category": "Fahrzeugkosten",
+            "amount": "120.00"
+          }
+        ],
+        "gapWarnings": [
+          {
+            "account": "6200",
+            "assignedTo": "Fahrzeugkosten"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -2,12 +2,12 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.4",
+  "version": "2026.3",
   "modules": [
     {
       "kind": "accounts",
       "id": "de-konten",
-      "version": "2026.3"
+      "version": "2026.2"
     },
     {
       "kind": "tax",
@@ -27,7 +27,7 @@
     {
       "kind": "mapping",
       "id": "de-euer",
-      "version": "2026.4"
+      "version": "2026.3"
     },
     {
       "kind": "depreciation",

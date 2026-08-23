@@ -43,9 +43,7 @@ de-sonderabschreibung
 de-eingangsrechnung
 de-euer
 de-euer-kleinunternehmer
-de-euer-mapping-gap
 de-ig-lieferung
-de-jahresgang
 de-kleinunternehmer
 de-reverse-charge
 de-ig-erwerb
@@ -56,7 +54,6 @@ de-ust7-ermaessigt
 de-vat-return
 de-vorsteuer-ermaessigt
 de-wertabgabe
-de-wertpapierdepot
 declining-balance-depreciation
 declining-balance-asset-class
 asset-write-down
@@ -157,3 +154,7 @@ partner-master-data
 account-lock-and-unlock
 vat-return-gap-warnings
 journal-projection
+de-jahresgang-current
+de-wertpapierdepot-current
+de-euer-mapping-gap-current
+de-aufwandskonten-erweiterbar

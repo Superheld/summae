@@ -114,7 +114,7 @@ final class CliSmokeTest extends TestCase
         self::assertSame(0, $init['exit'], $init['raw']);
         $created = $init['json']['created'] ?? null;
         self::assertIsArray($created);
-        self::assertSame(41, $created['accounts'] ?? null);
+        self::assertSame(48, $created['accounts'] ?? null);
 
         $op = $this->runCli([
             'command' => 'op',

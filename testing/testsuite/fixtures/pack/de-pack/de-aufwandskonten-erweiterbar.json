@@ -1,0 +1,57 @@
+{
+  "fixture": "de-aufwandskonten-erweiterbar",
+  "description": "The DE pack can be extended with operating-expense accounts without one of its statements losing them. This was a trap and the trap was the finding, not the missing accounts: `de-guv` mapped position 6 by the RANGE 6000–6099, while `de-euer` position A5 listed explicit `numbers: [\"6000\", \"6700\"]`. So an account added at 6035 flowed into the income statement correctly and vanished from the EÜR — the same chart, the same posting, two statements disagreeing about whether the money exists, and nothing saying so. A pack whose mappings disagree about how the chart may be extended is a trap for whoever extends it. `de-euer` now maps by range like `de-guv`, carved around the positions that name single accounts because the law does (Bewirtung abziehbar/nicht abziehbar, Restbuchwert bei Anlagenabgang). This fixture pins the property, not the account list: an expense account created after the tenant exists reaches BOTH statements.",
+  "covers": ["F-CORE-008", "F-CORE-005"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Erweiterbar GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "6035", "name": "Reinigung und Instandhaltung", "type": "expense" },
+      "expect": {
+        "comment": "An account the shipped chart does not carry, in the band both statements now map by range.",
+        "result": { "number": "6035" }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-REINIGUNG", "voucherDate": "2026-05-04" },
+        "entryDate": "2026-05-04", "text": "Gebäudereinigung Mai",
+        "lines": [
+          { "account": "6035", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "mapping": "de-guv" },
+      "expect": {
+        "comment": "Position 6 by range — this half was always right.",
+        "positions": [
+          { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "amount": "-200.00" }
+        ]
+      }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "expect": {
+        "comment": "The half that was wrong: before the fix this reported the amount under the account's own name — outside every line of the Anlage EÜR — plus a gap warning. Now it lands in A5 where the income statement already put it, and there is nothing to warn about.",
+        "expenses": [
+          { "category": "Sonstige Betriebsausgaben", "amount": "200.00" }
+        ],
+        "gapWarnings": []
+      }
+    }
+  ]
+}
