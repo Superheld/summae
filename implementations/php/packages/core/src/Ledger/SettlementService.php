@@ -23,6 +23,17 @@ use Summae\Core\Substrate\Uuid;
  * Settlement: allocation payment -> open item(s), also partial;
  * always explicit, no FIFO automation (determinismus.md §3).
  * Differences (cash discount/write-off/small difference) per api.md G2 (v0.3).
+ *
+ * **This service does not post.** It takes an entry the caller has already written, checks the
+ * allocation is covered by what that entry moves on the item's account, and records it. So when a
+ * difference reduces the consideration of an item that carried tax, nothing here demands that the
+ * caller's entry also corrects that tax — and no projection can notice the omission afterwards,
+ * because each one computes correctly from whatever is on the journal.
+ *
+ * That is a deliberate boundary, not an oversight: whether a given reduction changes the taxable
+ * base is a question a jurisdiction answers, and the policy kind that would express it has no
+ * socket in this core yet. Until it does, the caller owes the correction line. See the ➖ row in
+ * docs/gobd-conformance.md §4 and A-13 in the app's obligation list.
  */
 final readonly class SettlementService
 {
