@@ -83,7 +83,66 @@ export class Asset {
      * Null means straight line, so assets written before the field existed rehydrate unchanged.
      */
     readonly depreciationMethod: string | null = null,
+    /**
+     * An additional allowance running ALONGSIDE the plan, not instead of it.
+     *
+     * Some jurisdictions let a business deduct an extra share of the cost within the first few years,
+     * freely distributed over them. It is not a depreciation method — the ordinary plan carries on
+     * untouched on the original basis while the window is open — so it cannot be expressed as a
+     * different schedule. It is a budget: this much may still be taken, until this fiscal year. Both
+     * numbers come from the pack; the asset only remembers them.
+     *
+     * Null means no such allowance was elected, which is every asset written before this existed.
+     */
+    readonly specialDepreciationBudget: Money | null = null,
+    readonly specialDepreciationWindowEnd: number | null = null,
   ) {}
+
+  /** What is left of the additional allowance. */
+  specialDepreciationRemaining(): Money | null {
+    if (this.specialDepreciationBudget === null) return null;
+
+    let used = this.specialDepreciationBudget.subtract(this.specialDepreciationBudget);
+    for (const booking of this.depreciations) {
+      if (booking.kind === 'special') used = used.add(booking.amount);
+    }
+
+    return this.specialDepreciationBudget.subtract(used);
+  }
+
+  hasSpecialDepreciation(): boolean {
+    if (this.specialDepreciationBudget === null) return false;
+    return this.depreciations.some((booking) => booking.kind === 'special');
+  }
+
+  recordSpecialDepreciation(date: CalendarDate, amount: Money, entryId: Uuid): void {
+    // No re-spreading here, unlike a write-down. While the window is open the ordinary plan runs on
+    // the original basis — that is what "alongside" means, and lowering it now would quietly take back
+    // part of the allowance the same year it was granted. The plan is re-based once, after the window
+    // closes.
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'special' });
+  }
+
+  /**
+   * Spreads whatever book value is left over the plan months not yet booked.
+   *
+   * Two occasions need exactly this: an unplanned write-down, where the basis fell; and the end of an
+   * additional allowance's window, where part of the cost has already been deducted outside the plan
+   * and the rest has to last for the remaining life. Same arithmetic, and it should stay the same
+   * arithmetic — two spreadings that drifted apart would be two different answers to one question.
+   */
+  rebaseRemainingPlan(openPlanMonths: number[]): void {
+    this.scheduleRevised = true;
+
+    if (openPlanMonths.length === 0) return;
+
+    const remaining = this.acquisitionCost.subtract(this.accumulatedDepreciationAt(null));
+    const shares = remaining.allocate(...openPlanMonths.map(() => 1));
+
+    openPlanMonths.forEach((planMonth, index) => {
+      this.monthlySchedule[planMonth - 1] = shares[index]!;
+    });
+  }
 
   /** Straight line unless the pack offered, and the caller chose, something else. */
   method(): string {
@@ -151,20 +210,7 @@ export class Asset {
    */
   recordWriteDown(date: CalendarDate, amount: Money, entryId: Uuid, openPlanMonths: number[]): void {
     this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'unplanned' });
-
-    if (openPlanMonths.length === 0) {
-      this.scheduleRevised = true;
-      return;
-    }
-
-    const remaining = this.acquisitionCost.subtract(this.accumulatedDepreciationAt(null));
-    const shares = remaining.allocate(...openPlanMonths.map(() => 1));
-
-    openPlanMonths.forEach((planMonth, index) => {
-      this.monthlySchedule[planMonth - 1] = shares[index]!;
-    });
-
-    this.scheduleRevised = true;
+    this.rebaseRemainingPlan(openPlanMonths);
   }
 
   /** Depreciation history in persistable form — counterpart to PHP's `depreciationsForPersistence`. */
@@ -206,6 +252,8 @@ export class Asset {
     depreciationStart: CalendarDate | null = null,
     depreciationMethod: string | null = null,
     scheduleRevised = false,
+    specialDepreciationBudget: Money | null = null,
+    specialDepreciationWindowEnd: number | null = null,
   ): Asset {
     const asset = new Asset(
       id,
@@ -221,6 +269,8 @@ export class Asset {
       dimensions,
       depreciationStart,
       depreciationMethod,
+      specialDepreciationBudget,
+      specialDepreciationWindowEnd,
     );
     for (const booking of depreciations) {
       asset.depreciations.push({

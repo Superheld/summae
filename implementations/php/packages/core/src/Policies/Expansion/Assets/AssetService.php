@@ -91,6 +91,7 @@ final class AssetService
         $choice = is_string($input['gwgChoice'] ?? null) ? $input['gwgChoice'] : 'auto';
         $dimensions = self::parseDimensions($input['dimensions'] ?? null);
 
+        $special = ($input['specialDepreciation'] ?? false) === true;
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
         $explicitLife = self::parseUsefulLifeMonths($input['usefulLifeMonths'] ?? null);
         $method = self::parseMethod($input['depreciationMethod'] ?? null);
@@ -102,6 +103,16 @@ final class AssetService
                 'E_INPUT_INVALID',
                 sprintf('acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "%s"', $route->value),
                 ['depreciationMethod' => $method, 'route' => $route->value],
+            );
+        }
+
+        // Same again: an additional allowance is a share of a capitalised asset's cost, and there is
+        // nothing for it to attach to on a route that expenses the whole cost at once.
+        if ($special && $route !== AssetRoute::Capitalize) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('acquireAsset: "specialDepreciation" applies to a capitalised asset, not to route "%s"', $route->value),
+                ['route' => $route->value],
             );
         }
 
@@ -144,6 +155,10 @@ final class AssetService
             }
         }
 
+        [$specialBudget, $specialWindowEnd] = $special
+            ? $this->specialDepreciationTerms($cost, $acquiredOn, $assetClass)
+            : [null, null];
+
         $asset = new Asset(
             $this->ids->next(),
             $name,
@@ -158,6 +173,8 @@ final class AssetService
             $dimensions,
             $this->planStartFor($route, $acquiredOn),
             $method,
+            $specialBudget,
+            $specialWindowEnd,
         );
 
         $this->assets->add($asset);
@@ -237,6 +254,148 @@ final class AssetService
         ]);
 
         return $asset->jsonSerialize();
+    }
+
+    /**
+     * Books part of an additional allowance (see `Asset::$specialDepreciationBudget`).
+     *
+     * Two things make this an operation rather than a plan. The amount is the taxpayer's to choose —
+     * a jurisdiction that grants "up to 40 % over five years" grants exactly that, and any split is
+     * as valid as any other — and the entitlement itself is a question about the business (a profit
+     * limit, a share of business use) that summae has no way to check and does not pretend to. So the
+     * caller says how much and when, and the core enforces only what it can know: not more than the
+     * budget, not outside the window, not on an asset that has none.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function bookSpecialDepreciation(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        $remaining = $asset->specialDepreciationRemaining();
+        if ($remaining === null || $asset->specialDepreciationWindowEnd === null) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s carries no special depreciation — it has to be elected on acquisition',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $fiscalYear = is_int($input['fiscalYear'] ?? null) ? $input['fiscalYear'] : 0;
+        $firstYear = $this->planMonthYear($asset, 1);
+
+        if ($fiscalYear < $firstYear || $fiscalYear > $asset->specialDepreciationWindowEnd) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'special depreciation for asset %s is available in %d through %d, not in %d',
+                $asset->id->value,
+                $firstYear,
+                $asset->specialDepreciationWindowEnd,
+                $fiscalYear,
+            ), ['fiscalYear' => $fiscalYear]);
+        }
+
+        $amount = $this->parseMoney($input['amount'] ?? null);
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', 'bookSpecialDepreciation: "amount" must be greater than zero', [
+                'amount' => $amount->amountAsString(),
+            ]);
+        }
+
+        if ($amount->compareTo($remaining) > 0) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'special depreciation of %s exceeds the remaining allowance of %s',
+                $amount->amountAsString(),
+                $remaining->amountAsString(),
+            ), ['amount' => $amount->amountAsString(), 'remaining' => $remaining->amountAsString()]);
+        }
+
+        $date = CalendarDate::of(sprintf('%04d-12-31', $fiscalYear));
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->specialDepreciationVoucher($asset, $fiscalYear);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Special depreciation %s %d', $asset->name, $fiscalYear),
+            $this->withDimensions($asset, [
+                ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $asset->recordSpecialDepreciation($date, $amount, $entry);
+        $this->assets->save($asset);
+
+        $left = $asset->specialDepreciationRemaining();
+
+        $this->trace($input, 'asset', $asset->id, 'specialDepreciationBooked', [
+            'remainingAllowance' => ['from' => $remaining->amountAsString(), 'to' => $left?->amountAsString()],
+            'fiscalYear' => ['from' => null, 'to' => (string) $fiscalYear],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'remainingAllowance' => $left?->amountAsString(),
+            'bookValue' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+        ];
+    }
+
+    private function specialDepreciationVoucher(Asset $asset, int $fiscalYear): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('SAFA-%d-%s', $fiscalYear, substr($asset->id->value, -6)),
+            CalendarDate::of(sprintf('%04d-12-31', $fiscalYear)),
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
+    /**
+     * Rate and window of the additional allowance, from the pack. Refused rather than defaulted, like
+     * every other pack question here: a core that invents "40 % over five years" has one
+     * jurisdiction's tax policy in the substrate.
+     *
+     * @return array{0: Money, 1: int}
+     */
+    private function specialDepreciationTerms(Money $cost, CalendarDate $acquiredOn, string $assetClass): array
+    {
+        foreach (is_array($this->ruleModule['specialDepreciation'] ?? null) ? $this->ruleModule['specialDepreciation'] : [] as $raw) {
+            if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
+                continue;
+            }
+
+            $validFrom = CalendarDate::of($raw['validFrom']);
+            $validTo = is_string($raw['validTo'] ?? null) ? CalendarDate::of($raw['validTo']) : null;
+
+            if ($acquiredOn->isBefore($validFrom) || ($validTo !== null && $acquiredOn->isAfter($validTo))) {
+                continue;
+            }
+
+            $rate = is_string($raw['rate'] ?? null) ? $raw['rate'] : null;
+            $years = is_int($raw['years'] ?? null) ? $raw['years'] : null;
+
+            if ($rate === null || $years === null || $years < 1) {
+                continue;
+            }
+
+            $budget = $cost->allocate($rate, (string) round(100 - (float) $rate, 4))[0];
+
+            return [$budget, $acquiredOn->year() + $years - 1];
+        }
+
+        throw new DomainError('E_PACK_INCOHERENT', sprintf(
+            'special depreciation was elected, but the pack declares no allowance in force on %s',
+            $acquiredOn->iso,
+        ), ['field' => 'specialDepreciation', 'acquiredOn' => $acquiredOn->iso, 'assetClass' => $assetClass]);
     }
 
     /**
@@ -333,6 +492,28 @@ final class AssetService
         ];
     }
 
+    private function rebaseAfterSpecialWindow(Asset $asset, int $fiscalYear): void
+    {
+        if (
+            $asset->specialDepreciationWindowEnd === null
+            || $fiscalYear <= $asset->specialDepreciationWindowEnd
+            || $asset->scheduleWasRevised()
+            || !$asset->hasSpecialDepreciation()
+        ) {
+            return;
+        }
+
+        $openPlanMonths = [];
+        for ($planMonth = 1; $planMonth <= count($asset->monthlySchedule); $planMonth++) {
+            if (!$asset->isMonthBooked($planMonth)) {
+                $openPlanMonths[] = $planMonth;
+            }
+        }
+
+        $asset->rebaseRemainingPlan($openPlanMonths);
+        $this->assets->save($asset);
+    }
+
     private function writeDownVoucher(Asset $asset, CalendarDate $date): Uuid
     {
         $voucher = new Voucher(
@@ -402,6 +583,11 @@ final class AssetService
             if ($asset->isDisposed() && !$this->staysInPool($asset)) {
                 continue;
             }
+
+            // The window closed, and part of the cost left the plan while it was open. What is left
+            // has to last the remaining life — otherwise the plan keeps asking for the original
+            // yearly amount and runs the book value below zero. Once, and only once, per asset.
+            $this->rebaseAfterSpecialWindow($asset, $fiscalYear);
 
             [$months, $amount] = $period === null
                 ? $this->yearTarget($asset, $fiscalYear)

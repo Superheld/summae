@@ -1,0 +1,49 @@
+{
+  "fixture": "de-sonderabschreibung",
+  "description": "DE-Pack: the special depreciation allowance of § 7g Abs. 5 EStG — 40 % of the cost for assets acquired from 2024, freely distributed over the year of acquisition and the four following ones. Two numbers and one window, and all three are pack data: the rate was 20 % until the end of 2023 and became 40 % afterwards, which is exactly the kind of figure that has no business in a jurisdiction-free core. On 50,000.00 the allowance is 20,000.00; here 15,000.00 of it is taken in the first year, on top of the ordinary 10,000.00 for a five-year life. What the core does NOT check is whether the business is entitled to it — § 7g ties the allowance to a profit limit and a share of business use, both facts about the business rather than about the books, and a bookkeeping library that pretended to know them would be lying convincingly. It checks what it can: not more than the budget, not outside the window.",
+  "covers": ["F-AST-002", "SF-05"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Maschinenbau GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V1" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Fertigungsmaschine", "assetClass": "machine", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "50000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize",
+        "usefulLifeMonths": 60, "specialDepreciation": true
+      },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 60, "id": "$A1" } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "result": { "totalDepreciation": { "amount": "10000.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "tenant": "$T1", "assetId": "$A1", "fiscalYear": 2026, "amount": { "amount": "15000.00", "currency": "EUR" } },
+      "expect": {
+        "comment": "40 % von 50.000,00 = 20.000,00 Budget; 15.000,00 genommen, 5.000,00 bleiben bis 2030",
+        "result": { "amount": "15000.00", "remainingAllowance": "5000.00", "bookValue": "25000.00" }
+      }
+    },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "tenant": "$T1", "assetId": "$A1", "fiscalYear": 2026, "amount": { "amount": "6000.00", "currency": "EUR" } },
+      "expect": {
+        "comment": "Nur noch 5.000,00 übrig",
+        "error": "E_INPUT_INVALID"
+      }
+    }
+  ]
+}

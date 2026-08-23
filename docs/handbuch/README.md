@@ -1013,6 +1013,35 @@ its term, and only the proceeds are booked.
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
 
+#### bookSpecialDepreciation
+
+An additional allowance next to the ordinary plan. `assetId` (yes), `fiscalYear`
+(yes), `amount` (yes, Money > 0), `voucherId` (no — a machine voucher `SAFA-…` is
+created otherwise). Output: `{ "assetId", "entryId", "amount", "remainingAllowance",
+"bookValue" }`. Errors: `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, `E_INPUT_INVALID`
+(no allowance elected, outside the window, more than is left).
+
+Elected once, at acquisition, with `"specialDepreciation": true` on `acquireAsset`;
+the rate and the length of the window come from the pack (`specialDepreciation` in
+the depreciation module), and a pack without one refuses the election with
+`E_PACK_INCOHERENT` rather than inventing a rate.
+
+```json
+{ "assetId": "…", "fiscalYear": 2026, "amount": { "amount": "8000.00", "currency": "EUR" } }
+```
+
+It is **not** a depreciation method. While the window is open the ordinary plan runs
+on unchanged, on the original basis — that is what "alongside" means. The amount and
+its timing are yours: an allowance of "up to 40 % over five years" is exactly that,
+and any split is as valid as any other. When the window closes, the core re-bases
+once: whatever book value is left is spread over the plan months still open, the same
+way a write-down does it. Without that the plan would keep asking for its original
+yearly amount and run the book value below zero.
+
+Whether you are **entitled** to the allowance — a profit limit, a minimum share of
+business use — is a fact about the business rather than about the books. summae
+cannot know it and does not pretend to; it enforces only the budget and the window.
+
 #### writeDownAsset
 
 Unplanned write-down (impairment). `assetId` (yes), `amount` (yes, Money > 0 and not

@@ -83,6 +83,23 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **`bookSpecialDepreciation` — an additional allowance next to the plan.** Some jurisdictions let a
+  business deduct an extra share of an asset's cost within its first few years, freely distributed
+  over them (Germany: § 7g Abs. 5 EStG, 20 % until 2023 and 40 % from 2024, over five years — now in
+  the `de` pack). It is not a depreciation method, which is why it could not be expressed before: the
+  ordinary plan runs on unchanged on the original basis while the window is open. It is a budget, and
+  the split is the taxpayer's, so it is an operation rather than a schedule.
+
+  The part that had to come with it is the re-basing. When the window closes, part of the cost has
+  left the plan and the plan would keep asking for its original yearly amount — removing that step
+  turns the fixture's asset account to −12,000.00. The remaining book value is spread over the plan
+  months still open, using the same code a write-down uses; two spreadings that drifted apart would
+  be two answers to one question.
+
+  What the core does not do is check entitlement. A profit limit and a share of business use are
+  facts about the business, not about the books; it enforces the budget and the window, which is what
+  it can actually know.
+
 - **`writeDownAsset` — unplanned write-downs (impairment).** The planned schedule answers wear and
   tear and has nothing to say about a machine damaged in March. Where the loss is expected to last,
   writing the asset down is an obligation, not an option, and the only ways to express it were

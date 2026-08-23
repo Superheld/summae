@@ -543,6 +543,8 @@ export class DatabaseAssetRepository implements AssetRepository {
       // schedule IS the plan, and a restart that forgot this would go back to re-deriving the plan
       // from the acquisition cost — the very figure the write-down said is no longer valid.
       scheduleRevised: asset.scheduleWasRevised(),
+      specialDepreciationBudget: asset.specialDepreciationBudget?.toJSON() ?? null,
+      specialDepreciationWindowEnd: asset.specialDepreciationWindowEnd,
     };
   }
 
@@ -599,6 +601,8 @@ export class DatabaseAssetRepository implements AssetRepository {
       H.date(data.depreciationStart),
       typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
       data.scheduleRevised === true,
+      H.isRecord(data.specialDepreciationBudget) ? H.money(data.specialDepreciationBudget) : null,
+      typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
     );
   }
 

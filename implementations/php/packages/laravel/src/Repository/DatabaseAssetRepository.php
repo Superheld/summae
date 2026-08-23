@@ -86,6 +86,8 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             // schedule IS the plan, and a restart that forgot this would go back to re-deriving the
             // plan from the acquisition cost — the very figure the write-down said is no longer valid.
             'scheduleRevised' => $asset->scheduleWasRevised(),
+            'specialDepreciationBudget' => $asset->specialDepreciationBudget?->jsonSerialize(),
+            'specialDepreciationWindowEnd' => $asset->specialDepreciationWindowEnd,
         ];
     }
 
@@ -156,7 +158,19 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             Hydrator::date($data['depreciationStart'] ?? null),
             is_string($data['depreciationMethod'] ?? null) ? $data['depreciationMethod'] : null,
             ($data['scheduleRevised'] ?? false) === true,
+            self::optionalMoney($data['specialDepreciationBudget'] ?? null),
+            is_int($data['specialDepreciationWindowEnd'] ?? null) ? $data['specialDepreciationWindowEnd'] : null,
         );
+    }
+
+    private static function optionalMoney(mixed $raw): ?Money
+    {
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $raw */
+        return Hydrator::money($raw);
     }
 
     /** @return list<array{type: string, code: string}> */
