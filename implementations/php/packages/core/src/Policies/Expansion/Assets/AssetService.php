@@ -240,6 +240,140 @@ final class AssetService
     }
 
     /**
+     * An unplanned write-down — the value fell, and not because time passed.
+     *
+     * The planned schedule answers wear and tear; it has nothing to say about a machine damaged in
+     * March or a building whose neighbourhood lost its factory. Where the loss is expected to last,
+     * writing the asset down is not an option a preparer takes but an obligation, and until now the
+     * only ways to express it were disposing of the asset (wrong — it still exists) or posting by
+     * hand past the asset register (wrong — the register then disagrees with the ledger about what
+     * the asset is worth).
+     *
+     * A reason is required. An unplanned write-down that does not say why is not auditable, and
+     * "why" is the whole difference between an impairment and a mistake.
+     *
+     * The remaining plan is rewritten: what is left after the write-down is spread over the plan
+     * months still open. Leaving the plan alone would depreciate past zero; stopping the plan would
+     * finish the asset early. Carrying the reduced value over the remaining life is what a lasting
+     * impairment means.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function writeDownAsset(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        $reason = is_string($input['reason'] ?? null) ? trim($input['reason']) : '';
+        if ($reason === '') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'writeDownAsset: "reason" is required — an unplanned write-down that does not say why is not auditable',
+                ['assetId' => $asset->id->value],
+            );
+        }
+
+        $amount = $this->parseMoney($input['amount'] ?? null);
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', 'writeDownAsset: "amount" must be greater than zero', [
+                'amount' => $amount->amountAsString(),
+            ]);
+        }
+
+        $bookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+        if ($amount->compareTo($bookValue) > 0) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'writeDownAsset: %s exceeds the book value of %s — an asset cannot be written below zero',
+                $amount->amountAsString(),
+                $bookValue->amountAsString(),
+            ), ['amount' => $amount->amountAsString(), 'bookValue' => $bookValue->amountAsString()]);
+        }
+
+        $date = CalendarDate::of(is_string($input['date'] ?? null) ? $input['date'] : '');
+
+        $openPlanMonths = [];
+        for ($planMonth = 1; $planMonth <= count($asset->monthlySchedule); $planMonth++) {
+            if (!$asset->isMonthBooked($planMonth)) {
+                $openPlanMonths[] = $planMonth;
+            }
+        }
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->writeDownVoucher($asset, $date);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Write-down %s: %s', $asset->name, $reason),
+            $this->withDimensions($asset, [
+                ['account' => $this->impairmentExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $asset->recordWriteDown($date, $amount, $entry, $openPlanMonths);
+        $this->assets->save($asset);
+
+        $newBookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+
+        $this->trace($input, 'asset', $asset->id, 'writtenDown', [
+            'bookValue' => ['from' => $bookValue->amountAsString(), 'to' => $newBookValue->amountAsString()],
+            'reason' => ['from' => null, 'to' => $reason],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'bookValue' => $newBookValue->amountAsString(),
+            'remainingPlanMonths' => count($openPlanMonths),
+        ];
+    }
+
+    private function writeDownVoucher(Asset $asset, CalendarDate $date): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('AFAA-%s-%s', str_replace('-', '', $date->iso), substr($asset->id->value, -6)),
+            $date,
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
+    private function requireVoucherId(string $voucherId): Uuid
+    {
+        $voucher = $this->vouchers->byId(Uuid::fromString($voucherId));
+
+        if ($voucher === null) {
+            throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
+                'voucher %s does not exist',
+                $voucherId,
+            ), ['voucherId' => $voucherId]);
+        }
+
+        return $voucher->id;
+    }
+
+    /**
+     * Where an unplanned write-down is booked. A pack that separates it from ordinary depreciation
+     * says so; one that does not gets the depreciation account, which is what it had before this
+     * operation existed and is not wrong, only less informative.
+     */
+    private function impairmentExpenseAccount(): string
+    {
+        $block = is_array($this->ruleModule['assetAccounts'] ?? null) ? $this->ruleModule['assetAccounts'] : [];
+        $value = $block['impairmentExpenseAccount'] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : $this->depreciationExpenseAccount();
+    }
+
+    /**
      * Depreciation run: yearly or monthly run, idempotent per run target
      * (repetition: no-op with alreadyRun, api.md).
      *

@@ -504,8 +504,22 @@ export class DatabaseAssetRepository implements AssetRepository {
     );
   }
 
+  /**
+   * The payload is written too, not only the state.
+   *
+   * It used not to be, and that was safe exactly as long as nothing in the payload could change —
+   * master data does not, so `add` wrote it once and `save` only touched the history. An unplanned
+   * write-down broke that: it rewrites the depreciation SCHEDULE, which lives in the payload, and a
+   * database-backed tenant kept booking the old plan while the in-memory one booked the new. Same
+   * input, two different sets of books, and only the run against a real adapter could see it.
+   */
   save(asset: Asset): void {
-    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', asset.id.value).update({ state: H.encode(this.state(asset)) }));
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', asset.id.value)
+        .update({ payload: H.encode(this.payload(asset)), state: H.encode(this.state(asset)) }),
+    );
   }
 
   byId(id: Uuid): Asset | null {
@@ -525,6 +539,10 @@ export class DatabaseAssetRepository implements AssetRepository {
       // asset register an auditor reads. Losing it here would silently move a pooled asset's plan
       // back to its acquisition month after a restart.
       depreciationStart: asset.depreciationStart?.iso ?? null,
+      // Also mechanics, and also silently destructive if lost: after an unplanned write-down the
+      // schedule IS the plan, and a restart that forgot this would go back to re-deriving the plan
+      // from the acquisition cost — the very figure the write-down said is no longer valid.
+      scheduleRevised: asset.scheduleWasRevised(),
     };
   }
 
@@ -550,6 +568,7 @@ export class DatabaseAssetRepository implements AssetRepository {
         date: H.requireDate(booking.date, 'depreciation date'),
         amount: H.money(H.isRecord(booking.amount) ? booking.amount : {}),
         entryId: Uuid.fromString(str(booking, 'entryId')),
+        kind: typeof booking.kind === 'string' ? booking.kind : 'planned',
       }));
     return Asset.restore(
       Uuid.fromString(str(row, 'id')),
@@ -579,6 +598,7 @@ export class DatabaseAssetRepository implements AssetRepository {
         : [],
       H.date(data.depreciationStart),
       typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
+      data.scheduleRevised === true,
     );
   }
 
