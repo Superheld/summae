@@ -144,6 +144,8 @@ final class AuditTrailContractTest extends TestCase
         // --- partners --------------------------------------------------------
         yield 'createPartner' => ['createPartner', 'partner', 'created'];
         yield 'updatePartner' => ['updatePartner', 'partner', 'updated'];
+        yield 'deactivatePartner' => ['deactivatePartner', 'partner', 'deactivated'];
+        yield 'reactivatePartner' => ['reactivatePartner', 'partner', 'reactivated'];
         // --- vouchers, settlements, assets, costing --------------------------
         yield 'createVoucher' => ['createVoucher', 'voucher', 'created'];
         yield 'postVoucher' => ['postVoucher', 'voucher', 'created'];
@@ -295,6 +297,21 @@ final class AuditTrailContractTest extends TestCase
                 $partnerId = $partner['id'] ?? null;
                 self::assertIsString($partnerId, 'createPartner must return the partner id');
                 $ops->execute('updatePartner', ['partnerId' => $partnerId, 'name' => 'Kunde SE']);
+
+                return;
+            case 'deactivatePartner':
+                /** @var array<string, mixed> $partner */
+                $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
+                self::assertIsString($partner['id'] ?? null);
+                $ops->execute('deactivatePartner', ['partnerId' => $partner['id']]);
+
+                return;
+            case 'reactivatePartner':
+                /** @var array<string, mixed> $partner */
+                $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
+                self::assertIsString($partner['id'] ?? null);
+                $ops->execute('deactivatePartner', ['partnerId' => $partner['id']]);
+                $ops->execute('reactivatePartner', ['partnerId' => $partner['id']]);
 
                 return;
             case 'createVoucher':

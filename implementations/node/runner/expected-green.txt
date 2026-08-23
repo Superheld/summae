@@ -73,7 +73,6 @@ gwg-pool-fiscal-year-fraction
 gwg-pool-period
 income-statement-gap
 input-invalid
-journal-export-z3
 mapping-import
 mixed-tax-rates
 money-transit
@@ -83,7 +82,6 @@ open-items-partner-and-due
 open-items-settlement
 opening-balance-takeover
 parameter-contract
-parameter-effect
 partner-and-ec-sales
 payroll-entry
 period-ordering
@@ -112,7 +110,6 @@ settlement-bound
 settlement-discount
 small-business-switch
 supplier-taxation-method
-system-description
 tax-expansion
 tenant-from-de-complete-posts-identically
 trial-balance-columns
@@ -158,3 +155,7 @@ de-jahresgang-current
 de-wertpapierdepot-current
 de-euer-mapping-gap-current
 de-aufwandskonten-erweiterbar
+journal-export-z3-current
+parameter-effect-current
+system-description-current
+partner-status

@@ -20,6 +20,21 @@ export class Partner {
     paymentTermsDays: number | null,
     private accountNumbers: string[] = [],
     private address: Record<string, unknown> = {},
+    /**
+     * Whether the partner is still in use (F-CORE-034).
+     *
+     * There is no `deletePartner` and there should not be: the books keep what they referenced,
+     * and an id that open items point at must not vanish. But a partner nobody trades with any
+     * more has to be sayable somewhere, or every application invents its own list beside the
+     * ledger — which is the state that made this a finding.
+     *
+     * It is a **state, not a control**. An inactive partner refuses nothing: old items still
+     * settle, old vouchers still read, and a posting that names one is not rejected. Whether a
+     * picker still offers it is the application's workflow, and summae's own scope rule puts
+     * "the user must…" on that side. Compare `Account.lock`, which does have teeth — the
+     * difference is deliberate and the two words are different on purpose.
+     */
+    private partnerStatus: 'active' | 'inactive' = 'active',
   ) {
     this.partnerName = name;
     this.partnerKind = kind;
@@ -29,6 +44,22 @@ export class Partner {
 
   name(): string {
     return this.partnerName;
+  }
+
+  status(): 'active' | 'inactive' {
+    return this.partnerStatus;
+  }
+
+  isActive(): boolean {
+    return this.partnerStatus === 'active';
+  }
+
+  deactivate(): void {
+    this.partnerStatus = 'inactive';
+  }
+
+  reactivate(): void {
+    this.partnerStatus = 'active';
   }
 
   vatId(): string | null {
@@ -97,6 +128,7 @@ export class Partner {
       paymentTermsDays: this.partnerPaymentTermsDays,
       accountNumbers: this.accountNumbers,
       address: Object.keys(this.address).length === 0 ? null : this.address,
+      status: this.partnerStatus,
     };
   }
 }

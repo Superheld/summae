@@ -50,6 +50,14 @@ final class SchemaValidationTest extends TestCase
                 ['account' => '8400', 'side' => 'credit', 'money' => ['amount' => '100.00', 'currency' => 'EUR']],
             ],
         ]);
+        // A partner, so the `partners` stream is non-empty — and deliberately the LEANEST one, with
+        // no VAT id and no address. That combination was never exported by any schema test, and it
+        // was the one the schema refused: the format declares `vatId` as a string, the export wrote
+        // `null`, and the stream that carries master data into a tax audit would not have validated
+        // (IMPL-027). The second half of the same gap was `accountNumbers`, which the engine writes
+        // and the schema did not declare at all.
+        $subject->execute('createPartner', ['name' => 'Muster GmbH', 'kind' => 'customer', 'accountNumbers' => ['1200']]);
+
         $subject->execute('correct', [
             'entryId' => $this->firstEntryId($subject),
             'text' => 'Erlös Januar',
@@ -65,6 +73,7 @@ final class SchemaValidationTest extends TestCase
             'journal' => 'journalEntry',
             'accounts' => 'account',
             'vouchers' => 'voucher',
+            'partners' => 'partner',
             'auditLog' => 'auditRecord',
         ];
 

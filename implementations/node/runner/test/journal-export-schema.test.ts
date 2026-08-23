@@ -49,6 +49,14 @@ describe('journalExport streams validate against format.schema.json', () => {
       ],
     });
 
+    // A partner, so the `partners` stream is non-empty — and deliberately the LEANEST one, with
+    // no VAT id and no address. That combination was never exported by any schema test, and it
+    // was the one the schema refused: the format declares `vatId` as a string, the export wrote
+    // `null`, and the stream that carries master data into a tax audit would not have validated
+    // (IMPL-027). The second half of the same gap was `accountNumbers`, which the engine writes
+    // and the schema did not declare at all.
+    subject.execute('createPartner', { name: 'Muster GmbH', kind: 'customer', accountNumbers: ['1200'] });
+
     // A correction produces an audit record, so the auditLog stream is non-empty.
     const firstId = rows(subject.project('journalExport', { fiscalYear: 2026 }).data, 'journal')[0]?.id;
     if (typeof firstId !== 'string') throw new Error('no journal entry to correct');
@@ -60,6 +68,7 @@ describe('journalExport streams validate against format.schema.json', () => {
       journal: 'journalEntry',
       accounts: 'account',
       vouchers: 'voucher',
+      partners: 'partner',
       auditLog: 'auditRecord',
     };
     const violations: string[] = [];

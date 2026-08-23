@@ -26,7 +26,41 @@ final class Partner implements \JsonSerializable
         private ?int $paymentTermsDays,
         private array $accountNumbers = [],
         private array $address = [],
+        /**
+         * Whether the partner is still in use (F-CORE-034).
+         *
+         * There is no deletePartner and there should not be: the books keep what they referenced,
+         * and an id that open items point at must not vanish. But a partner nobody trades with any
+         * more has to be sayable somewhere, or every application invents its own list beside the
+         * ledger — which is the state that made this a finding.
+         *
+         * It is a STATE, not a control. An inactive partner refuses nothing: old items still
+         * settle, old vouchers still read, and a posting that names one is not rejected. Whether a
+         * picker still offers it is the application's workflow. Compare Account::lock(), which does
+         * have teeth — the difference is deliberate and the two words are different on purpose.
+         */
+        private string $status = 'active',
     ) {
+    }
+
+    public function status(): string
+    {
+        return $this->status;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function deactivate(): void
+    {
+        $this->status = 'inactive';
+    }
+
+    public function reactivate(): void
+    {
+        $this->status = 'active';
     }
 
     public function name(): string
@@ -113,6 +147,7 @@ final class Partner implements \JsonSerializable
             'paymentTermsDays' => $this->paymentTermsDays,
             'accountNumbers' => $this->accountNumbers,
             'address' => $this->address === [] ? null : $this->address,
+            'status' => $this->status,
         ];
     }
 }

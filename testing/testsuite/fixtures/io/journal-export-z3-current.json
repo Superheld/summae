@@ -1,0 +1,144 @@
+{
+  "fixture": "journal-export-z3-current",
+  "description": "SF-14: GoBD-Z3-Export — Manifest mit Hashes, Feldkatalog vorhanden, Journal vollständig und in sequenceNumber-Reihenfolge. | Successor to `journal-export-z3`, and what moved is one number that was never this fixture's subject: the expectation carried `formatVersion: \"0.6\"`, so the DATA FORMAT could not be versioned without this going red. That is the same weld a shipped pack's version was retired for — the contract is that an export states the current format version, which `format-version.test.ts` and its PHP twin already pin against the schema's own `$id` in both languages; the value is the product's, and it moved to 0.7 when the partner record gained a status. The successor pins everything this fixture is actually about and leaves the number to the product.",
+  "covers": [
+    "F-IO-001",
+    "SF-14"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse 19%",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-001",
+        "voucherDate": "2026-01-10"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-10",
+        "voucherId": "$V1",
+        "text": "Erlös 1",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-12",
+        "voucherId": "$V1",
+        "text": "Erlös 2",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 2
+        }
+      }
+    },
+    {
+      "op": "finalize",
+      "input": {
+        "finalizeUntil": "2026-01-31"
+      },
+      "expect": {
+        "result": {
+          "finalizedCount": 2
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "journalExport",
+      "params": {
+        "fiscalYear": 2026,
+        "format": "gobd-z3"
+      },
+      "expect": {
+        "comment": "v0.5/SPEC-005: formatVersion aktuell; auditLog IMMER im Manifest (Buchen/Festschreiben erzeugt Audit-Einträge)",
+        "manifest": {
+          "baseCurrency": "EUR",
+          "streams": [
+            "journal",
+            "accounts",
+            "vouchers",
+            "auditLog"
+          ],
+          "hashAlgorithm": "sha256"
+        },
+        "fieldCatalogIncluded": true,
+        "journal": {
+          "entryCount": 2,
+          "ordering": "sequenceNumber",
+          "allFinalized": true
+        }
+      }
+    }
+  ]
+}

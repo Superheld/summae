@@ -87,8 +87,12 @@ final readonly class JournalExportProjection
         ];
 
         if ($this->partners->all() !== []) {
+            // Nulls stripped like the accounts and vouchers above, and for a reason that was latent
+            // rather than cosmetic (IMPL-027): the format declares `vatId` as a string and `address`
+            // as an object, so a partner without either exported a `null` the schema refuses.
+            // Nothing noticed because no schema test had ever exported a partner. One now does.
             $streams['partners'] = array_map(
-                static fn (object $partner): mixed => $partner->jsonSerialize(),
+                static fn (\JsonSerializable $partner): array => self::withoutNulls((array) $partner->jsonSerialize()),
                 $this->partners->all(),
             );
         }

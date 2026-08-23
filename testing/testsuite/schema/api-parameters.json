@@ -1,6 +1,6 @@
 {
   "$comment": "Machine-readable parameter contract for the projections named in api.md. The prose there stays the narrative; this file is what the implementations check against. Both languages carry the same table as a constant in their core (the core reads no files by design) and a test in each language asserts the constant equals this file — so the two cannot drift apart.",
-  "formatVersion": "0.6",
+  "formatVersion": "0.7",
   "types": {
     "integer": "a whole number. JSON knows no int/float split, so 2026 and 2026.0 are the same value and both are accepted; 2026.4 is a caller mistake, not a value to round into shape. Bounded to 2^53-1 so that both language runtimes represent it exactly.",
     "string": "a non-empty string",
@@ -136,6 +136,14 @@
       "paymentTermsDays": { "type": "integer" },
       "accountNumbers": { "type": "array" },
       "address": { "type": "object" },
+      "actor": { "type": "string" }
+    },
+    "deactivatePartner": {
+      "partnerId": { "type": "string", "required": true },
+      "actor": { "type": "string" }
+    },
+    "reactivatePartner": {
+      "partnerId": { "type": "string", "required": true },
       "actor": { "type": "string" }
     },
     "updatePartner": {

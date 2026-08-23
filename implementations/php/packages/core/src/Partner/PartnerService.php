@@ -104,6 +104,37 @@ final readonly class PartnerService
         return $partner;
     }
 
+    /**
+     * Marks a partner as no longer in use, and takes it back (F-CORE-034).
+     *
+     * Both directions in one place, like the account lock, because the audit record is the point of
+     * the operation and two copies of it would be two chances for one direction to record less.
+     *
+     * @param array<string, mixed> $input
+     */
+    public function setStatus(array $input, string $target): Partner
+    {
+        $partner = $this->require($input['partnerId'] ?? null);
+        $before = $partner->status();
+        if ($target === 'inactive') {
+            $partner->deactivate();
+        } else {
+            $partner->reactivate();
+        }
+
+        if ($before !== $partner->status()) {
+            $this->partners->save($partner);
+            $this->recordAudit(
+                $input,
+                $target === 'inactive' ? 'deactivated' : 'reactivated',
+                $partner->id,
+                ['status' => ['from' => $before, 'to' => $partner->status()]],
+            );
+        }
+
+        return $partner;
+    }
+
     public function require(mixed $partnerId): Partner
     {
         $partner = null;

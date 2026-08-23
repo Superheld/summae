@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://netmechanics.de/rechnungswesen/format/0.6/format.schema.json",
+  "$id": "https://netmechanics.de/rechnungswesen/format/0.7/format.schema.json",
   "title": "Rechnungswesen-Datenformat v0.6",
   "$defs": {
     "uuid": {
@@ -407,11 +407,17 @@
           "type": "integer",
           "minimum": 0
         },
-        "accountIds": {
+        "accountNumbers": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/uuid"
+            "type": "string"
           }
+        },
+        "status": {
+          "enum": [
+            "active",
+            "inactive"
+          ]
         }
       },
       "additionalProperties": false

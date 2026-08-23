@@ -149,6 +149,14 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     address: { type: 'object' },
     actor: { type: 'string' },
   },
+  deactivatePartner: {
+    partnerId: { type: 'string', required: true },
+    actor: { type: 'string' },
+  },
+  reactivatePartner: {
+    partnerId: { type: 'string', required: true },
+    actor: { type: 'string' },
+  },
   updatePartner: {
     partnerId: { type: 'string', required: true },
     name: { type: 'string' },

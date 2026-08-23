@@ -478,6 +478,8 @@ export class DatabasePartnerRepository implements PartnerRepository {
       typeof data.paymentTermsDays === 'number' ? data.paymentTermsDays : null,
       accountNumbers,
       address,
+      // A partner written before the status existed rehydrates as active — which is what it was.
+      data.status === 'inactive' ? 'inactive' : 'active',
     );
   }
 

@@ -14,6 +14,13 @@ versioning per SemVer (0.x: minor may break).
 
 ### ⚠ What breaks
 
+- **The data format is 0.7.** The partner record gained `status` (`active`/`inactive`), so the
+  schema moved and the version with it — `journalExport.manifest.formatVersion` and
+  `systemDescription.formatVersion` now read `"0.7"`. An application that pins the format version
+  has to follow, deliberately and visibly: that is what the field is for. Two long-standing schema
+  defects in the same record are fixed on the way (see below), and older stored partners rehydrate
+  as `active`, which is what they were.
+
 - **`createPartner` requires a name.** It defaulted to `""`, so a request that forgot the name
   created a partner indistinguishable from the next one and impossible to pick out of a list. An
   empty or whitespace-only name is now `E_INPUT_INVALID`, and `kind` must be one of
@@ -49,6 +56,22 @@ versioning per SemVer (0.x: minor may break).
   `testing/testsuite/superseded.json`.
 
 ### Added
+
+- **A partner can be marked as no longer in use** (`deactivatePartner` / `reactivatePartner`,
+  F-CORE-034). There is no `deletePartner` and there should not be — the books keep what they
+  referenced — but a partner nobody trades with any more had nowhere to be recorded, so every
+  application invented its own inactive-list beside the ledger. It is a **state, not a control**:
+  an inactive partner refuses nothing, its open items still settle and a posting that names it is
+  not rejected. Whether a picker still offers it is the application's workflow, which is also why
+  the word is not "lock" — `lockAccount` does refuse postings, and the difference is deliberate.
+  Both directions are audited with the status diff.
+
+- **Two schema defects in the partner record, both latent, both fixed** (IMPL-027). The format
+  declared `accountIds` (uuids) while the engine writes `accountNumbers` (strings), and
+  `journalExport` wrote partners **without** stripping nulls, unlike accounts and vouchers — so a
+  partner with no VAT id exported a `null` where the schema demands a string. Either one would have
+  made a GoBD Z3 export fail its own schema; neither ever did, because no schema test had exported
+  a partner. One does now, in both languages, and it exports the leanest partner there is.
 
 - **`journal` — a journal read that is both cheap and lossless** (F-CORE-031). The plainest view a
   bookkeeping application has had two bad ways to be filled: `journalExport` is lossless and builds

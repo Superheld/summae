@@ -29,7 +29,7 @@ const OPERATIONS = [
   'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
   'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
-  'defineDimensionType', 'defineDimensionValue',
+  'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
 ] as const;
 
 const PROJECTIONS = [

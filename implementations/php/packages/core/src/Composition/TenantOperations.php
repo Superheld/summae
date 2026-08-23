@@ -86,6 +86,8 @@ final readonly class TenantOperations
                 'periodCount' => count($tenant->fiscalYears->byYear(is_int($input['year'] ?? null) ? $input['year'] : 0)?->periods() ?? []),
             ],
             'createPartner' => $this->serialize($tenant->partnerService->create($input)),
+            'deactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'inactive')),
+            'reactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'active')),
             'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),

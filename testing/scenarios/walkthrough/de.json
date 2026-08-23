@@ -248,7 +248,7 @@
       "report": "journalExport",
       "params": { "fiscalYear": 2026 },
       "expect": {
-        "manifest.formatVersion": "0.6",
+        "manifest.formatVersion": "0.7",
         "manifest.hashAlgorithm": "sha256",
         "manifest.streams": ["journal", "accounts", "vouchers", "auditLog"],
         "fieldCatalogIncluded": true,
