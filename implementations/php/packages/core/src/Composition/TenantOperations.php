@@ -104,6 +104,7 @@ final readonly class TenantOperations
                 'status' => $released->status(),
             ],
             'lockAccount' => $this->serialize($ledger->lockAccount($input)),
+            'unlockAccount' => $this->serialize($ledger->unlockAccount($input)),
             'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
             'importMapping' => (new MappingImporter(
                 $tenant->accounts,

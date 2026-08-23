@@ -88,6 +88,8 @@ export class TenantOperations {
       }
       case 'lockAccount':
         return serialize(ledger.lockAccount(input));
+      case 'unlockAccount':
+        return serialize(ledger.unlockAccount(input));
       case 'importChartOfAccounts':
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':

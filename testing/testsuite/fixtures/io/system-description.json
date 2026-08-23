@@ -131,7 +131,8 @@
               "objectType": "account",
               "actions": [
                 "created",
-                "locked"
+                "locked",
+                "unlocked"
               ]
             },
             {
@@ -184,7 +185,22 @@
               "objectType": "asset",
               "actions": [
                 "acquired",
-                "disposed"
+                "disposed",
+                "usageReported",
+                "specialDepreciationBooked",
+                "writtenDown"
+              ]
+            },
+            {
+              "objectType": "dimensionType",
+              "actions": [
+                "created"
+              ]
+            },
+            {
+              "objectType": "dimensionValue",
+              "actions": [
+                "created"
               ]
             },
             {
@@ -233,6 +249,7 @@
             "setAllocationScheme",
             "setTaxProfile",
             "settle",
+            "unlockAccount",
             "updatePartner",
             "writeDownAsset"
           ],

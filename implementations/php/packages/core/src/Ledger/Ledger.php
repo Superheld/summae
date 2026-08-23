@@ -471,6 +471,12 @@ final readonly class Ledger
         return $this->chart->lockAccount($input);
     }
 
+    /** @param array<string, mixed> $input */
+    public function unlockAccount(array $input): Account
+    {
+        return $this->chart->unlockAccount($input);
+    }
+
     /**
      * @param array<string, mixed> $input
      *

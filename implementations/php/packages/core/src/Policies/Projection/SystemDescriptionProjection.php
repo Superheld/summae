@@ -51,7 +51,7 @@ final readonly class SystemDescriptionProjection
         'defineDimensionValue', 'disposeAsset', 'expandTax', 'finalize', 'importChartOfAccounts',
         'importMapping', 'lockAccount', 'post', 'postVoucher', 'releaseCosting', 'reopenPeriod',
         'reportAssetUsage', 'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme',
-        'setTaxProfile', 'settle', 'updatePartner', 'writeDownAsset'
+        'setTaxProfile', 'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
     ];
 
     /** @var list<string> */
@@ -135,7 +135,7 @@ final readonly class SystemDescriptionProjection
     private const AUDITED_EVENTS = [
         ['objectType' => 'journalEntry', 'actions' => ['created', 'corrected', 'finalized', 'reversed']],
         ['objectType' => 'voucher', 'actions' => ['created']],
-        ['objectType' => 'account', 'actions' => ['created', 'locked']],
+        ['objectType' => 'account', 'actions' => ['created', 'locked', 'unlocked']],
         ['objectType' => 'openItem', 'actions' => ['settled', 'cancelled']],
         ['objectType' => 'partner', 'actions' => ['created', 'updated']],
         ['objectType' => 'fiscalYear', 'actions' => ['created', 'closed']],
@@ -143,7 +143,9 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'taxProfile', 'actions' => ['changed']],
         ['objectType' => 'mapping', 'actions' => ['imported']],
         ['objectType' => 'allocationScheme', 'actions' => ['changed']],
-        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed']],
+        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown']],
+        ['objectType' => 'dimensionType', 'actions' => ['created']],
+        ['objectType' => 'dimensionValue', 'actions' => ['created']],
         ['objectType' => 'depreciationRun', 'actions' => ['completed']],
         ['objectType' => 'costingRun', 'actions' => ['created', 'released']],
     ];

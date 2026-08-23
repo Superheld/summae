@@ -37,6 +37,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-029 | Eine Projektion fiscalYears MUSS Geschäftsjahre samt Perioden mit Beginn, Ende und Status liefern (Leseseite von closePeriod/reopenPeriod/closeFiscalYear); ohne Beginn/Ende ist keine Periodenliste ohne Erfindung möglich. | — |
 | F-CORE-030 | openItems MUSS neben partnerId auch partnerName führen (aktueller Name aus den Stammdaten) — eine Mahnung ohne Empfänger ist keine Mahnung. | 21 |
 | F-CORE-032 | Partner-Stammdaten MÜSSEN korrekt anlegbar UND korrigierbar sein: `name` ist Pflicht (leer/whitespace ⇒ `E_INPUT_INVALID`), `kind` nur `customer`/`supplier`/`both`, `accountNumbers`/`address` per updatePartner änderbar (ersetzend), `paymentTermsDays: null` löscht den Zahlungsterm wie `vatId: null` die USt-IdNr. Kein deletePartner — die Bücher behalten, worauf sie verweisen. | 21 |
+| F-CORE-033 | Zu `lockAccount` MUSS es `unlockAccount` geben (`locked` → `active`), beide mit Audit-Eintrag (`locked`/`unlocked` + Status-Diff). Die Unumkehrbarkeit einer Kontosperre ist **kein** Rechtserfordernis — geschützt wird die Buchung, bei Stammdaten verlangt die GoBD nur die Protokollierung; deshalb Substrat und nicht Pack. | — |
 
 ## F-TAX — Steuern
 

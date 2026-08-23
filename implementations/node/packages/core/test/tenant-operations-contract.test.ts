@@ -27,7 +27,7 @@ const OPERATIONS = [
   'finalize', 'reverse', 'settle', 'closePeriod', 'reopenPeriod', 'closeFiscalYear',
   'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
   'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
-  'releaseCosting', 'lockAccount', 'importChartOfAccounts', 'importMapping',
+  'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
   'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
   'defineDimensionType', 'defineDimensionValue',
 ] as const;
