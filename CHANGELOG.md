@@ -14,6 +14,27 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **Cost allocation can solve mutual services (`method: "simultaneous"`).** The step ladder
+  allocates in one pass and therefore cannot describe cost centres that serve each other — the power
+  plant heats the workshop, the workshop maintains the power plant. Ordering the two is not a
+  modelling choice but a wrong answer, which is why the step ladder refuses a cycle outright. The
+  simultaneous-equation method solves all centres at once instead (x = p + Aᵀx), so a cycle is the
+  ordinary case; only a *closed* one, where cost never reaches a centre that keeps it, is refused
+  (`E_COSTING_UNSOLVABLE`). This closes the part of F-KLR-003 that was never built.
+
+  Two details it needed and did not get for free. The elimination runs on exact fractions
+  (`Rational`, new in the substrate), not on decimals: a solved share is routinely a fraction with
+  no decimal form, and a solver that rounds mid-computation gives an answer that depends on where it
+  rounded — something two implementations cannot agree on by construction. And turning the solution
+  back into money is one largest-remainder step over the whole vector rather than one rounding per
+  centre, so the sheet still says that allocation distributes and never creates.
+
+  The direct method (*Anbauverfahren*) needs no mechanism of its own: it is the step ladder with a
+  scheme that leaves the auxiliary-to-auxiliary edges out.
+
+- **The cost allocation sheet says which method produced it.** Two procedures answer the same
+  question differently; a sheet that does not name one cannot be checked against anything.
+
 - **Declining-balance depreciation can now tell asset classes apart.** A pack may have two
   declining-balance regimes in force at once — Germany runs one for movables and another for new
   residential buildings over overlapping windows — and the core took whichever entry came first
@@ -35,6 +56,12 @@ versioning per SemVer (0.x: minor may break).
   one tabled figure would be wrong for every older building.
 
 ### Fixed
+
+- **`setAllocationScheme` refused to admit it could not do what was asked.** It read `method`,
+  echoed it back in its answer and then ignored it entirely, so asking for anything other than the
+  step ladder returned step-ladder numbers labelled with the name of a different procedure. That is
+  the worst shape a defect can take, because the reply asserts it did what was asked. An unrecognised
+  method is now `E_INPUT_INVALID`, with the ones this core performs named in the message.
 
 - **The v0.10.0 release notes now carry a warning.** That version's PHP `summae-laravel` package
   builds a database-backed tenant without an audit writer. Packagist has no per-version

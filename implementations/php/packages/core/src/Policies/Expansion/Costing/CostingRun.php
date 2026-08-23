@@ -30,6 +30,10 @@ final class CostingRun
         public readonly array $primary,
         public readonly array $afterAllocation,
         public readonly Money $grandTotal,
+        // Which procedure produced these numbers. It belongs in the run because the two answer the
+        // same question differently, and a sheet that does not say how it was allocated cannot be
+        // checked against anything.
+        public readonly string $method = 'step_ladder',
     ) {
     }
 

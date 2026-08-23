@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Expansion\Costing;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\BigInteger;
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
@@ -14,6 +16,7 @@ use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Rational;
 use Summae\Core\Substrate\Side;
 use Summae\Core\Substrate\Uuid;
 
@@ -26,8 +29,19 @@ use Summae\Core\Substrate\Uuid;
  */
 final class CostingService
 {
+    /**
+     * The two ways this core allocates internal services. A method it cannot perform is refused
+     * rather than approximated: until now `method` was read, echoed back in the answer and then
+     * ignored, so asking for the simultaneous method returned step-ladder numbers under the name of
+     * a different procedure — the worst shape a defect can take, because the answer asserts it did
+     * what was asked.
+     */
+    private const METHODS = ['step_ladder', 'simultaneous'];
+
     /** @var list<array{sender: string, receivers: list<array{code: string, share: string}>}> */
     private array $schemeSteps = [];
+
+    private string $method = 'step_ladder';
 
     /** @var array<string, CostingRun> */
     private array $runs = [];
@@ -48,8 +62,8 @@ final class CostingService
     }
 
     /**
-     * The step ladder requires acyclicity (E_COSTING_CYCLE);
-     * the simultaneous-equation method would be the cycle-capable extension.
+     * The step ladder requires acyclicity (E_COSTING_CYCLE); the simultaneous-equation method is the
+     * cycle-capable one and solves the whole scheme at once (SimultaneousAllocation).
      *
      * @param array<string, mixed> $input
      *
@@ -59,6 +73,14 @@ final class CostingService
     {
         $previousStepCount = count($this->schemeSteps);
         $method = is_string($input['method'] ?? null) ? $input['method'] : 'step_ladder';
+
+        if (!in_array($method, self::METHODS, true)) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'setAllocationScheme: unknown allocation method "%s" — this core allocates by %s',
+                $method,
+                implode(' or ', self::METHODS),
+            ), ['method' => DomainError::rejectedValue($method)]);
+        }
 
         /** @var list<array{sender: string, receivers: list<array{code: string, share: string}>}> $steps */
         $steps = [];
@@ -91,6 +113,7 @@ final class CostingService
         }
 
         $this->schemeSteps = $steps;
+        $this->method = $method;
 
         if ($this->audit !== null && $this->tenantId !== null) {
             $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
@@ -138,25 +161,10 @@ final class CostingService
             }
         }
 
-        // Allocation (step ladder, in step order): distribute, never create.
-        $after = $primary;
-
-        foreach ($this->schemeSteps as $step) {
-            $senderTotal = $after[$step['sender']] ?? $zero;
-
-            if ($senderTotal->isZero() || $step['receivers'] === []) {
-                continue;
-            }
-
-            $weights = array_map(static fn (array $receiver): string => $receiver['share'], $step['receivers']);
-            $parts = $senderTotal->allocate(...$weights);
-
-            foreach ($step['receivers'] as $index => $receiver) {
-                $after[$receiver['code']] = ($after[$receiver['code']] ?? $zero)->add($parts[$index]);
-            }
-
-            $after[$step['sender']] = $zero;
-        }
+        // Allocation: distribute, never create — by either method.
+        $after = $this->method === 'simultaneous'
+            ? $this->allocateSimultaneously($primary)
+            : $this->allocateByStepLadder($primary);
 
         $grandTotal = $zero;
         foreach ($after as $total) {
@@ -167,11 +175,12 @@ final class CostingService
         $version = ($this->versions[$key] ?? 0) + 1;
         $this->versions[$key] = $version;
 
-        $run = new CostingRun($this->ids->next(), $periodRef, $version, $primary, $after, $grandTotal);
+        $run = new CostingRun($this->ids->next(), $periodRef, $version, $primary, $after, $grandTotal, $this->method);
         $this->runs[$run->id->value] = $run;
         if ($this->audit !== null) {
             $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'created', [
                 'period' => ['from' => null, 'to' => $periodRef->fiscalYear . '/' . $periodRef->period],
+                'method' => ['from' => null, 'to' => $this->method],
                 'version' => ['from' => null, 'to' => $version],
                 'status' => ['from' => null, 'to' => $run->status()],
             ]);
@@ -231,10 +240,138 @@ final class CostingService
             'runId' => $run->id->value,
             'status' => $run->status(),
             'version' => $run->version,
+            'method' => $run->method,
             'primary' => $this->serializeTotals($run->primary),
             'afterAllocation' => $this->serializeTotals($run->afterAllocation),
             'grandTotal' => $run->grandTotal->amountAsString(),
         ];
+    }
+
+    /**
+     * One pass in step order. Cheap, and wrong the moment two centres serve each other — which is
+     * why a cycle is refused here rather than resolved by picking an order.
+     *
+     * @param array<string, Money> $primary
+     *
+     * @return array<string, Money>
+     */
+    private function allocateByStepLadder(array $primary): array
+    {
+        $zero = Money::zero($this->baseCurrency);
+        $after = $primary;
+
+        foreach ($this->schemeSteps as $step) {
+            $senderTotal = $after[$step['sender']] ?? $zero;
+
+            if ($senderTotal->isZero() || $step['receivers'] === []) {
+                continue;
+            }
+
+            $weights = array_map(static fn (array $receiver): string => $receiver['share'], $step['receivers']);
+            $parts = $senderTotal->allocate(...$weights);
+
+            foreach ($step['receivers'] as $index => $receiver) {
+                $after[$receiver['code']] = ($after[$receiver['code']] ?? $zero)->add($parts[$index]);
+            }
+
+            $after[$step['sender']] = $zero;
+        }
+
+        return $after;
+    }
+
+    /**
+     * All centres at once, solved exactly (SimultaneousAllocation) and only then turned back into
+     * money.
+     *
+     * The order matters and is the reason this is not simply "solve and round": the solution is a
+     * vector of exact fractions whose sum is the primary total to the last cent, and rounding each
+     * one on its own would break that — a cent appears or vanishes, and the sheet no longer says
+     * that allocation distributes rather than creates. So the fractions are floored and the
+     * difference handed out by largest remainder, ties to the earlier cost centre, which is
+     * `Money::allocate`'s rule applied to a vector instead of a single amount.
+     *
+     * @param array<string, Money> $primary
+     *
+     * @return array<string, Money>
+     */
+    private function allocateSimultaneously(array $primary): array
+    {
+        $codes = array_keys($primary);
+        foreach ($this->schemeSteps as $step) {
+            $codes[] = $step['sender'];
+            foreach ($step['receivers'] as $receiver) {
+                $codes[] = $receiver['code'];
+            }
+        }
+
+        $codes = array_values(array_unique(array_map(strval(...), $codes)));
+        usort($codes, static fn (string $a, string $b): int => strcmp($a, $b));
+
+        if ($codes === []) {
+            return [];
+        }
+
+        // Minor units throughout: the solver knows nothing about currencies, and an integer count of
+        // cents is the one representation in which "the total is preserved" is checkable.
+        $scale = $this->baseCurrency->scale;
+        $toMinor = Rational::of(BigInteger::of(10)->power($scale));
+
+        /** @var array<string, Rational> $primaryMinor */
+        $primaryMinor = [];
+        $totalMinor = BigInteger::zero();
+        foreach ($primary as $code => $money) {
+            $value = Rational::fromDecimalString($money->amountAsString())->multiply($toMinor);
+            $primaryMinor[(string) $code] = $value;
+            $totalMinor = $totalMinor->plus($value->floorToBigInteger());
+        }
+
+        $solved = SimultaneousAllocation::solve($codes, $primaryMinor, $this->schemeSteps);
+        $senderSet = array_flip($solved['senders']);
+
+        /** @var list<string> $keepers */
+        $keepers = [];
+        foreach ($codes as $code) {
+            if (!isset($senderSet[$code])) {
+                $keepers[] = $code;
+            }
+        }
+
+        /** @var array<int, BigInteger> $floors */
+        $floors = [];
+        $assigned = BigInteger::zero();
+        foreach ($keepers as $position => $code) {
+            $floors[$position] = $solved['totals'][$code]->floorToBigInteger();
+            $assigned = $assigned->plus($floors[$position]);
+        }
+
+        $leftover = $totalMinor->minus($assigned)->toInt();
+        $order = range(0, count($keepers) - 1);
+        usort($order, static function (int $a, int $b) use ($keepers, $solved): int {
+            $byRemainder = $solved['totals'][$keepers[$b]]->fractionalPart()
+                ->compareTo($solved['totals'][$keepers[$a]]->fractionalPart());
+
+            return $byRemainder !== 0 ? $byRemainder : $a <=> $b;
+        });
+
+        for ($i = 0; $i < $leftover; $i++) {
+            $floors[$order[$i]] = $floors[$order[$i]]->plus(1);
+        }
+
+        $zero = Money::zero($this->baseCurrency);
+        /** @var array<string, Money> $after */
+        $after = [];
+        foreach ($codes as $code) {
+            $after[$code] = $zero;
+        }
+        foreach ($keepers as $position => $code) {
+            $after[$code] = Money::fromCalculation(
+                BigDecimal::ofUnscaledValue($floors[$position], $scale),
+                $this->baseCurrency,
+            );
+        }
+
+        return $after;
     }
 
     /**

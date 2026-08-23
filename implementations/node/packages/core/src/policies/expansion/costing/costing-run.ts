@@ -17,6 +17,10 @@ export class CostingRun {
     readonly primary: Map<string, Money>,
     readonly afterAllocation: Map<string, Money>,
     readonly grandTotal: Money,
+    // Which procedure produced these numbers. It belongs in the run because the two answer the same
+    // question differently, and a sheet that does not say how it was allocated cannot be checked
+    // against anything.
+    readonly method: string = 'step_ladder',
   ) {}
 
   status(): string {
