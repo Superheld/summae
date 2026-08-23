@@ -43,3 +43,53 @@ jobs:
           repository_name: ${{ matrix.package.repo }}
           user_name: github-actions
           user_email: github-actions@github.com
+
+  # The split mirrors code and tag, but a tag is not a release: until 2026-08-23 all three split
+  # repos showed 17 tags and zero releases, while the main repo had notes for every one of them.
+  # Packagist points at these repos, so they are what a PHP consumer actually lands on. The 17
+  # missing releases were backfilled by hand once; this job is so that never has to happen again.
+  #
+  # A separate job, not a step in `split`, for two reasons: the release can only be created once
+  # the tag exists in the split repo (`needs`), and the notes need a checkout of the default
+  # branch rather than the tag — same reason as in release-notes.yml, a manual run for an older
+  # tag would otherwise check out a tree without this script.
+  release-notes:
+    needs: split
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [summae-core, summae-laravel, summae-cli]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Publish the release in ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.SPLIT_TOKEN }}
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          repo="Superheld/${{ matrix.repo }}"
+
+          # Same rule as in the main repo: the "Latest" badge follows the highest version tag,
+          # not whichever release was published most recently.
+          newest=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          if [ "$tag" = "$newest" ]; then latest=true; else latest=false; fi
+
+          {
+            echo "> Read-only split of [Superheld/summae](https://github.com/Superheld/summae) — issues and pull requests belong there."
+            echo "> Full release: https://github.com/Superheld/summae/releases/tag/${tag}"
+            echo
+            ./bin/changelog-section.sh "$version"
+          } > /tmp/split-notes.md
+
+          # Never clobber an existing release: this workflow can be re-run, and a body someone
+          # improved by hand must survive that.
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            echo "$repo already has a release for $tag — left untouched"
+          else
+            gh release create "$tag" --repo "$repo" --title "$version" \
+              --notes-file /tmp/split-notes.md --verify-tag --latest="$latest"
+          fi
