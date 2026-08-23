@@ -686,3 +686,31 @@ probably the same answer: what a fixture may pin about a *shipped* pack. Pinning
 behaviour is the point of `de-pack-resolves`; pinning the size of a product catalogue that is
 expected to grow is a different thing that came along for the ride. Left open — a new fixture could
 establish the resolver contract without the count, but deciding that is not a mechanical change.
+
+## SPEC-014: summae has no way to evolve a shipped database schema
+
+**Found 2026-08-23, while scoping the costing persistence port.**
+
+Both adapters create their tables exactly once, at workspace initialisation —
+`SchemaInstaller::create` in PHP, `installSchema` in Node — and nothing upgrades an existing
+database. PHP at least sits behind Laravel migrations, so a second dated migration file could add a
+table; Node has no migration concept at all, and an existing SQLite workspace would simply lack the
+new table with no path to gain it.
+
+Nothing has needed this yet: the eight tables have been enough since 0.2.0. The costing port is the
+first change that adds a table, which is why the question surfaces there and why it is the *actual*
+blocker — the port, the adapters and the table itself are mechanical work.
+
+**Three answers are defensible and they are not equivalent:**
+
+1. **Versioned migrations in both languages.** Honest and conventional, and a subsystem of its own —
+   Node would need a migration runner it does not have.
+2. **Idempotent schema install.** `create` becomes "ensure", guarded per table, run on open rather
+   than on init. Cheap, covers additive changes, and covers nothing else — a column that changes
+   type still has no path.
+3. **Frozen for 0.x.** Say plainly that a schema change means recreating the workspace, and hold the
+   line until 1.0. Defensible for a 0.x library and the only one of the three that costs nothing —
+   but it means the costing port waits.
+
+Left open deliberately. Whichever is chosen becomes a promise to every existing installation, and
+that is not a mechanical decision.
