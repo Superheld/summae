@@ -81,6 +81,7 @@ resolver-policy-invalid
 resolver-referenced-taxcode-missing
 resolver-taxcode-missing-account
 resolver-unknown-mechanism
+reversal-visible-in-sheets
 reverse-charge
 reverse-clears-open-items
 reverse-settled-item

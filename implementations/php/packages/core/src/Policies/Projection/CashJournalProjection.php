@@ -64,6 +64,9 @@ final readonly class CashJournalProjection
 
         $accounts = [];
         $negativeBalances = [];
+        // Built once for the whole run, not per movement: the sheet has to show a reversal AS a
+        // reversal, and the journal only knows the counterpart by id.
+        $reversals = ReversalIndex::of($this->journal);
 
         foreach ($cashAccounts as $account) {
             // Cash is balance-carrying: last year's drawer is this year's opening.
@@ -96,7 +99,7 @@ final readonly class CashJournalProjection
                         'side' => $line->side->value,
                         'money' => $line->money->jsonSerialize(),
                         'runningBalance' => $running->amountAsString(),
-                    ];
+                    ] + $reversals->forEntry($entry);
 
                     if ($running->isNegative()) {
                         $negativeBalances[] = [
