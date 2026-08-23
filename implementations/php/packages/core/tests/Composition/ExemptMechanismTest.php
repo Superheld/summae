@@ -14,7 +14,7 @@ use Summae\Core\Substrate\FixedClock;
 use Summae\Core\Tenant;
 
 /**
- * #29 / NF-004/F-010: a tax-exempt sale must be postable. A plain rate-0 *standard* code
+ * #29 / IMPL-004/SPEC-010: a tax-exempt sale must be postable. A plain rate-0 *standard* code
  * expands to a 0.00 tax line, which the ledger rejects (E_ENTRY_INVALID_AMOUNT). The `exempt`
  * mechanism (a built-in strategy in the tax-mechanism registry) emits NO tax line, so the
  * voucher posts cleanly with gross = net. Built-in = the "closed" path; no closed/open decision

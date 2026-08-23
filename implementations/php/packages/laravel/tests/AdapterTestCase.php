@@ -16,7 +16,7 @@ use Summae\Laravel\DatabaseTenantFactory;
 use Summae\Laravel\Schema\SchemaInstaller;
 
 /**
- * Shared setup for the adapter suite (NF-015): one in-memory SQLite connection per test with the
+ * Shared setup for the adapter suite (IMPL-015): one in-memory SQLite connection per test with the
  * `summae_*` schema installed.
  *
  * SQLite in memory rather than Postgres so the suite runs anywhere `make test` runs — the

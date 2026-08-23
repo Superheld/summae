@@ -12,16 +12,16 @@ Fehler sind Vertragsbestandteil: gleicher Verstoß → gleicher Code in allen Im
 |---|---|---|
 | `E_ENTRY_UNBALANCED` | Σ Soll ≠ Σ Haben (F-CORE-001) | post-and-invariants |
 | `E_ENTRY_NO_VOUCHER` | voucherId fehlt (F-CORE-003) | post-and-invariants |
-| `E_VOUCHER_UNKNOWN` | voucherId gesetzt, aber kein Beleg vorhanden (v0.5/F-001) | voucher-unknown |
+| `E_VOUCHER_UNKNOWN` | voucherId gesetzt, aber kein Beleg vorhanden (v0.5/SPEC-001) | voucher-unknown |
 | `E_ENTRY_TOO_FEW_LINES` | < 2 Positionen | post-malformed |
 | `E_ENTRY_INVALID_AMOUNT` | Betrag ≤ 0, falsches Format oder Fremdwährung ≠ Mandantenwährung (v1) | post-malformed |
 | `E_ENTRY_FINALIZED` | Korrekturversuch nach Festschreibung (F-CORE-002) | finalize-reverse-period |
 | `E_ENTRY_ALREADY_REVERSED` | Doppelstorno | finalize-reverse-period |
 | `E_ENTRY_UNKNOWN` | entryId existiert nicht | post-malformed |
 | `E_ENTRY_HAS_OPEN_ITEMS` | Zeilen-Korrektur an einer Buchung, aus der offene Posten entstanden sind (v0.6) | correct-open-items |
-| `E_ENTRY_HAS_SETTLED_ITEMS` | Storno einer Buchung, deren offener Posten bereits (teil-)ausgeglichen ist (v0.6/NF-008) | reverse-settled-item |
+| `E_ENTRY_HAS_SETTLED_ITEMS` | Storno einer Buchung, deren offener Posten bereits (teil-)ausgeglichen ist (v0.6/IMPL-008) | reverse-settled-item |
 
-**Storno und offene Posten (NF-008, v0.6).** `reverse` gleicht die offenen Posten der stornierten
+**Storno und offene Posten (IMPL-008, v0.6).** `reverse` gleicht die offenen Posten der stornierten
 Buchung **aus** — mit einem Ausgleich, der auf die Storno-Buchung zeigt und `cause:
 "cancellation"` trägt; der Posten erhält damit den abgeleiteten Status `cancelled` und
 verschwindet aus der OP-Liste. Vorher blieb er stehen: das Hauptbuch zeigte das
@@ -30,7 +30,7 @@ ausgleichbar**. Ist ein Posten dagegen schon angefasst (mindestens ein Ausgleich
 Storno **verweigert** — dieselbe Linie, die SAP mit F5308 zieht („document includes already
 cleared items — reversal not possible"): erst den Ausgleich zurücknehmen oder eine Gutschrift
 buchen, sonst verschwände Geld aus der OP-Historie, das tatsächlich geflossen ist. Das ist
-zugleich die Antwort auf den offenen NF-005-Rest: der Fall „ausgeglichen, dann storniert"
+zugleich die Antwort auf den offenen IMPL-005-Rest: der Fall „ausgeglichen, dann storniert"
 entsteht gar nicht mehr, und die Korrektur läuft als eigene, zahlungswirksame Buchung mit
 eigenem Datum — also genau so, wie §17 Abs. 1 UStG es verlangt („in dem Besteuerungszeitraum, in
 dem die Änderung eingetreten ist"). Bei Ist-Versteuerung zählt ein `cancellation`-Ausgleich
@@ -45,7 +45,7 @@ Geld, das nie geflossen ist.
 | `E_PERIOD_OUT_OF_ORDER` | Schließen außer Reihenfolge | period-ordering |
 | `E_PERIOD_UNKNOWN` | Buchungsdatum außerhalb angelegter Geschäftsjahre | period-ordering |
 | `E_FISCALYEAR_CLOSED` | Wiedereröffnung nach Jahresabschluss | edge-errors |
-| `E_FISCALYEAR_UNFINALIZED_ENTRIES` | closeFiscalYear bei nicht festgeschriebenen Buchungen (v0.5/F-003) | fiscalyear-close-guard |
+| `E_FISCALYEAR_UNFINALIZED_ENTRIES` | closeFiscalYear bei nicht festgeschriebenen Buchungen (v0.5/SPEC-003) | fiscalyear-close-guard |
 
 ## E_ACCOUNT / E_COA
 
@@ -61,7 +61,7 @@ Geld, das nie geflossen ist.
 offenen Posten unangetastet — Betrag, Konto und Fälligkeit im Nebenbuch stammten danach aus einer
 Buchung, die es so nicht mehr gab, ohne jeden Hinweis. Der **Text** einer solchen Buchung bleibt
 korrigierbar; für Beträge ist der GoBD-konforme Weg ohnehin Storno und Neubuchung, und der hält
-Haupt- und Nebenbuch beisammen. Befund R-3, verwandt mit NF-008.
+Haupt- und Nebenbuch beisammen. Befund R-3, verwandt mit IMPL-008.
 
 ## E_SETTLEMENT / E_OPENITEM
 
@@ -126,7 +126,7 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | `E_ASSET_UNKNOWN` | Anlagegut existiert nicht | edge-errors |
 | `E_ASSET_DISPOSED` | Operation auf abgegangenem Anlagegut | edge-errors |
 | `E_COSTING_RUN_RELEASED` | Änderungsversuch an released Lauf | allocation-run |
-| `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/F-006) | costing-run-unknown |
+| `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/SPEC-006) | costing-run-unknown |
 | `E_COSTING_CYCLE` | Stufenleiter mit Zyklus | edge-errors |
 
 ## E_MAPPING
@@ -173,7 +173,7 @@ Abgrenzung: `E_INPUT_INVALID` ist ein **Aufruferfehler**, kein interner Fehler. 
 endeten diese Fälle entweder als ungefangene `InvalidValue` (Stacktrace bzw. `E_UNEXPECTED`
 mit Exit 1 — für einen automatisierten Aufrufer nicht von einem summae-Bug unterscheidbar)
 oder wurden still auf einen plausiblen Standardwert gezogen, was zu falschen Zahlen ohne
-jede Fehlermeldung führte (Befunde NF-006, NF-007, NF-013).
+jede Fehlermeldung führte (Befunde IMPL-006, IMPL-007, IMPL-013).
 
 Wo ein **spezifischerer** Code existiert, hat dieser Vorrang: ein unbekanntes Konto bleibt
 `E_ACCOUNT_UNKNOWN`, ein unbekannter Steuerschlüssel `E_TAXCODE_UNKNOWN`. `E_INPUT_INVALID`
@@ -196,7 +196,7 @@ niemanden zu unterscheiden. Befund R-9.
 |---|---|---|
 | `E_NOT_IMPLEMENTED` | `TenantOperations` kennt den Namen der Operation/Projektion nicht — Tippfehler, Verwechslung, oder eine Fähigkeit, die diese Implementierung noch nicht verdrahtet hat | Kontrakt-Test (kein Fixture: nur über den Dispatcher erreichbar) |
 
-Nachgetragen 2026-08-16 (Befund NF-018). Der Code wurde von Anfang an geworfen, hatte eine
+Nachgetragen 2026-08-16 (Befund IMPL-018). Der Code wurde von Anfang an geworfen, hatte eine
 Exit-Nummer (44) und stand im Handbuch — nur hier fehlte er. Die Grenze dieses Katalogs ist
 nicht „fachlicher Fehler", sondern **alles, worauf ein Aufrufer sich verlassen kann**: derselbe
 Grund, aus dem der reine CLI-Code `E_WORKSPACE_INVALID` oben drinsteht. Ohne Zeile hier war er

@@ -61,7 +61,7 @@ final readonly class CashBasisProjection
     public function compute(array $params): array
     {
         // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
-        // throw an uncaught InvalidValue, here it returned an empty report (NF-006/NF-009). Both
+        // throw an uncaught InvalidValue, here it returned an empty report (IMPL-006/IMPL-009). Both
         // were wrong in the same place — a missing required parameter must say so.
         if (Parameters::asInteger($params['year'] ?? null) === null) {
             throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"');

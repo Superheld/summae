@@ -14,7 +14,7 @@ use Summae\Core\Substrate\Uuid;
 use Summae\Core\Tenant;
 
 /**
- * NF-015: two tenants share one database. That is the point of the `tenant_id` column, and the
+ * IMPL-015: two tenants share one database. That is the point of the `tenant_id` column, and the
  * root CLAUDE.md calls summae "multi-tenant at the data level" — so a repository built for tenant A
  * must never hand out, or write over, a row belonging to tenant B.
  *

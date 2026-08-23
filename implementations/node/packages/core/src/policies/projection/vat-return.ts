@@ -73,7 +73,7 @@ export class VatReturnProjection {
         if (!this.inQuarter(entry.entryDate, year, quarter)) continue;
         if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
         if (this.openItems.byOriginEntry(entry.id).length > 0) continue;
-        // NF-005: this loop's premise is "no open item ⇒ the money moved at posting time"
+        // IMPL-005: this loop's premise is "no open item ⇒ the money moved at posting time"
         // (a cash sale). A reversal has no open item of its own, but it is not a cash
         // movement either. When the entry it reverses carries open items, its tax already
         // follows those items' settlements above — counting it here would declare a
@@ -91,7 +91,7 @@ export class VatReturnProjection {
       for (const entry of this.journal.all()) {
         let taxDate: CalendarDate;
         if (entry.reverses !== null) {
-          // F-011: a tax correction counts by its own posting date.
+          // SPEC-011: a tax correction counts by its own posting date.
           taxDate = entry.entryDate;
         } else {
           const voucher = this.vouchers.byId(entry.voucherId);
@@ -220,7 +220,7 @@ export class VatReturnProjection {
     const total = new Big(item.money.amountAsString());
 
     for (const settlement of item.settlements()) {
-      // NF-008: a cancellation closes the item without any money moving. Counting it here would
+      // IMPL-008: a cancellation closes the item without any money moving. Counting it here would
       // declare cash-basis VAT for a reversed invoice that was never paid — the exact opposite of
       // what the reversal means. Skipped before `remaining` is touched, so the proportional split
       // of any real payments is unaffected.

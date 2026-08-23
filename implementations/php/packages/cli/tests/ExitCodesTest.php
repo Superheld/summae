@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Summae\Cli\ExitCodes;
 
 /**
- * Drift guard for the exit-code mapping (NF-018).
+ * Drift guard for the exit-code mapping (IMPL-018).
  *
  * testing/testsuite/fehlerkatalog.md is the normative list of error codes; ExitCodes turns it
  * into the numbers a script branches on. Nothing compared the two, so four codes reached the
@@ -53,7 +53,7 @@ final class ExitCodesTest extends TestCase
             static fn (string $code): bool => ExitCodes::for($code) === 1,
         ));
 
-        self::assertSame([], $withoutExit, 'these catalogued codes fall through to exit 1 (NF-018)');
+        self::assertSame([], $withoutExit, 'these catalogued codes fall through to exit 1 (IMPL-018)');
     }
 
     /**

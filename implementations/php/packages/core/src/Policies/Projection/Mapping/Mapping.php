@@ -57,7 +57,7 @@ final readonly class Mapping
             }
 
             $key = is_string($position['key'] ?? null) ? $position['key'] : '';
-            // side is set at the root node and inherited by the leaves (v0.5/F-007).
+            // side is set at the root node and inherited by the leaves (v0.5/SPEC-007).
             $nodeSide = is_string($position['side'] ?? null) ? $position['side'] : $side;
             $children = is_array($position['children'] ?? null) ? array_values($position['children']) : [];
 

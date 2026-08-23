@@ -38,7 +38,7 @@ export class CashBasisProjection {
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
     // `year` is required. Defaulting it to 0 built the date "0000-01-01": in Node that used to
-    // throw an uncaught InvalidValue, in PHP it returned an empty report (NF-006/NF-009). Both
+    // throw an uncaught InvalidValue, in PHP it returned an empty report (IMPL-006/IMPL-009). Both
     // were wrong in the same place — a missing required parameter must say so.
     if (!isIntegerParam(params.year)) {
       throw new DomainError('E_INPUT_INVALID', 'cashBasisReport requires the parameter "year"', {

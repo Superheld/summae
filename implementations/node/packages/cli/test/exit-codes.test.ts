@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { allExitCodes, exitCodeFor } from '../src/exit-codes.js';
 
 /**
- * Drift guard for the exit-code mapping (NF-018).
+ * Drift guard for the exit-code mapping (IMPL-018).
  *
  * `testing/testsuite/fehlerkatalog.md` is the normative list of error codes; `exitCodeFor` turns
  * it into the numbers a script branches on. Nothing compared the two, so four codes reached the
@@ -39,7 +39,7 @@ describe('exit codes', () => {
   it('gives every catalogued error code an exit code of its own', () => {
     const withoutExit = catalogCodes().filter((code) => exitCodeFor(code) === 1);
 
-    expect(withoutExit, 'these catalogued codes fall through to exit 1 (NF-018)').toEqual([]);
+    expect(withoutExit, 'these catalogued codes fall through to exit 1 (IMPL-018)').toEqual([]);
   });
 
   /**

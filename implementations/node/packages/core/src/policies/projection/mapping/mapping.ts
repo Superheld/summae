@@ -52,7 +52,7 @@ export class Mapping {
     for (const position of positions) {
       if (!isRecord(position)) continue;
       const key = asString(position.key) ?? '';
-      // side is set at the root node and inherited by the leaves (v0.5/F-007).
+      // side is set at the root node and inherited by the leaves (v0.5/SPEC-007).
       const nodeSide = asString(position.side) ?? side;
       const children = Array.isArray(position.children) ? position.children : [];
 

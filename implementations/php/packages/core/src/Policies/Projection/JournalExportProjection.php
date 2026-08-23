@@ -93,7 +93,7 @@ final readonly class JournalExportProjection
             );
         }
 
-        // v0.5/F-005: auditLog is ALWAYS part of the export (posting/finalizing
+        // v0.5/SPEC-005: auditLog is ALWAYS part of the export (posting/finalizing
         // already creates entries — the trail survives system changes, SF-15).
         $streams['auditLog'] = array_map(
             static fn (AuditRecord $record): array => $record->jsonSerialize(),

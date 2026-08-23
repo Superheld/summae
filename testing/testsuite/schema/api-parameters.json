@@ -53,7 +53,7 @@
       "incomeMapping": {
         "type": "string",
         "acceptedWithoutEffect": true,
-        "$comment": "Stays without effect by decision, not by omission (NF-014, 2026-08-15). The result position sums income accounts by TYPE, and that is what makes the balance-sheet identity hold by construction (api.md); feeding it from a mapping would make the identity depend on that mapping being complete. The income statement carries the mapping's view, including the `_unassigned` catch-all, so both reports agree without this parameter doing anything."
+        "$comment": "Stays without effect by decision, not by omission (IMPL-014, 2026-08-15). The result position sums income accounts by TYPE, and that is what makes the balance-sheet identity hold by construction (api.md); feeding it from a mapping would make the identity depend on that mapping being complete. The income statement carries the mapping's view, including the `_unassigned` catch-all, so both reports agree without this parameter doing anything."
       }
     },
     "incomeStatement": {

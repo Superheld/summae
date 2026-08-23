@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  * against testing/testsuite/schema/format.schema.json — the same schema the PHP runner already
  * validates journalExport streams against (SchemaValidationTest), now extended to the
  * pack format in both languages. A field the engine reads but the schema does not
- * declare is a finding (the NF-002/F-008 class), not a convenience.
+ * declare is a finding (the IMPL-002/SPEC-008 class), not a convenience.
  *
  * Layer 1: the module/manifest WRAPPER (kind enum, required keys, no stray keys).
  * Layer 2 ("tief per-kind"): validate each module's `data` against a per-kind schema. `mapping`,
@@ -64,7 +64,7 @@ describe('pack-library files validate against format.schema.json', () => {
     expect(validateModule({ kind: 'not-a-real-kind' }), 'validator must reject a bad module').toBe(false);
 
     // …and the depreciation payload rejects a pool range that leaves a jurisdiction's answer to the
-    // core: the period (F-004, poolYears) and whether a disposal reduces the pool (NF-019,
+    // core: the period (SPEC-004, poolYears) and whether a disposal reduces the pool (IMPL-019,
     // poolReducedOnDisposal) are both conditionally required next to poolMax.
     const validateDepreciation = ajv.getSchema(`${schema.$id}#/$defs/depreciationData`) as ValidateFunction;
     const poolRange = { validFrom: '2018-01-01', validTo: null, immediateMax: '250.00', poolMin: '250.01', poolMax: '1000.00' };

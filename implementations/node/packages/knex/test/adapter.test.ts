@@ -17,7 +17,7 @@ import { installSchema } from '../src/schema-installer.js';
 import { SyncDb } from '../src/sync-db.js';
 
 /**
- * NF-015 (Node twin of `packages/laravel/tests`): the persistence adapter gets its own suite.
+ * IMPL-015 (Node twin of `packages/laravel/tests`): the persistence adapter gets its own suite.
  *
  * `packages/knex` had no test of its own either — its coverage came entirely from the CLI suite and
  * the cross test, both of which drive exactly one tenant per database and both of which write and
@@ -211,7 +211,7 @@ describe('tenant scoping', () => {
   });
 
   /**
-   * NF-023: an asset carries the dimensions its machine entries inherit — depreciation for years to
+   * IMPL-023: an asset carries the dimensions its machine entries inherit — depreciation for years to
    * come is booked with them, so losing them here makes depreciation impossible on the next start
    * wherever a dimension is mandatory. Written straight through the repository rather than through
    * `acquireAsset`: what is under test is the column round trip, not the posting rules, and the

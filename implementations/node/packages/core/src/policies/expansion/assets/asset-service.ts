@@ -70,7 +70,7 @@ export class AssetService {
       usefulLifeMonths = this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
-      // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is one
+      // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
       // inherited it silently. The pack says over how long; the core only spreads it evenly.
       const poolYears = this.poolYears(acquiredOn);
@@ -265,7 +265,7 @@ export class AssetService {
   }
 
   /**
-   * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+   * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
    * entry about an asset gets them on every line: the whole event belongs to that cost centre, and
    * a line without them would be refused wherever the pack makes a dimension mandatory — which is
    * precisely the case that used to make depreciation impossible to run.
@@ -346,7 +346,7 @@ export class AssetService {
   /**
    * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
    * range without saying over how long is incomplete, and picking a number here would put a statute
-   * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+   * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
    * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
    */
   private poolYears(acquiredOn: CalendarDate): number {
@@ -366,7 +366,7 @@ export class AssetService {
    * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
    * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
    * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-   * statute back into the core — which is exactly what NF-019 accidentally did before this.
+   * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
    */
   private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
     const threshold = this.applicableThreshold(acquiredOn);
@@ -428,7 +428,7 @@ export class AssetService {
     return this.assetAccount('gwgExpenseAccount');
   }
   /**
-   * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+   * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
    *
    * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
    * asset's last months of depreciation never happened at all: `runDepreciation` skips disposed

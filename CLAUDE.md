@@ -74,7 +74,7 @@ assumption). A pack is composable (take it curated / adapt it / build your own �
 belongs in the pack as data. **The stronger test, because a statute rarely arrives quoted:**
 *would another jurisdiction answer this differently?* A rule translated into a plain condition
 reads like mechanism — `route !== 'pool'` was § 6 Abs. 2a EStG, and neither the code nor its
-comment gave it away (NF-025). Full picture + honest build status: `docs/architektur.md`.
+comment gave it away (IMPL-025). Full picture + honest build status: `docs/architektur.md`.
 
 **Pack & modules (brief).** Three layers: **substrate** → **policy kinds** (sockets in the core) → **pack** (on top).
 A **module** = a plug for *exactly one* policy kind (usually a data file `kind`+`data`); a **pack**
@@ -133,6 +133,15 @@ next most plausible behavior.
 - Doc references always **annotated**: briefly note what's found there.
 - Git: **never directly on shared branches** (`main`, `develop`) — one branch per task
   (`job/…`, `chore/…`, `fix/…`); merge via `--no-ff` when green.
+- **ID namespaces are disjoint by prefix — never by padding.** Four families, and a *requirement*
+  never shares a prefix with a *finding*: **`F-<AREA>-nnn`** functional requirement
+  (`30-anforderungen/funktional.md`, areas CORE/TAX/AST/KLR/IO) · **`NF-n[.n]`** non-functional
+  requirement (`30-anforderungen/nicht-funktional.md`) · **`SF-nn`** standard case
+  (`30-anforderungen/lieferumfang.md`) · **`SPEC-nnn` / `SPEC-Cnn` / `IMPL-nnn`** findings
+  (`SPEC-FINDINGS.md`). Fixtures name only requirements in `covers`. Until 2026-08-23 the
+  findings ran as `F-0xx`/`NF-0xx`, which a reader — and a grep — could tell from the
+  requirements only by a leading zero or a missing area word; the mapping is at the top of
+  `implementations/php/SPEC-FINDINGS.md`. A new series gets its own word, not a number range.
 
 Language-specific conventions, build and test commands: in
 `implementations/<language>/CLAUDE.md`.
@@ -180,7 +189,7 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
    streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
-   does not declare is a finding (e.g. NF-002/F-008 `includeNonCash`), not a convenience.
+   does not declare is a finding (e.g. IMPL-002/SPEC-008 `includeNonCash`), not a convenience.
 2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.

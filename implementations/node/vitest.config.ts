@@ -16,7 +16,7 @@ export default defineConfig({
         // Measured 2026-08-16 (lines): core 93.15 · cli 92.66 · knex 89.08 · runner 92.72.
         // knex used to be the mildest floor because it had no tests of its own and was covered
         // only indirectly through the CLI and the cross test. It has its own adapter suite since
-        // 2026-08-16 (NF-015, twin of the PHP packages/laravel suite), which is what raised it.
+        // 2026-08-16 (IMPL-015, twin of the PHP packages/laravel suite), which is what raised it.
         'packages/core/src/**': { statements: 90, branches: 79, functions: 92, lines: 92 },
         'packages/cli/src/**': { statements: 88, branches: 67, functions: 88, lines: 91 },
         'packages/knex/src/**': { statements: 89, branches: 60, functions: 89, lines: 92 },

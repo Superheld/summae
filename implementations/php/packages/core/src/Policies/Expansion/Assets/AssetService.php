@@ -79,7 +79,7 @@ final class AssetService
             $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
             $schedule = $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is
+            // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
             // would have inherited it silently. The pack says over how long; the core only spreads it
             // evenly (disposals leave the plan untouched, as before).
@@ -396,7 +396,7 @@ final class AssetService
 
     /** @param list<array<string, mixed>> $lines */
     /**
-     * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+     * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
      * entry about an asset gets them on every line: the whole event belongs to that cost centre,
      * and a line without them would be refused wherever the pack makes a dimension mandatory —
      * which is precisely the case that used to make depreciation impossible to run.
@@ -520,7 +520,7 @@ final class AssetService
     /**
      * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
      * range without saying over how long is incomplete, and picking a number here would put a statute
-     * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+     * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
      * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
      */
     private function poolYears(CalendarDate $acquiredOn): int
@@ -596,7 +596,7 @@ final class AssetService
     }
 
     /**
-     * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+     * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
      *
      * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
      * asset's last months of depreciation never happened at all: runDepreciation skips disposed
@@ -666,7 +666,7 @@ final class AssetService
      * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
      * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
      * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-     * statute back into the core — which is exactly what NF-019 accidentally did before this.
+     * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
      */
     private function poolReducedOnDisposal(CalendarDate $acquiredOn): bool
     {
@@ -759,7 +759,7 @@ final class AssetService
     }
 
     /**
-     * v0.5/F-004: asset accounts come from the rule-module block
+     * v0.5/SPEC-004: asset accounts come from the rule-module block
      * `assetAccounts` — no more name heuristic.
      */
     private function assetAccount(string $key): string

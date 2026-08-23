@@ -23,7 +23,7 @@ import { loadFixtures } from '../src/fixture-loader.js';
  * journalExport is config-/placeholder-free. The **full** canonical journalExport
  * is compared byte-exact — incl. the sha256 contentHashes and the
  * exportedAt (same fixed clock on both sides). Since the timestamp canonicalization
- * (F-CROSS-001 solved: UTC-Z/ms in both languages) no exceptions are needed anymore.
+ * (SPEC-C01 solved: UTC-Z/ms in both languages) no exceptions are needed anymore.
  */
 
 const dirArg = process.argv.slice(2).find((a) => a.startsWith('--dir='));

@@ -13,7 +13,7 @@
   },
   "steps": [
     {
-      "name": "NF-011: an invented taxTag on `post` must not reach the journal — `postVoucher` always went through the tax registry, the direct `post` path did not",
+      "name": "IMPL-011: an invented taxTag on `post` must not reach the journal — `postVoucher` always went through the tax registry, the direct `post` path did not",
       "op": "createVoucher",
       "input": {
         "voucher": {
@@ -29,7 +29,7 @@
       }
     },
     {
-      "name": "NF-011: fabricated tax code MADEUP with reporting key 4711 — used to be booked and then appeared as a line of the VAT return",
+      "name": "IMPL-011: fabricated tax code MADEUP with reporting key 4711 — used to be booked and then appeared as a line of the VAT return",
       "op": "post",
       "input": {
         "voucherId": "$probeVoucher",
@@ -175,7 +175,7 @@
       }
     },
     {
-      "name": "NF-012: balanceSheet must SEE fiscalYear — it used to ignore the parameter and return the whole journal, so 2026 and 2027 came out byte-identical",
+      "name": "IMPL-012: balanceSheet must SEE fiscalYear — it used to ignore the parameter and return the whole journal, so 2026 and 2027 came out byte-identical",
       "report": "balanceSheet",
       "params": {
         "fiscalYear": 2026,
@@ -187,7 +187,7 @@
       }
     },
     {
-      "name": "NF-012: the second year differs, and the sheet still balances (cumulative — summae writes no closing entries, so a prior year's result stays in the result position)",
+      "name": "IMPL-012: the second year differs, and the sheet still balances (cumulative — summae writes no closing entries, so a prior year's result stays in the result position)",
       "report": "balanceSheet",
       "params": {
         "fiscalYear": 2027,
@@ -210,7 +210,7 @@
       }
     },
     {
-      "name": "NF-010: an amount in exponent notation is not in the data format — it used to book 1.5 sextillion without complaint",
+      "name": "IMPL-010: an amount in exponent notation is not in the data format — it used to book 1.5 sextillion without complaint",
       "op": "post",
       "input": {
         "voucherId": "$probeVoucher",
@@ -238,7 +238,7 @@
       "expectExitCode": 14
     },
     {
-      "name": "NF-010: a leading plus is not in the data format either — PHP used to accept it, Node did not",
+      "name": "IMPL-010: a leading plus is not in the data format either — PHP used to accept it, Node did not",
       "op": "post",
       "input": {
         "voucherId": "$probeVoucher",
@@ -266,7 +266,7 @@
       "expectExitCode": 14
     },
     {
-      "name": "NF-009: a year below 0100 is a valid calendar date in both languages now — it fails on the fiscal year, not on the date format",
+      "name": "IMPL-009: a year below 0100 is a valid calendar date in both languages now — it fails on the fiscal year, not on the date format",
       "op": "createVoucher",
       "input": {
         "voucher": {
@@ -279,7 +279,7 @@
       }
     },
     {
-      "name": "NF-013: a wrong `direction` used to fall through to \"output\" — an incoming invoice with \"Input\" (capital I) booked FULLY INVERTED: expense credited, payable debited",
+      "name": "IMPL-013: a wrong `direction` used to fall through to \"output\" — an incoming invoice with \"Input\" (capital I) booked FULLY INVERTED: expense credited, payable debited",
       "op": "postVoucher",
       "input": {
         "voucher": {
@@ -361,7 +361,7 @@
       }
     },
     {
-      "name": "NF-006: cashBasisReport without `year` used to crash in Node and return an empty report in PHP — now both name the missing parameter",
+      "name": "IMPL-006: cashBasisReport without `year` used to crash in Node and return an empty report in PHP — now both name the missing parameter",
       "report": "cashBasisReport",
       "params": {
         "fiscalYear": 2026
@@ -370,7 +370,7 @@
       "expectExitCode": 45
     },
     {
-      "name": "NF-007: a mapping that is not loaded is a caller mistake, not an overlap",
+      "name": "IMPL-007: a mapping that is not loaded is a caller mistake, not an overlap",
       "report": "incomeStatement",
       "params": {
         "fiscalYear": 2026,

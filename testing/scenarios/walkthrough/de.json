@@ -184,7 +184,7 @@
       "expect": { "assetsTotal": "1690.00", "liabilitiesAndEquityTotal": "1690.00" }
     },
     {
-      "name": "VAT return takes year+quarter; cash-basis, so the paid invoice counts in the payment quarter — and the reversed, never-paid incoming invoice contributes NOTHING (key 66 absent, NF-005)",
+      "name": "VAT return takes year+quarter; cash-basis, so the paid invoice counts in the payment quarter — and the reversed, never-paid incoming invoice contributes NOTHING (key 66 absent, IMPL-005)",
       "report": "vatReturn",
       "params": { "year": 2026, "quarter": 1 },
       "expect": {

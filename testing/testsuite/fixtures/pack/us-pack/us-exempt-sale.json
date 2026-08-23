@@ -1,6 +1,6 @@
 {
   "fixture": "us-exempt-sale",
-  "description": "US-Pack: exempt sale (resale / interstate / nontaxable). EXEMPT now uses the `exempt` mechanism at rate 0 — tax-free: NO tax line is emitted, the revenue books to 4100 Exempt Sales and the base tag (EXEMPT_SALES) holds the basis for the sales-tax return. Because no 0.00 tax line is produced, the exempt sale posts cleanly (resolves the former NF-004/F-010 rejection of a 0.00 line).",
+  "description": "US-Pack: exempt sale (resale / interstate / nontaxable). EXEMPT now uses the `exempt` mechanism at rate 0 — tax-free: NO tax line is emitted, the revenue books to 4100 Exempt Sales and the base tag (EXEMPT_SALES) holds the basis for the sales-tax return. Because no 0.00 tax line is produced, the exempt sale posts cleanly (resolves the former IMPL-004/SPEC-010 rejection of a 0.00 line).",
   "covers": ["F-TAX-004"],
   "setup": {},
   "steps": [

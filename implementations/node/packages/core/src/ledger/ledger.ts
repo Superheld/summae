@@ -289,7 +289,7 @@ export class Ledger {
       });
     }
 
-    // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+    // IMPL-008: a reversal clears the open items the reversed entry produced — but only while they
     // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
     // item would drop that movement out of the open-item history while the ledger keeps it. The
     // line SAP draws with F5308: undo the settlement first, or post a credit note.
