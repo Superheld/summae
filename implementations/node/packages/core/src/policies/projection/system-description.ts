@@ -30,20 +30,28 @@ import type { Uuid } from '../../substrate/uuid.js';
  * publishes; `tenant-operations-contract.test.ts` holds its own literal copy and asserts
  * both agree, so a case dropped from the dispatcher and a name dropped from here cannot
  * cancel each other out.
+ *
+ * The test asks **both** directions, and the second one was missing for a long time: every
+ * published name resolves to a handler, *and* every routed name is published. Seven finished,
+ * documented, fixture-covered capabilities were routed and unpublished — an embedding app
+ * validating its calls against this list could not call them at all, which is how it was
+ * found. A surface larger than its declaration is the same defect as one smaller than it.
  */
 export const API_OPERATIONS = [
-  'acquireAsset', 'allocate', 'closeFiscalYear', 'closePeriod', 'correct', 'createAccount',
-  'createFiscalYear', 'createPartner', 'createVoucher', 'disposeAsset', 'expandTax',
-  'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post', 'postVoucher',
-  'releaseCosting', 'reopenPeriod', 'reverse', 'runCosting', 'runDepreciation',
-  'setAllocationScheme', 'setTaxProfile', 'settle', 'updatePartner',
+  'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
+  'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
+  'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'expandTax', 'finalize',
+  'importChartOfAccounts', 'importMapping', 'lockAccount', 'post', 'postVoucher',
+  'releaseCosting', 'reopenPeriod', 'reportAssetUsage', 'reverse', 'runCosting',
+  'runDepreciation', 'setAllocationScheme', 'setTaxProfile', 'settle', 'updatePartner',
+  'writeDownAsset',
 ] as const;
 
 export const API_PROJECTIONS = [
   'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList', 'incomeStatement',
-  'journalExport', 'openItems', 'systemDescription', 'trialBalance', 'unfinalizedEntries',
-  'vatReturn',
+  'journalExport', 'openItems', 'overheadRates', 'productionCost', 'systemDescription',
+  'trialBalance', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   API_OPERATIONS,
@@ -25,6 +28,8 @@ const OPERATIONS = [
   'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
   'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
   'releaseCosting', 'lockAccount', 'importChartOfAccounts', 'importMapping',
+  'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
+  'defineDimensionType', 'defineDimensionValue',
 ] as const;
 
 const PROJECTIONS = [
@@ -32,7 +37,40 @@ const PROJECTIONS = [
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
+  'overheadRates', 'productionCost',
 ] as const;
+
+/**
+ * The dispatcher's own routing table, read off its source.
+ *
+ * The lists above are an oracle for "everything published resolves". They cannot answer the
+ * other direction — that nothing resolves which is *not* published — because a `switch` has no
+ * runtime shape to enumerate. So the test reads the file: `execute` routes everything up to
+ * `project`, `project` everything after it, and each `case '<name>':` is one routed name.
+ *
+ * The direction matters. summae had seven routed names in neither published list
+ * (`writeDownAsset`, `bookSpecialDepreciation`, `reportAssetUsage`, `defineDimensionType`,
+ * `defineDimensionValue`, `overheadRates`, `productionCost`) — finished, documented, fixture-covered
+ * capabilities that `systemDescription` did not admit to. An embedding app whose contract test holds
+ * every call against the published list cannot call them at all, which is what an app reported. A
+ * surface larger than its declaration passes a green suite in both languages as long as only one
+ * direction is asked.
+ */
+function routedNames(): { operations: string[]; projections: string[] } {
+  const source = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'composition', 'tenant-operations.ts'),
+    'utf8',
+  );
+  // Bounded to the switch block itself, not to the rest of the file: a nested switch in a
+  // helper below would otherwise read as a routed name.
+  const cases = (head: string): string[] => {
+    const start = source.indexOf(head);
+    const end = source.indexOf('\n    }\n', start);
+    return [...source.slice(start, end).matchAll(/case '([A-Za-z]+)':/g)].map((match) => match[1]!);
+  };
+
+  return { operations: cases('switch (op) {'), projections: cases('switch (name) {') };
+}
 
 function freshOps(): TenantOperations {
   const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
@@ -96,6 +134,24 @@ describe('the published API surface equals the dispatcher surface', () => {
 
   it('publishes exactly the projections this contract pins', () => {
     expect([...API_PROJECTIONS].sort()).toEqual([...PROJECTIONS].sort());
+  });
+
+  it('publishes every operation the dispatcher routes', () => {
+    const undeclared = routedNames().operations.filter((name) => !(API_OPERATIONS as readonly string[]).includes(name));
+    expect(undeclared, 'a routed operation that systemDescription does not publish cannot be called by a caller that trusts the published list').toEqual([]);
+  });
+
+  it('publishes every projection the dispatcher routes', () => {
+    const undeclared = routedNames().projections.filter((name) => !(API_PROJECTIONS as readonly string[]).includes(name));
+    expect(undeclared, 'a routed projection that systemDescription does not publish is a surface larger than its declaration').toEqual([]);
+  });
+
+  it('reads the dispatcher source it claims to read', () => {
+    // Without this, a renamed file or a switch turned into a lookup table would make both tests
+    // above pass on an empty list — the guard would be gone and nothing would say so.
+    const routed = routedNames();
+    expect(routed.operations.length).toBe(API_OPERATIONS.length);
+    expect(routed.projections.length).toBe(API_PROJECTIONS.length);
   });
 
   it('describes itself without parameters and names its own limits', () => {
