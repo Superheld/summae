@@ -68,8 +68,11 @@ final class CoreSubject implements Subject
     /** @var list<array<mixed>> module stock for the pack resolver */
     private array $packModules = [];
 
-    /** @var list<array<mixed>> manifests for the pack resolver */
+    /** @var list<array<mixed>> manifests for the pack resolver (inline + library) */
     private array $packManifests = [];
+
+    /** @var list<array<mixed>> manifests the fixture brought itself, without the library */
+    private array $inlineManifests = [];
 
     public function setup(array $setup): void
     {
@@ -115,8 +118,9 @@ final class CoreSubject implements Subject
         if ($pack !== null && is_array($pack['manifest'] ?? null)) {
             $manifests[] = $pack['manifest'];
         }
+        $this->inlineManifests = array_values(array_filter($manifests, is_array(...)));
         $this->packManifests = [
-            ...array_values(array_filter($manifests, is_array(...))),
+            ...$this->inlineManifests,
             ...$this->library['manifests'],
         ];
 
@@ -286,7 +290,11 @@ final class CoreSubject implements Subject
             $this->tenants[$created['tenant']->id->value] = $created['tenant'];
             $result = $created['result'];
             unset($result['profile']);
-            $result['pack'] = ['id' => $resolved['id'], 'version' => $resolved['version']];
+            $result['pack'] = [
+                'id' => $resolved['id'],
+                'version' => $resolved['version'],
+                'contentDigest' => $resolved['contentDigest'],
+            ];
 
             return $result;
         }
@@ -315,6 +323,7 @@ final class CoreSubject implements Subject
         $result = [
             'id' => $resolved['id'],
             'version' => $resolved['version'],
+            'contentDigest' => $resolved['contentDigest'],
             'accountCount' => count($accounts),
             'chartOfAccounts' => $resolved['chartOfAccounts'],
             'taxCodes' => $resolved['taxCodes'],
@@ -349,13 +358,16 @@ final class CoreSubject implements Subject
             $version = is_string($ref['version'] ?? null) ? $ref['version'] : null;
         }
 
-        foreach ($this->packManifests as $manifest) {
-            if (($manifest['id'] ?? null) === $id && ($version === null || ($manifest['version'] ?? null) === $version)) {
-                return $manifest;
-            }
-        }
+        // Inline before library, and the whole id at once: a fixture that brings its own manifest
+        // must stay unreachable for the shipped library, or a pack release could decide what a
+        // fixture resolves. Which of several versions wins is the core's rule, not a second copy
+        // of it here — the CLI asks the same question and must get the same answer.
+        $inline = array_values(array_filter(
+            $this->inlineManifests,
+            static fn (array $manifest): bool => ($manifest['id'] ?? null) === $id,
+        ));
 
-        throw new DomainError('E_PACK_UNRESOLVED_REF', 'Manifest not found: ' . ($id ?? ''));
+        return PackResolver::findManifest($inline !== [] ? $inline : $this->packManifests, $id, $version);
     }
 
     /**

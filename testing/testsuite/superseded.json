@@ -1,0 +1,23 @@
+{
+  "comment": "Fixtures that a later fixture replaced. Append-only means a fixture file is never edited and never deleted — but it does not mean a fixture can never be wrong about what it pins. A fixture that pinned product data (the version of a shipped pack, the size of its chart of accounts) welded the product to the contract: the pack could not be corrected without the suite going red, which is the opposite of what the contract is for. Such a fixture is retired here instead of edited: the file stays byte-identical and readable, the successor pins the behaviour that was actually meant, and this list says which is which. The runner skips what is listed here. A fixture that is merely inconvenient does not belong on this list — only one whose expectation was never a contract in the first place.",
+  "superseded": [
+    {
+      "fixture": "de-pack-resolves",
+      "supersededBy": "de-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Pinned `de` at version 2026.2 and its chart at 41 accounts, once via a versioned resolvePack and once via a createTenant that asks for no version at all — so the fixture asserted `the current de pack is 2026.2 and has 41 accounts`. That froze the shipped pack: no account could be added and no version could be published. The successor pins what was meant — the pack resolves, a tenant is built from it, a standard VAT sale posts to the DE numbers — and leaves the product data to the product."
+    },
+    {
+      "fixture": "us-pack-resolves",
+      "supersededBy": "us-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Same weld as de-pack-resolves: `us` frozen at 2026.2 with 35 accounts."
+    },
+    {
+      "fixture": "default-pack-resolves",
+      "supersededBy": "default-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Same weld as de-pack-resolves: `default` frozen at 2026.1 with its account count. Untouched so far only because nothing has needed to change in the neutral pack yet."
+    }
+  ]
+}

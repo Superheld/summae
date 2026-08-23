@@ -351,7 +351,7 @@ Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
 `packPolicy` + `defaults`:
 ```json
-{ "formatVersion": "0.6", "id": "de", "version": "2026.2",
+{ "formatVersion": "0.6", "id": "de", "version": "2026.3",
   "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.2" },
                { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
   "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
@@ -365,6 +365,24 @@ modules changes — the two lines above show it: the chart of accounts moved to
 version it was created from, so the books always say which rule set produced
 them. `YYYY.N` is the shipped convention, not a requirement: the resolver only
 compares strings.
+
+**A published `(id, version)` is frozen.** Once a version has shipped, that pair
+names one bundle for good: a changed module gets a new module version, and a
+manifest whose references move gets a new manifest version. Old versions may stay
+in the library beside the new ones, so a pin like `{ "id": "de", "version":
+"2026.3" }` keeps resolving what it always resolved. Asking **without** a version
+means *current*, and current is the highest version by code point — never
+whichever file the directory walk reached first, which would differ between two
+machines.
+
+**`contentDigest` is the part nobody can forget.** `resolvePack` returns it
+alongside `id` and `version`, and a tenant carries it in `pack.contentDigest`: a
+SHA-256 over the canonical JSON of the whole resolution, identical in every
+implementation. Two tenants with the same digest run on the same rules, whatever
+their labels say; the same version showing two digests means a published version
+changed underneath somebody, which is exactly the thing a hand-written number
+cannot report about itself. Compare digests when you need certainty; read the
+version when you need a name.
 
 Choose it with `summae init --pack de`. The **resolver checks coherence** (does
 a tax account point at an account the chart of accounts doesn't have? does a

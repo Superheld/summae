@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -8,6 +8,28 @@ const here = dirname(fileURLToPath(import.meta.url));
 // PHP runner (no per-impl drift); maintained one-way via bin/sync-testsuite.sh.
 export const repoRoot = resolve(here, '../../../..');
 export const fixturesDir = join(repoRoot, 'testing', 'testsuite', 'fixtures');
+export const supersededFile = join(repoRoot, 'testing', 'testsuite', 'superseded.json');
+
+/**
+ * Fixtures a later fixture replaced (`testing/testsuite/superseded.json`).
+ *
+ * The suite is append-only, so a fixture whose expectation turned out never to have been a
+ * contract is retired rather than edited: the file stays byte-identical, the registry names the
+ * successor, and the runner skips it. Kept out of the fixture files themselves so append-only
+ * means what it says — the file is not touched at all.
+ */
+export function supersededFixtures(file: string = supersededFile): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!existsSync(file)) return out;
+  const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  for (const entry of Array.isArray(data.superseded) ? data.superseded : []) {
+    const record = asRecord(entry);
+    if (typeof record.fixture === 'string' && typeof record.supersededBy === 'string') {
+      out.set(record.fixture, record.supersededBy);
+    }
+  }
+  return out;
+}
 
 export interface Fixture {
   /** Name from the `fixture` field; fallback file name. */
@@ -53,6 +75,7 @@ function fixtureFromFile(file: string): Fixture | null {
  * codepoint order (deterministic, leading zeros significant).
  */
 export function loadFixtures(dir: string = fixturesDir): Fixture[] {
+  const superseded = supersededFixtures(join(dirname(dir), 'superseded.json'));
   const fixtures: Fixture[] = [];
 
   const walk = (current: string): void => {
@@ -62,7 +85,7 @@ export function loadFixtures(dir: string = fixturesDir): Fixture[] {
         walk(path);
       } else if (entry.isFile() && entry.name.endsWith('.json')) {
         const fixture = fixtureFromFile(path);
-        if (fixture !== null) fixtures.push(fixture);
+        if (fixture !== null && !superseded.has(fixture.name)) fixtures.push(fixture);
       }
     }
   };

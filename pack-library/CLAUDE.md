@@ -36,6 +36,23 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
   that drives it through the API and pins the expected result. A shipped-but-untested capability is a
   **gate-gap finding, not "done"** (root `CLAUDE.md`, quality gate). When auditing an existing pack, the
   question is: *is every legally-expected effect proven by a fixture?* — if not, that gap is the work.
+- **A published `(id, version)` is frozen — change the content, change the version.** This is the
+  rule the library ran without until 2026-08-23, and the cost was concrete: `de` kept the version
+  `2026.2` while `de-ust` went 2026.2→2026.4, `de-afa` 2026.5→2026.7 and a whole module joined, and
+  the old module files were overwritten — so `de@2026.2` named three different bundles and whoever
+  pinned it got different books depending on the day they installed. Every edit to a module or a
+  manifest raises **that file's** version; a manifest whose module references move raises its own
+  version too, because a bundle is what it references. Keeping the old version resolvable is then a
+  matter of leaving the old file in place next to the new one (the loader is content-based and
+  recursive, so a `versions/` subfolder needs no code) — a request without a version means *current*,
+  which is the **highest** version by code point. `PackVersionIdentityTest` / `pack-version-identity`
+  refuse two files claiming the same published identity, and `resolvePack` returns a derived
+  `contentDigest` that nobody can forget to change.
+- **A pack's numbers are not the conformance suite's to pin.** A fixture that pins a shipped pack's
+  version or account count welds the product to the contract and the pack stops being able to move —
+  which is what happened to `de` and `us`. Prove *mechanism* on a fixture that brings its own pack
+  (`xx-6-pack-version-pinning`), and prove a shipped pack by its **behaviour** (it resolves, a tenant
+  is built, the posting comes out right), the way `de-pack-resolves-current` does.
 - **Shipping a pack also means shipping its walkthrough scenario.** Fixtures prove the *engine*; a
   scenario (`testing/scenarios/walkthrough/<pack>.json`) proves the **CLI** a user actually types — one
   full lifecycle with its numbers pinned. A guard test compares the set of shipped packs against the

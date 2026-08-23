@@ -735,6 +735,29 @@ has to stop pinning an exact one — `resolvePack` would take the manifest name 
 fixture would establish that). Left open: guessing would either freeze the version forever or break a
 published contract.
 
+**Resolved 2026-08-23** (`fix/pack-version-immutability`). The second reading was the right one: the
+manifest version *is* the content version, so the fixture had to stop pinning it. Investigating it
+also made the finding worse than written above — a published `(id, version)` was not merely lagging,
+it was **not immutable**. `de@2026.2` named at least three different bundles, because the module
+files it referenced were overwritten rather than versioned alongside. The fix is in four parts:
+
+1. `de-pack-resolves` is **superseded**, not edited (`testing/testsuite/superseded.json`), by
+   `de-pack-resolves-current`, which pins the behaviour and leaves the product's numbers alone. Same
+   for `us` and `default`. What the retired fixtures pinned about the mechanism moved to
+   `xx-6-pack-version-pinning`, which brings its own pack and is therefore frozen for good.
+2. `PackResolver::findManifest` is now the single place that selects a manifest — runner and CLI both
+   call it — and a request without a version resolves to the **highest** version, not the first
+   match, so several versions of one pack can live in the library side by side.
+3. `resolvePack` returns a derived `contentDigest` (SHA-256 over the canonical JSON of the whole
+   resolution, byte-identical in both languages), and a tenant carries it. It is what a hand-written
+   version cannot be: impossible to forget.
+4. `de` and `us` moved to `2026.3`, and `PackVersionIdentityTest` / `pack-version-identity` refuse two
+   files claiming the same published identity.
+
+Deliberately **not** done: no fabricated history. `de@2026.2` is gone rather than reconstructed from
+today's modules, because a frozen file claiming to be the old bundle would be a second lie on top of
+the first. Immutability starts here.
+
 ## SPEC-013: a shipped pack's chart of accounts cannot grow — a fixture pins its size
 
 **Found 2026-08-23, while adding the exempt-export tax code to the `de` pack.**
@@ -754,6 +777,12 @@ probably the same answer: what a fixture may pin about a *shipped* pack. Pinning
 behaviour is the point of `de-pack-resolves`; pinning the size of a product catalogue that is
 expected to grow is a different thing that came along for the ride. Left open — a new fixture could
 establish the resolver contract without the count, but deciding that is not a mechanical change.
+
+**Resolved 2026-08-23** together with [SPEC-012] — it was the same defect, and the guess in the last
+paragraph was right: the two needed one decision, not two. `de-pack-resolves-current` pins that the
+pack resolves, that a tenant is built from it and that a standard VAT sale comes out right; it pins
+neither the version nor the account count. The chart can grow again, which unblocks the missing
+exempt-export account and the operating-expense accounts the embedding app asked for.
 
 ## SPEC-014: summae has no way to evolve a shipped database schema
 

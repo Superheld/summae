@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { DomainError } from '../domain-error.js';
 import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
+import { canonicalJson } from '../substrate/canonical-json.js';
 
 /**
  * Pack resolver (`resolvePack`) — pure, side-effect-free resolution of a
@@ -70,6 +72,7 @@ export interface ResolvedPack {
   dimensionRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
+  contentDigest: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,6 +90,37 @@ function refKey(kind: string, id: string): string {
 /** Stable comparison by Unicode codepoints (determinism sort rule). */
 function byCodepoint(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Pick a manifest out of a store by id, optionally pinned to a version.
+ *
+ * A published `(id, version)` names one bundle for good, so a library may hold several versions
+ * of the same pack side by side and an old pin keeps resolving what it always resolved. A request
+ * without a version means "current", and current is the **highest** version by code point — the
+ * same rule module references already follow. Picking the first match instead would make the
+ * answer depend on directory iteration order, which is not the same on two machines.
+ */
+export function findManifest(manifests: PackManifest[], id: string | null, version?: string | null): PackManifest {
+  const candidates = manifests.filter((m) => m.id === id && (version === null || version === undefined || m.version === version));
+  if (candidates.length === 0) {
+    throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest not found: ${id ?? ''}${version === null || version === undefined ? '' : `@${version}`}`);
+  }
+  const sorted = [...candidates].sort((a, b) => byCodepoint(a.version, b.version));
+  return sorted[sorted.length - 1]!;
+}
+
+/**
+ * Fingerprint of everything a resolution produced.
+ *
+ * `version` is written by hand and can therefore lag behind, or stay put while the modules
+ * underneath it move — which is exactly how one version number came to name several different
+ * bundles. This one is derived, so nobody can forget to change it: two resolutions carrying the
+ * same digest are the same pack, and the same version with two digests is a broken promise
+ * somebody can now see. The version is part of the input, so a pure relabel changes it too.
+ */
+function contentDigest(resolvedPack: Omit<ResolvedPack, 'contentDigest'>): string {
+  return createHash('sha256').update(canonicalJson(resolvedPack)).digest('hex');
 }
 
 /**
@@ -283,7 +317,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     defaults: manifest.defaults ?? {},
   };
 
-  return {
+  const resolvedPack = {
     id: manifest.id,
     version: manifest.version,
     chartOfAccounts: { accounts },
@@ -296,6 +330,8 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     packPolicy: effectivePolicy,
     profile,
   };
+
+  return { ...resolvedPack, contentDigest: contentDigest(resolvedPack) };
 }
 
 /** Converts a ResolvedPack into the `ruleModules` bundle that `TenantFactory` consumes. */
@@ -309,7 +345,7 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
   return {
     // The identity travels with the bundle so a tenant can say which pack it runs on
     // (systemDescription / F-IO-007). Everything else here is rules; this is provenance.
-    pack: { id: pack.id, version: pack.version },
+    pack: { id: pack.id, version: pack.version, contentDigest: pack.contentDigest },
     profiles: [pack.profile],
     chartsOfAccounts: [{ id: asString(pack.profile.chartOfAccounts) ?? '', accounts: pack.chartOfAccounts.accounts }],
     taxCodes: pack.taxCodes,

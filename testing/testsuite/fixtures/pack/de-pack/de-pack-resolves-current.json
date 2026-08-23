@@ -1,0 +1,111 @@
+{
+  "fixture": "de-pack-resolves-current",
+  "description": "Successor to `de-pack-resolves`: the same behaviour without nailing down the product's numbers. The shipped `de` pack is loaded from the pack library without asking for a version — that is, whichever version is current — a tenant is built from it and a standard VAT sale (SF-02) is posted on the pack's own neutral DE numbers (4000 revenue, 3100 VAT — NOT SKR). Pinned is what is contract: pack identity, asset accounts, pack policy, taxation method and the figures of the posting. Not pinned is what is product data: the pack's version, its contentDigest and the size of its chart of accounts — the predecessor pinned those and froze both.",
+  "covers": [
+    "F-PACK-011",
+    "SF-02"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": "de"
+      },
+      "expect": {
+        "result": {
+          "id": "de",
+          "assetAccounts": {
+            "default": {
+              "acquisitionCounterAccount": "1200",
+              "depreciationExpenseAccount": "6500",
+              "gwgExpenseAccount": "6510",
+              "disposalProceedsAccount": "4900",
+              "disposalLossAccount": "6900"
+            }
+          },
+          "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero",
+            "taxRoundingGranularity": "perVoucher",
+            "currencyScale": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Mustermann GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          },
+          "taxationMethod": "cash"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AR-001",
+          "voucherDate": "2026-02-10"
+        },
+        "entryDate": "2026-02-10",
+        "text": "Beratung Februar",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "4000",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "1200"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": {
+            "amount": "1190.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "1190.00"
+          },
+          {
+            "account": "3100",
+            "balance": "-190.00"
+          },
+          {
+            "account": "4000",
+            "balance": "-1000.00"
+          }
+        ]
+      }
+    }
+  ]
+}

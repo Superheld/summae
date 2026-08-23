@@ -88,6 +88,21 @@ never a quiet edit to an existing one — that discipline was never about the mi
 guess and do not bend the fixture; record it in the implementation's `SPEC-FINDINGS.md` and
 build on with the next most plausible behaviour.
 
+**And the one exception, added 2026-08-23: a fixture can be superseded, never edited.** Append-only
+protects a fixture from being rewritten; it does not claim a fixture can never have pinned the wrong
+thing. `de-pack-resolves` pinned the shipped `de` pack's version *and* its account count — so the
+product could neither gain an account nor publish a version without the suite going red. That is not
+a contract, that is a weld. A fixture in that position is retired in
+`testing/testsuite/superseded.json`: the file stays byte-identical on disk, the register names a
+successor and the reason, and both runners skip it. The register is itself gated
+(`SupersededFixturesTest` / `superseded-fixtures.test.ts`) — an entry must name a real fixture and a
+real successor that is itself expected green, so nothing can quietly disappear.
+
+**The test is whether the expectation was ever a contract**, not whether it is in the way. A fixture
+that pins *behaviour* is argued with, never retired. Product data (a pack's version, the size of its
+chart) belongs to the product; the mechanism around it belongs in a fixture that brings its own data
+and is therefore frozen for good — `xx-6-pack-version-pinning` is the pattern.
+
 `runner/expected-green.txt` (per implementation) lists the fixtures that must stay green —
 a regression guard for CI independent of `--strict`. A new fixture goes into **both** lists
 (PHP *and* Node), otherwise `ConformanceTest` fails on the language you did not touch.

@@ -167,7 +167,37 @@ versioning per SemVer (0.x: minor may break).
   on `de`, `us` and `default` alike, and nothing in the packs said so. Cost centres are the tenant's
   master data, not a jurisdiction's, so they are declared like accounts rather than shipped in a pack.
 
+- **`contentDigest` on `resolvePack` and on a tenant's `pack`.** A SHA-256 over the canonical JSON of
+  the whole resolution, byte-identical in both implementations. Two tenants carrying the same digest
+  run on the same rules whatever their labels claim; the same version showing two digests means a
+  published version changed underneath somebody. It is derived, so unlike a hand-written version
+  number it cannot be forgotten — which is the whole reason it exists (see *Fixed* below).
+
 ### Fixed
+
+- **A published pack version was not immutable.** `de@2026.2` named at least three different bundles:
+  the manifest kept its version while `de-ust` moved 2026.2 → 2026.4, `de-afa` 2026.5 → 2026.7 and a
+  whole module joined, and the old module files were overwritten rather than kept alongside. Whoever
+  pinned that version got different books depending on the day they installed. `us@2026.2` had the
+  same defect.
+
+  The version could not move because three conformance fixtures pinned it — and pinned the account
+  count with it, so the shipped charts could not grow either (SPEC-012 and SPEC-013, which turned out
+  to be one defect). Those fixtures are **superseded**, not edited: the files stay byte-identical,
+  `testing/testsuite/superseded.json` names the successor and the reason, and both runners skip them.
+  Their successors pin the behaviour — the pack resolves, a tenant is built, the posting comes out
+  right — and leave the product's numbers to the product. What they pinned about the *mechanism* moved
+  to `xx-6-pack-version-pinning`, which brings its own pack and is frozen for good.
+
+  Selecting a manifest is now one function in the core (`PackResolver::findManifest`), called by the
+  runner and by `summae init` alike, and a request without a version resolves to the **highest**
+  version rather than the first match — so old versions can live in the library beside new ones, and
+  the answer does not depend on directory order. `de` and `us` are now `2026.3`.
+
+  **Breaking for anyone pinning a version:** `resolvePack({ manifest: "de", version: "2026.2" })` now
+  fails with `E_PACK_UNRESOLVED_REF`. That version was never reconstructed from today's modules — a
+  frozen file claiming to be the old bundle would be a second lie on top of the first. Immutability
+  starts here.
 
 - **A database-backed asset never saw a change to its own master data.** `save()` wrote the state
   and never the payload, which was safe exactly as long as nothing in the payload could change. The

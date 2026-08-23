@@ -1,0 +1,111 @@
+{
+  "fixture": "us-pack-resolves-current",
+  "description": "Successor to `us-pack-resolves`: the same behaviour without nailing down the product's numbers. The shipped `us` pack is loaded from the pack library without asking for a version — that is, whichever version is current — a tenant is built from it and a standard sales-tax sale is posted. Pinned is what is contract: pack identity, asset accounts, pack policy, taxation method and the figures of the posting. Not pinned is what is product data: the pack's version, its contentDigest and the size of its chart of accounts — the predecessor pinned those and froze both.",
+  "covers": [
+    "F-PACK-011",
+    "SF-02"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": "us"
+      },
+      "expect": {
+        "result": {
+          "id": "us",
+          "assetAccounts": {
+            "default": {
+              "acquisitionCounterAccount": "1010",
+              "depreciationExpenseAccount": "6300",
+              "gwgExpenseAccount": "6310",
+              "disposalProceedsAccount": "4900",
+              "disposalLossAccount": "6900"
+            }
+          },
+          "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero",
+            "taxRoundingGranularity": "perVoucher",
+            "currencyScale": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Example Corp",
+        "baseCurrency": "USD",
+        "pack": "us",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "us"
+          },
+          "taxationMethod": "accrual"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "INV-001",
+          "voucherDate": "2026-02-10"
+        },
+        "entryDate": "2026-02-10",
+        "text": "Consulting February",
+        "taxCode": "SALETAX",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "4000",
+            "money": {
+              "amount": "1000.00",
+              "currency": "USD"
+            }
+          }
+        ],
+        "counterAccount": "1010"
+      },
+      "expect": {
+        "result": {
+          "grossTotal": {
+            "amount": "1070.00",
+            "currency": "USD"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "1010",
+            "balance": "1070.00"
+          },
+          {
+            "account": "2100",
+            "balance": "-70.00"
+          },
+          {
+            "account": "4000",
+            "balance": "-1000.00"
+          }
+        ]
+      }
+    }
+  ]
+}
