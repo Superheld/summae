@@ -924,13 +924,34 @@ Records an acquisition and decides the low-value-asset (GWG) routing.
 | `acquiredOn` | string (date) | yes | determines the GWG threshold |
 | `voucherId` | string (UUID) | yes | voucher (missing → `InvalidValue` ⚠) |
 | `gwgChoice` | string | no (`"auto"`) | otherwise `capitalize`/`immediate_expense`/`pool` |
+| `usefulLifeMonths` | integer | no | overrides the `usefulLife` lookup for THIS asset; capitalized route only |
+| `depreciationMethod` | string | no (`"straight_line"`) | otherwise `declining_balance`; capitalized route only |
 | `dimensions` | array of `{type, code}` | no | cost centre etc.; **every** machine entry about this asset inherits them |
 
 GWG routing with `auto`: cost ≤ `immediateMax` → `immediate_expense`;
-`poolMin` ≤ cost ≤ `poolMax` → `pool` (over `poolYears`, spread evenly); otherwise →
+`poolMin` ≤ cost ≤ `poolMax` → `pool` (over `poolYears`); otherwise →
 `capitalize` (useful life from `usefulLife`). Output: serialized asset (`route`,
-`usefulLifeMonths`, …; for `immediate_expense` additionally `expenseAccount`).
-Errors: `E_ASSET_UNKNOWN` (no useful life), `E_ACCOUNT_UNKNOWN`.
+`usefulLifeMonths`, `depreciationMethod`, …; for `immediate_expense` additionally `expenseAccount`).
+Errors: `E_ASSET_UNKNOWN` (no useful life), `E_ACCOUNT_UNKNOWN`, `E_PACK_INCOHERENT`
+(declining balance asked for, no rule in force on `acquiredOn`), `E_INPUT_INVALID`.
+
+**`usefulLifeMonths` — when the table is not enough.** The pack's `usefulLife` holds class
+averages. Where a jurisdiction lets you prove a different life for an individual asset, no table
+can express that, so you pass it here and it wins over the lookup. It also makes an asset class
+the pack does not know usable at all, instead of `E_ASSET_UNKNOWN`.
+
+**`depreciationMethod: "declining_balance"`.** A fixed percentage of the *remaining* carrying
+amount each year, switching to straight line over the remaining life at the point where that
+yields more, with the final year taking the remainder so the schedule sums to the acquisition
+cost exactly. The percentage is `min(factor × straight-line rate, cap)` and comes from the pack's
+`decliningBalance` entry in force on `acquiredOn` — including its validity window, which is often
+short. Ask for the method outside every declared window and you get `E_PACK_INCOHERENT`, never a
+rate the library made up.
+
+**Both parameters are refused, not ignored, on the other routes.** A pooled asset takes its term
+from `poolYears` and an immediately expensed one has no schedule, so passing either there is
+`E_INPUT_INVALID`. Neither parameter implies a route: if you want capitalization, say
+`gwgChoice: "capitalize"`.
 
 ```json
 { "name": "Laptop", "assetClass": "it-hardware", "assetAccount": "0420",
