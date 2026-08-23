@@ -22,6 +22,7 @@ costing-run-unknown
 create-tenant-profile
 customer-credit-note
 datev-export
+datev-general-reversal
 de-afa-lauf
 de-bewirtung
 de-bilanz-guv
