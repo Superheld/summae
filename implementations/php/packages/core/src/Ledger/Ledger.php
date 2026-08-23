@@ -370,6 +370,17 @@ final readonly class Ledger
 
         $text = is_string($input['text'] ?? null) ? $input['text'] : sprintf('Reversal %d', $original->sequenceNumber);
 
+        // A reversal may carry its own voucher. It used to inherit the reversed entry's one
+        // unconditionally and drop any `voucherId` in the input without a word — so a caller who
+        // supplied a cancellation document got no error, no hint, and a posting pointing at the
+        // wrong paper. Inheriting stays the default, because a reversal without its own document
+        // is a normal case and no posting may be voucher-less; supplying one is now honoured, and
+        // an unknown id fails like everywhere else (E_VOUCHER_UNKNOWN).
+        $voucherId = $input['voucherId'] ?? null;
+        $reversalVoucherId = $voucherId === null
+            ? $original->voucherId
+            : $this->requireVoucher($voucherId)->id;
+
         $reversal = new JournalEntry(
             $this->ids->next(),
             $this->journal->nextSequenceNumber($fiscalYear->year),
@@ -377,7 +388,7 @@ final readonly class Ledger
             $original->voucherDate,
             $this->auditWriter->now(),
             new PeriodRef($fiscalYear->year, $period->number),
-            $original->voucherId,
+            $reversalVoucherId,
             $text,
             array_map(static fn (EntryLine $line): EntryLine => $line->negated(), $original->lines()),
             reverses: $original->id,
