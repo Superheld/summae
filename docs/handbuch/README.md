@@ -1305,6 +1305,42 @@ as-of evaluations.
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 
+### journal — the journal, windowed and paged
+
+`fiscalYear` (**yes**), `fromDate` (no), `toDate` (no), `offset` (no, default
+`0`), `limit` (no — absent means everything from the offset on). Output:
+`fiscalYear`, `count`, `offset`, `limit` and `entries[]`, ordered by
+`sequenceNumber`.
+
+Each entry carries `sequenceNumber`, `entryId`, `status`
+(`entered`/`finalized`), `entryDate`, `voucherNumber`, `voucherDate`, `text`,
+`reverses`, `reversedBy` and its **complete** `lines[]` — `account`,
+`accountName`, `side`, `money`, `dimensions`, `taxTag`.
+
+**This is the projection to fill a journal view with**, not `journalExport` and
+not `datevExport`. The export is lossless but builds five streams with a
+SHA-256 each and has neither window nor paging — an archive format, paid for on
+every page load. `datevExport` has the window and the weight but is DATEV-shaped
+and therefore **lossy for split entries**: an expense with its input tax against
+one bank line collapses into a single row and the tax line is gone.
+
+**Paging counts entries, not lines.** A page boundary inside a split entry would
+reproduce exactly the defect this projection avoids. `count` is the number of
+entries in the window *before* paging, so a page header can say "51–100 of
+3,204" without a second call. An offset past the end is an empty page, not an
+error.
+
+```json
+// params { "fiscalYear": 2026, "fromDate": "2026-02-01", "toDate": "2026-02-28", "limit": 50 }
+{ "fiscalYear": 2026, "count": 1, "offset": 0, "limit": 50,
+  "entries": [ { "sequenceNumber": 2, "status": "entered", "entryDate": "2026-02-03",
+    "voucherNumber": "ER-BÜRO", "text": "Bürobedarf",
+    "lines": [ { "account": "6800", "accountName": "Bürobedarf", "side": "debit",
+                 "money": { "amount": "40.00", "currency": "EUR" } },
+               { "account": "1200", "accountName": "Bank", "side": "credit",
+                 "money": { "amount": "40.00", "currency": "EUR" } } ] } ] }
+```
+
 ### accounts — the chart of accounts
 
 No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`

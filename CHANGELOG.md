@@ -22,6 +22,17 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **`journal` — a journal read that is both cheap and lossless** (F-CORE-031). The plainest view a
+  bookkeeping application has had two bad ways to be filled: `journalExport` is lossless and builds
+  five streams with a SHA-256 each, with no date window and no paging — an archive format paid for
+  on every page load; `datevExport` has the window and the weight but is DATEV-shaped and therefore
+  **lossy for split entries**, so an expense with its input tax collapses into one row and the tax
+  line disappears. The new projection takes `fiscalYear` with an optional `fromDate`/`toDate` window
+  and `offset`/`limit`, and returns every line of every entry with account number *and* name.
+  Paging counts **entries**, not lines — a page boundary inside a split entry would reproduce the
+  very defect it exists to avoid — and `count` names the total in the window before paging, so a
+  page header no longer costs an export.
+
 - **`vatReturn.gapWarnings` — the silent tax gap says something now** (F-TAX-013). The return is
   built from tax-*coded* postings, so a hand-written `expense / input tax / bank` entry balances,
   satisfies every invariant, shows correct figures on the accounts and in the trial balance, and

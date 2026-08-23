@@ -19,6 +19,7 @@ use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountsProjection;
+use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
@@ -135,6 +136,8 @@ final readonly class TenantOperations
 
         return match ($name) {
             'accounts' => (new AccountsProjection($tenant->accounts))->compute($params),
+            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers))
+                ->compute($params),
             'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
                 ->compute($params),

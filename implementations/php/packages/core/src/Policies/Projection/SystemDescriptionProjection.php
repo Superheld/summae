@@ -58,7 +58,7 @@ final readonly class SystemDescriptionProjection
     public const API_PROJECTIONS = [
         'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
         'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList',
-        'fiscalYears', 'incomeStatement', 'journalExport', 'openItems', 'overheadRates',
+        'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
         'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn'
     ];
 
