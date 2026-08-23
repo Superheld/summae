@@ -1,0 +1,118 @@
+{
+  "fixture": "asset-write-down",
+  "description": "An unplanned write-down, and the part of it that is easy to leave out. The planned schedule answers wear and tear; it has nothing to say about a machine damaged in March. Where the loss is expected to last, writing the asset down is an obligation and not an option — and until now the only ways to express it were disposing of the asset, which is wrong because it still exists, or posting by hand past the asset register, which is wrong because the register then disagrees with the ledger about what the asset is worth. A machine of 12,000.00 over 48 months takes 3,000.00 in its first year, leaving 9,000.00. A write-down of 1,800.00 in mid-2027 brings it to 7,200.00 — and what happens next is the point: the remaining 36 plan months are rewritten to 200.00 each, so 2027 books 2,400.00 rather than the 3,000.00 the original plan wanted. Continuing the old plan would depreciate more than the asset is still worth, and the invariant says the book value never goes below zero; stopping the plan instead would finish the asset before its life is over. Carrying the reduced value over the REMAINING life is what a lasting impairment means, and the sum still comes to exactly the acquisition cost. A reason is required, because an unplanned write-down that does not say why is not auditable — that is the whole difference between an impairment and a mistake — and writing below zero is refused.",
+  "covers": ["F-AST-002", "F-AST-003"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0320", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4840", "name": "Außerplanmäßige Abschreibungen", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      { "year": 2028, "start": "2028-01-01", "end": "2028-12-31" },
+      { "year": 2029, "start": "2029-01-01", "end": "2029-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" },
+      { "id": "$V2", "voucherNumber": "GUTACHTEN-2027", "voucherDate": "2027-06-30" }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [
+        { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01",
+          "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false, "poolProRataInFirstYear": false }
+      ],
+      "usefulLife": [ { "assetClass": "machine", "months": 48 } ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "impairmentExpenseAccount": "4840",
+        "gwgExpenseAccount": "4855"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Fertigungsmaschine", "assetClass": "machine", "assetAccount": "0320",
+        "acquisitionCost": { "amount": "12000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize"
+      },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 48, "id": "$A1" } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "3000.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "writeDownAsset",
+      "input": { "assetId": "$A1", "amount": { "amount": "1800.00", "currency": "EUR" }, "date": "2027-06-30", "voucherId": "$V2" },
+      "expect": {
+        "comment": "Ohne Begründung ist eine außerplanmäßige Abschreibung nicht prüfbar",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "writeDownAsset",
+      "input": {
+        "assetId": "$A1", "amount": { "amount": "99000.00", "currency": "EUR" }, "date": "2027-06-30",
+        "voucherId": "$V2", "reason": "Totalschaden"
+      },
+      "expect": {
+        "comment": "Buchwert 9.000,00 — darunter geht nicht, die Invariante lässt keinen negativen Buchwert zu",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "writeDownAsset",
+      "input": {
+        "assetId": "$A1", "amount": { "amount": "1800.00", "currency": "EUR" }, "date": "2027-06-30",
+        "voucherId": "$V2", "reason": "Dauerhafte Wertminderung laut Gutachten vom 30.06.2027"
+      },
+      "expect": {
+        "comment": "9.000,00 − 1.800,00 = 7.200,00 auf 36 Restmonate = 200,00 je Monat",
+        "result": { "amount": "1800.00", "bookValue": "7200.00", "remainingPlanMonths": 36 }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2027 },
+      "expect": {
+        "comment": "2.400,00 statt der 3.000,00, die der ursprüngliche Plan wollte",
+        "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "2400.00", "currency": "EUR" } }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2028 },
+      "expect": { "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "2400.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2029 },
+      "expect": {
+        "comment": "Summe 3.000 + 1.800 + 2.400 + 2.400 + 2.400 = 12.000,00 — exakt die Anschaffungskosten",
+        "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "2400.00", "currency": "EUR" } }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2029, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "0320", "balance": "0.00" },
+          { "account": "1200", "balance": "-12000.00" },
+          { "account": "4830", "balance": "2400.00" }
+        ]
+      }
+    }
+  ]
+}

@@ -57,6 +57,7 @@ de-wertabgabe
 de-wertpapierdepot
 declining-balance-depreciation
 declining-balance-asset-class
+asset-write-down
 default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation

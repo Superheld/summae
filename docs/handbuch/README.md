@@ -1013,6 +1013,36 @@ its term, and only the proceeds are booked.
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
 
+#### writeDownAsset
+
+Unplanned write-down (impairment). `assetId` (yes), `amount` (yes, Money > 0 and not
+more than the current book value), `date` (yes), `reason` (yes), `voucherId` (no —
+a machine voucher `AFAA-…` is created when you do not supply one). Output:
+`{ "assetId", "entryId", "amount", "bookValue", "remainingPlanMonths" }`. Errors:
+`E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, `E_VOUCHER_UNKNOWN`, `E_INPUT_INVALID`
+(missing reason, amount ≤ 0, or more than the book value).
+
+```json
+{ "assetId": "…", "amount": { "amount": "1800.00", "currency": "EUR" },
+  "date": "2027-06-30", "reason": "Dauerhafte Wertminderung laut Gutachten" }
+```
+
+The planned schedule answers wear and tear; it has nothing to say about a machine
+damaged in March. Booking that by hand past the asset register leaves the register
+and the ledger disagreeing about what the asset is worth, and disposing of it is
+wrong because it still exists.
+
+Two things happen. The write-down is posted (`impairmentExpenseAccount` from the pack
+if it has one, otherwise the ordinary depreciation account) and it lowers the book
+value at once. And **the remaining plan is rewritten**: what is left is spread evenly
+over the plan months not yet booked. Leaving the plan alone would depreciate past
+zero; stopping it would finish the asset early. The reduced value carried over the
+remaining life is what a lasting impairment means.
+
+`reason` is required and not decoration — an unplanned write-down that does not say
+why is not auditable, and that is the whole difference between an impairment and a
+mistake. It goes into the entry text and the audit record.
+
 #### runDepreciation
 
 Depreciation run, idempotent. `fiscalYear` (yes); with `period` a monthly run,

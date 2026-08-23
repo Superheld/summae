@@ -83,6 +83,18 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **`writeDownAsset` — unplanned write-downs (impairment).** The planned schedule answers wear and
+  tear and has nothing to say about a machine damaged in March. Where the loss is expected to last,
+  writing the asset down is an obligation, not an option, and the only ways to express it were
+  disposing of an asset that still exists or posting by hand past the asset register — after which
+  the register and the ledger disagree about what the asset is worth.
+
+  The part that is easy to leave out is what happens next: **the remaining plan is rewritten**, so
+  what is left is spread over the plan months still open. Leaving the plan alone depreciates past
+  zero (removing that re-spread turns the fixture's asset account to −1,800.00); stopping it finishes
+  the asset early. A `reason` is required — an unplanned write-down that does not say why is not
+  auditable.
+
 - **The constraint policy kind has a pack socket (`constraint` module).** summae has always described
   itself as substrate plus three policy kinds — constraint, projection, expansion — and only two of
   them could be plugged from a pack. A jurisdiction could contribute rules and views but never a
@@ -103,6 +115,13 @@ versioning per SemVer (0.x: minor may break).
   master data, not a jurisdiction's, so they are declared like accounts rather than shipped in a pack.
 
 ### Fixed
+
+- **A database-backed asset never saw a change to its own master data.** `save()` wrote the state
+  and never the payload, which was safe exactly as long as nothing in the payload could change. The
+  depreciation schedule lives there, so the first operation that rewrites it — the write-down above —
+  would have left a database tenant booking the old plan while the in-memory one booked the new: same
+  input, two sets of books. Caught by `make fixtures-db`, which exists because of the audit-writer
+  defect in 0.10.1 and has now paid for itself twice.
 
 - **`setAllocationScheme` refused to admit it could not do what was asked.** It read `method`,
   echoed it back in its answer and then ignored it entirely, so asking for anything other than the

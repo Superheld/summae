@@ -18,8 +18,15 @@ use Summae\Core\Substrate\Uuid;
  */
 final class Asset implements \JsonSerializable
 {
-    /** @var list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> */
+    /** @var list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid, kind: string}> */
     private array $depreciations = [];
+
+    /**
+     * True once an unplanned write-down has rewritten the remaining plan. From then on the schedule
+     * IS the plan and may not be re-derived from the acquisition cost — the whole point of the
+     * write-down is that the cost is no longer the basis.
+     */
+    private bool $scheduleRevised = false;
 
     private bool $disposed = false;
 
@@ -37,7 +44,7 @@ final class Asset implements \JsonSerializable
         public readonly CalendarDate $acquiredOn,
         public readonly AssetRoute $route,
         public readonly ?int $usefulLifeMonths,
-        public readonly array $monthlySchedule,
+        public array $monthlySchedule,
         public readonly Uuid $voucherId,
         /**
          * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by
@@ -84,7 +91,12 @@ final class Asset implements \JsonSerializable
     /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
     public function scheduleIsAuthoritative(): bool
     {
-        return $this->method() !== 'straight_line';
+        return $this->method() !== 'straight_line' || $this->scheduleRevised;
+    }
+
+    public function scheduleWasRevised(): bool
+    {
+        return $this->scheduleRevised;
     }
 
     /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
@@ -118,11 +130,17 @@ final class Asset implements \JsonSerializable
         array $dimensions = [],
         ?CalendarDate $depreciationStart = null,
         ?string $depreciationMethod = null,
+        bool $scheduleRevised = false,
     ): self {
         $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod);
-        $asset->depreciations = $depreciations;
+        // A booking written before write-downs existed is a planned one — that is what it was.
+        $asset->depreciations = array_map(
+            static fn (array $booking): array => $booking + ['kind' => 'planned'],
+            $depreciations,
+        );
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
+        $asset->scheduleRevised = $scheduleRevised;
 
         return $asset;
     }
@@ -170,14 +188,58 @@ final class Asset implements \JsonSerializable
         return false;
     }
 
-    public function recordDepreciation(int $planMonth, CalendarDate $date, Money $amount, Uuid $entryId): void
+    public function recordDepreciation(int $planMonth, CalendarDate $date, Money $amount, Uuid $entryId, string $kind = 'planned'): void
     {
         $this->depreciations[] = [
             'planMonth' => $planMonth,
             'date' => $date,
             'amount' => $amount,
             'entryId' => $entryId,
+            'kind' => $kind,
         ];
+    }
+
+    /**
+     * An unplanned write-down: the amount lowers the book value at once, and what is left is spread
+     * over the plan months that have not been booked yet.
+     *
+     * Re-spreading is the part that is easy to leave out and wrong to leave out. Continuing the old
+     * plan after a write-down would depreciate more than the asset is still worth — the invariant
+     * says the book value never goes below zero — and stopping early instead would finish the asset
+     * before its life is over. Neither is what a lasting impairment means: the reduced value is
+     * carried on over the REMAINING life, which is exactly what this does.
+     *
+     * `planMonth: 0` marks it as belonging to no plan month; plan months are 1-based, so nothing
+     * reads it as one, while the accumulated depreciation picks it up like any other booking.
+     *
+     * @param list<int> $openPlanMonths plan months not yet booked, ascending
+     */
+    public function recordWriteDown(CalendarDate $date, Money $amount, Uuid $entryId, array $openPlanMonths): void
+    {
+        $this->depreciations[] = [
+            'planMonth' => 0,
+            'date' => $date,
+            'amount' => $amount,
+            'entryId' => $entryId,
+            'kind' => 'unplanned',
+        ];
+
+        if ($openPlanMonths === []) {
+            $this->scheduleRevised = true;
+
+            return;
+        }
+
+        $remaining = $this->acquisitionCost->subtract($this->accumulatedDepreciationAt(null));
+        $shares = $remaining->allocate(...array_fill(0, count($openPlanMonths), 1));
+
+        $schedule = $this->monthlySchedule;
+        foreach ($openPlanMonths as $index => $planMonth) {
+            $schedule[$planMonth - 1] = $shares[$index];
+        }
+        $this->monthlySchedule = array_values($schedule);
+
+        $this->scheduleRevised = true;
     }
 
     /**
@@ -192,6 +254,7 @@ final class Asset implements \JsonSerializable
             'date' => $booking['date']->iso,
             'amount' => $booking['amount']->jsonSerialize(),
             'entryId' => $booking['entryId']->value,
+            'kind' => $booking['kind'],
         ], $this->depreciations);
     }
 

@@ -10,6 +10,7 @@ interface Depreciation {
   date: CalendarDate;
   amount: Money;
   entryId: Uuid;
+  kind: string;
 }
 
 /** Last day of the month `monthsToAdd` after `base` (1-based plan months). */
@@ -29,6 +30,14 @@ function lastDayOfMonthAfter(base: CalendarDate, monthsToAdd: number): CalendarD
  */
 export class Asset {
   private readonly depreciations: Depreciation[] = [];
+
+  /**
+   * True once an unplanned write-down has rewritten the remaining plan. From then on the schedule IS
+   * the plan and may not be re-derived from the acquisition cost — the whole point of the write-down
+   * is that the cost is no longer the basis.
+   */
+  private scheduleRevised = false;
+
   private disposed = false;
   private disposedOn: CalendarDate | null = null;
 
@@ -41,7 +50,7 @@ export class Asset {
     readonly acquiredOn: CalendarDate,
     readonly route: AssetRoute,
     readonly usefulLifeMonths: number | null,
-    readonly monthlySchedule: Money[],
+    public monthlySchedule: Money[],
     readonly voucherId: Uuid,
     /**
      * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by the
@@ -83,7 +92,11 @@ export class Asset {
 
   /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
   scheduleIsAuthoritative(): boolean {
-    return this.method() !== 'straight_line';
+    return this.method() !== 'straight_line' || this.scheduleRevised;
+  }
+
+  scheduleWasRevised(): boolean {
+    return this.scheduleRevised;
   }
 
   /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
@@ -119,8 +132,39 @@ export class Asset {
     return this.depreciations.some((booking) => booking.planMonth === planMonth);
   }
 
-  recordDepreciation(planMonth: number, date: CalendarDate, amount: Money, entryId: Uuid): void {
-    this.depreciations.push({ planMonth, date, amount, entryId });
+  recordDepreciation(planMonth: number, date: CalendarDate, amount: Money, entryId: Uuid, kind = 'planned'): void {
+    this.depreciations.push({ planMonth, date, amount, entryId, kind });
+  }
+
+  /**
+   * An unplanned write-down: the amount lowers the book value at once, and what is left is spread over
+   * the plan months that have not been booked yet.
+   *
+   * Re-spreading is the part that is easy to leave out and wrong to leave out. Continuing the old plan
+   * after a write-down would depreciate more than the asset is still worth — the invariant says the
+   * book value never goes below zero — and stopping early instead would finish the asset before its
+   * life is over. Neither is what a lasting impairment means: the reduced value is carried on over the
+   * REMAINING life, which is exactly what this does.
+   *
+   * `planMonth: 0` marks it as belonging to no plan month; plan months are 1-based, so nothing reads
+   * it as one, while the accumulated depreciation picks it up like any other booking.
+   */
+  recordWriteDown(date: CalendarDate, amount: Money, entryId: Uuid, openPlanMonths: number[]): void {
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'unplanned' });
+
+    if (openPlanMonths.length === 0) {
+      this.scheduleRevised = true;
+      return;
+    }
+
+    const remaining = this.acquisitionCost.subtract(this.accumulatedDepreciationAt(null));
+    const shares = remaining.allocate(...openPlanMonths.map(() => 1));
+
+    openPlanMonths.forEach((planMonth, index) => {
+      this.monthlySchedule[planMonth - 1] = shares[index]!;
+    });
+
+    this.scheduleRevised = true;
   }
 
   /** Depreciation history in persistable form — counterpart to PHP's `depreciationsForPersistence`. */
@@ -129,12 +173,14 @@ export class Asset {
     date: string;
     amount: { amount: string; currency: string };
     entryId: string;
+    kind: string;
   }> {
     return this.depreciations.map((booking) => ({
       planMonth: booking.planMonth,
       date: booking.date.iso,
       amount: booking.amount.toJSON(),
       entryId: booking.entryId.value,
+      kind: booking.kind,
     }));
   }
 
@@ -153,12 +199,13 @@ export class Asset {
     usefulLifeMonths: number | null,
     monthlySchedule: Money[],
     voucherId: Uuid,
-    depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid }>,
+    depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid; kind?: string }>,
     disposed: boolean,
     disposedOn: CalendarDate | null,
     dimensions: ReadonlyArray<{ type: string; code: string }> = [],
     depreciationStart: CalendarDate | null = null,
     depreciationMethod: string | null = null,
+    scheduleRevised = false,
   ): Asset {
     const asset = new Asset(
       id,
@@ -181,8 +228,11 @@ export class Asset {
         date: booking.date,
         amount: booking.amount,
         entryId: booking.entryId,
+        // A booking written before write-downs existed is a planned one — that is what it was.
+        kind: booking.kind ?? 'planned',
       });
     }
+    asset.scheduleRevised = scheduleRevised;
     asset.disposed = disposed;
     asset.disposedOn = disposedOn;
     return asset;
