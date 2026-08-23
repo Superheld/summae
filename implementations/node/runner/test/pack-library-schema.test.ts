@@ -59,6 +59,7 @@ describe('pack-library files validate against format.schema.json', () => {
       policy: { def: 'packPolicy', key: 'packPolicy' },
       depreciation: { def: 'depreciationData', key: null },
       productionCost: { def: 'productionCostData', key: null },
+      constraint: { def: 'constraintData', key: null },
     };
 
     // Guard has teeth: a malformed module is rejected (bad kind, missing required keys).

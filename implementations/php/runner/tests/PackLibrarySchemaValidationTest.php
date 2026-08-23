@@ -98,6 +98,7 @@ final class PackLibrarySchemaValidationTest extends TestCase
                 'policy' => ['def' => 'packPolicy', 'key' => 'packPolicy'],
                 'depreciation' => ['def' => 'depreciationData', 'key' => null],
                 'productionCost' => ['def' => 'productionCostData', 'key' => null],
+                'constraint' => ['def' => 'constraintData', 'key' => null],
             ];
             $kind = $arr['kind'] ?? null;
             if (is_string($kind) && isset($deepByKind[$kind])) {

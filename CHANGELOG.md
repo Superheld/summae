@@ -83,6 +83,19 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **The constraint policy kind has a pack socket (`constraint` module).** summae has always described
+  itself as substrate plus three policy kinds — constraint, projection, expansion — and only two of
+  them could be plugged from a pack. A jurisdiction could contribute rules and views but never a
+  *prohibition*, so any rule that is a constraint had to go into the core, against the whole split.
+
+  The mechanism existed: `DimensionRegistry` enforces mandatory dimensions per account range, and it
+  was reachable only by constructing a tenant in memory — a tenant built from a pack got a registry
+  with nothing in it. A `constraint` module now carries `dimensionRules`, and several such modules add
+  up rather than replace, so module order in a manifest stays meaningless.
+
+  One predicate is not a general socket, and the GoBD census says so: the shape is settled, the
+  vocabulary is not. A pack still cannot express a rule about a settlement or a deadline.
+
 - **`defineDimensionType` / `defineDimensionValue`.** Dimension master data was declarable only
   through the in-memory construction path, so **every tenant created from a pack started with an
   empty registry and rejected any posting carrying a cost centre** — cost accounting was unreachable

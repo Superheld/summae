@@ -10,6 +10,7 @@ import { Currency } from '../substrate/currency.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
+import { DimensionRegistry, type DimensionRuleData } from '../policies/constraint/dimension-registry.js';
 import { Tenant } from './tenant.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -68,12 +69,19 @@ export class TenantFactory {
       Array.isArray(this.ruleModules.mappings) ? this.ruleModules.mappings : [],
     );
 
+    // Constraint plugs from the pack. Types and values stay the tenant's own master data
+    // (defineDimensionType/Value) — a jurisdiction has no opinion about what a company calls its cost
+    // centres — but WHICH ACCOUNTS MAY NOT BE POSTED WITHOUT ONE is a rule a pack can hold, and until
+    // now no pack could: the registry was built with nothing at all.
+    const dimensionRules = (Array.isArray(this.ruleModules.dimensionRules) ? this.ruleModules.dimensionRules : [])
+      .filter((rule): rule is DimensionRuleData => isRecord(rule));
+
     const tenant = Tenant.inMemory(
       asString(input.name) ?? 'Tenant',
       Currency.of(asString(input.baseCurrency) ?? 'EUR', currencyScale),
       this.clock,
       this.ids,
-      undefined,
+      DimensionRegistry.fromData([], [], dimensionRules),
       TaxCodeRegistry.fromData(taxCodeData),
       taxProfile,
       mappings,

@@ -19,7 +19,7 @@ use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -137,6 +137,8 @@ final class PackResolver
         $depreciation = null;
         /** @var array<mixed>|null $productionCost */
         $productionCost = null;
+        /** @var list<array<mixed>> $dimensionRules */
+        $dimensionRules = [];
         /** @var array<mixed>|null $packPolicyModule */
         $packPolicyModule = null;
 
@@ -189,6 +191,15 @@ final class PackResolver
                     break;
                 case 'productionCost':
                     $productionCost = $data;
+                    break;
+                case 'constraint':
+                    // Constraints add up rather than replace: two modules may each contribute rules,
+                    // and a later one silently winning would make the pack order significant.
+                    foreach (is_array($data['dimensionRules'] ?? null) ? array_values($data['dimensionRules']) : [] as $rule) {
+                        if (is_array($rule)) {
+                            $dimensionRules[] = $rule;
+                        }
+                    }
                     break;
                 case 'policy':
                     if ($packPolicyModule !== null) {
@@ -285,6 +296,7 @@ final class PackResolver
             'assetAccounts' => $assetAccounts,
             'depreciation' => $depreciation,
             'productionCost' => $productionCost,
+            'dimensionRules' => $dimensionRules,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
         ];
@@ -326,6 +338,8 @@ final class PackResolver
             // Not spread like depreciation: the CostingService reads it under its own key, because
             // "treatments" is a word another module could plausibly want too.
             'productionCost' => is_array($pack['productionCost'] ?? null) ? $pack['productionCost'] : null,
+            // The first constraint plug: which accounts may not be posted without which dimension.
+            'dimensionRules' => is_array($pack['dimensionRules'] ?? null) ? array_values($pack['dimensionRules']) : [],
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],
         ];
     }

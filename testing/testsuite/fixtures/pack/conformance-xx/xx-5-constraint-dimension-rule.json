@@ -1,0 +1,119 @@
+{
+  "fixture": "xx-5-constraint-dimension-rule",
+  "description": "The third policy kind gets a plug. summae has always described itself as substrate plus three policy kinds — constraint (must hold), projection (journal → view), expansion (intent → postings) — but only two of them had a pack-side socket: no module kind carried a constraint, so a jurisdiction could contribute rules and views and never a prohibition. The mechanism existed all along; `DimensionRegistry` enforces mandatory dimensions per account range, and it was reachable only by constructing a tenant in memory. A tenant built FROM A PACK got a registry with nothing in it. Here a `constraint` module carries the rule: accounts 600–699 may not be posted without a `costCenter`. The type and its values stay the tenant's own master data — a jurisdiction has no opinion about what a company calls its cost centres, only about which bookings may go unassigned — so they are declared through `defineDimensionType`/`defineDimensionValue` and the module carries only the prohibition. Posting to 600 without the dimension is E_DIMENSION_INVALID; the same posting with it goes through; and 400, outside the range, is untouched. Constraint modules add up rather than replace, so the module order in a manifest carries no meaning.",
+  "covers": ["F-CORE-006", "F-PACK-POLICY-001"],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6", "id": "xx-minimal", "kind": "accounts", "version": "2026.1",
+          "name": "XX Minimal-Kontenrahmen", "contributes": ["accounts"], "dependsOn": [],
+          "data": { "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+            { "number": "400", "name": "Erlöse", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ] }
+        },
+        {
+          "formatVersion": "0.6", "id": "xx-constraints", "kind": "constraint", "version": "2026.1",
+          "name": "XX Constraints (Kostenstellenpflicht im Aufwand)", "contributes": ["constraint"], "dependsOn": [],
+          "data": { "dimensionRules": [
+            { "accountRange": { "from": "600", "to": "699" }, "requiredDimension": "costCenter",
+              "note": "Aufwand ohne Kostenstelle ist in XX unzulässig" }
+          ] }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6", "id": "xx-constraint-conformance", "name": "Fiktive Jurisdiktion XX (Constraints)", "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-minimal", "version": "2026.1" },
+          { "kind": "constraint", "id": "xx-constraints", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": { "manifest": "xx-constraint-conformance", "version": "2026.1" },
+      "expect": { "result": { "accountCount": 4 } }
+    },
+    {
+      "op": "createTenant",
+      "input": { "name": "XX Constraint GmbH", "baseCurrency": "EUR", "pack": "xx-constraint-conformance", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "xx-constraint-conformance" } } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "BEL-1", "voucherDate": "2026-01-31" } },
+      "expect": { "result": { "id": "$V1" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Aufwand ohne Kostenstelle",
+        "lines": [
+          { "account": "600", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "100", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Die Regel kommt aus dem Pack — ohne das constraint-Modul ginge diese Buchung durch",
+        "error": "E_DIMENSION_INVALID"
+      }
+    },
+    {
+      "op": "defineDimensionType",
+      "input": { "tenant": "$T1", "code": "costCenter" },
+      "expect": { "result": { "code": "costCenter" } }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": { "tenant": "$T1", "type": "costCenter", "code": "K1" },
+      "expect": { "result": { "type": "costCenter", "code": "K1" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Aufwand mit Kostenstelle",
+        "lines": [
+          { "account": "600", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "K1" } ] },
+          { "account": "100", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Erlös außerhalb des Bereichs",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "250.00", "currency": "EUR" } },
+          { "account": "400", "side": "credit", "money": { "amount": "250.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "400 liegt außerhalb 600–699 — die Regel greift nicht",
+        "result": { "sequenceNumber": 2 }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "100", "balance": "150.00" },
+          { "account": "400", "balance": "-250.00" },
+          { "account": "600", "balance": "100.00" }
+        ]
+      }
+    }
+  ]
+}
