@@ -3,6 +3,13 @@
 Notable changes per release. Loosely based on *Keep a Changelog*,
 versioning per SemVer (0.x: minor may break).
 
+> **Finding IDs in entries up to and including 0.9.2 use the old prefixes.** On 2026-08-23
+> the finding series were re-prefixed to keep them out of the requirement namespaces —
+> `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
+> unchanged. These notes keep the IDs they were published with, because a released note
+> should describe what was released. The mapping lives at the top of
+> [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
+
 ## 0.9.2 — 2026-08-17
 
 Release infrastructure only — no change to any package's behaviour, and nothing to re-check in

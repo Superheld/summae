@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Assets;
 
 use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
-use Summae\Core\Records\Voucher;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\VoucherRepository;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Currency;
@@ -46,7 +47,26 @@ final class AssetService
         private readonly Ledger $ledger,
         private readonly IdGenerator $ids,
         private array $ruleModule = [],
+        // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+        // nothing in them says *an asset was acquired*. These records carry the asset event
+        // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+        // tenant, like the configuration singletons.
+        private readonly ?Uuid $tenantId = null,
+        private readonly ?AuditWriter $audit = null,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array<string, array{from: mixed, to: mixed}> $changes
+     */
+    private function trace(array $input, string $objectType, Uuid $objectId, string $action, array $changes): void
+    {
+        if ($this->audit === null) {
+            return;
+        }
+
+        $this->audit->record($this->audit->actorOf($input), $objectType, $objectId, $action, $changes);
     }
 
     /** @param array<string, mixed> $ruleModule */
@@ -79,7 +99,7 @@ final class AssetService
             $usefulLifeMonths = $this->usefulLifeMonths($assetClass);
             $schedule = $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
-            // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is
+            // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
             // would have inherited it silently. The pack says over how long; the core only spreads it
             // evenly (disposals leave the plan untouched, as before).
@@ -124,6 +144,13 @@ final class AssetService
                 ['account' => $this->counterAccount(), 'side' => 'credit', 'money' => $cost->jsonSerialize()],
             ]),
         );
+
+        $this->trace($input, 'asset', $asset->id, 'acquired', [
+            'name' => ['from' => null, 'to' => $name],
+            'assetClass' => ['from' => null, 'to' => $assetClass],
+            'acquiredOn' => ['from' => null, 'to' => $acquiredOn->iso],
+            'route' => ['from' => null, 'to' => $route->value],
+        ]);
 
         $result = $asset->jsonSerialize();
         $result['route'] = $route->value;
@@ -171,6 +198,11 @@ final class AssetService
         if ($lines !== []) {
             $this->postMachineEntry($disposedOn, $voucherId, sprintf('Asset disposal %s', $asset->name), $this->withDimensions($asset, $lines));
         }
+
+        $this->trace($input, 'asset', $asset->id, 'disposed', [
+            'status' => ['from' => 'active', 'to' => 'disposed'],
+            'disposedOn' => ['from' => null, 'to' => $disposedOn->iso],
+        ]);
 
         return $asset->jsonSerialize();
     }
@@ -237,6 +269,17 @@ final class AssetService
             $this->assets->save($asset);
             $entriesCreated++;
             $total = $total->add($amount);
+        }
+
+        // A run that created nothing is still an event: "someone ran depreciation for this
+        // period and it was already done" is exactly what an auditor reconstructing a timeline
+        // wants to see, and leaving it out would make repeated runs invisible.
+        if ($this->tenantId !== null) {
+            $this->trace($input, 'depreciationRun', $this->tenantId, 'completed', [
+                'fiscalYear' => ['from' => null, 'to' => $fiscalYear],
+                'period' => ['from' => null, 'to' => $period],
+                'entriesCreated' => ['from' => null, 'to' => $entriesCreated],
+            ]);
         }
 
         if ($entriesCreated === 0) {
@@ -396,7 +439,7 @@ final class AssetService
 
     /** @param list<array<string, mixed>> $lines */
     /**
-     * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+     * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
      * entry about an asset gets them on every line: the whole event belongs to that cost centre,
      * and a line without them would be refused wherever the pack makes a dimension mandatory —
      * which is precisely the case that used to make depreciation impossible to run.
@@ -520,7 +563,7 @@ final class AssetService
     /**
      * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
      * range without saying over how long is incomplete, and picking a number here would put a statute
-     * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+     * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
      * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
      */
     private function poolYears(CalendarDate $acquiredOn): int
@@ -596,7 +639,7 @@ final class AssetService
     }
 
     /**
-     * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+     * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
      *
      * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
      * asset's last months of depreciation never happened at all: runDepreciation skips disposed
@@ -666,7 +709,7 @@ final class AssetService
      * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
      * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
      * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-     * statute back into the core — which is exactly what NF-019 accidentally did before this.
+     * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
      */
     private function poolReducedOnDisposal(CalendarDate $acquiredOn): bool
     {
@@ -759,7 +802,7 @@ final class AssetService
     }
 
     /**
-     * v0.5/F-004: asset accounts come from the rule-module block
+     * v0.5/SPEC-004: asset accounts come from the rule-module block
      * `assetAccounts` — no more name heuristic.
      */
     private function assetAccount(string $key): string

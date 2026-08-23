@@ -184,7 +184,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Offener Posten. `remaining`/`status` sind abgeleitet (money minus Ausgleiche), nie Wahrheit — wie Salden. `settlements[].cause` trennt Zahlung von Storno (v0.6/NF-008): `cancellation` ist kein Geldfluss und zählt bei Ist-Versteuerung nicht als Vereinnahmung."
+      "description": "Offener Posten. `remaining`/`status` sind abgeleitet (money minus Ausgleiche), nie Wahrheit — wie Salden. `settlements[].cause` trennt Zahlung von Storno (v0.6/IMPL-008): `cancellation` ist kein Geldfluss und zählt bei Ist-Versteuerung nicht als Vereinnahmung."
     },
     "profile": {
       "type": "object",
@@ -241,7 +241,7 @@
                 }
               }
             ],
-            "description": "Sammelposten/Pool: wer eine Pool-Spanne aufmacht (poolMin/poolMax), muss die Auflösungsdauer angeben (poolYears) UND sagen, ob ein Abgang den Pool vermindert (poolReducedOnDisposal) — sonst erbt jede Jurisdiktion still die deutschen Regeln (F-004, NF-019). Deutschland: 5 Jahre, Abgang vermindert NICHT (§6 Abs. 2a EStG). UK/Australien: Abgänge werden dem Pool entnommen — dieselbe Weiche, andere Antwort."
+            "description": "Sammelposten/Pool: wer eine Pool-Spanne aufmacht (poolMin/poolMax), muss die Auflösungsdauer angeben (poolYears) UND sagen, ob ein Abgang den Pool vermindert (poolReducedOnDisposal) — sonst erbt jede Jurisdiktion still die deutschen Regeln (SPEC-004, IMPL-019). Deutschland: 5 Jahre, Abgang vermindert NICHT (§6 Abs. 2a EStG). UK/Australien: Abgänge werden dem Pool entnommen — dieselbe Weiche, andere Antwort."
           }
         },
         "usefulLife": {
@@ -375,7 +375,7 @@
       "properties": {
         "key": { "type": "string" },
         "label": { "type": "string" },
-        "side": { "enum": ["assets", "liabilitiesAndEquity"], "description": "nur am Wurzelknoten einer balance-sheet-Mapping; bestimmt Aktiv-/Passivseite (v0.5/F-007)" },
+        "side": { "enum": ["assets", "liabilitiesAndEquity"], "description": "nur am Wurzelknoten einer balance-sheet-Mapping; bestimmt Aktiv-/Passivseite (v0.5/SPEC-007)" },
         "includesNetIncome": { "type": "boolean" },
         "includeNonCash": { "type": "boolean", "description": "only meaningful on a cash-basis-categories mapping leaf; non-cash postings (e.g. depreciation) count without a cash flow (R7)" },
         "accounts": {
@@ -423,7 +423,7 @@
         "tenantName": { "type": "string" },
         "baseCurrency": { "type": "string", "pattern": "^[A-Z]{3}$" },
         "exportedAt": { "$ref": "#/$defs/timestamp" },
-        "streams": { "type": "array", "items": { "type": "string" }, "description": "enthaltene Objektströme; auditLog ist immer dabei (v0.5/F-005)" },
+        "streams": { "type": "array", "items": { "type": "string" }, "description": "enthaltene Objektströme; auditLog ist immer dabei (v0.5/SPEC-005)" },
         "hashAlgorithm": { "type": "string", "const": "sha256" },
         "contentHashes": { "type": "object", "additionalProperties": { "type": "string" } }
       },

@@ -130,7 +130,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             $depreciations,
             ($state['disposed'] ?? false) === true,
             Hydrator::date($state['disposedOn'] ?? null),
-            // NF-023: the asset's dimensions survive the round trip — every machine entry about it
+            // IMPL-023: the asset's dimensions survive the round trip — every machine entry about it
             // reads them, so losing them here would make depreciation impossible after a restart
             // wherever a dimension is mandatory.
             self::dimensions($data['dimensions'] ?? null),

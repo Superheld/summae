@@ -1,5 +1,7 @@
 import { DomainError } from '../../../domain-error.js';
 import { UNASSIGNED } from './unassigned.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
+import type { Uuid } from '../../../substrate/uuid.js';
 import type { AccountRepository } from '../../../port.js';
 import { isBalanceCarrying } from '../../../substrate/types.js';
 import { leafMatches, Mapping } from './mapping.js';
@@ -18,6 +20,10 @@ export class MappingImporter {
   constructor(
     private readonly accounts: AccountRepository,
     private readonly registry: MappingRegistry,
+    // A mapping is tenant-level configuration; like the tax profile it has no identity of
+    // its own, so the audit record names the tenant and puts the kind into the diff.
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
 
   import(input: Record<string, unknown>): Record<string, unknown> {
@@ -43,6 +49,13 @@ export class MappingImporter {
     }
 
     this.registry.add(mapping);
+
+    if (this.audit !== null && this.tenantId !== null) {
+      this.audit.record(this.audit.actorOf(input), 'mapping', this.tenantId, 'imported', {
+        kind: { from: null, to: mapping.kind },
+        mappingId: { from: null, to: mapping.id },
+      });
+    }
 
     return { imported: true, id: mapping.id, kind: mapping.kind, gapWarnings };
   }

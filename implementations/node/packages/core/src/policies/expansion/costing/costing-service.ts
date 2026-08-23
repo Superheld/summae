@@ -2,6 +2,7 @@ import { DomainError, rejectedValue } from '../../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../../port.js';
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { IdGenerator } from '../../../substrate/id-generator.js';
 import { Money } from '../../../substrate/money.js';
 import { PeriodRef } from '../../../substrate/period-ref.js';
@@ -36,9 +37,14 @@ export class CostingService {
     private readonly accounts: AccountRepository,
     private readonly journal: JournalRepository,
     private readonly ids: IdGenerator,
+    // The allocation scheme is a tenant-level singleton — see TaxService for why the
+    // audit record names the tenant as its object (F-CORE-014 "Profile").
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
 
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
+    const previousStepCount = this.schemeSteps.length;
     const method = typeof input.method === 'string' ? input.method : 'step_ladder';
     const steps: Step[] = [];
     const edges = new Map<string, string[]>();
@@ -61,6 +67,13 @@ export class CostingService {
 
     if (method === 'step_ladder') this.assertAcyclic(edges);
     this.schemeSteps = steps;
+
+    if (this.audit !== null && this.tenantId !== null) {
+      this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
+        method: { from: null, to: method },
+        stepCount: { from: previousStepCount, to: steps.length },
+      });
+    }
 
     return { valid: true, method, stepCount: steps.length };
   }
@@ -107,12 +120,27 @@ export class CostingService {
 
     const run = new CostingRun(this.ids.next(), periodRef, version, primary, after, grandTotal);
     this.runs.set(run.id.value, run);
+    if (this.audit !== null) {
+      this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'created', {
+        period: { from: null, to: `${periodRef.fiscalYear}/${periodRef.period}` },
+        version: { from: null, to: version },
+        status: { from: null, to: run.status() },
+      });
+    }
+
     return run;
   }
 
   release(input: Record<string, unknown>): CostingRun {
     const run = this.requireRun(input.runId);
+    const before = run.status();
     run.release();
+    if (this.audit !== null) {
+      this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'released', {
+        status: { from: before, to: run.status() },
+      });
+    }
+
     return run;
   }
 

@@ -1,0 +1,37 @@
+{
+  "fixture": "de-system-description",
+  "description": "F-IO-007, Pack-Pfad: die technische Systembeschreibung MUSS benennen, aus welchem Pack der Mandant komponiert wurde — sonst müsste eine Verfahrensdokumentation die Regelquelle von Hand behaupten, und genau solche Handangaben sind es, die nach zwei Releases nicht mehr stimmen. Die Schwester-Fixture `io/system-description` prüft den Inline-Fall, in dem `pack` null ist, weil es kein Manifest zu benennen gibt; diese hier prüft den gefüllten Fall. Ohne beide wäre die Verdrahtung nur gegen null getestet. Geprüft wird bewusst nur der `pack`-Block: alles andere ist packunabhängig und liegt bereits in `io/system-description`.",
+  "covers": ["F-IO-007"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Verfahrensdoku GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": { "id": "de" }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "systemDescription",
+      "tenant": "$T1",
+      "params": {},
+      "expect": {
+        "pack": { "id": "de" },
+        "tenant": {
+          "name": "Verfahrensdoku GmbH",
+          "baseCurrency": "EUR"
+        }
+      }
+    }
+  ]
+}

@@ -40,7 +40,7 @@ final class Asset implements \JsonSerializable
         public readonly array $monthlySchedule,
         public readonly Uuid $voucherId,
         /**
-         * Cost centre and friends, carried by the asset itself (NF-023). Depreciation is booked by
+         * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by
          * the machine, month after month, for years — nobody is there to name a dimension at that
          * moment, and a mandatory one on the depreciation account would otherwise make the run
          * impossible. The master record answering it once is also how it works in practice: an
@@ -168,7 +168,7 @@ final class Asset implements \JsonSerializable
     }
 
     /**
-     * Carrying amount = cost less what has been depreciated (NF-024).
+     * Carrying amount = cost less what has been depreciated (IMPL-024).
      *
      * Only an immediately expensed asset has no carrying amount — it was never capitalised. A
      * *pooled* one was: it sits on the pool account and is written down over the pack's term, so

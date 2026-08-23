@@ -78,6 +78,7 @@ export class TenantFactory {
       taxProfile,
       mappings,
       taxRoundingGranularity,
+      this.packIdentity(),
     );
 
     let accountCount = 0;
@@ -119,6 +120,18 @@ export class TenantFactory {
         taxationMethod: taxProfile.taxationMethod(),
       },
     };
+  }
+
+  /**
+   * The pack the resolved bundle came from, when it came from one. An inline bundle has no
+   * manifest, so there is nothing to name and the description says so rather than guessing.
+   */
+  private packIdentity(): { id: string; version: string } | null {
+    const pack = isRecord(this.ruleModules.pack) ? this.ruleModules.pack : null;
+    if (pack === null) return null;
+    const id = asString(pack.id);
+    const version = asString(pack.version);
+    return id !== null && version !== null ? { id, version } : null;
   }
 
   private findById(module: string, id: string): Record<string, unknown> | null {

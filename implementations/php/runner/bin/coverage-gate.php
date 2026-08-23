@@ -25,7 +25,7 @@ declare(strict_types=1);
  * Floors sit just below that — close enough to catch a real drop, far enough not to
  * flap on a single refactored line.
  *
- * `packages/laravel` joined on 2026-08-16 (NF-015 closed): it has its own suite now, so its
+ * `packages/laravel` joined on 2026-08-16 (IMPL-015 closed): it has its own suite now, so its
  * number is asserted by tests rather than produced as a side effect of other suites. Its last
  * uncovered piece, `SummaeServiceProvider`, got its test the same day (`ServiceProviderTest`
  * on orchestra/testbench), which took the package from 96.97 to 99.11 — so the floor rose with

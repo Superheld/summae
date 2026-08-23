@@ -1,6 +1,6 @@
 {
   "fixture": "disposal-catches-up-depreciation",
-  "description": "NF-022: der Abgang bucht zuerst die fällige, noch nicht gebuchte AfA und schreibt erst dann den Restbuchwert aus. Ohne diesen Schritt schrieb er den Stand vom Jahresanfang aus, und die AfA der letzten Monate entstand nie — `runDepreciation` überspringt abgegangene Güter, es hätte sie also auch später niemand mehr gebucht. Die Summe traf die GuV richtig, die Aufteilung nicht: der Aufwand lag als überhöhter Abgangsverlust dort statt als Abschreibung, und die AfA-Zahl des Anlagespiegels war zu niedrig. Fällig ist ein Planmonat an seinem letzten Tag — dieselbe Konvention, nach der der reguläre Lauf ihn greift.",
+  "description": "IMPL-022: der Abgang bucht zuerst die fällige, noch nicht gebuchte AfA und schreibt erst dann den Restbuchwert aus. Ohne diesen Schritt schrieb er den Stand vom Jahresanfang aus, und die AfA der letzten Monate entstand nie — `runDepreciation` überspringt abgegangene Güter, es hätte sie also auch später niemand mehr gebucht. Die Summe traf die GuV richtig, die Aufteilung nicht: der Aufwand lag als überhöhter Abgangsverlust dort statt als Abschreibung, und die AfA-Zahl des Anlagespiegels war zu niedrig. Fällig ist ein Planmonat an seinem letzten Tag — dieselbe Konvention, nach der der reguläre Lauf ihn greift.",
   "covers": ["F-AST-004", "F-AST-003"],
   "setup": {
     "tenant": { "name": "Abgang GmbH", "baseCurrency": "EUR" },
@@ -45,7 +45,7 @@
       "op": "disposeAsset",
       "input": { "assetId": "$A1", "disposedOn": "2026-06-30", "voucherId": "$V2" },
       "expect": {
-        "comment": "Abgang zum 30. Juni, OHNE dass vorher ein AfA-Lauf stattgefunden hat — der Fall, den NF-022 beschreibt. Sechs Planmonate sind fällig (Stichtag jeweils Monatsletzter, der sechste am 30.06.), also 600,00 AfA; danach beträgt der Restbuchwert 3600,00 − 600,00 = 3000,00 und wird ohne Erlös komplett als Verlust ausgebucht.",
+        "comment": "Abgang zum 30. Juni, OHNE dass vorher ein AfA-Lauf stattgefunden hat — der Fall, den IMPL-022 beschreibt. Sechs Planmonate sind fällig (Stichtag jeweils Monatsletzter, der sechste am 30.06.), also 600,00 AfA; danach beträgt der Restbuchwert 3600,00 − 600,00 = 3000,00 und wird ohne Erlös komplett als Verlust ausgebucht.",
         "result": { "id": "$A1", "status": "disposed" }
       }
     }

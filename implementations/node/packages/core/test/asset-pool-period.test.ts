@@ -9,7 +9,7 @@ import {
 } from '../src/index.js';
 
 /**
- * F-004: the low-value-asset pool period is pack data, not core code.
+ * SPEC-004: the low-value-asset pool period is pack data, not core code.
  *
  * Until v0.6 the core wrote a pooled asset off over a hard-coded five years — one jurisdiction's
  * rule sitting in the law-free substrate, which every other jurisdiction with a pooled de-minimis

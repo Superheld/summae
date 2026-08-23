@@ -149,7 +149,7 @@
       "expect": { "keys": {}, "payload.amount": "0.00" }
     },
     {
-      "name": "a statement without a mapping module fails, and says which parameter is missing (NF-007: this used to report E_MAPPING_OVERLAP, the code for two positions claiming the same account)",
+      "name": "a statement without a mapping module fails, and says which parameter is missing (IMPL-007: this used to report E_MAPPING_OVERLAP, the code for two positions claiming the same account)",
       "report": "incomeStatement",
       "params": { "fiscalYear": 2026 },
       "expectError": "E_INPUT_INVALID",

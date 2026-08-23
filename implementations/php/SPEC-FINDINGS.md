@@ -5,15 +5,30 @@ contradict each other or where something is missing. Rule from the briefing: **d
 guess, do not change the fixture** — document it here and keep building with the
 next most plausible behavior.
 
-> **✅ All findings F-001 to F-007 resolved in spec v0.5** (2026-06-08,
+> **Finding IDs were re-prefixed on 2026-08-23 — the numbers did not change.**
+> The old prefixes sat inside the requirement namespaces: `F-0xx` was one category
+> word away from the functional requirements (`F-CORE-…`, `F-IO-…`), and `NF-0xx` was
+> separated from the non-functional requirements (`NF-1` … `NF-7`) by nothing but its
+> leading zeros.
+>
+> | old | new | series |
+> |---|---|---|
+> | `F-001` … `F-011` | `SPEC-001` … `SPEC-011` | spec/fixture/model contradictions |
+> | `F-CROSS-001` | `SPEC-C01` | cross-implementation |
+> | `NF-001` … `NF-025` | `IMPL-001` … `IMPL-025` | implementation & cross-language |
+>
+> `CHANGELOG.md` deliberately keeps the old IDs: released notes describe what was
+> published, so rewriting them would falsify the record.
+
+> **✅ All findings SPEC-001 to SPEC-007 resolved in spec v0.5** (2026-06-08,
 > decision log + `SPEC-UPDATE-v0.5.md`) and implemented in JOB-V05:
-> - F-001 → dedicated code `E_VOUCHER_UNKNOWN`
-> - F-002 → `E_ENTRY_NOT_FINALIZED` removed, `reverse` status-independent (my workaround was correct)
-> - F-003 → dedicated code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
-> - F-004 → rule-module block `assetAccounts` (name heuristic removed)
-> - F-005 → manifest required fields `streams`/`hashAlgorithm`, `auditLog` always, `formatVersion` current
-> - F-006 → dedicated code `E_COSTING_RUN_UNKNOWN` (already matched my choice)
-> - F-007 → `side: assets|liabilitiesAndEquity` on the balance-sheet root node
+> - SPEC-001 → dedicated code `E_VOUCHER_UNKNOWN`
+> - SPEC-002 → `E_ENTRY_NOT_FINALIZED` removed, `reverse` status-independent (my workaround was correct)
+> - SPEC-003 → dedicated code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
+> - SPEC-004 → rule-module block `assetAccounts` (name heuristic removed)
+> - SPEC-005 → manifest required fields `streams`/`hashAlgorithm`, `auditLog` always, `formatVersion` current
+> - SPEC-006 → dedicated code `E_COSTING_RUN_UNKNOWN` (already matched my choice)
+> - SPEC-007 → `side: assets|liabilitiesAndEquity` on the balance-sheet root node
 >
 > The detail entries below remain as history.
 
@@ -26,51 +41,51 @@ a short file.
 
 | Finding | Status |
 |---|---|
-| F-001 unknown `voucherId` | ✅ `E_VOUCHER_UNKNOWN` + `core/voucher-unknown.json` |
-| F-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
-| F-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
-| F-004 asset posting accounts | ✅ accounts via the `assetAccounts` pack module; **pool period** `poolYears` in the depreciation module since 2026-08-16 (fixture `gwg-pool-period`) |
-| F-005 journalExport manifest streams | ✅ `auditLog` always included; `formatVersion` follows the spec version (0.6 since 2026-08-16, guarded against drift) |
-| F-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
-| F-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
-| F-008 `includeNonCash` missing from the schema | ✅ schema extended |
-| F-009 `cashBasisReport` German VAT passthrough | ✅ resolved |
-| F-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
-| F-CROSS-001 timestamp serialization | ✅ resolved |
-| NF-005 cash-basis reversal | ✅ fixed 2026-08-15; **remainder closed 2026-08-16** by NF-008 — settled-then-reversed cannot occur any more |
-| NF-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-008 reversal leaves open items standing | **RESOLVED 2026-08-16** — the reversal clears them (`cause: cancellation` → status `cancelled`), a touched item refuses the reversal (`E_ENTRY_HAS_SETTLED_ITEMS`); fixtures `reverse-clears-open-items`, `reverse-settled-item`, `vat-cash-basis-reversal-unpaid` |
-| NF-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
-| NF-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
-| NF-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
-| NF-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
-| NF-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
-| NF-017 an unmapped balance account made the balance sheet stop balancing | **RESOLVED 2026-08-15** — `_unassigned` per section + `gapWarnings[]` (fixture `balance-sheet-gap`) |
-| NF-014 accounts outside a mapping vanish from the income statement | **RESOLVED 2026-08-15** — `_unassigned` + `gapWarnings[]` (fixture `income-statement-gap`) |
-| NF-015 `packages/laravel` has no tests of its own | **RESOLVED 2026-08-16** — own suite (19 tests), coverage floor 95%; found and fixed a tenant-scoping defect in **both** adapters |
-| NF-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (NF-014) |
+| SPEC-001 unknown `voucherId` | ✅ `E_VOUCHER_UNKNOWN` + `core/voucher-unknown.json` |
+| SPEC-002 `E_ENTRY_NOT_FINALIZED` in api.md, not in the catalogue | ✅ code dropped from the spec, `reverse` is status-independent |
+| SPEC-003 fiscal-year close with unfinalized postings | ✅ `E_FISCALYEAR_UNFINALIZED_ENTRIES` + `core/fiscalyear-close-guard.json` |
+| SPEC-004 asset posting accounts | ✅ accounts via the `assetAccounts` pack module; **pool period** `poolYears` in the depreciation module since 2026-08-16 (fixture `gwg-pool-period`) |
+| SPEC-005 journalExport manifest streams | ✅ `auditLog` always included; `formatVersion` follows the spec version (0.6 since 2026-08-16, guarded against drift) |
+| SPEC-006 `E_COSTING_RUN_UNKNOWN` | ✅ code + `costing/costing-run-unknown.json` |
+| SPEC-007 balanceSheet side assignment | ✅ explicit `side` in the mapping schema and in both projections |
+| SPEC-008 `includeNonCash` missing from the schema | ✅ schema extended |
+| SPEC-009 `cashBasisReport` German VAT passthrough | ✅ resolved |
+| SPEC-010 `EXEMPT` cannot be posted | ✅ `exempt` mechanism (0.5.0) |
+| SPEC-C01 timestamp serialization | ✅ resolved |
+| IMPL-005 cash-basis reversal | ✅ fixed 2026-08-15; **remainder closed 2026-08-16** by IMPL-008 — settled-then-reversed cannot occur any more |
+| IMPL-006 `cashBasisReport` without `year` crashes | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| IMPL-007 missing mapping reports `E_MAPPING_OVERLAP` | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| IMPL-008 reversal leaves open items standing | **RESOLVED 2026-08-16** — the reversal clears them (`cause: cancellation` → status `cancelled`), a touched item refuses the reversal (`E_ENTRY_HAS_SETTLED_ITEMS`); fixtures `reverse-clears-open-items`, `reverse-settled-item`, `vat-cash-basis-reversal-unpaid` |
+| IMPL-009 `CalendarDate` years 0000–0099 diverged PHP vs. Node | ✅ fixed 2026-08-15 — Node no longer uses the host `Date` |
+| IMPL-010 `Money.of` accepted amounts the data format forbids | ✅ fixed 2026-08-15 — `1.5e+21` was bookable; `+10.00` also diverged |
+| IMPL-011 `post` accepted a fabricated `taxTag` into the VAT return | ✅ fixed 2026-08-15 |
+| IMPL-012 `balanceSheet` silently ignored `fiscalYear` | ✅ fixed 2026-08-15 |
+| IMPL-013 a wrong `direction` booked an incoming invoice inverted | ✅ fixed 2026-08-15 — `E_INPUT_INVALID` |
+| IMPL-017 an unmapped balance account made the balance sheet stop balancing | **RESOLVED 2026-08-15** — `_unassigned` per section + `gapWarnings[]` (fixture `balance-sheet-gap`) |
+| IMPL-014 accounts outside a mapping vanish from the income statement | **RESOLVED 2026-08-15** — `_unassigned` + `gapWarnings[]` (fixture `income-statement-gap`) |
+| IMPL-015 `packages/laravel` has no tests of its own | **RESOLVED 2026-08-16** — own suite (19 tests), coverage floor 95%; found and fixed a tenant-scoping defect in **both** adapters |
+| IMPL-016 four declared parameters that no implementation reads | ✅ three fixed 2026-08-16 (`journalExport.format`, `costAllocationSheet.fiscalYear`/`period`); `balanceSheet.incomeMapping` stays without effect **by decision** (IMPL-014) |
 | **`E_INPUT_INVALID` added** | exit code 45 — ✅ catalogue entry written in the knowledge base |
-| NF-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
-| NF-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
-| NF-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
-| NF-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` now credits the carrying amount off the asset account and books the difference to the pack's `disposalProceedsAccount`/`disposalLossAccount`; pooled assets stay exempt (NF-019). Fixture `pool-unaffected-by-disposal` |
-| NF-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the depreciation that is due before writing off; due follows the schedule's own convention (a plan month falls due on its last day). Fixture `disposal-catches-up-depreciation` |
-| NF-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions (`acquireAsset(dimensions)`), and acquisition, depreciation, catch-up and disposal all book with them; both persistence adapters carry them through the round trip. Fixture `asset-dimensions` |
-| NF-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
-| NF-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the NF-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
+| IMPL-018 four error codes have no exit code | **RESOLVED 2026-08-16** — appended at 49–53 in both languages (`E_AMOUNT_SCALE_MISMATCH` with them, so the guard needs no exception list); `ExitCodesTest`/`exit-codes.test.ts` read the catalogue and fail when a code in it has no exit code of its own |
+| IMPL-019 pooled assets stopped depreciating on disposal | **RESOLVED 2026-08-16** — `runDepreciation` skipped every disposed asset, pooled ones included; F-AST-006 requires the pool to run its full term regardless. Both languages fixed, fixture `pool-unaffected-by-disposal` |
+| IMPL-020 `supplierTaxationMethod` could never be set | **RESOLVED 2026-08-16** — declared in the data format (`enum accrual\|cash`, F-TAX-007) and carried by both record classes, but no code ever read it from the input. Now accepted and validated (`E_INPUT_INVALID` on an unknown value); fixture `supplier-taxation-method` |
+| IMPL-021 asset disposal never writes off the carrying amount | **RESOLVED 2026-08-16** — `dispose` now credits the carrying amount off the asset account and books the difference to the pack's `disposalProceedsAccount`/`disposalLossAccount`; pooled assets stay exempt (IMPL-019). Fixture `pool-unaffected-by-disposal` |
+| IMPL-022 disposal does not catch up depreciation to the disposal date | **RESOLVED 2026-08-16** — `dispose` books the depreciation that is due before writing off; due follows the schedule's own convention (a plan month falls due on its last day). Fixture `disposal-catches-up-depreciation` |
+| IMPL-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions (`acquireAsset(dimensions)`), and acquisition, depreciation, catch-up and disposal all book with them; both persistence adapters carry them through the round trip. Fixture `asset-dimensions` |
+| IMPL-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
+| IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the IMPL-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
 
-F-004, NF-008, the NF-005 remainder, NF-015 and NF-018 were all closed on 2026-08-16, and NF-019 +
-NF-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
+SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
+IMPL-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
 is empty.**
 
-### NF-025 — the pool-disposal rule was German law inside the core — RESOLVED
+### IMPL-025 — the pool-disposal rule was German law inside the core — RESOLVED
 
-Roland's catch, and the sharpest finding of the day: fixing NF-019 I wrote „a pooled asset keeps
+Roland's catch, and the sharpest finding of the day: fixing IMPL-019 I wrote „a pooled asset keeps
 depreciating after disposal" straight into `runDepreciation` as `route !== 'pool'`. That is not a
 property of pooling — it is **§ 6 Abs. 2a Satz 4 EStG**, one jurisdiction's answer. The UK and
 Australia do the opposite: disposals are taken out of their pools. So every future pack with a
-pooled de-minimis regime would have inherited the German answer silently — the exact mistake F-004
+pooled de-minimis regime would have inherited the German answer silently — the exact mistake SPEC-004
 had already fixed for the pool *period*, one line further down in the same file.
 
 It is now `poolReducedOnDisposal` in the depreciation module, conditionally required next to
@@ -81,19 +96,19 @@ answers — the same core, two results.
 
 **The lesson generalises:** the litmus test in `CLAUDE.md` ("does your code cite a statute → wrong
 layer") catches statutes that are *quoted*. It does not catch a statute that has been silently
-translated into a condition. Both my NF-019 fix and its comment read as mechanism; only the
+translated into a condition. Both my IMPL-019 fix and its comment read as mechanism; only the
 question "would another country answer this differently?" exposes it.
 
-### NF-024 — pooled assets reported a carrying amount of zero — RESOLVED
+### IMPL-024 — pooled assets reported a carrying amount of zero — RESOLVED
 
 `bookValueAt` short-circuited to zero for every route except `capitalize`. True for an immediately
 expensed asset, which was never capitalised — false for a pooled one, which sits on the pool
 account and is written down over the pack's term. The fixed-asset schedule (F-AST-005) therefore
 reported zero book value for assets that are in the balance sheet with a real one. Invisible while
-nothing consumed the value for pooled assets; the NF-021 write-off consumed it, and the disposal
+nothing consumed the value for pooled assets; the IMPL-021 write-off consumed it, and the disposal
 of a pooled asset under a `poolReducedOnDisposal: true` pack wrote off nothing at all.
 
-### NF-023 — a machine entry cannot carry a required dimension — RESOLVED
+### IMPL-023 — a machine entry cannot carry a required dimension — RESOLVED
 
 Found when the disposal catch-up started booking depreciation in `edge-errors`, whose rule module
 makes a cost centre mandatory for 4000–4999. `postMachineEntry` builds its lines itself and has no
@@ -118,9 +133,9 @@ Why not the alternatives:
 
 The chosen way is also plain fixed-asset practice: an asset belongs to a cost centre and its
 depreciation belongs there with it — a master-data fact, not a jurisdiction's rule, so it stays in
-the core without repeating the NF-025 mistake.
+the core without repeating the IMPL-025 mistake.
 
-### NF-022 — the disposal does not catch up depreciation to the disposal date — RESOLVED
+### IMPL-022 — the disposal does not catch up depreciation to the disposal date — RESOLVED
 
 > **Resolved 2026-08-16.** `dispose` now books the depreciation that is due before it writes
 > anything off. Which months are due follows the schedule's own convention — a plan month falls due
@@ -128,10 +143,10 @@ the core without repeating the NF-025 mistake.
 > core. **Deliberately left to the pack:** whether the month an asset leaves in counts as a whole
 > month is a jurisdiction's answer (Germany grants it, US conventions are half-year or mid-quarter),
 > so an asset disposed mid-month gets no depreciation for that month today. That is the honest
-> limit, and it is the same shape as NF-025 — the moment we answer it in the core, we have written
+> limit, and it is the same shape as IMPL-025 — the moment we answer it in the core, we have written
 > law again. Original finding:
 
-Fallout from fixing NF-021, and visible only because the write-off exists now. `bookValueAt`
+Fallout from fixing IMPL-021, and visible only because the write-off exists now. `bookValueAt`
 reports what has actually been **booked**, not what would be owed up to that date; the yearly
 `runDepreciation` books on 31 December. Dispose an asset on 30 June without running depreciation
 first and the carrying amount written off is the one from the start of the year — the loss is
@@ -146,14 +161,14 @@ period-wise `runDepreciation(fiscalYear, period)` path suggests). The honest int
 depreciation up to the disposal period first, then dispose. `pool-unaffected-by-disposal` does
 exactly that and says so.
 
-### NF-021 — asset disposal never writes off the carrying amount — RESOLVED
+### IMPL-021 — asset disposal never writes off the carrying amount — RESOLVED
 
 > **Resolved 2026-08-16.** `dispose` now books the whole event: the carrying amount is credited
 > off the asset account, and the difference between proceeds and book value goes to the pack's
 > `disposalProceedsAccount` (gain) or `disposalLossAccount` (loss) — the two accounts the resolver
 > had been requiring and nothing had been booking. A scrapping without proceeds is the loss case;
 > a fully depreciated asset scrapped for nothing books no entry at all rather than an empty one.
-> Pooled assets are exempt, because NF-019 established that the pool is not reduced when an item
+> Pooled assets are exempt, because IMPL-019 established that the pool is not reduced when an item
 > leaves. The write-off is a single credit against the asset account because this core depreciates
 > *net* — there is no accumulated-depreciation account to reverse. Original finding:
 
@@ -179,12 +194,12 @@ silent:
    `disposalLossAccount`.
 2. **Depreciation up to the disposal month** would have to run first, otherwise the carrying
    amount being written off is stale. Today `runDepreciation` is a separate call.
-3. **The pool must be exempt** — NF-019 just established that the pool is not reduced when an item
+3. **The pool must be exempt** — IMPL-019 just established that the pool is not reduced when an item
    leaves. So this is `route === 'capitalize'` only, and the two rules must not collide.
 4. **Are the pack accounts mandatory or is the input override kept?** Today's `proceedsAccount`
    input parameter is documented and used by fixtures.
 
-**How it escaped the sweep that found NF-019/NF-020:** F-AST-004 *has* a `covers` link, so it never
+**How it escaped the sweep that found IMPL-019/IMPL-020:** F-AST-004 *has* a `covers` link, so it never
 showed up in the list of uncovered requirements. The fixture it points at (`edge-errors`) only
 exercises the error paths — `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, and `status: "disposed"`. It
 asserts no booking at all. A `covers` link means "some fixture names this requirement", not "this
@@ -195,7 +210,7 @@ The fixture `pool-unaffected-by-disposal` written on 2026-08-16 records the wron
 row (the disposed machine still standing at 2400.00) and says so inline, so the fix has to change
 it visibly rather than silently agreeing with it.
 
-### NF-019 / NF-020 — found by asking which requirements have no test
+### IMPL-019 / IMPL-020 — found by asking which requirements have no test
 
 Neither came from a bug report; both came from listing the requirements (`30-anforderungen/`)
 against the `covers` fields of the fixtures and then checking, for each requirement without a
@@ -203,20 +218,20 @@ link, whether the capability exists in the code. That separates two very differe
 built yet (no finding — six requirements are in that group and the handbook claims none of them)
 versus **built and unwatched**, which is where these two sat.
 
-- **NF-019** — `runDepreciation` skipped every disposed asset. Correct for a single asset, wrong
+- **IMPL-019** — `runDepreciation` skipped every disposed asset. Correct for a single asset, wrong
   for a pooled one: F-AST-006 requires the pool to be written off on its fixed schedule
   *unaffected by disposals*, and the jurisdiction behind the rule states it outright — the pool is
   not reduced when an item leaves. The effect was silent and directional: too little depreciation
   and too much profit, for every remaining year of the term. Fixed in both languages by exempting
   `route === pool` from the skip; the disposal still books its proceeds.
-- **NF-020** — `supplierTaxationMethod` sat in `format.schema.json` as `enum ["accrual","cash"]`,
+- **IMPL-020** — `supplierTaxationMethod` sat in `format.schema.json` as `enum ["accrual","cash"]`,
   in `datenformat.md` with F-TAX-007 next to it, and in both `Voucher` classes — but the PHP
   constructor call passed a literal `null` for it and the Node object literal omitted it, so no
   caller could ever set it. The field decides whether input tax is deductible on invoice or only
   on payment. An unknown value is now rejected rather than dropped: storing null silently would
   read as "supplier taxes on accrual", which is the answer that permits the earlier deduction.
 
-### NF-018 — four error codes fall through to exit code 1 — RESOLVED
+### IMPL-018 — four error codes fall through to exit code 1 — RESOLVED
 
 > **Resolved 2026-08-16.** The four codes were appended to `ExitCodes`/`exit-codes.ts` (49–52),
 > together with `E_AMOUNT_SCALE_MISMATCH` (53): it is declared in the catalogue but not yet
@@ -275,7 +290,7 @@ Format per finding:
 
 ---
 
-## F-001: No error code for unknown voucherId — ✅ RESOLVED
+## SPEC-001: No error code for unknown voucherId — ✅ RESOLVED
 
 > **Resolved.** The proposed dedicated code was introduced: `E_VOUCHER_UNKNOWN` is in the
 > error catalogue and in the exit-code table (`ExitCodes.php` / `exit-codes.ts`), and
@@ -290,7 +305,7 @@ Format per finding:
 - **Proposal:** either pin it down explicitly that way or introduce a dedicated code
   `E_VOUCHER_UNKNOWN` + fixture.
 
-## F-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog — ✅ RESOLVED
+## SPEC-002: E_ENTRY_NOT_FINALIZED in api.md, but not in the error catalog — ✅ RESOLVED
 
 > **Resolved in spec v0.5.** The code was dropped from the spec rather than added to the
 > catalogue: `reverse` is status-independent, which is what the implementation already did.
@@ -307,7 +322,7 @@ Format per finding:
 - **Proposal:** resolve the footnote in api.md — remove the line from the error
   column or define the behavior for `entered` explicitly.
 
-## F-004: Account resolution for asset postings not specified — ✅ RESOLVED
+## SPEC-004: Account resolution for asset postings not specified — ✅ RESOLVED
 
 > **Accounts: resolved.** The proposed keys became a pack module of their own — `kind:
 > assetAccounts` (`pack-library/de-pack/assets/`, `pack-library/us-pack/assets/`) supplies the
@@ -350,7 +365,7 @@ Format per finding:
   the single bank account, expense account by name part ("AfA"/"GWG").
 - **Proposal:** add the keys to the rule-module spec; add fixtures.
 
-## F-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other — ✅ RESOLVED
+## SPEC-005: journal-export-z3 vs. audit-trail — manifest streams contradict each other — ✅ RESOLVED
 
 > **Resolved.** The contradiction is gone: `testing/testsuite/fixtures/io/journal-export-z3.json` now
 > expects `formatVersion "0.4"` and `streams: [journal, accounts, vouchers, auditLog]` — the
@@ -371,7 +386,7 @@ Format per finding:
   (auditLog always, formatVersion current), extend the schema manifest with
   streams/hashAlgorithm.
 
-## F-006: E_COSTING_RUN_UNKNOWN missing from the catalog — ✅ RESOLVED
+## SPEC-006: E_COSTING_RUN_UNKNOWN missing from the catalog — ✅ RESOLVED
 
 > **Resolved.** The proposed code was added: `E_COSTING_RUN_UNKNOWN` is in the catalogue and
 > the exit-code table, pinned by `testing/testsuite/fixtures/costing/costing-run-unknown.json`.
@@ -384,7 +399,7 @@ Format per finding:
   E_OPENITEM_UNKNOWN).
 - **Proposal:** add it to the error catalog + fixture.
 
-## F-007: balanceSheet side assignment by root order — ✅ RESOLVED
+## SPEC-007: balanceSheet side assignment by root order — ✅ RESOLVED
 
 > **Resolved.** The proposed explicit field was introduced instead of relying on root order:
 > `format.schema.json` `$defs/mappingPosition` declares `side: assets|liabilitiesAndEquity`
@@ -397,7 +412,7 @@ Format per finding:
   all others = liabilities-and-equity (credit−debit).
 - **Proposal:** `side: assets|liabilitiesAndEquity` on the mapping root node.
 
-## F-003: No error code for "fiscal-year close with non-finalized postings" — ✅ RESOLVED
+## SPEC-003: No error code for "fiscal-year close with non-finalized postings" — ✅ RESOLVED
 
 > **Resolved.** The proposed dedicated code was introduced rather than reusing
 > `E_PERIOD_OUT_OF_ORDER`: `E_FISCALYEAR_UNFINALIZED_ENTRIES` is in the catalogue and the
@@ -413,7 +428,7 @@ Format per finding:
 - **Proposal:** consider a dedicated code `E_FISCALYEAR_UNFINALIZED_ENTRIES`
   or document the reuse.
 
-## F-CROSS-001: Timestamp serialization not canonical across implementations — ✅ RESOLVED
+## SPEC-C01: Timestamp serialization not canonical across implementations — ✅ RESOLVED
 
 > **Resolved (2026-06-20):** canonical format introduced — UTC, RFC 3339 with
 > a fixed millisecond place and `Z` (byte-identical to JS `toISOString`). PHP:
@@ -448,7 +463,7 @@ Format per finding:
   implementations onto it — then the `contentHashes` also match
   byte-exactly in both directions.
 
-## F-008: `format.schema.json` `mappingPosition` omits `includeNonCash` — ✅ schema extended
+## SPEC-008: `format.schema.json` `mappingPosition` omits `includeNonCash` — ✅ schema extended
 
 > **Resolved (2026-06-23):** `$defs/mappingPosition` now declares
 > `includeNonCash` (`{ "type": "boolean" }`) — the schema matches the engine.
@@ -480,7 +495,7 @@ Format per finding:
   (meaningful only for `cash-basis-categories`) so the normative schema matches the engine
   before any move to schema-validate pack modules. Shared schema artifact — applies to Node too.
 
-## F-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment — ✅ resolved
+## SPEC-009: `cashBasisReport` hard-codes a German VAT-passthrough treatment — ✅ resolved
 
 > **Resolved (2026-06-24):** the hard-coded German strings are gone from the core. Tax
 > accounts flow through the cash-basis result **only where the pack's mapping maps them**
@@ -494,7 +509,7 @@ Format per finding:
   labels** (`tax_out` → `"Vereinnahmte USt"`/`"USt-Zahlung an FA"`, `tax_in` → `"Gezahlte
   Vorsteuer"`) — the German EÜR rule (VAT flows through profit). For the US, sales tax is a
   pure pass-through (never income). With `2100 Sales Tax Payable` marked `tax_out` (required by
-  `vatReturn`, F-… below), a SALETAX cash sale would count its collected tax as income under a
+  `vatReturn`, SPEC-… below), a SALETAX cash sale would count its collected tax as income under a
   German label — wrong for US.
 - **Where:** `Policies/Projection/CashBasisProjection.php`; `pack-library/us-pack/accounts/us-accounts.json`.
 - **Chosen behavior / workaround:** `us-schedule-c` posts its sample revenue **tax-free** so the
@@ -503,7 +518,7 @@ Format per finding:
   cash-basis mapping maps the tax accounts; drop the hard-coded German strings). Behavior change with
   DE-fixture ripple → own job, human decision. Applies to Node too.
 
-## F-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected — ✅ RESOLVED
+## SPEC-010: `EXEMPT` (rate-0 standard) cannot be posted — 0.00 tax line rejected — ✅ RESOLVED
 
 > **Resolved in 0.5.0 (2026-06-24).** The proposal below was built: `exempt` is now a
 > registered tax mechanism (`TaxMechanisms`) that tags the base and emits **no** tax line,
@@ -524,38 +539,38 @@ Format per finding:
 
 ---
 
-## Cross-language findings (NF-005 … NF-007)
+## Cross-language findings (IMPL-005 … IMPL-007)
 
 The three findings below were found while walking the CLI for the handbook (2026-08-14) and are
 **identical in PHP and Node** — same code path, same result, so cross-language equivalence holds
 and they are model/spec questions rather than parity defects.
 
 They deliberately keep **one shared number in both files** instead of the older double numbering
-(NF-002 ↔ F-008, NF-003 ↔ F-009, NF-004 ↔ F-010), which made the same finding look like two.
-`F-011` is *not* reused here: that number belongs to the knowledge base's own finding list.
+(IMPL-002 ↔ SPEC-008, IMPL-003 ↔ SPEC-009, IMPL-004 ↔ SPEC-010), which made the same finding look like two.
+`SPEC-011` is *not* reused here: that number belongs to the knowledge base's own finding list.
 
 **Full analysis, assessment and proposed directions: `implementations/node/SPEC-FINDINGS.md`.**
 Summary and the PHP sites:
 
-- **NF-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately — ✅ FIXED
+- **IMPL-005 — cash-basis VAT counts the reversal of an *unsettled* open item immediately — ✅ FIXED
   2026-08-15.** The direct-contribution loop in `VatReturnProjection.php` now also skips an entry
   that *reverses* an entry carrying open items: its tax follows the reversed entry's settlements
   instead of counting as a cash movement. Reversals of genuinely cash-effective entries still count
-  directly, at their own date. **Remainder closed 2026-08-16 by NF-008:** the settled-then-reversed
+  directly, at their own date. **Remainder closed 2026-08-16 by IMPL-008:** the settled-then-reversed
   case cannot arise any more, because a reversal is refused once the open item carries a settlement.
   That answers the question rather than choosing between its two readings — the tax stays declared,
   and the correction is a separate cash-effective posting with its own date, which is what
   § 17 Abs. 1 UStG prescribes ("in the taxation period in which the change occurred").
-- **NF-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
+- **IMPL-006 — `cashBasisReport` without `year` raises an uncaught `InvalidValue`.**
   `CashBasisProjection.php:63` defaults a missing `year` to `0`, then builds
   `CalendarDate::of('0000-01-01')` in `assertCalendarYearFiscalYears`. Not a `DomainError`, so the
   CLI prints a stack trace instead of its documented JSON error line. Realistic trigger: every
   other projection except `vatReturn` takes `fiscalYear`.
-- **NF-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
+- **IMPL-007 — a missing or unknown mapping reports `E_MAPPING_OVERLAP`.**
   `IncomeStatementProjection.php:46`, `BalanceSheetProjection.php:49` — a code whose name says the
   opposite of what happened, and the only error a tax-free configuration hits on a normal report.
   Current behaviour pinned in `testing/scenarios/walkthrough/default.json`.
-- **NF-008 — RESOLVED 2026-08-16.** Researched rather than guessed, because the data-format
+- **IMPL-008 — RESOLVED 2026-08-16.** Researched rather than guessed, because the data-format
   decision hung on it. GoBD settles the first half: nothing is ever deleted, before or after
   finalization — even a finalized batch is corrected by a counter-entry, so the reversal posting
   itself was never in question. The half that mattered is a different axis, and SAP draws it
@@ -575,21 +590,21 @@ Summary and the PHP sites:
   control case.
   While writing the schema for it, a second gap surfaced: `$defs/openItem` declared neither
   `remaining` nor `status` nor the settlement `difference`, all of which the engine has always
-  written, under `additionalProperties: false` — the NF-002/F-008 class again, latent because no
+  written, under `additionalProperties: false` — the IMPL-002/SPEC-008 class again, latent because no
   test validated a stored open item against it. The declaration now matches what is written.
   Original finding:
 
-- **NF-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
+- **IMPL-008 — a reversal leaves the reversed entry's open items standing.** `reverse` posts the
   counter-entry but does not touch the open items the reversed entry created: the trial balance
   shows the payable account at `0.00` while `openItems` still reports it open and settleable.
-  Found while fixing NF-005; distinct from it and not its cause. A cancelled open item must keep
+  Found while fixing IMPL-005; distinct from it and not its cause. A cancelled open item must keep
   its settlement history (dropping it would rewrite filed VAT periods), and whether it disappears
   or gains a terminal `cancelled` status is a **data-format** decision. Documented, not changed.
 
-Each still-open item needs a spec decision (NF-007 an append to the error catalogue, NF-008 a
+Each still-open item needs a spec decision (IMPL-007 an append to the error catalogue, IMPL-008 a
 data-format decision) before either language moves.
 
-- **NF-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
+- **IMPL-009 — `CalendarDate` accepted years 0000–0099 in PHP and rejected them in Node — ✅ FIXED
   2026-08-15.** A substrate-level equivalence break: Node validated by round-tripping through
   `Date.UTC(year, …)`, which maps years 0–99 onto 1900+year, so `0000-01-01`…`0099-12-31` were
   rejected there and accepted here. **PHP is unchanged** — Node was widened to match it by
@@ -598,30 +613,30 @@ data-format decision) before either language moves.
   carry the **same** accepted/rejected tables (34 cases each). Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.
 
-- **NF-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED 2026-08-15.**
+- **IMPL-010 — `Money.of` accepted amounts the data format forbids — ✅ FIXED 2026-08-15.**
   Validation went straight to `brick/math`, which parses far more than
   `format.schema.json` `$defs/money/properties/amount` (`^-?\d+(\.\d{1,4})?$`) allows:
   `"1e3"` booked as `1000.00`, `"1.5e+21"` as `1500000000000000000000.00`, `"10."` and
   `".5"` likewise — and `"+10.00"` was accepted here while Node rejected it, a second
-  substrate divergence after NF-009. `Money::of` now matches the string against the
+  substrate divergence after IMPL-009. `Money::of` now matches the string against the
   data-format expression before parsing; `fromCalculation` is untouched. Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.
 
-- **NF-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
+- **IMPL-011 — `post` accepted a caller-fabricated `taxTag` straight into the VAT return — ✅ FIXED
   2026-08-15.** `Ledger.php:706` stored whatever the caller sent; the VAT return is built from
   those tags, so an invented `reportingKey` became a line of a statutory return at exit 0.
   A tag whose `code` is set must now resolve in the `TaxCodeRegistry` (`E_TAXCODE_UNKNOWN`,
   existing code). **PHP needed the registry wired in twice** — `DatabaseTenantFactory.php:78`
   duplicates the ledger construction from `Tenant.php:96`, where Node has one path; worth
   removing that duplication separately.
-- **NF-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED 2026-08-15.** Two different
+- **IMPL-012 — `balanceSheet` silently ignored `fiscalYear` — ✅ FIXED 2026-08-15.** Two different
   years returned byte-identical sheets, while the cheat sheet and the gated scenarios both
   passed the parameter. It now scopes cumulatively ("as at the end of year N"); mirroring
   trialBalance's G1 rule was tried first and left the sheet unbalanced by exactly the prior
   year's result, because summae writes no closing entries. Full write-up:
   `implementations/node/SPEC-FINDINGS.md`.
 
-- **NF-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED 2026-08-15.**
+- **IMPL-013 — a wrong `direction` booked an incoming invoice fully inverted — ✅ FIXED 2026-08-15.**
   `TaxService.php:58` treated anything that was not exactly `'input'` as an output voucher, so
   `"Input"` with a capital I credited the expense and debited the payable — the mirror image of
   the correct booking, carrying a valid tax tag so nothing downstream flagged it. An absent
@@ -632,13 +647,13 @@ data-format decision) before either language moves.
   (`50-spezifikation/fehlerkatalog.md`, section `E_INPUT`) and the conformance fixture
   (`core/input-invalid.json`) were written in the knowledge base and mirrored via `make sync` —
   green in both languages on the first run.
-- **NF-014 — RESOLVED 2026-08-15.** An unmapped account no longer vanishes from the income
+- **IMPL-014 — RESOLVED 2026-08-15.** An unmapped account no longer vanishes from the income
   statement: it goes into the catch-all `_unassigned` and is named in `gapWarnings[]`, the
   treatment the error catalogue prescribes and `importMapping` already applied. `balanceSheet`
   stays as it was on purpose — its type-based sum is what makes the identity hold by
   construction. Full write-up: `implementations/node/SPEC-FINDINGS.md`.
 
-## NF-015: `packages/laravel` has no tests of its own — gate gap
+## IMPL-015: `packages/laravel` has no tests of its own — gate gap
 
 - **Job:** chore/coverage-all-packages (2026-08-15)
 - **What:** the persistence adapter is the one package with no test suite. `packages/laravel/tests/`

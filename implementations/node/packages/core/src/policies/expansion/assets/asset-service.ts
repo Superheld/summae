@@ -1,4 +1,5 @@
 import { DomainError } from '../../../domain-error.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { Ledger } from '../../../ledger/ledger.js';
 import { Voucher } from '../../../records/voucher.js';
 import type { AssetRepository, FiscalYearRepository, VoucherRepository } from '../../../port.js';
@@ -44,7 +45,24 @@ export class AssetService {
     private readonly vouchers: VoucherRepository,
     private readonly ledger: Ledger,
     private readonly ids: IdGenerator,
+    // An asset run posts through the ledger, so `journalEntry/created` records exist — but
+    // nothing in them says *an asset was acquired*. These records carry the asset event
+    // itself (F-CORE-014); the depreciation run has no object of its own, so it names the
+    // tenant, like the configuration singletons.
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
+
+  private trace(
+    input: Record<string, unknown>,
+    objectType: string,
+    objectId: Uuid,
+    action: string,
+    changes: Record<string, { from: unknown; to: unknown }>,
+  ): void {
+    if (this.audit === null) return;
+    this.audit.record(this.audit.actorOf(input), objectType, objectId, action, changes);
+  }
 
   setRuleModule(ruleModule: Record<string, unknown>): void {
     this.ruleModule = ruleModule;
@@ -70,7 +88,7 @@ export class AssetService {
       usefulLifeMonths = this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
-      // Pool period comes from the pack (F-004): a fixed five years used to sit here, which is one
+      // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
       // inherited it silently. The pack says over how long; the core only spreads it evenly.
       const poolYears = this.poolYears(acquiredOn);
@@ -101,6 +119,13 @@ export class AssetService {
       { account: this.counterAccount(), side: 'credit', money: cost.toJSON() },
     ]));
 
+    this.trace(input, 'asset', asset.id, 'acquired', {
+      name: { from: null, to: name },
+      assetClass: { from: null, to: assetClass },
+      acquiredOn: { from: null, to: acquiredOn.iso },
+      route: { from: null, to: route },
+    });
+
     const result = asset.toJSON();
     result.route = route;
     if (route === 'immediate_expense') result.expenseAccount = targetAccount;
@@ -130,6 +155,11 @@ export class AssetService {
     if (lines.length > 0) {
       this.postMachineEntry(disposedOn, voucherId, `Asset disposal ${asset.name}`, this.withDimensions(asset, lines));
     }
+
+    this.trace(input, 'asset', asset.id, 'disposed', {
+      status: { from: 'active', to: 'disposed' },
+      disposedOn: { from: null, to: disposedOn.iso },
+    });
 
     return asset.toJSON();
   }
@@ -174,6 +204,17 @@ export class AssetService {
       this.assets.save(asset);
       entriesCreated++;
       total = total.add(amount);
+    }
+
+    // A run that created nothing is still an event: "someone ran depreciation for this
+    // period and it was already done" is exactly what an auditor reconstructing a timeline
+    // wants to see, and leaving it out would make repeated runs invisible.
+    if (this.tenantId !== null) {
+      this.trace(input, 'depreciationRun', this.tenantId, 'completed', {
+        fiscalYear: { from: null, to: fiscalYear },
+        period: { from: null, to: period },
+        entriesCreated: { from: null, to: entriesCreated },
+      });
     }
 
     if (entriesCreated === 0) return { alreadyRun: true, entriesCreated: 0 };
@@ -265,7 +306,7 @@ export class AssetService {
   }
 
   /**
-   * Dimensions the asset carries, in the shape a posting line expects (NF-023). Every machine
+   * Dimensions the asset carries, in the shape a posting line expects (IMPL-023). Every machine
    * entry about an asset gets them on every line: the whole event belongs to that cost centre, and
    * a line without them would be refused wherever the pack makes a dimension mandatory — which is
    * precisely the case that used to make depreciation impossible to run.
@@ -346,7 +387,7 @@ export class AssetService {
   /**
    * How long a pooled asset is written off. Refused rather than defaulted: a pack that opens a pool
    * range without saying over how long is incomplete, and picking a number here would put a statute
-   * back into the core — the exact thing F-004 is about. The schema requires the field alongside
+   * back into the core — the exact thing SPEC-004 is about. The schema requires the field alongside
    * `poolMax`, so this fires only for hand-fed rule data that never went through a pack.
    */
   private poolYears(acquiredOn: CalendarDate): number {
@@ -366,7 +407,7 @@ export class AssetService {
    * refusal: this is a jurisdiction's answer, not a property of pooling. Germany does not reduce
    * the pool when an item leaves (the yearly fraction runs to the end of the term regardless);
    * the UK and Australia take disposals out of their pools. Deciding it here would have put a
-   * statute back into the core — which is exactly what NF-019 accidentally did before this.
+   * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
    */
   private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
     const threshold = this.applicableThreshold(acquiredOn);
@@ -428,7 +469,7 @@ export class AssetService {
     return this.assetAccount('gwgExpenseAccount');
   }
   /**
-   * Depreciation owed up to the disposal, booked before the write-off (NF-022).
+   * Depreciation owed up to the disposal, booked before the write-off (IMPL-022).
    *
    * Without this the disposal wrote off whatever carrying amount happened to be booked, and the
    * asset's last months of depreciation never happened at all: `runDepreciation` skips disposed

@@ -1,6 +1,6 @@
 {
   "fixture": "vat-return-reversal",
-  "description": "Gesamt-Review 2026-06-09 / v0.5/F-008: Generalumkehr einer Steuerbuchung — taxTag.baseMoney wird unverändert kopiert (nicht negiert), die VA-Projektion negiert die Bemessungsgrundlage anhand des Vorzeichens der Steuerposition. Original in Q2, Storno in Q3: Q2 zeigt +1000/+190, Q3 zeigt -1000/-190 (Erstattung).",
+  "description": "Gesamt-Review 2026-06-09 / v0.5/SPEC-008: Generalumkehr einer Steuerbuchung — taxTag.baseMoney wird unverändert kopiert (nicht negiert), die VA-Projektion negiert die Bemessungsgrundlage anhand des Vorzeichens der Steuerposition. Original in Q2, Storno in Q3: Q2 zeigt +1000/+190, Q3 zeigt -1000/-190 (Erstattung).",
   "covers": ["F-TAX-005", "F-CORE-013", "SF-09"],
   "setup": {
     "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR", "taxProfile": { "taxationMethod": "accrual" } },
@@ -38,7 +38,7 @@
       "expect": {
         "result": {
           "sequenceNumber": 2, "reverses": "$E1",
-          "comment": "Generalumkehr: negierte Beträge, gleiche Seiten — baseMoney UNVERÄNDERT kopiert (datenformat.md v0.5/F-008)",
+          "comment": "Generalumkehr: negierte Beträge, gleiche Seiten — baseMoney UNVERÄNDERT kopiert (datenformat.md v0.5/SPEC-008)",
           "lines": [
             { "account": "1400", "side": "debit", "money": { "amount": "-1190.00", "currency": "EUR" } },
             { "account": "8400", "side": "credit", "money": { "amount": "-1000.00", "currency": "EUR" },
@@ -64,7 +64,7 @@
       "name": "vatReturn",
       "params": { "year": 2026, "quarter": 3, "asOf": "2026-12-31" },
       "expect": {
-        "comment": "Storno in Q3: Projektion negiert die kopierte Bemessungsgrundlage anhand des Vorzeichens der Steuerposition (F-008)",
+        "comment": "Storno in Q3: Projektion negiert die kopierte Bemessungsgrundlage anhand des Vorzeichens der Steuerposition (SPEC-008)",
         "keys": { "81": { "base": "-1000.00", "tax": "-190.00" } },
         "payload": { "amount": "-190.00", "currency": "EUR" }
       }

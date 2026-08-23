@@ -61,7 +61,7 @@ over the full suite **+ coverage gate per package** via `coverage-gate.php`: lin
 cli 87 / laravel 98 / runner 82) · conformance suite `--strict` against **both** subjects
 (`core` and `database`) incl. byte-identical double run.
 
-**`packages/laravel` has its own suite** since 2026-08-16 (NF-015): `AdapterTestCase` (in-memory
+**`packages/laravel` has its own suite** since 2026-08-16 (IMPL-015): `AdapterTestCase` (in-memory
 SQLite + `summae_*` schema) · `RepositoryRoundTripTest` (write with one tenant instance, read with a
 second — everything asserted has been through a column) · `TenantScopingTest` (two tenants on one
 database) · `HydratorAndSchemaTest` · `ServiceProviderTest` (the Laravel entry point on

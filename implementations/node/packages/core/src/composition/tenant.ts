@@ -12,6 +12,7 @@ import {
 } from '../in-memory.js';
 import { PartnerService } from '../partner/partner-service.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
+import { AuditWriter } from '../ledger/audit-writer.js';
 import { Ledger } from '../ledger/ledger.js';
 import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
@@ -58,6 +59,12 @@ export class Tenant {
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
     readonly ids: IdGenerator,
+    /**
+     * Which pack this tenant was composed from — null for an inline rule bundle, where there
+     * is no manifest to name. Provenance, not rules: it exists so the system description can
+     * say what the books were kept under (F-IO-007).
+     */
+    readonly packIdentity: { id: string; version: string } | null = null,
   ) {}
 
   static inMemory(
@@ -70,6 +77,7 @@ export class Tenant {
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
+    packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     return Tenant.fromPorts(
@@ -93,6 +101,7 @@ export class Tenant {
       taxProfile,
       mappings,
       taxRoundingGranularity,
+      packIdentity,
     );
   }
 
@@ -123,6 +132,7 @@ export class Tenant {
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
+    packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, audit } = ports;
     const ledger = new Ledger(
@@ -138,9 +148,10 @@ export class Tenant {
       ids,
       taxCodes,
     );
-    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity);
-    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);
-    const costing = new CostingService(baseCurrency, accounts, journal, ids);
+    const auditWriter = new AuditWriter(audit, clock, ids);
+    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);
+    const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids, tenantId, auditWriter);
+    const costing = new CostingService(baseCurrency, accounts, journal, ids, tenantId, auditWriter);
     const partnerService = new PartnerService(partners, audit, clock, ids);
 
     return new Tenant(
@@ -163,6 +174,7 @@ export class Tenant {
       mappings,
       clock,
       ids,
+      packIdentity,
     );
   }
 }

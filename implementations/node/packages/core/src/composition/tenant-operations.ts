@@ -1,10 +1,14 @@
 import { DomainError } from '../domain-error.js';
 import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../policies/projection/asset-register.js';
+import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
+import { CashJournalProjection } from '../policies/projection/cash-journal.js';
+import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
+import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
 import { BalanceSheetProjection } from '../policies/projection/balance-sheet.js';
 import { CashBasisProjection } from '../policies/projection/cash-basis.js';
 import { DatevExportProjection } from '../policies/projection/datev-export.js';
@@ -75,7 +79,12 @@ export class TenantOperations {
       case 'importChartOfAccounts':
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':
-        return new MappingImporter(this.tenant.accounts, this.tenant.mappings).import(input);
+        return new MappingImporter(
+          this.tenant.accounts,
+          this.tenant.mappings,
+          this.tenant.id,
+          new AuditWriter(this.tenant.audit, this.tenant.clock, this.tenant.ids),
+        ).import(input);
       case 'createPartner':
         return serialize(this.tenant.partnerService.create(input));
       case 'updatePartner':
@@ -131,6 +140,12 @@ export class TenantOperations {
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
+      case 'unfinalizedEntries':
+        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
+      case 'systemDescription':
+        return new SystemDescriptionProjection(tenant.id, tenant.name, tenant.baseCurrency, tenant.packIdentity).compute(params);
+      case 'cashJournal':
+        return new CashJournalProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'assetRegister':
         return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'costAllocationSheet':

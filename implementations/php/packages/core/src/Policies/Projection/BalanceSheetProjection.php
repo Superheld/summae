@@ -23,7 +23,7 @@ use Summae\Core\Substrate\Money;
  * (result_allocation, v0.4 G6) — the result not yet appropriated.
  * Balance-sheet identity by construction (api.md, Review G1).
  *
- * Side assignment (v0.5/F-007): `side: assets|liabilitiesAndEquity` at the
+ * Side assignment (v0.5/SPEC-007): `side: assets|liabilitiesAndEquity` at the
  * mapping root node; assets = debit−credit, liabilitiesAndEquity =
  * credit−debit. Default without side: assets.
  */
@@ -141,7 +141,7 @@ final readonly class BalanceSheetProjection
         sort($unmatched, SORT_STRING);
 
         foreach ($mapping->leaves as $leaf) {
-            // v0.5/F-007: side comes from `side` at the root node, not from the order.
+            // v0.5/SPEC-007: side comes from `side` at the root node, not from the order.
             $section = $leaf['side'] === 'liabilitiesAndEquity' ? 'liabilitiesAndEquity' : 'assets';
 
             $amount = $zero;

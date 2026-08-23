@@ -13,6 +13,12 @@ the **PHP implementation is the reference**, Node mirrors it name-for-name.
 > invoice, payment, settlement, reversal, reports, period and year close,
 > export — with real output at every step.
 
+> **Facing an audit?** [GoBD conformance](../gobd-conformance.md) lists every GoBD
+> obligation with one of three statuses — mechanically verified (with the test that
+> proves it), open (named and scoped), or not verifiable by a library at all (and
+> therefore yours). Read the third group first: those are the ones nobody's green
+> test suite will remind you about.
+
 **Contents**
 
 1. [Overview & mental model](#1-overview--mental-model)

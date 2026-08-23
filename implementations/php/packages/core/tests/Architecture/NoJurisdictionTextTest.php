@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  *
  * **What this guard does not catch, and cannot:** a statute that arrives *translated* rather than
  * quoted. `route !== Pool` was § 6 Abs. 2a EStG with no § in sight, and this test was green while
- * it sat in the core (NF-025). The question that catches those is not mechanical — "would another
+ * it sat in the core (IMPL-025). The question that catches those is not mechanical — "would another
  * jurisdiction answer this differently?" — and lives in the root `CLAUDE.md`.
  */
 final class NoJurisdictionTextTest extends TestCase

@@ -8,7 +8,7 @@
       { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
       { "number": "0420", "name": "Anlagen", "type": "asset", "subtype": "fixed_asset" },
       { "number": "4120", "name": "Gehälter", "type": "expense" },
-      { "number": "6500", "name": "Abschreibungen", "type": "expense", "comment": "seit NF-022 nötig: der Abgang holt die fällige AfA nach, bevor er ausbucht. Bewusst außerhalb 4000–4999: dort verlangt diese Fixture eine Pflicht-Kostenstelle, und eine maschinell erzeugte AfA-Buchung kann keine tragen (Befund NF-023)." },
+      { "number": "6500", "name": "Abschreibungen", "type": "expense", "comment": "seit IMPL-022 nötig: der Abgang holt die fällige AfA nach, bevor er ausbucht. Bewusst außerhalb 4000–4999: dort verlangt diese Fixture eine Pflicht-Kostenstelle, und eine maschinell erzeugte AfA-Buchung kann keine tragen (Befund IMPL-023)." },
       { "number": "8801", "name": "Anlagenabgang", "type": "revenue" }
     ],
     "fiscalYears": [

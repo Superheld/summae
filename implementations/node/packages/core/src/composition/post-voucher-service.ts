@@ -2,6 +2,7 @@ import { DomainError } from '../domain-error.js';
 import { CalendarDate } from '../substrate/calendar-date.js';
 import { InvalidValue } from '../substrate/errors.js';
 import type { Uuid } from '../substrate/uuid.js';
+import { AuditWriter } from '../ledger/audit-writer.js';
 import { Voucher } from '../records/voucher.js';
 import type { Tenant } from './tenant.js';
 
@@ -83,6 +84,20 @@ export class PostVoucherService {
       supplierTaxationMethod: supplierTaxationMethod(voucherData),
     });
     this.tenant.vouchers.add(voucher);
+    // Shared by createVoucher and postVoucher, so one record covers both. A voucher is the
+    // anchor of the Belegfunktion — that one appeared has to be traceable even when no
+    // posting follows it (createVoucher deliberately posts nothing).
+    new AuditWriter(this.tenant.audit, this.tenant.clock, this.tenant.ids).record(
+      typeof input.actor === 'string' && input.actor !== '' ? input.actor : 'system',
+      'voucher',
+      voucher.id,
+      'created',
+      {
+        voucherNumber: { from: null, to: voucher.voucherNumber },
+        voucherDate: { from: null, to: voucher.voucherDate.iso },
+      },
+    );
+
     return voucher;
   }
 

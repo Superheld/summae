@@ -1,0 +1,129 @@
+{
+  "fixture": "cash-journal",
+  "description": "GoBD Rz. 57 ff. verlangt die Trennung barer und unbarer Vorgänge. In der doppelten Buchführung ist diese Trennung bereits strukturell: bar ist ein Vorgang genau dann, wenn er ein Konto mit `subtype: cash` berührt — es braucht also kein Merkmal und kein Formatfeld, sondern die Auswertung, die die Trennung darstellt (das Kassenkonto-Blatt *ist* das Kassenbuch). Der zweite Teil ist der, der echte Befunde findet: eine Kasse kann nie negativ sein. Weniger als nichts kann man nicht in der Schublade haben — das ist Physik, keine Jurisdiktion, und gehört deshalb ins Substrat und nicht ins Pack. Geprüft wird bei **jeder** Bewegung, nicht erst am Ende: Buchung 4 hebt den Bestand wieder über null, ein Schlusssaldo hätte den Einbruch also verdeckt. Die Bankbuchung taucht im Kassenjournal nicht auf — das ist die Trennung. Gemeldet wird, nicht blockiert.",
+  "covers": ["F-CORE-015"],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "K-1", "voucherDate": "2026-01-05" },
+      { "id": "$V2", "voucherNumber": "K-2", "voucherDate": "2026-01-10" },
+      { "id": "$V3", "voucherNumber": "B-1", "voucherDate": "2026-01-12" },
+      { "id": "$V4", "voucherNumber": "K-3", "voucherDate": "2026-01-15" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-05",
+        "voucherId": "$V1",
+        "text": "Bareinnahme",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-10",
+        "voucherId": "$V2",
+        "text": "Barausgabe über den Bestand hinaus",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "150.00", "currency": "EUR" } },
+          { "account": "1000", "side": "credit", "money": { "amount": "150.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-12",
+        "voucherId": "$V3",
+        "text": "unbar — gehört nicht ins Kassenjournal",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "80.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "80.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-15",
+        "voucherId": "$V4",
+        "text": "Bareinlage — Bestand wieder positiv",
+        "lines": [
+          { "account": "1000", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 4 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashJournal",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "fiscalYear": 2026,
+        "cashCountable": false,
+        "negativeBalances": [
+          {
+            "account": "1000",
+            "sequenceNumber": 2,
+            "entryDate": "2026-01-10",
+            "runningBalance": "-50.00"
+          }
+        ],
+        "accounts": [
+          {
+            "account": "1000",
+            "name": "Kasse",
+            "openingBalance": "0.00",
+            "closingBalance": "150.00",
+            "movements": [
+              {
+                "sequenceNumber": 1,
+                "entryDate": "2026-01-05",
+                "text": "Bareinnahme",
+                "side": "debit",
+                "runningBalance": "100.00"
+              },
+              {
+                "sequenceNumber": 2,
+                "entryDate": "2026-01-10",
+                "text": "Barausgabe über den Bestand hinaus",
+                "side": "credit",
+                "runningBalance": "-50.00"
+              },
+              {
+                "sequenceNumber": 4,
+                "entryDate": "2026-01-15",
+                "text": "Bareinlage — Bestand wieder positiv",
+                "side": "debit",
+                "runningBalance": "150.00"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

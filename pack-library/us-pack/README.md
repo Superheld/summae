@@ -74,4 +74,4 @@ balanced balance sheet at mid-year and year-end.
 
 > **Sign-off pending.** A few human decisions from the build are still open (account-number
 > sign-off, use-tax naming, default taxation method, multi-state strategy, the
-> `cash-basis-categories` schema gap NF-002/F-008). See `99-pack-docs/us-pack/offene-entscheidungen.md`.
+> `cash-basis-categories` schema gap IMPL-002/SPEC-008). See `99-pack-docs/us-pack/offene-entscheidungen.md`.

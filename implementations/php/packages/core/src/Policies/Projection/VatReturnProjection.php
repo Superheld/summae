@@ -108,7 +108,7 @@ final readonly class VatReturnProjection
                     continue;
                 }
 
-                // NF-005: this loop's premise is "no open item => the money moved at posting
+                // IMPL-005: this loop's premise is "no open item => the money moved at posting
                 // time" (a cash sale). A reversal has no open item of its own, but it is not a
                 // cash movement either. When the entry it reverses carries open items, its tax
                 // already follows those items' settlements above — counting it here would
@@ -126,7 +126,7 @@ final readonly class VatReturnProjection
         } else {
             foreach ($this->journal->all() as $entry) {
                 // v0.4: accrual assignment follows the supply date (fallback voucher date).
-                // F-011: exception reversal/tax correction. A reversing
+                // SPEC-011: exception reversal/tax correction. A reversing
                 // posting inherits the original's voucher (reverse() copies voucherId)
                 // and thus its supply date — but belongs in the VAT-return period
                 // in which the correction is posted, not
@@ -326,7 +326,7 @@ final readonly class VatReturnProjection
         $total = BigDecimal::of($item->money->amountAsString());
 
         foreach ($item->settlements() as $settlement) {
-            // NF-008: a cancellation closes the item without any money moving. Counting it here
+            // IMPL-008: a cancellation closes the item without any money moving. Counting it here
             // would declare cash-basis VAT for a reversed invoice that was never paid — the exact
             // opposite of what the reversal means. Skipped before `remaining` is touched, so the
             // proportional split of any real payments is unaffected.

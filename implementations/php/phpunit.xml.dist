@@ -21,7 +21,7 @@
         </testsuite>
     </testsuites>
     <!-- The coverage gate measures every package that has tests, each with its own floor
-         (runner/bin/coverage-gate.php). packages/laravel joined on 2026-08-16 (NF-015): it now
+         (runner/bin/coverage-gate.php). packages/laravel joined on 2026-08-16 (IMPL-015): it now
          has a suite of its own, so its number is something a test asserts rather than a side
          effect of other suites. -->
     <source>

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Summae\Core\Composition;
 
+use Summae\Core\DomainError;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Records\OpenItem;
+use Summae\Core\Records\Voucher;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Exception\InvalidValue;
-use Summae\Core\DomainError;
-use Summae\Core\Records\Voucher;
 use Summae\Core\Tenant;
 
 /**
@@ -71,6 +72,20 @@ final readonly class PostVoucherService
             is_string($voucherData['issuer'] ?? null) ? $voucherData['issuer'] : null,
         );
         $this->tenant->vouchers->add($voucher);
+        // Shared by createVoucher and postVoucher, so one record covers both. A voucher is the
+        // anchor of the Belegfunktion — that one appeared has to be traceable even when no
+        // posting follows it (createVoucher deliberately posts nothing).
+        $actor = is_string($input['actor'] ?? null) && $input['actor'] !== '' ? $input['actor'] : 'system';
+        (new AuditWriter($this->tenant->audit, $this->tenant->clock, $this->tenant->ids))->record(
+            $actor,
+            'voucher',
+            $voucher->id,
+            'created',
+            [
+                'voucherNumber' => ['from' => null, 'to' => $voucher->voucherNumber],
+                'voucherDate' => ['from' => null, 'to' => $voucher->voucherDate->iso],
+            ],
+        );
 
         return $voucher;
     }

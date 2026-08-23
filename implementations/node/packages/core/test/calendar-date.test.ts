@@ -73,3 +73,26 @@ describe('CalendarDate — month arithmetic without the host Date', () => {
     expect(CalendarDate.of(from).firstDayOfNextMonth().iso).toBe(next);
   });
 });
+
+describe('CalendarDate — day difference without the host Date', () => {
+  // The same table is in the PHP CalendarDateTest. `daysSince` is what makes the
+  // finalization deadline observable (F-CORE-027), so a one-day drift between the
+  // languages would show up as a different number in the same audit report.
+  const cases = [
+    { later: '2026-03-16', earlier: '2026-03-16', days: 0 }, // same day
+    { later: '2026-03-16', earlier: '2026-03-14', days: 2 },
+    { later: '2026-03-16', earlier: '2026-02-01', days: 43 },
+    { later: '2026-01-01', earlier: '2025-12-31', days: 1 }, // year boundary
+    { later: '2024-03-01', earlier: '2024-02-28', days: 2 }, // across a leap day
+    { later: '2023-03-01', earlier: '2023-02-28', days: 1 }, // no leap day
+    { later: '2000-03-01', earlier: '2000-02-28', days: 2 }, // 2000 IS a leap year (÷400)
+    { later: '1900-03-01', earlier: '1900-02-28', days: 1 }, // 1900 is NOT (÷100, not ÷400)
+    { later: '0050-03-01', earlier: '0050-02-01', days: 28 }, // the old 0–99 band
+    { later: '2026-01-01', earlier: '0001-01-01', days: 739616 },
+    { later: '2026-02-01', earlier: '2026-03-16', days: -43 }, // negative when earlier
+  ] as const;
+
+  it.each(cases)('$later minus $earlier = $days', ({ later, earlier, days }) => {
+    expect(CalendarDate.of(later).daysSince(CalendarDate.of(earlier))).toBe(days);
+  });
+});

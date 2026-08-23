@@ -81,7 +81,7 @@ final readonly class Ledger
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
         $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter);
-        $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids);
+        $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids, $this->auditWriter);
     }
 
     /**
@@ -350,7 +350,7 @@ final readonly class Ledger
             ), ['entryId' => $original->id->value]);
         }
 
-        // NF-008: a reversal clears the open items the reversed entry produced — but only while they
+        // IMPL-008: a reversal clears the open items the reversed entry produced — but only while they
         // are untouched. Once one carries a settlement, money has actually moved, and cancelling the
         // item would drop that movement out of the open-item history while the ledger keeps it. The
         // line SAP draws with F5308: undo the settlement first, or post a credit note.
@@ -571,7 +571,7 @@ final readonly class Ledger
         }
 
         if ($voucher === null) {
-            // v0.5/F-001: a set but unknown voucherId has its own
+            // v0.5/SPEC-001: a set but unknown voucherId has its own
             // code (reference step, after "voucherId missing").
             throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
                 'Voucher %s does not exist',

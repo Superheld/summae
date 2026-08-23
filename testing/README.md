@@ -65,7 +65,7 @@ Current inventory (see `git ls-files '*test*'` for the live list):
 implementation is checked against it, which is how N languages stay equivalent without N²
 comparisons.
 
-- **Authored in:** `../70-testsuite/fixtures/**.json` (the knowledge base, next to the spec)
+- **Authored in:** `../docs/70-testsuite/fixtures/**.json` (the knowledge base, next to the spec)
 - **Mirrored to:** `testing/testsuite/` via `make sync` — `rsync --delete`
 - **Run with:** `pnpm fixtures --strict` / `make fixtures`
 
@@ -73,8 +73,9 @@ comparisons.
 not in the source, so work done there is lost at the next sync. A new fixture is written in
 the knowledge base and then synced.
 
-Also mirrored from the knowledge base: `testing/testsuite/schema/` (from `50-spezifikation/schema/`),
-`testing/testsuite/fehlerkatalog.md` (the error catalogue) and `pack-library/` (the shipped packs).
+Also mirrored from the knowledge base: `testing/testsuite/schema/` (from `docs/50-spezifikation/schema/`),
+`testing/testsuite/fehlerkatalog.md` (the error catalogue) and `pack-library/` (the shipped packs — these
+stay at the knowledge base root, *not* under `docs/`).
 Same rule for all of them — the copy here is a mirror, not a source.
 
 The knowledge base is **not under version control**, so there is no undo. Adding a file is
