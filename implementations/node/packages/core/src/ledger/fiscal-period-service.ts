@@ -2,6 +2,7 @@ import { DomainError, rejectedValue } from '../domain-error.js';
 import type { FiscalYearRepository, JournalRepository } from '../port.js';
 import { FiscalYear } from '../substrate/fiscal-year.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
+import type { AuditWriter } from './audit-writer.js';
 import { parseEntryDate } from './lookups.js';
 
 /**
@@ -14,6 +15,7 @@ export class FiscalPeriodService {
     private readonly fiscalYears: FiscalYearRepository,
     private readonly journal: JournalRepository,
     private readonly ids: IdGenerator,
+    private readonly audit: AuditWriter,
   ) {}
 
   createFiscalYear(input: Record<string, unknown>): FiscalYear {
@@ -47,6 +49,11 @@ export class FiscalPeriodService {
 
     const fiscalYear = FiscalYear.create(this.ids.next(), year, start, end);
     this.fiscalYears.add(fiscalYear);
+    this.audit.record(this.audit.actorOf(input), 'fiscalYear', fiscalYear.id, 'created', {
+      year: { from: null, to: year },
+      start: { from: null, to: start.iso },
+      end: { from: null, to: end.iso },
+    });
     return fiscalYear;
   }
 
@@ -54,6 +61,10 @@ export class FiscalPeriodService {
     const fiscalYear = this.requireFiscalYear(input.fiscalYear);
     const period = fiscalYear.closePeriod(this.periodNumber(input));
     this.fiscalYears.save(fiscalYear);
+    this.audit.record(this.audit.actorOf(input), 'period', fiscalYear.id, 'closed', {
+      period: { from: null, to: `${fiscalYear.year}/${period.number}` },
+      status: { from: 'open', to: period.status() },
+    });
     return { fiscalYear: fiscalYear.year, period: period.number, status: period.status() };
   }
 
@@ -61,6 +72,10 @@ export class FiscalPeriodService {
     const fiscalYear = this.requireFiscalYear(input.fiscalYear);
     const period = fiscalYear.reopenPeriod(this.periodNumber(input));
     this.fiscalYears.save(fiscalYear);
+    this.audit.record(this.audit.actorOf(input), 'period', fiscalYear.id, 'reopened', {
+      period: { from: null, to: `${fiscalYear.year}/${period.number}` },
+      status: { from: 'closed', to: period.status() },
+    });
     return { fiscalYear: fiscalYear.year, period: period.number, status: period.status() };
   }
 
@@ -77,6 +92,9 @@ export class FiscalPeriodService {
     }
     fiscalYear.close();
     this.fiscalYears.save(fiscalYear);
+    this.audit.record(this.audit.actorOf(input), 'fiscalYear', fiscalYear.id, 'closed', {
+      status: { from: 'open', to: 'closed' },
+    });
     return fiscalYear;
   }
 

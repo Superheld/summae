@@ -15,6 +15,7 @@ use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
@@ -93,6 +94,12 @@ final readonly class Tenant
         $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
+        // Drawn here rather than inline below so the services that log tenant-level
+        // configuration can name it. Same position in the id sequence: nothing between
+        // this line and the old call site draws an id.
+        $tenantId = $ids->next();
+        $auditWriter = new AuditWriter($audit, $clock, $ids);
+
         $ledger = new Ledger(
             $baseCurrency,
             $accounts,
@@ -107,13 +114,13 @@ final readonly class Tenant
             $taxCodes,
         );
 
-        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity);
+        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids);
-        $costing = new CostingService($baseCurrency, $accounts, $journal, $ids);
+        $costing = new CostingService($baseCurrency, $accounts, $journal, $ids, $tenantId, $auditWriter);
 
         return new self(
-            $ids->next(),
+            $tenantId,
             $name,
             $baseCurrency,
             $accounts,

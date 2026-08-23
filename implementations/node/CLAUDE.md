@@ -80,7 +80,7 @@ Release process: `RELEASING.md` (repo root).
   „adding a new operation/projection", spec retrofit, determinism hooks.
 - `docs/konformitaet.md` — compatibility contract, how the runner works, cross-impl pitfalls,
   cross-test (`make cross`), SPEC-FINDINGS escalation path.
-- `SPEC-FINDINGS.md` — documented contradictions spec/fixture/model (`NF-…`).
+- `SPEC-FINDINGS.md` — documented contradictions spec/fixture/model (`SPEC-…` / `IMPL-…`).
 
 The **language-neutral build principles** (pack = primarily data/plug, 1:1 mirroring, test-driven,
 framework-free) are in the root `CLAUDE.md`; patterns list in `docs/architektur.md`, the recipe

@@ -141,7 +141,7 @@ German labels**: `tax_out` → income `"Vereinnahmte USt"` / expense `"USt-Zahlu
 `tax_in` → `"Gezahlte Vorsteuer"`. This is the German EÜR rule (VAT flows through the
 profit calculation). For the US, sales tax is a **pure pass-through** (held in trust for the
 state, never income). With `2100 Sales Tax Payable` correctly marked `tax_out` (needed by
-`vatReturn`, NF-… below), a SALETAX cash sale would have its collected tax counted as
+`vatReturn`, IMPL-… below), a SALETAX cash sale would have its collected tax counted as
 income under the German label — wrong for US.
 
 **Assessment.** The tax treatment is **pack/jurisdiction-specific**, but the engine hard-codes

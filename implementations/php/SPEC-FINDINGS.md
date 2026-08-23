@@ -509,7 +509,7 @@ Format per finding:
   labels** (`tax_out` → `"Vereinnahmte USt"`/`"USt-Zahlung an FA"`, `tax_in` → `"Gezahlte
   Vorsteuer"`) — the German EÜR rule (VAT flows through profit). For the US, sales tax is a
   pure pass-through (never income). With `2100 Sales Tax Payable` marked `tax_out` (required by
-  `vatReturn`, F-… below), a SALETAX cash sale would count its collected tax as income under a
+  `vatReturn`, SPEC-… below), a SALETAX cash sale would count its collected tax as income under a
   German label — wrong for US.
 - **Where:** `Policies/Projection/CashBasisProjection.php`; `pack-library/us-pack/accounts/us-accounts.json`.
 - **Chosen behavior / workaround:** `us-schedule-c` posts its sample revenue **tax-free** so the

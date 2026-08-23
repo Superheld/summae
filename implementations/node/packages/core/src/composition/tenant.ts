@@ -12,6 +12,7 @@ import {
 } from '../in-memory.js';
 import { PartnerService } from '../partner/partner-service.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
+import { AuditWriter } from '../ledger/audit-writer.js';
 import { Ledger } from '../ledger/ledger.js';
 import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
@@ -138,9 +139,10 @@ export class Tenant {
       ids,
       taxCodes,
     );
-    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity);
+    const auditWriter = new AuditWriter(audit, clock, ids);
+    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids);
-    const costing = new CostingService(baseCurrency, accounts, journal, ids);
+    const costing = new CostingService(baseCurrency, accounts, journal, ids, tenantId, auditWriter);
     const partnerService = new PartnerService(partners, audit, clock, ids);
 
     return new Tenant(

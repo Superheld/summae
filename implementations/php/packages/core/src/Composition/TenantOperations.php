@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
-use Summae\Core\Records\OpenItem;
-use Summae\Core\Substrate\PostResult;
-use Summae\Core\Substrate\Money;
-use Summae\Core\Policies\Projection\Mapping\MappingImporter;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\AssetRegisterProjection;
 use Summae\Core\Policies\Projection\AuditDataExportProjection;
@@ -19,9 +16,13 @@ use Summae\Core\Policies\Projection\DatevExportProjection;
 use Summae\Core\Policies\Projection\EcSalesListProjection;
 use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
+use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
 use Summae\Core\Policies\Projection\VatReturnProjection;
+use Summae\Core\Records\OpenItem;
+use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\PostResult;
 use Summae\Core\Tenant;
 
 /**
@@ -88,7 +89,12 @@ final readonly class TenantOperations
             ],
             'lockAccount' => $this->serialize($ledger->lockAccount($input)),
             'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
-            'importMapping' => (new MappingImporter($tenant->accounts, $tenant->mappings))->import($input),
+            'importMapping' => (new MappingImporter(
+                $tenant->accounts,
+                $tenant->mappings,
+                $tenant->id,
+                new AuditWriter($tenant->audit, $tenant->clock, $tenant->ids),
+            ))->import($input),
             default => throw new DomainError('E_NOT_IMPLEMENTED', sprintf(
                 'Operation "%s" is not defined',
                 $op,

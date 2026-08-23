@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Expansion\Costing;
 
 use Summae\Core\DomainError;
-use Summae\Core\Substrate\AccountType;
-use Summae\Core\Substrate\Side;
+use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
+use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\Money;
 use Summae\Core\Substrate\PeriodRef;
+use Summae\Core\Substrate\Side;
 use Summae\Core\Substrate\Uuid;
 
 /**
@@ -39,6 +40,10 @@ final class CostingService
         private readonly AccountRepository $accounts,
         private readonly JournalRepository $journal,
         private readonly IdGenerator $ids,
+        // The allocation scheme is a tenant-level singleton — see TaxService for why the
+        // audit record names the tenant as its object (F-CORE-014 "Profile").
+        private readonly ?Uuid $tenantId = null,
+        private readonly ?AuditWriter $audit = null,
     ) {
     }
 
@@ -52,6 +57,7 @@ final class CostingService
      */
     public function setAllocationScheme(array $input): array
     {
+        $previousStepCount = count($this->schemeSteps);
         $method = is_string($input['method'] ?? null) ? $input['method'] : 'step_ladder';
 
         /** @var list<array{sender: string, receivers: list<array{code: string, share: string}>}> $steps */
@@ -85,6 +91,13 @@ final class CostingService
         }
 
         $this->schemeSteps = $steps;
+
+        if ($this->audit !== null && $this->tenantId !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
+                'method' => ['from' => null, 'to' => $method],
+                'stepCount' => ['from' => $previousStepCount, 'to' => count($steps)],
+            ]);
+        }
 
         return ['valid' => true, 'method' => $method, 'stepCount' => count($steps)];
     }

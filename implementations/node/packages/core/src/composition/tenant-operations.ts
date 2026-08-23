@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../policies/projection/asset-register.js';
+import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
@@ -75,7 +76,12 @@ export class TenantOperations {
       case 'importChartOfAccounts':
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':
-        return new MappingImporter(this.tenant.accounts, this.tenant.mappings).import(input);
+        return new MappingImporter(
+          this.tenant.accounts,
+          this.tenant.mappings,
+          this.tenant.id,
+          new AuditWriter(this.tenant.audit, this.tenant.clock, this.tenant.ids),
+        ).import(input);
       case 'createPartner':
         return serialize(this.tenant.partnerService.create(input));
       case 'updatePartner':

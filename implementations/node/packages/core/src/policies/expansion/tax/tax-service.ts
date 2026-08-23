@@ -1,10 +1,12 @@
 import Big from 'big.js';
+import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import { DomainError } from '../../../domain-error.js';
 import type { JournalRepository } from '../../../port.js';
 import { CalendarDate } from '../../../substrate/calendar-date.js';
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
 import { Money } from '../../../substrate/money.js';
+import type { Uuid } from '../../../substrate/uuid.js';
 import type { TaxCodeRegistry } from './tax-code-registry.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 import type { TaxProfile } from './tax-profile.js';
@@ -59,6 +61,10 @@ export class TaxService {
     private readonly journal: JournalRepository,
     // Pack parameter: 'perVoucher' (tax once per code) | 'perLine' (per line).
     private readonly taxRoundingGranularity: string = 'perVoucher',
+    // The tax profile is a tenant-level singleton: it has no identity of its own, so the
+    // audit record names the tenant as the object it belongs to (F-CORE-014 "Steuerschlüssel").
+    private readonly tenantId: Uuid | null = null,
+    private readonly audit: AuditWriter | null = null,
   ) {}
 
   profile(): TaxProfile {
@@ -220,7 +226,14 @@ export class TaxService {
       }
     }
 
+    const before = this.profileValue.smallBusinessAt(validFrom);
     this.profileValue.setSmallBusiness(validFrom, smallBusiness.value === true);
+    if (this.audit !== null && this.tenantId !== null) {
+      this.audit.record(this.audit.actorOf(input), 'taxProfile', this.tenantId, 'changed', {
+        smallBusiness: { from: before, to: smallBusiness.value === true },
+        validFrom: { from: null, to: validFrom.iso },
+      });
+    }
     return this.profileValue;
   }
 

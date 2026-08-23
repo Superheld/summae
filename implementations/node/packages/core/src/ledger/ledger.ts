@@ -90,7 +90,7 @@ export class Ledger {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
     this.chart = new ChartAdminService(accounts, ids, this.auditWriter);
-    this.periods = new FiscalPeriodService(fiscalYears, journal, ids);
+    this.periods = new FiscalPeriodService(fiscalYears, journal, ids, this.auditWriter);
   }
 
   post(input: Record<string, unknown>): PostResult {

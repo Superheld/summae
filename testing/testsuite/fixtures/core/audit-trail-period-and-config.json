@@ -1,0 +1,108 @@
+{
+  "fixture": "audit-trail-period-and-config",
+  "description": "F-CORE-014 verlangt Protokollierung für „Konten, Steuerschlüssel, Profile\" — protokolliert wurde bis 2026-08-23 nur das Konto. Die Periodenoperationen (`closePeriod`, `reopenPeriod`, `closeFiscalYear`, `createFiscalYear`) und die Mandanten-Konfiguration (`setTaxProfile`, `importMapping`, `setAllocationScheme`) änderten Zustand, ohne eine Spur zu hinterlassen. Am schärfsten `reopenPeriod`: es nimmt eine Sperre zurück, also genau der Vorgang, den GoBD Rz. 107 ff. nachvollziehbar sehen will. Die bestehende Fixture `audit-trail` bleibt unberührt (append-only); diese hier pinnt die neuen Einträge und ihre Reihenfolge sprachübergreifend. Konfigurations-Singletons haben keine eigene Objekt-ID — ihre Identität ist der Mandant, deshalb trägt `objectId` dort die Mandanten-ID und die Sorte steht in `objectType`.",
+  "covers": ["F-CORE-014", "F-CORE-020"],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1600", "name": "Verbindlichkeiten", "type": "liability" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-01-10" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "actor": "bruce",
+        "entryDate": "2026-01-10",
+        "voucherId": "$V1",
+        "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "finalize",
+      "input": { "actor": "bruce", "finalizeUntil": "2026-01-31" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "actor": "bruce", "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "closed" } }
+    },
+    {
+      "op": "reopenPeriod",
+      "input": { "actor": "chef", "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "status": "open" } }
+    },
+    {
+      "op": "setTaxProfile",
+      "input": {
+        "actor": "steuerberater",
+        "smallBusiness": { "validFrom": "2026-02-01", "value": true }
+      },
+      "expect": { "result": {} }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "actor": "controller",
+        "method": "step_ladder",
+        "steps": [
+          { "sender": "HK1", "receivers": [{ "code": "K1", "share": "1" }] }
+        ]
+      },
+      "expect": { "result": { "valid": true, "stepCount": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": { "from": "2026-01-01", "to": "2026-12-31" },
+      "expect": {
+        "records": [
+          { "objectType": "journalEntry", "action": "created", "actor": "bruce" },
+          { "objectType": "journalEntry", "objectId": "$E1", "action": "finalized", "actor": "bruce" },
+          {
+            "objectType": "period",
+            "action": "closed",
+            "actor": "bruce",
+            "changes": { "period": { "from": null, "to": "2026/1" }, "status": { "from": "open", "to": "closed" } }
+          },
+          {
+            "objectType": "period",
+            "action": "reopened",
+            "actor": "chef",
+            "changes": { "period": { "from": null, "to": "2026/1" }, "status": { "from": "closed", "to": "open" } }
+          },
+          {
+            "objectType": "taxProfile",
+            "action": "changed",
+            "actor": "steuerberater",
+            "changes": { "smallBusiness": { "from": false, "to": true }, "validFrom": { "from": null, "to": "2026-02-01" } }
+          },
+          {
+            "objectType": "allocationScheme",
+            "action": "changed",
+            "actor": "controller",
+            "changes": { "method": { "from": null, "to": "step_ladder" }, "stepCount": { "from": 0, "to": 1 } }
+          }
+        ]
+      }
+    }
+  ]
+}
