@@ -307,6 +307,17 @@ export class Ledger {
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
     const text = asString(input.text) ?? `Reversal ${original.sequenceNumber}`;
 
+    // A reversal may carry its own voucher. It used to inherit the reversed entry's one
+    // unconditionally and drop any `voucherId` in the input without a word — so a caller who
+    // supplied a cancellation document got no error, no hint, and a posting pointing at the wrong
+    // paper. Inheriting stays the default, because a reversal without its own document is a normal
+    // case and no posting may be voucher-less; supplying one is now honoured, and an unknown id
+    // fails like everywhere else (E_VOUCHER_UNKNOWN).
+    const reversalVoucherId =
+      input.voucherId === null || input.voucherId === undefined
+        ? original.voucherId
+        : this.requireVoucher(input.voucherId).id;
+
     const reversal = new JournalEntry(
       this.ids.next(),
       this.journal.nextSequenceNumber(fiscalYear.year),
@@ -314,7 +325,7 @@ export class Ledger {
       original.voucherDate,
       this.auditWriter.now(),
       new PeriodRef(fiscalYear.year, period.number),
-      original.voucherId,
+      reversalVoucherId,
       text,
       original.lines().map((line) => line.negated()),
       original.id,

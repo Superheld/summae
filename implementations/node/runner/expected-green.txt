@@ -86,6 +86,7 @@ resolver-unknown-mechanism
 reversal-visible-in-sheets
 reverse-charge
 reverse-clears-open-items
+reverse-own-voucher
 reverse-settled-item
 service-date-rate-change
 settlement-bad-debt

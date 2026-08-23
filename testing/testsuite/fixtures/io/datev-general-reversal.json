@@ -1,6 +1,6 @@
 {
   "fixture": "datev-general-reversal",
-  "description": "A reversal must not leave the DATEV batch as a second copy of the original posting. This core reverses by general reversal: EntryLine::negated keeps the side and negates the amount. The batch row, however, took the amount through abs() and read the debit/credit indicator from the unchanged lead line — so the reversal produced a row byte-identical to the one it was meant to cancel, and an import doubled the turnover instead of clearing it. The DATEV batch has a field for exactly this case: the amount is carried without a sign (\"Umsatz ohne Soll/Haben-Kz\", direction from the indicator), and a cancellation is marked as Generalumkehr rather than by flipping the side or sending a negative number. The row therefore keeps its side and its positive amount and gains `generalReversal`. Note what this fixture does NOT claim: the exact EXTF header and column order are still open in this projection (see the class comment), so what is pinned here is the semantics of the row, not the file layout. One thing this fixture records without endorsing: the reversal carries the ORIGINAL voucher number, because `reverse` always reuses the reversed entry's voucher and silently ignores a `voucherId` given in its input.",
+  "description": "A reversal must not leave the DATEV batch as a second copy of the original posting. This core reverses by general reversal: EntryLine::negated keeps the side and negates the amount. The batch row, however, took the amount through abs() and read the debit/credit indicator from the unchanged lead line — so the reversal produced a row byte-identical to the one it was meant to cancel, and an import doubled the turnover instead of clearing it. The DATEV batch has a field for exactly this case: the amount is carried without a sign (\"Umsatz ohne Soll/Haben-Kz\", direction from the indicator), and a cancellation is marked as Generalumkehr rather than by flipping the side or sending a negative number. The row therefore keeps its side and its positive amount and gains `generalReversal`. Note what this fixture does NOT claim: the exact EXTF header and column order are still open in this projection (see the class comment), so what is pinned here is the semantics of the row, not the file layout. The reversal carries its own cancellation document (STORNO field ST-88): when this fixture was first written `reverse` discarded a `voucherId` from its input in silence and the row showed AR-88 — recorded as observed, not endorsed, and fixed the same day (see core/reverse-own-voucher).",
   "covers": [
     "F-IO-005"
   ],
@@ -124,12 +124,12 @@
             "generalReversal": false
           },
           {
-            "comment": "Der Storno: gleiche Seite, gleicher positiver Betrag, aber als Generalumkehr gekennzeichnet. Ohne das Kennzeichen wäre diese Zeile Zeichen für Zeichen die Originalbuchung und würde den Umsatz verdoppeln statt ihn aufzuheben. Das Belegfeld trägt AR-88, nicht den mitgegebenen Stornobeleg: `reverse` übernimmt immer den Beleg der stornierten Buchung und ignoriert ein `voucherId` im Input stillschweigend. Das ist hier festgehalten, weil es beim Bau auffiel — NICHT weil es richtig wäre; siehe Backlog.",
+            "comment": "Der Storno: gleiche Seite, gleicher positiver Betrag, aber als Generalumkehr gekennzeichnet. Ohne das Kennzeichen wäre diese Zeile Zeichen für Zeichen die Originalbuchung und würde den Umsatz verdoppeln statt ihn aufzuheben. Das Belegfeld trägt den eigenen Stornobeleg.",
             "amount": "119.00",
             "debitCredit": "S",
             "account": "1200",
             "contraAccount": "8400",
-            "documentField1": "AR-88",
+            "documentField1": "ST-88",
             "date": "0309",
             "generalReversal": true
           }

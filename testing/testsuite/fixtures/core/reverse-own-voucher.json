@@ -1,0 +1,67 @@
+{
+  "fixture": "reverse-own-voucher",
+  "description": "A reversal may carry its own voucher, and inherits the reversed entry's one when none is given. Until 2026-08-23 it always inherited and discarded a `voucherId` passed in the input without a word — no error, no hint, and a posting pointing at the wrong document. That is the same failure mode the parameter contract forbids for projections (an undeclared parameter is E_INPUT_INVALID, never silently ignored), and it is worse for an operation, because the caller had supplied the cancellation document precisely so it would be used. Inheriting remains the default: a reversal without a document of its own is an ordinary case, and no posting may be voucher-less. An unknown id fails as everywhere else.",
+  "covers": ["F-CORE-002", "F-CORE-003"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-100", "voucherDate": "2026-04-01" },
+      { "id": "$V2", "voucherNumber": "STORNO-100", "voucherDate": "2026-04-08" },
+      { "id": "$V3", "voucherNumber": "ER-200", "voucherDate": "2026-04-02" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-02", "voucherId": "$V3", "text": "Weiterer Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "70.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "70.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E1", "entryDate": "2026-04-08", "voucherId": "$V2", "text": "Storno mit eigenem Beleg" },
+      "expect": {
+        "result": {
+          "comment": "Der mitgegebene Stornobeleg wird verwendet — vorher wurde er kommentarlos verworfen",
+          "sequenceNumber": 3,
+          "id": "$E3",
+          "reverses": "$E1",
+          "voucherId": "$V2"
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": { "entryId": "$E2", "entryDate": "2026-04-09", "text": "Storno ohne eigenen Beleg" },
+      "expect": {
+        "result": {
+          "comment": "Ohne Angabe erbt der Storno den Beleg der stornierten Buchung — der Normalfall, und keine Buchung ohne Beleg",
+          "sequenceNumber": 4,
+          "reverses": "$E2",
+          "voucherId": "$V3"
+        }
+      }
+    }
+  ]
+}
