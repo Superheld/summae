@@ -155,7 +155,72 @@ export class VatReturnProjection {
       payload = direction === 'input' ? payload.subtract(amounts.tax) : payload.add(amounts.tax);
     }
 
-    return { keys: result, payload: payload.toJSON() };
+    return { keys: result, payload: payload.toJSON(), gapWarnings: this.gapWarnings(year, quarter, month, asOf) };
+  }
+
+  /**
+   * Postings that touch a tax account without a tax code (F-TAX-013).
+   *
+   * The return is built from tax-*coded* postings — `line.taxTag` is what carries the reporting key
+   * and the base. That is a defensible design and it is silent: posting expense / input tax / bank
+   * by hand balances, satisfies every invariant, and shows correct figures on the accounts and in
+   * the trial balance. Only `vatReturn` reports zero, because nothing told it which key the amount
+   * belongs to. The books look right everywhere except the one place that decides what is filed,
+   * and an application's seed script fell into it on the first attempt.
+   *
+   * So the warning lives here, at the figures, rather than in a projection of its own that whoever
+   * files the return may not open. It is **not** a refusal: correction postings legitimately touch
+   * these accounts, and a library that blocked them would be wrong more often than the caller.
+   *
+   * Which accounts count is the pack's answer, not this code's: `tax_in` and `tax_out` are subtypes
+   * the chart assigns, so a jurisdiction without input-tax deduction simply has no `tax_in` account
+   * and produces no such warning.
+   *
+   * The window is the posting's tax date in both taxation methods. An untagged line has nothing to
+   * attach it to a settlement, so the cash-basis question "when did the money move" has no answer
+   * for it — which is part of what makes it worth reporting.
+   */
+  private gapWarnings(
+    year: number,
+    quarter: number,
+    month: number,
+    asOf: CalendarDate | null,
+  ): Array<Record<string, unknown>> {
+    const warnings: Array<Record<string, unknown>> = [];
+
+    for (const entry of this.journal.all()) {
+      const voucher = this.vouchers.byId(entry.voucherId);
+      const taxDate = entry.reverses !== null || voucher === null ? entry.entryDate : voucher.taxDate();
+      if (!inPeriod(taxDate, year, quarter, month)) continue;
+      if (asOf !== null && entry.entryDate.isAfter(asOf)) continue;
+
+      for (const line of entry.lines()) {
+        if (line.taxTag !== null) continue;
+        const account = this.accounts.byId(line.accountId);
+        const subtype = account?.subtype ?? null;
+        if (subtype !== 'tax_in' && subtype !== 'tax_out') continue;
+
+        warnings.push({
+          reason: 'tax_account_without_tax_code',
+          sequenceNumber: entry.sequenceNumber,
+          entryDate: entry.entryDate.iso,
+          account: account?.number.value ?? null,
+          side: line.side,
+          money: line.money.toJSON(),
+        });
+      }
+    }
+
+    // Journal order, then account: the order the postings happened in is the order somebody
+    // checking them will work through.
+    warnings.sort((a, b) => {
+      const bySeq = (a.sequenceNumber as number) - (b.sequenceNumber as number);
+      if (bySeq !== 0) return bySeq;
+      const left = String(a.account ?? '');
+      const right = String(b.account ?? '');
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
+    return warnings;
   }
 
   private registryDirections(): Map<string, string> {
