@@ -18,6 +18,8 @@ use Summae\Core\Policies\Projection\EcSalesListProjection;
 use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
+use Summae\Core\Policies\Projection\AccountsProjection;
+use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
@@ -125,7 +127,9 @@ final readonly class TenantOperations
         ProjectionParameters::validate($name, $params);
 
         return match ($name) {
-            'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal))
+            'accounts' => (new AccountsProjection($tenant->accounts))->compute($params),
+            'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
+            'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
                 ->compute($params),
             'trialBalance' => (new TrialBalanceProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                 ->compute($params),

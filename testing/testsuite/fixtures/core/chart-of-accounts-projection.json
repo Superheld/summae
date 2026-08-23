@@ -1,0 +1,46 @@
+{
+  "fixture": "chart-of-accounts-projection",
+  "description": "F-CORE-028: the chart of accounts as a screen can afford to read it — number, name, type, subtype, status, and nothing else. Both facts an application needs most were published only where it could not use them. `subtype` says what an account IS FOR — which one is the bank, which the cash box, which receivables and payables — and it lived in `journalExport.data.accounts`, behind five streams with a SHA-256 each; `datevExport(kind: accounts)` is cheap but gives number, name and type, because it is DATEV-shaped master data by definition. So an application preselecting the receivable account for a payment had to read the PACK it was created from, which is the chart the tenant started with rather than the chart it has: one `createAccount` and the guess is wrong. `status` is the read side of `lockAccount` — the operation existed and no affordable projection said whether it had been used, so a screen could lock an account and not show that it was locked, and the only honest test was to post into it and read the refusal. Deliberately small: no balances (trialBalance), no movements (accountSheet), no hashes. Ordered by account number over Unicode code points.",
+  "covers": ["F-CORE-028", "F-CORE-007"],
+  "setup": {
+    "tenant": { "name": "Kontenplan GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ]
+  },
+  "steps": [
+    {
+      "op": "createAccount",
+      "input": { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash" },
+      "expect": {
+        "comment": "An account the pack did not bring. It is the case that makes reading the pack instead of the chart wrong.",
+        "result": { "number": "1000", "status": "active" }
+      }
+    },
+    {
+      "op": "lockAccount",
+      "input": { "number": "8400" },
+      "expect": { "result": { "number": "8400", "status": "locked" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "accounts",
+      "params": {},
+      "expect": {
+        "comment": "Every account, in account-number order, with its role and its status. The locked 8400 is still in the list — a locked account is part of the chart, it just refuses postings, and a list that hid it would make the lock invisible again.",
+        "accounts": [
+          { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active" },
+          { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank", "status": "active" },
+          { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar", "status": "active" },
+          { "number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap", "status": "active" },
+          { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked" }
+        ]
+      }
+    }
+  ]
+}

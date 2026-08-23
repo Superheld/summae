@@ -48,10 +48,10 @@ export const API_OPERATIONS = [
 ] as const;
 
 export const API_PROJECTIONS = [
-  'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
-  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList', 'incomeStatement',
-  'journalExport', 'openItems', 'overheadRates', 'productionCost', 'systemDescription',
-  'trialBalance', 'unfinalizedEntries', 'vatReturn',
+  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
+  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList',
+  'fiscalYears', 'incomeStatement', 'journalExport', 'openItems', 'overheadRates',
+  'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**

@@ -1,0 +1,68 @@
+{
+  "fixture": "open-items-partner-name",
+  "description": "F-CORE-030: an open item names the partner, not only its id. The projection published `partnerId` (open-items-partner-and-due) and left the caller to resolve it — which means a second projection inside one view, or a table that can name the invoice and not the customer. Dunning is the case that makes it more than convenience: a notice without a recipient is not a notice. The name is null where no partner is recorded and null where the id resolves to nothing — present and null, so 'no partner' stays distinguishable from 'this view does not say'. It is the CURRENT name, read from the partner master record rather than copied onto the item when it was opened: an open item is a claim against whoever the partner is now, and a renamed customer must not be dunned under its old name.",
+  "covers": ["F-CORE-030", "F-CORE-022"],
+  "setup": {
+    "tenant": { "name": "Offene Posten GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-300", "voucherDate": "2026-02-01" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": { "name": "Muster GmbH", "kind": "customer", "accountNumbers": ["1400"] },
+      "expect": { "result": { "id": "$P1" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-301", "voucherDate": "2026-02-10", "partnerId": "$P1", "kind": "invoice_out" },
+        "entryDate": "2026-02-10", "text": "Rechnung an Muster GmbH",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" }, "openItem": { "kind": "receivable" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01", "voucherId": "$V1", "text": "Rechnung ohne Partner",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" }, "openItem": { "kind": "receivable" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "name": "Muster Handels GmbH" },
+      "expect": {
+        "comment": "The rename is the point: the item was opened under the old name and the list has to show the new one.",
+        "result": { "id": "$P1", "name": "Muster Handels GmbH" }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "kind": "receivable" },
+      "expect": {
+        "comment": "Sorted by voucher date: the partner-less item is the older one and carries null in both partner fields. The named one shows the name the partner has today.",
+        "items": [
+          { "voucherNumber": "AR-300", "partnerId": null, "partnerName": null },
+          { "voucherNumber": "AR-301", "partnerId": "$P1", "partnerName": "Muster Handels GmbH" }
+        ]
+      }
+    }
+  ]
+}

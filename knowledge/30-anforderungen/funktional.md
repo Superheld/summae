@@ -33,6 +33,9 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-025 | Geschäftsjahre MÜSSEN per createFiscalYear anlegbar sein (lückenlos, überschneidungsfrei). | — |
 | F-CORE-026 | trialBalance-Zeilen MÜSSEN openingBalance, debitTotal, creditTotal und balance führen (SuSa-Praxis). | — |
 | F-CORE-027 | Eine Projektion unfinalizedEntries (älter als X Tage) MUSS die Festschreibe-Frist überwachbar machen. | — |
+| F-CORE-028 | Eine Projektion accounts MUSS den Kontenplan schlank lesbar machen (Nummer, Name, Typ, subtype, status) — ohne Salden, Bewegungen oder Hashes; subtype bestimmt die Rolle eines Kontos, status ist die Leseseite von lockAccount. | — |
+| F-CORE-029 | Eine Projektion fiscalYears MUSS Geschäftsjahre samt Perioden mit Beginn, Ende und Status liefern (Leseseite von closePeriod/reopenPeriod/closeFiscalYear); ohne Beginn/Ende ist keine Periodenliste ohne Erfindung möglich. | — |
+| F-CORE-030 | openItems MUSS neben partnerId auch partnerName führen (aktueller Name aus den Stammdaten) — eine Mahnung ohne Empfänger ist keine Mahnung. | 21 |
 
 ## F-TAX — Steuern
 

@@ -144,6 +144,12 @@
       }
     },
     "systemDescription": {},
+    "accounts": {},
+    "fiscalYears": {
+      "fiscalYear": {
+        "type": "integer"
+      }
+    },
     "cashJournal": {
       "fiscalYear": {
         "type": "integer",

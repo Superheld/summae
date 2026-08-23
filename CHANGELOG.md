@@ -14,6 +14,25 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **Three reads the write side already owned.** An embedding application kept arriving at the same
+  wall: it could change something and could not show it. Each time the only honest test left was to
+  trigger a refusal and read the error code.
+  - **`accounts`** (F-CORE-028) — the chart of accounts as a screen can afford to read it: number,
+    name, type, `subtype`, `status`, ordered by number, no balances and no hashes. `subtype` is what
+    identifies an account's role (bank, cash, receivable, payable) and lived only in
+    `journalExport`, behind five streams with a SHA-256 each; `datevExport({kind:'accounts'})` is
+    cheap but DATEV-shaped and stops at number, name and type. Applications were reading the
+    **pack** instead — the chart the tenant started from, which one `createAccount` makes wrong.
+    `status` is the read side of `lockAccount`, which had none.
+  - **`fiscalYears`** (F-CORE-029) — years and their periods with `start`, `end` and `status`, the
+    read side of `closePeriod` / `reopenPeriod` / `closeFiscalYear`. `auditLog` recorded every
+    close, but a trail is not a state: replaying it makes an application rebuild library state from
+    a log, and it is wrong the moment a period is closed elsewhere. The dates are what make a period
+    *list* possible — a fiscal year running July to June has no twelve calendar months to invent.
+  - **`openItems.partnerName`** (F-CORE-030) — the list could name the invoice and not the customer,
+    and resolving the id meant a second projection inside one view. It is the name the partner has
+    *now*, read from the master record: a renamed customer must not be dunned under its old name.
+
 - **Cost allocation can solve mutual services (`method: "simultaneous"`).** The step ladder
   allocates in one pass and therefore cannot describe cost centres that serve each other — the power
   plant heats the workshop, the workshop maintains the power plant. Ordering the two is not a

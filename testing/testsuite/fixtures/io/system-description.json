@@ -238,6 +238,7 @@
           ],
           "projections": [
             "accountSheet",
+            "accounts",
             "assetRegister",
             "auditDataExport",
             "auditLog",
@@ -247,6 +248,7 @@
             "costAllocationSheet",
             "datevExport",
             "ecSalesList",
+            "fiscalYears",
             "incomeStatement",
             "journalExport",
             "openItems",

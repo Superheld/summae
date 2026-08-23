@@ -1,0 +1,64 @@
+{
+  "fixture": "fiscal-years-projection",
+  "description": "F-CORE-029: the read side of `closePeriod`, `reopenPeriod` and `closeFiscalYear`. Three operations decided what may still be posted and no projection said what they had decided — `systemDescription` names the invariant ('a closed period accepts no further postings') without naming the periods. What was left was `auditLog`, and a trail is not a state: replaying it into 'period 3 is open' makes the application rebuild library state from a log, and it is wrong the moment something closes a period without passing through that application. `start` and `end` come out with it because without them there is no period LIST: this fixture uses a fiscal year running July to June, where twelve calendar months would be an invention, and where period 1 is July.",
+  "covers": ["F-CORE-029", "F-CORE-004", "F-CORE-025"],
+  "setup": {
+    "tenant": { "name": "Abweichendes Jahr GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2025-07-01", "end": "2026-06-30" } ]
+  },
+  "steps": [
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "fiscalYear": 2026, "period": 1, "status": "closed" } }
+    },
+    {
+      "op": "closePeriod",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": { "result": { "fiscalYear": 2026, "period": 2, "status": "closed" } }
+    },
+    {
+      "op": "reopenPeriod",
+      "input": { "fiscalYear": 2026, "period": 2 },
+      "expect": {
+        "comment": "Reopened again, so the projection has to report a state rather than a high-water mark: period 1 closed, period 2 open behind it.",
+        "result": { "fiscalYear": 2026, "period": 2, "status": "open" }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "fiscalYears",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Period 1 is July 2025 — the point of reporting start and end rather than a number an application would have to interpret. The year itself is open; a year is closed by closeFiscalYear, not by the periods under it.",
+        "fiscalYears": [
+          {
+            "year": 2026,
+            "start": "2025-07-01",
+            "end": "2026-06-30",
+            "status": "open",
+            "periods": [
+              { "period": 1, "start": "2025-07-01", "end": "2025-07-31", "status": "closed" },
+              { "period": 2, "start": "2025-08-01", "end": "2025-08-31", "status": "open" },
+              { "period": 3, "start": "2025-09-01", "end": "2025-09-30", "status": "open" },
+              { "period": 4, "start": "2025-10-01", "end": "2025-10-31", "status": "open" },
+              { "period": 5, "start": "2025-11-01", "end": "2025-11-30", "status": "open" },
+              { "period": 6, "start": "2025-12-01", "end": "2025-12-31", "status": "open" },
+              { "period": 7, "start": "2026-01-01", "end": "2026-01-31", "status": "open" },
+              { "period": 8, "start": "2026-02-01", "end": "2026-02-28", "status": "open" },
+              { "period": 9, "start": "2026-03-01", "end": "2026-03-31", "status": "open" },
+              { "period": 10, "start": "2026-04-01", "end": "2026-04-30", "status": "open" },
+              { "period": 11, "start": "2026-05-01", "end": "2026-05-31", "status": "open" },
+              { "period": 12, "start": "2026-06-01", "end": "2026-06-30", "status": "open" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
