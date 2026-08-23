@@ -39,6 +39,7 @@ de-bilanz-guv
 de-complete-override-remove-equals-base
 de-degressive-afa
 de-degressive-afa-wohngebaeude
+de-sonderabschreibung
 de-eingangsrechnung
 de-euer
 de-euer-kleinunternehmer
@@ -58,6 +59,7 @@ de-wertpapierdepot
 declining-balance-depreciation
 declining-balance-asset-class
 asset-write-down
+special-depreciation
 default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation

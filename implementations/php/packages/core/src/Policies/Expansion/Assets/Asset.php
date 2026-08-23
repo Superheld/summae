@@ -79,7 +79,96 @@ final class Asset implements \JsonSerializable
          * Null means straight line, so assets written before the field existed rehydrate unchanged.
          */
         public readonly ?string $depreciationMethod = null,
+        /**
+         * An additional allowance running ALONGSIDE the plan, not instead of it.
+         *
+         * Some jurisdictions let a business deduct an extra share of the cost within the first few
+         * years, freely distributed over them. It is not a depreciation method — the ordinary plan
+         * carries on untouched on the original basis while the window is open — so it cannot be
+         * expressed as a different schedule. It is a budget: this much may still be taken, until this
+         * fiscal year. Both numbers come from the pack; the asset only remembers them.
+         *
+         * Null means no such allowance was elected, which is every asset written before this existed.
+         */
+        public readonly ?Money $specialDepreciationBudget = null,
+        public readonly ?int $specialDepreciationWindowEnd = null,
     ) {
+    }
+
+    /** What is left of the additional allowance. */
+    public function specialDepreciationRemaining(): ?Money
+    {
+        if ($this->specialDepreciationBudget === null) {
+            return null;
+        }
+
+        $used = $this->specialDepreciationBudget->subtract($this->specialDepreciationBudget);
+        foreach ($this->depreciations as $booking) {
+            if ($booking['kind'] === 'special') {
+                $used = $used->add($booking['amount']);
+            }
+        }
+
+        return $this->specialDepreciationBudget->subtract($used);
+    }
+
+    public function hasSpecialDepreciation(): bool
+    {
+        if ($this->specialDepreciationBudget === null) {
+            return false;
+        }
+
+        foreach ($this->depreciations as $booking) {
+            if ($booking['kind'] === 'special') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function recordSpecialDepreciation(CalendarDate $date, Money $amount, Uuid $entryId): void
+    {
+        // No re-spreading here, unlike a write-down. While the window is open the ordinary plan runs
+        // on the original basis — that is what "alongside" means, and lowering it now would quietly
+        // take back part of the allowance the same year it was granted. The plan is re-based once,
+        // after the window closes.
+        $this->depreciations[] = [
+            'planMonth' => 0,
+            'date' => $date,
+            'amount' => $amount,
+            'entryId' => $entryId,
+            'kind' => 'special',
+        ];
+    }
+
+    /**
+     * Spreads whatever book value is left over the plan months not yet booked.
+     *
+     * Two occasions need exactly this: an unplanned write-down, where the basis fell; and the end of
+     * an additional allowance's window, where part of the cost has already been deducted outside the
+     * plan and the rest has to last for the remaining life. Same arithmetic, and it should stay the
+     * same arithmetic — two spreadings that drifted apart would be two different answers to one
+     * question.
+     *
+     * @param list<int> $openPlanMonths plan months not yet booked, ascending
+     */
+    public function rebaseRemainingPlan(array $openPlanMonths): void
+    {
+        $this->scheduleRevised = true;
+
+        if ($openPlanMonths === []) {
+            return;
+        }
+
+        $remaining = $this->acquisitionCost->subtract($this->accumulatedDepreciationAt(null));
+        $shares = $remaining->allocate(...array_fill(0, count($openPlanMonths), 1));
+
+        $schedule = $this->monthlySchedule;
+        foreach ($openPlanMonths as $index => $planMonth) {
+            $schedule[$planMonth - 1] = $shares[$index];
+        }
+        $this->monthlySchedule = array_values($schedule);
     }
 
     /** Straight line unless the pack offered, and the caller chose, something else. */
@@ -131,8 +220,10 @@ final class Asset implements \JsonSerializable
         ?CalendarDate $depreciationStart = null,
         ?string $depreciationMethod = null,
         bool $scheduleRevised = false,
+        ?Money $specialDepreciationBudget = null,
+        ?int $specialDepreciationWindowEnd = null,
     ): self {
-        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod);
+        $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod, $specialDepreciationBudget, $specialDepreciationWindowEnd);
         // A booking written before write-downs existed is a planned one — that is what it was.
         $asset->depreciations = array_map(
             static fn (array $booking): array => $booking + ['kind' => 'planned'],
@@ -224,22 +315,7 @@ final class Asset implements \JsonSerializable
             'kind' => 'unplanned',
         ];
 
-        if ($openPlanMonths === []) {
-            $this->scheduleRevised = true;
-
-            return;
-        }
-
-        $remaining = $this->acquisitionCost->subtract($this->accumulatedDepreciationAt(null));
-        $shares = $remaining->allocate(...array_fill(0, count($openPlanMonths), 1));
-
-        $schedule = $this->monthlySchedule;
-        foreach ($openPlanMonths as $index => $planMonth) {
-            $schedule[$planMonth - 1] = $shares[$index];
-        }
-        $this->monthlySchedule = array_values($schedule);
-
-        $this->scheduleRevised = true;
+        $this->rebaseRemainingPlan($openPlanMonths);
     }
 
     /**
