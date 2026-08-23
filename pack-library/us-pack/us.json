@@ -8,7 +8,7 @@
     { "kind": "tax", "id": "us-salestax-2026", "version": "2026.2" },
     { "kind": "mapping", "id": "us-gaap-balance-sheet", "version": "2026.1" },
     { "kind": "mapping", "id": "us-gaap-income-statement", "version": "2026.1" },
-    { "kind": "mapping", "id": "us-schedule-c-2026", "version": "2026.1" },
+    { "kind": "mapping", "id": "us-schedule-c-2026", "version": "2026.2" },
     { "kind": "depreciation", "id": "macrs-us", "version": "2026.2" },
     { "kind": "assetAccounts", "id": "us-asset-accounts", "version": "2026.1" },
     { "kind": "policy", "id": "us-usd", "version": "2026.1" }
