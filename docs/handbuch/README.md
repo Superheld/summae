@@ -1256,6 +1256,13 @@ Release (`draft` → `released`). `runId` (yes). Output:
 `{ "runId", "status": "released" }`. Errors: `E_COSTING_RUN_UNKNOWN`,
 `E_COSTING_RUN_RELEASED`.
 
+**Runs are persisted**, so a released run is still there in the next process —
+which is what makes `costAllocationSheet`, `overheadRates` and `productionCost`
+usable from an application that builds a tenant per request. The version of a
+period comes from the store, so a second run of the same period is version 2
+however many restarts lie in between. With a persistent adapter the runs live in
+`summae_costing_runs`; in memory they live as long as the tenant does.
+
 #### allocate
 
 `total` (yes, Money), `weights` (yes, list of numbers or numeric strings).

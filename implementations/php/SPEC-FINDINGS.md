@@ -76,6 +76,7 @@ a short file.
 | IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the IMPL-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
 | IMPL-026 a yearly depreciation run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount *as of the disposal date* and so ignored a run booked on 31 December; it wrote off the full cost on top of what the run had already written off. Now read from the whole ledger, like every other caller. Found by the embedding app (its F-15), fixture `disposal-after-yearly-depreciation` |
 | IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — two halves of one gap: the format declared `accountIds` (uuids) while the engine writes `accountNumbers` (strings), and `journalExport` exported partners without stripping nulls, unlike accounts and vouchers, so a partner with no `vatId` wrote a `null` where the schema demands a string. Latent because no schema test had ever exported a partner; one does now in both languages, with the leanest partner there is. Found while adding `status` for the format 0.7 bump |
+| IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `cross-export` wrote into `.cross-dbs/` without clearing it, so a fixture that stopped being exported left its database and its oracle behind and the read side kept comparing against them. Surfaced when the format moved to 0.7: three retired fixtures' old oracles said 0.6 and failed the cross test on a run that no longer happens. The export starts from an empty directory now |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -858,3 +859,21 @@ blocker — the port, the adapters and the table itself are mechanical work.
 
 Left open deliberately. Whichever is chosen becomes a promise to every existing installation, and
 that is not a mechanical decision.
+
+**Decided 2026-08-24: option 2, the idempotent install** — `create` became "ensure", guarded per
+table, and both languages now create only what is absent. The costing-run table went in on the same
+day and reached an existing workspace without recreating it, which is the whole test of the choice.
+
+The limit is kept explicit rather than papered over, in the code comment and in the manual: it
+covers **additive** changes — a new table, and by hand a new nullable column — and nothing else. A
+column that changes its type or a table that has to be rewritten still needs a real migration, which
+neither language has, and a change of that kind still means recreating the workspace. Saying that
+plainly is better than a runner that only looks like one; if a non-additive change ever becomes
+necessary, option 1 is still open and this note is where the reasoning starts.
+
+**IMPL-028 came with it:** the cross-test kept comparing against stale artifacts. `cross-export`
+wrote into `.cross-dbs/` without clearing it, so a fixture that stopped being exported — retired
+into `superseded.json`, or renamed — left its database and its oracle behind, and the read side
+compares whatever it finds. After the format moved to 0.7 the three retired fixtures' old oracles
+failed the cross test forever, describing a run that no longer happens. The export now starts from
+an empty directory.

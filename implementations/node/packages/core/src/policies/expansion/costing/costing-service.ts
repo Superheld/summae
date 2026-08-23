@@ -1,5 +1,6 @@
 import { DomainError, rejectedValue } from '../../../domain-error.js';
-import type { AccountRepository, JournalRepository } from '../../../port.js';
+import type { AccountRepository,
+  CostingRunRepository, JournalRepository } from '../../../port.js';
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
@@ -118,13 +119,21 @@ export class CostingService {
    * freezing rule against the same run, and two rules for one moment is how they drift apart.
    */
   private rateDefinitions: RateDefinition[] = [];
-  private readonly runs = new Map<string, CostingRun>();
-  private readonly versions = new Map<string, number>();
-
   constructor(
     private readonly baseCurrency: Currency,
     private readonly accounts: AccountRepository,
     private readonly journal: JournalRepository,
+    /**
+     * Where the runs live (F-KLR-001/004).
+     *
+     * They used to live in two private `Map`s in this class — the runs themselves and a per-period
+     * version counter — which meant a released run was gone with the process that produced it and
+     * the version restarted at 1 after every restart. The requirements had said otherwise all
+     * along: runs are versioned per period, and the BAB and the rates are a projection *of a
+     * released run*. A run no later process can read satisfies neither; it satisfies them inside
+     * one process, which is not what a repository port is for.
+     */
+    private readonly runs: CostingRunRepository,
     private readonly ids: IdGenerator,
     // The allocation scheme is a tenant-level singleton — see TaxService for why the
     // audit record names the tenant as its object (F-CORE-014 "Profile").
@@ -257,9 +266,10 @@ export class CostingService {
     const computed = this.computeRates(after, accountTotals);
     const productionCost = this.computeProductionCost(after, accountTotals);
 
-    const key = `${fiscalYear}-${period}`;
-    const version = (this.versions.get(key) ?? 0) + 1;
-    this.versions.set(key, version);
+    // The next version comes from what is stored, not from a counter in this object: a counter
+    // starts at zero in every new process, so the second run of a period would have claimed to be
+    // its first.
+    const version = this.nextVersionFor(fiscalYear, period);
 
     const run = new CostingRun(
       this.ids.next(),
@@ -273,7 +283,7 @@ export class CostingService {
       computed.warnings,
       productionCost,
     );
-    this.runs.set(run.id.value, run);
+    this.runs.add(run);
     if (this.audit !== null) {
       this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'created', {
         period: { from: null, to: `${periodRef.fiscalYear}/${periodRef.period}` },
@@ -290,6 +300,7 @@ export class CostingService {
     const run = this.requireRun(input.runId);
     const before = run.status();
     run.release();
+    this.runs.save(run);
     if (this.audit !== null) {
       this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'released', {
         status: { from: before, to: run.status() },
@@ -690,11 +701,27 @@ export class CostingService {
     return codes.map((code) => ({ costCenter: code, total: totals.get(code)!.amountAsString() }));
   }
 
+  /**
+   * The next version for a period: one more than the highest stored for it.
+   *
+   * Derived rather than counted, because a counter in this object starts at zero in every new
+   * process — the second run of a period would have claimed to be its first, and F-KLR-001's
+   * "versioned per period" would have held only until a restart.
+   */
+  private nextVersionFor(fiscalYear: number, period: number): number {
+    let highest = 0;
+    for (const run of this.runs.all()) {
+      if (run.period.fiscalYear !== fiscalYear || run.period.period !== period) continue;
+      if (run.version > highest) highest = run.version;
+    }
+    return highest + 1;
+  }
+
   private requireRun(runId: unknown): CostingRun {
     let run: CostingRun | null = null;
     if (typeof runId === 'string' && runId !== '') {
       try {
-        run = this.runs.get(Uuid.fromString(runId).value) ?? null;
+        run = this.runs.byId(Uuid.fromString(runId));
       } catch (error) {
         if (!(error instanceof InvalidValue)) throw error;
       }

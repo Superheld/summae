@@ -27,6 +27,21 @@ export class SyncDb {
     return this.knex(name);
   }
 
+  /**
+   * Does the table exist already?
+   *
+   * The one place that knows the store is SQLite — Knex' own `hasTable` is a Promise and the ports
+   * here are synchronous, which is the whole reason this class exists. It is what makes the schema
+   * install idempotent (SPEC-014): a workspace created before a table existed gains it on open
+   * instead of having to be recreated.
+   */
+  hasTable(name: string): boolean {
+    const row = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(name);
+    return row !== undefined;
+  }
+
   /** Run DDL (schema can produce several statements) synchronously. */
   schema(build: (s: Knex.SchemaBuilder) => Knex.SchemaBuilder): void {
     for (const stmt of build(this.knex.schema).toSQL()) {

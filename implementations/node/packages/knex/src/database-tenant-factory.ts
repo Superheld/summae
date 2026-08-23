@@ -16,6 +16,7 @@ import {
   DatabaseFiscalYearRepository,
   DatabaseJournalRepository,
   DatabaseOpenItemRepository,
+  DatabaseCostingRunRepository,
   DatabasePartnerRepository,
   DatabaseVoucherRepository,
 } from './repositories.js';
@@ -57,6 +58,7 @@ export class DatabaseTenantFactory {
         openItems: new DatabaseOpenItemRepository(db, tenantId),
         assets: new DatabaseAssetRepository(db, tenantId),
         partners: new DatabasePartnerRepository(db, tenantId),
+        costingRuns: new DatabaseCostingRunRepository(db, tenantId),
         audit: new DatabaseAuditTrail(db, tenantId),
       },
       clock,

@@ -47,6 +47,12 @@ versioning per SemVer (0.x: minor may break).
   gets a balance sheet, an income statement and an EÜR that find almost nothing. The README now says
   what the limitation is, and the extendable bands are documented alongside it.
 
+- **The cross-test no longer compares against stale artifacts** (IMPL-028). `cross-export` wrote
+  into `.cross-dbs/` without clearing it, so a fixture that stopped being exported left its database
+  and its oracle behind and the read side kept comparing against them. It surfaced when the format
+  moved to 0.7: three retired fixtures' old oracles still said 0.6 and failed a run that no longer
+  happens. The export starts from an empty directory now.
+
 - **Three fixtures superseded, none edited.** `de-jahresgang` and `de-wertpapierdepot` pinned
   `accountCount: 41` in passing — the same weld `de-pack-resolves` was retired for, and the reason
   the chart could not grow. `de-euer-mapping-gap` is the rarer case: the mechanism it pins (an
@@ -56,6 +62,22 @@ versioning per SemVer (0.x: minor may break).
   `testing/testsuite/superseded.json`.
 
 ### Added
+
+- **Costing runs are persisted** (F-KLR-001/004). `CostingService` kept its runs in a private `Map`,
+  so a run created in one process was gone in the next — and an application that builds a tenant per
+  request could release a run and never read it again, while `costAllocationSheet` needs the runId.
+  The requirements had said otherwise all along: runs are versioned per period, and the BAB and the
+  rates are a projection *of a released run*. A run no later process can read satisfies neither.
+  There is now a `CostingRunRepository` port with an in-memory and a database implementation in both
+  languages, a `summae_costing_runs` table, and the per-period version comes from the store — it used
+  to restart at 1 after every restart, so the second run of a period claimed to be its first.
+
+- **The schema install is idempotent** (SPEC-014, decided). Both adapters created their tables
+  exactly once at workspace initialisation and nothing upgraded an existing database — the first
+  change that added a table would have meant recreating every workspace. `create` is now "ensure",
+  guarded per table, and the costing table reached existing workspaces without one. The limit is
+  stated rather than hidden: it covers **additive** changes and nothing else; a column that changes
+  its type still needs a real migration, which neither language has.
 
 - **A partner can be marked as no longer in use** (`deactivatePartner` / `reactivatePartner`,
   F-CORE-034). There is no `deletePartner` and there should not be — the books keep what they
