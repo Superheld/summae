@@ -2,8 +2,8 @@
   "formatVersion": "0.6",
   "id": "de-afa",
   "kind": "depreciation",
-  "version": "2026.4",
-  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV)",
+  "version": "2026.5",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV, degressive AfA §7 Abs. 2 EStG)",
   "contributes": [
     "depreciation"
   ],
@@ -61,6 +61,14 @@
       {
         "assetClass": "telephone-system",
         "months": 120
+      }
+    ],
+    "decliningBalance": [
+      {
+        "validFrom": "2025-07-01",
+        "validTo": "2027-12-31",
+        "factor": 3,
+        "maxRate": "30.00"
       }
     ]
   }
