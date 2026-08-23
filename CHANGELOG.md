@@ -10,6 +10,148 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
 
+## 0.10.0 — 2026-08-23
+
+A legal-conformance review against case law and current tax rules, then everything it found.
+Six defects, and every one of them the quiet kind again: no crash, no error, just wrong numbers
+in a direction that flatters the result. Depreciation carries most of it, the shipped `de` pack
+carries the rest — and the pack turned out to be the more embarrassing half, because the engine
+was right and the product data was not.
+
+Each fix was verified by removing it again: 15 mutations, 15 red tests. A fix nobody can break
+on purpose is not protected.
+
+### ⚠ What breaks
+
+- **A pack with a pool range must now declare `poolProRataInFirstYear`** next to `poolYears` and
+  `poolReducedOnDisposal`, or you get `E_PACK_INCOHERENT`. The shipped `de` pack says `false`.
+  Required rather than defaulted, for the third time in the same file and for the same reason:
+  whether a pool's first year is shortened by the acquisition month is one jurisdiction's answer,
+  not a property of pooling.
+- **Pooled low-value assets acquired mid-year depreciate differently.** They used to be spread
+  pro rata from the acquisition month; they are now dissolved in equal fiscal-year fractions.
+  An asset bought in November moves from 2/60 of its cost in the first year to a full fifth, and
+  the pool no longer runs into a sixth fiscal year. The old numbers were wrong, but they were
+  your numbers — re-check any year in which you pooled an asset outside January.
+- **All depreciation changes where the fiscal year is not the calendar year.** See *Fixed*
+  below; if your fiscal year runs January to December, nothing here moves.
+- **The DATEV batch marks reversals.** Rows gain `generalReversal`, and a reversal is no longer
+  byte-identical to the posting it cancels. If you import our batches, re-import any period
+  containing a reversal — the old file doubled the turnover instead of clearing it.
+- **`reverse` now uses a `voucherId` you pass it.** It used to discard it and inherit the
+  reversed entry's voucher. Passing none still inherits, so only callers who were already
+  sending one are affected — and they were sending it because they wanted it used.
+- **The `de` cash-basis mapping gained positions.** Small-business revenue, non-deductible
+  expenses and the carrying amount on disposal now have their own lines (E5, A7, A8) instead of
+  appearing under raw account names. Totals are unchanged; the grouping is not.
+
+### Fixed
+
+- **A pooled asset was dissolved pro rata instead of by fiscal year.** The core laid out
+  `poolYears × 12` plan months starting in the month of acquisition, which is right for ordinary
+  linear depreciation and wrong for a pool: where a jurisdiction dissolves it in equal
+  fiscal-year fractions, the first year is not shortened and the term ends after `poolYears`
+  years. Acquired 15 November, an asset wrote off **30.00 instead of 180.00** in its first year
+  and carried the remainder into a sixth year that does not exist. Directional and silent: too
+  little expense, too much profit, for the whole term. Every existing pool fixture acquires on
+  1 January, where both models agree — `gwg-pool-period` even says so in its own description,
+  having put the date there deliberately to isolate a different question. Fixture
+  `gwg-pool-fiscal-year-fraction`.
+- **Depreciation followed the calendar year, not the fiscal year.** The yearly run grouped plan
+  months by calendar year and then matched that against the requested fiscal year. With a fiscal
+  year 07/2026–06/2027 and an asset acquired in September 2026, the 2027 run booked the eight
+  months of calendar 2027 — two of which belong to the *next* fiscal year — and the four months
+  September to December 2026 **were booked by no run at all**, because no fiscal year is labelled
+  2026. The asset kept a carrying amount permanently and profit was overstated for as long as it
+  did. `deviating-fiscal-year` existed but only posts; it never ran depreciation. Fixture
+  `depreciation-deviating-fiscal-year`.
+- **A reversal was invisible as a reversal in the sheets people read.** `cashJournal` and
+  `accountSheet` showed it as an ordinary opposite movement, so a reader saw +100.00 and −100.00
+  and could not tell whether a mistake was corrected or a genuine receipt removed. That
+  distinction alone decides whether books are formally sound, with no proof of manipulation
+  required (BFH 29.07.2025, X R 23/21 and X R 24/21). Worse than it sounds, because this core
+  reverses by *general reversal*: the cash book showed a negative amount on the debit side with
+  nothing explaining it. Both views now carry `reversesEntry` / `reversedByEntry` as journal
+  numbers. Fixture `reversal-visible-in-sheets`.
+- **A reversal in the DATEV batch was a second copy of the original.** The row took its amount
+  through `abs()` — correct, the batch carries "Umsatz ohne Soll/Haben-Kz" — and read the
+  indicator from the unchanged lead line. Against general reversal the two cancelled out, so an
+  import **doubled the turnover instead of clearing it**. Fixture `datev-general-reversal`.
+- **`reverse` discarded a `voucherId` given to it**, silently: no error, no hint, and a posting
+  pointing at the wrong document. Inheriting remains the default. Fixture `reverse-own-voucher`.
+- **Three gaps in the shipped packs, none of them visible to any test.** `de-euer` assigned no
+  position to four of its own accounts — including **4040, small-business revenue**, which is the
+  most likely account a cash-basis filer uses, so the combination the pack exists for was the one
+  it got wrong. `us-schedule-c` left one. And **not one `de-ust` tax code carried a `datevBu`**,
+  so every exported batch line lost its tax entirely. Three fixtures existed around the first
+  one and none could see it: `de-kleinunternehmer` posts to 4040 but checks only the trial
+  balance, `de-euer` checks the statement but never touches 4040.
+- **The cash-basis statement reported its gaps silently.** An account with no position falls back
+  to its own name, which keeps the money visible — but this is the statement that gets copied onto
+  an official form, and the income statement had warned about its gaps for ages while this one did
+  not. The statement *without* diagnostics was the one that goes to the tax office. It now returns
+  `gapWarnings`; nothing moves and totals are unchanged. Fixture `de-euer-mapping-gap`.
+- **`openItems` published neither the partner nor the due date.** `partnerId` was accepted as a
+  *filter* and dropped from the result, so a list could be narrowed to one debtor and then could
+  not say which; the due date sits on the voucher, which the projection already loads to read the
+  voucher number off it. Without it no maturity schedule can be built — and remaining terms are a
+  disclosure obligation, not a convenience. Fixture `open-items-partner-and-due`.
+
+### Added
+
+- **Declining-balance depreciation, with the switch to straight line.** One calculation serves
+  several rules, so the mechanism is in the core once and the numbers are pack data: factor, cap,
+  and above all the validity window, which is the shortest-lived number a pack holds. Each year
+  takes a percentage of what is left; the switch is taken automatically at the first year where
+  straight line over the remaining life yields more, and the final year takes the remainder so the
+  schedule sums to the cost exactly. `de` ships factor 3 capped at 30 %, for acquisitions from
+  01.07.2025 to 31.12.2027. Asking for the method outside every declared window is
+  `E_PACK_INCOHERENT` rather than a rate the library made up.
+- **`acquireAsset` takes `usefulLifeMonths`.** A table of class averages cannot express a life
+  proven for an individual asset, however complete it is — and without this an asset class the
+  pack does not know was simply unusable. Refused, not ignored, on the routes that have no
+  schedule of their own.
+- **`vatReturn` takes `month`.** The projection served quarterly filers and not monthly ones,
+  and monthly filing is not an edge case: it is mandatory above a turnover threshold that any
+  mid-sized business passes. The workaround an app would have had to invent — two cumulative
+  calls and subtract — is exactly the arithmetic it must not do, because that difference is not
+  the period's figure once cash-basis taxation or a reversal is involved. Either `quarter` or
+  `month`, never both; neither still means the whole year.
+- **A completeness guard for shipped packs** (`PackCompletenessTest` in both languages). Every
+  revenue and expense account must find a position in every statement that presents profit and
+  loss — not every mapping, since a balance sheet legitimately touches none, a distinction the
+  format already made through `mapping.kind`. And once a pack declares any `datevBu` it must
+  declare them all: DATEV is a German format, so no pack is obliged to support it, but half an
+  answer is not an answer. This is the guard the three pack gaps above needed; the schema check
+  proved the packs parse, never that they were complete.
+- **The `de` pack carries the official useful-life table** — ten classes instead of one, so a
+  car, a lorry or office furniture can be capitalised at all.
+
+### Changed
+
+- `de-afa` 2026.5, `de-euer` 2026.3, `de-ust` 2026.2, `us-schedule-c` 2026.2.
+- `docs/gobd-conformance.md` gains a row for reversal visibility, a minus row for the VAT
+  correction on a discount (the app's, collected as A-13 in the app repo), and one **correction**:
+  "costing runs are traceable" was ✅ and is now ⚠. The audit records are persisted, the runs
+  themselves are not — there is no costing repository among the ports, so after a restart a
+  durable record points at nothing. No books are wrong, but a green row that overstates is worse
+  than an honest amber one.
+
+### Known limits, stated rather than hidden
+
+- **Intra-community acquisition has no tax code in the `de` pack.** The mechanism exists —
+  an acquisition is structurally § 13b and `reverse_charge` expresses it — but unlike § 13b it has
+  no separate reporting key for the tax amount, and that could not be settled with confidence
+  here. A wrongly configured tax code produces silently wrong returns, which is worse than a
+  missing one. Same reasoning for the reverse-charge and intra-community DATEV keys, which map
+  onto several keys depending on the transaction and were left unset.
+- **Costing runs still live in memory** (see above).
+- **`due` on an open item comes from the voucher**, so all items from one voucher share it. An
+  instalment plan with a date per part has nowhere to record that yet.
+- **Depreciation falls back to the calendar year** for plan months beyond every fiscal year that
+  has been set up — not a second opinion about the boundary, but so the weighting stays complete
+  and the asset is not written off too fast. Set up the fiscal years an asset runs through.
+
 ## 0.9.2 — 2026-08-17
 
 Release infrastructure only — no change to any package's behaviour, and nothing to re-check in
