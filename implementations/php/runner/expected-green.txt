@@ -1,10 +1,10 @@
-
 # DE-Pack (Gate 2): vollständiges Deutschland-Pack auf neutralem Rahmen
 # Fixtures, die grün sein MÜSSEN (Regressions-Schutz für CI).
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
 # US-Pack (us): own US chart + sales/use tax + GAAP mappings + cash-basis Schedule C + MACRS
 # Wird je Job erweitert; M3 = alle Fixtures + --strict.
+
 accounts-and-import
 advance-payment
 allocate-largest-remainder
@@ -13,9 +13,11 @@ asset-dimensions
 audit-data-export-ads-gl
 audit-data-export-fiscal-year
 audit-trail
+audit-trail-period-and-config
 balance-sheet-gap
 balance-sheet-mapping
 cash-basis-ten-day-rule
+cash-journal
 cent-invoice
 correct-open-items
 costing-run-unknown
@@ -37,6 +39,7 @@ de-kleinunternehmer
 de-pack-resolves
 de-reverse-charge
 de-skonto
+de-system-description
 de-ust7-ermaessigt
 de-vat-return
 de-vorsteuer-ermaessigt
@@ -55,7 +58,6 @@ fiscal-year-management
 fiscalyear-close-guard
 gwg-and-depreciation
 gwg-pool-fiscal-year-fraction
-gwg-pool-period
 gwg-pool-period
 income-statement-gap
 input-invalid
@@ -97,10 +99,12 @@ settlement-bound
 settlement-discount
 small-business-switch
 supplier-taxation-method
+system-description
 tax-expansion
 tenant-from-de-complete-posts-identically
 trial-balance-columns
 two-year-carryover
+unfinalized-entries
 us-balance-income
 us-contra-revenue
 us-depreciation
