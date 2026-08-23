@@ -22,6 +22,7 @@ import { TrialBalanceProjection } from '../policies/projection/trial-balance.js'
 import { VatReturnProjection } from '../policies/projection/vat-return.js';
 import { PostVoucherService } from './post-voucher-service.js';
 import { validateProjectionParams } from './projection-parameters.js';
+import { validateOperationInput } from './operation-parameters.js';
 import type { Tenant } from './tenant.js';
 
 /** Plain-JSON serialization via toJSON() (like PHP's json_encode/decode). */
@@ -38,6 +39,11 @@ export class TenantOperations {
   constructor(private readonly tenant: Tenant) {}
 
   execute(op: string, input: Record<string, unknown>): Record<string, unknown> {
+    // The input contract is checked here, before routing: one place instead of one check per
+    // handler, and the same place in both languages — the mirror of what `project()` does below.
+    // An operation below therefore reads inputs that are either absent or of the declared type.
+    validateOperationInput(op, input);
+
     const ledger = this.tenant.ledger;
 
     switch (op) {

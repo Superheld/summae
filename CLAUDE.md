@@ -230,13 +230,18 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    the workspace, the pack library, and the documented parameter names. **Ship a new pack ⇒ add a
    scenario** (a guard test fails otherwise). Documentation that stops being true must turn a build
    red, not rot on the page. **Where every kind of test lives and which one to write: `testing/README.md`.**
-5. **The projection parameter contract is data, not code.** `testing/testsuite/schema/api-parameters.json`
-   declares every accepted parameter with its type; the dispatcher validates against it *before*
-   routing. An undeclared parameter is `E_INPUT_INVALID`, never silently ignored; a declared one of
-   the wrong type is rejected, never coerced; an absent one keeps its documented default. The core
-   reads no files, so each language carries the table as a constant — and a test per language asserts
-   the constant equals that file, which is what makes drift impossible. **Adding a parameter means
-   editing `testing/testsuite/schema/api-parameters.json` first**, not the constant.
+5. **The parameter contract is data, not code — for projections *and* operations.**
+   `testing/testsuite/schema/api-parameters.json` declares every accepted parameter and every
+   accepted operation input with its type; the dispatcher validates against it *before* routing. An
+   undeclared key is `E_INPUT_INVALID`, never silently ignored; a declared one of the wrong type is
+   rejected, never coerced; an absent one keeps its documented default. The core reads no files, so
+   each language carries both tables as constants — and a test per language asserts the constants
+   equal that file, which is what makes drift impossible. **Adding a parameter means editing
+   `testing/testsuite/schema/api-parameters.json` first**, not the constant. The `operations` block
+   arrived late (2026-08-24, reported from outside as F-9) and the gap it left is the lesson: for a
+   year the *reads* were declared and the *writes* were not, so a mistyped projection parameter
+   failed loudly while a mistyped operation input was dropped and the default stood — on the side
+   that writes to the books. Requiredness stays with the operation, whose error code says more.
 6. **An error code lives in two places at once.** A new code needs its row in
    `testing/testsuite/fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
    never reordered). `ExitCodesTest`/`exit-codes.test.ts` compare the two as sets in both

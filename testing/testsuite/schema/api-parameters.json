@@ -5,13 +5,216 @@
     "integer": "a whole number. JSON knows no int/float split, so 2026 and 2026.0 are the same value and both are accepted; 2026.4 is a caller mistake, not a value to round into shape. Bounded to 2^53-1 so that both language runtimes represent it exactly.",
     "string": "a non-empty string",
     "date": "a zoneless calendar date, YYYY-MM-DD",
-    "boolean": "true or false"
+    "boolean": "true or false",
+    "object": "a JSON object. Its inner shape is the operation's business — this contract answers what a key MAY be, not what a voucher looks like",
+    "array": "a JSON list. Its elements are the operation's business, for the same reason",
+    "money": "an object carrying a decimal `amount` as a STRING, and usually a `currency`. Declared apart from `object` because the mistake it catches is a real one: an amount passed as a JSON number was silently ignored by every operation that read it with an is-object check, and the operation carried on with its default"
   },
   "rules": {
     "unknownParameter": "A parameter that is not declared here is rejected with E_INPUT_INVALID. Silently ignoring it turns a misspelled `fiscalYear` on vatReturn into a plausible annual figure where a quarter was asked for.",
     "absentOptional": "An undeclared-as-required parameter that is absent keeps its documented default. Absent is not the same as wrong.",
     "presentButInvalid": "A declared parameter present with a value of the wrong type is rejected with E_INPUT_INVALID — never coerced, never defaulted.",
     "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is declared but read by no implementation. It is declared so the gap is visible instead of hiding behind a tolerant reader — NOT because it works, and each one is recorded as a finding. Resolve it by giving the parameter an effect or by retiring it in a new fixture; do not quietly bend an existing one. As of 2026-08-16 exactly one remains: balanceSheet.incomeMapping, and there by decision — see the comment on it."
+  },
+  "$operationsComment": "The same contract for the operations (F-9, reported by an embedding app). `PROJECTION_PARAMETERS` had declared every projection parameter since 0.7 while `execute()` read what it recognised and ignored the rest — so a typo in a projection parameter was an immediate E_INPUT_INVALID naming the parameter, and a typo in an operation input was silence plus a default. That asymmetry is the wrong way round: a projection returns a wrong number, an operation writes one into the books. Three defects came out of it before the contract existed — `expandTax` taking `date` where its neighbours take `voucherDate`, a wrong `direction` booking an invoice inverted (IMPL-013), and every numeric input read with a typeof check, so a form's \"30\" was not rejected but ignored while the default stood. `actor` is declared on every operation that writes an audit record, because that is what reads it.",
+  "operations": {
+    "post": {
+      "voucherId": { "type": "string", "required": true },
+      "entryDate": { "type": "date", "required": true },
+      "lines": { "type": "array", "required": true },
+      "text": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "postVoucher": {
+      "voucher": { "type": "object", "required": true },
+      "taxCode": { "type": "string" },
+      "direction": { "type": "string" },
+      "netLines": { "type": "array" },
+      "lines": { "type": "array" },
+      "counterAccount": { "type": "string" },
+      "entryDate": { "type": "date" },
+      "text": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "createVoucher": {
+      "voucher": { "type": "object", "required": true },
+      "actor": { "type": "string" }
+    },
+    "correct": {
+      "entryId": { "type": "string", "required": true },
+      "text": { "type": "string" },
+      "lines": { "type": "array" },
+      "actor": { "type": "string" }
+    },
+    "finalize": {
+      "entryId": { "type": "string" },
+      "finalizeUntil": { "type": "date" },
+      "actor": { "type": "string" }
+    },
+    "reverse": {
+      "entryId": { "type": "string", "required": true },
+      "entryDate": { "type": "date", "required": true },
+      "text": { "type": "string" },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "settle": {
+      "entryId": { "type": "string", "required": true },
+      "allocations": { "type": "array", "required": true },
+      "actor": { "type": "string" }
+    },
+    "createAccount": {
+      "number": { "type": "string", "required": true },
+      "name": { "type": "string", "required": true },
+      "type": { "type": "string", "required": true },
+      "subtype": { "type": "string" },
+      "status": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "lockAccount": {
+      "number": { "type": "string", "required": true },
+      "actor": { "type": "string" }
+    },
+    "importChartOfAccounts": {
+      "rows": { "type": "array", "required": true },
+      "format": { "type": "string", "acceptedWithoutEffect": true },
+      "actor": { "type": "string" }
+    },
+    "defineDimensionType": {
+      "code": { "type": "string", "required": true },
+      "actor": { "type": "string" }
+    },
+    "defineDimensionValue": {
+      "type": { "type": "string", "required": true },
+      "code": { "type": "string", "required": true },
+      "actor": { "type": "string" }
+    },
+    "createFiscalYear": {
+      "year": { "type": "integer", "required": true },
+      "start": { "type": "date", "required": true },
+      "end": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "closePeriod": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
+    "reopenPeriod": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
+    "closeFiscalYear": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
+    "expandTax": {
+      "date": { "type": "date", "required": true },
+      "serviceDate": { "type": "date" },
+      "direction": { "type": "string" },
+      "taxCode": { "type": "string" },
+      "netLines": { "type": "array", "required": true }
+    },
+    "setTaxProfile": {
+      "smallBusiness": { "type": "object", "required": true },
+      "reason": { "type": "string", "acceptedWithoutEffect": true },
+      "actor": { "type": "string" }
+    },
+    "importMapping": {
+      "mapping": { "type": "object", "required": true },
+      "actor": { "type": "string" }
+    },
+    "createPartner": {
+      "name": { "type": "string", "required": true },
+      "kind": { "type": "string" },
+      "vatId": { "type": "string" },
+      "paymentTermsDays": { "type": "integer" },
+      "accountNumbers": { "type": "array" },
+      "address": { "type": "object" },
+      "actor": { "type": "string" }
+    },
+    "updatePartner": {
+      "partnerId": { "type": "string", "required": true },
+      "name": { "type": "string" },
+      "kind": { "type": "string" },
+      "vatId": { "type": "string" },
+      "paymentTermsDays": { "type": "integer" },
+      "accountNumbers": { "type": "array" },
+      "address": { "type": "object" },
+      "actor": { "type": "string" }
+    },
+    "acquireAsset": {
+      "name": { "type": "string" },
+      "assetClass": { "type": "string" },
+      "assetAccount": { "type": "string", "required": true },
+      "acquisitionCost": { "type": "money", "required": true },
+      "acquiredOn": { "type": "date", "required": true },
+      "voucherId": { "type": "string", "required": true },
+      "gwgChoice": { "type": "string" },
+      "usefulLifeMonths": { "type": "integer" },
+      "depreciationMethod": { "type": "string" },
+      "dimensions": { "type": "array" },
+      "specialDepreciation": { "type": "boolean" },
+      "totalUnits": { "type": "integer" },
+      "actor": { "type": "string" }
+    },
+    "disposeAsset": {
+      "assetId": { "type": "string", "required": true },
+      "disposedOn": { "type": "date", "required": true },
+      "proceeds": { "type": "money" },
+      "proceedsAccount": { "type": "string" },
+      "bankAccount": { "type": "string" },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "runDepreciation": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer" },
+      "actor": { "type": "string" }
+    },
+    "reportAssetUsage": {
+      "assetId": { "type": "string", "required": true },
+      "fiscalYear": { "type": "integer", "required": true },
+      "units": { "type": "integer", "required": true },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "bookSpecialDepreciation": {
+      "assetId": { "type": "string", "required": true },
+      "fiscalYear": { "type": "integer", "required": true },
+      "amount": { "type": "money", "required": true },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "writeDownAsset": {
+      "assetId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "date": { "type": "date", "required": true },
+      "reason": { "type": "string", "required": true },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "setAllocationScheme": {
+      "method": { "type": "string" },
+      "steps": { "type": "array" },
+      "rates": { "type": "array" },
+      "productionCost": { "type": "object" },
+      "actor": { "type": "string" }
+    },
+    "runCosting": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
+    "releaseCosting": {
+      "runId": { "type": "string", "required": true },
+      "actor": { "type": "string" }
+    },
+    "allocate": {
+      "total": { "type": "money", "required": true },
+      "weights": { "type": "array", "required": true }
+    }
   },
   "projections": {
     "trialBalance": {

@@ -560,6 +560,19 @@ Conventions for this whole section:
 - Every input may optionally carry `actor` (string) → audit trail, default `"system"`.
 - Errors are thrown as a `DomainError` with an `E_*` code (see § 9); when posting, **only the first** error in fixed check order is returned.
 
+> ⚠ **Getting an input name or type wrong fails loudly.** Every operation declares its
+> inputs, and the dispatcher checks them before routing — the same contract the
+> projections have had (§ 7), on the side that writes to the books. An **undeclared**
+> input is `E_INPUT_INVALID` and is never silently ignored, so `usefulLifeYears`
+> cannot quietly leave the pack's useful life in charge. A declared input of the
+> **wrong type** is rejected rather than coerced: `"30"` is not `30`, and an amount
+> is Money (`{"amount":"2000.00","currency":"EUR"}`), never a bare number. An
+> **absent** input keeps its documented default, and `null` counts as absent.
+>
+> What is *not* checked here is whether a required input is present: that stays with
+> the operation, which answers with a better code than this layer could —
+> `E_VOUCHER_UNKNOWN`, `E_ASSET_UNKNOWN`, `E_ENTRY_NO_VOUCHER` say *what* is missing.
+
 #### createTenant (bootstrap operation, SF-01)
 
 Create a tenant from a profile — **not** a normal `execute` op, but a bootstrap
@@ -718,7 +731,9 @@ set, or unknown `entryId`).
 
 Reversal by full counter-entry: a new posting with a back-reference
 (`reverses`), same accounts/sides, **negated amounts**. `entryId` (yes),
-`entryDate` (yes, open period), `text` (no, default `"Reversal <seqNo>"`). Output:
+`entryDate` (yes, open period), `text` (no, default `"Reversal <seqNo>"`),
+`voucherId` (no — the reversal reuses the original's voucher unless you give it
+one of its own). Output:
 serialized reversal posting; the original gets `reversedBy`. Errors:
 `E_ENTRY_UNKNOWN`, `E_ENTRY_ALREADY_REVERSED`, `E_PERIOD_UNKNOWN`,
 `E_PERIOD_CLOSED`, `E_ENTRY_HAS_SETTLED_ITEMS`.

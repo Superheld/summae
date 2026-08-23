@@ -89,6 +89,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-IO-007 | Das Package MUSS eine technische Systembeschreibung generieren können (Baustein der Verfahrensdokumentation, GoBD Rz. 151 ff.). | — |
 | F-IO-008 | DATEV-Buchungsstapel SOLLEN importierbar sein (Rückweg vom Steuerberater); Formatdetails bei JOB-011 verifizieren. | — |
 | F-IO-009 | US-GL-Export nach AICPA Audit Data Standard (General Ledger) — das US-Gegenstück zu F-IO-001 (GoBD-Z3 ist deutsch); MUSS journals/trialBalance/accounts erzeugen (signierte Beträge: Soll +, Haben −). | 32 |
+| F-IO-010 | Auch **Operationen** MÜSSEN ihre Eingaben deklarieren (`api-parameters.json`, Block `operations`); der Dispatcher prüft vor dem Routing: unbekannter Schlüssel ⇒ `E_INPUT_INVALID`, falscher Typ wird abgewiesen statt konvertiert, abwesend behält den dokumentierten Standard. Pflichtfelder bleiben bei der Operation (dort ist der Fehlercode genauer). | — |
 
 ## Abdeckungsprüfung SF → F
 

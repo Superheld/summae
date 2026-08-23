@@ -50,6 +50,12 @@ final readonly class TenantOperations
      */
     public function execute(string $op, array $input): array
     {
+        // The input contract is checked here, before routing: one place instead of one check per
+        // handler, and the same place in both languages — the mirror of what `project()` does
+        // below. An operation below therefore reads inputs that are either absent or of the
+        // declared type.
+        OperationParameters::validate($op, $input);
+
         $tenant = $this->tenant;
         $ledger = $tenant->ledger;
 

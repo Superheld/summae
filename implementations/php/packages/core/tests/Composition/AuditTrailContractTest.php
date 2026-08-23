@@ -158,7 +158,7 @@ final class AuditTrailContractTest extends TestCase
             'assetAccount' => '0400',
             'acquisitionCost' => ['amount' => '5000.00', 'currency' => 'EUR'],
             'acquiredOn' => '2026-01-15',
-            'usefulLifeYears' => 5,
+            'usefulLifeMonths' => 60,
             'voucherId' => $voucherId,
         ];
     }
@@ -243,12 +243,12 @@ final class AuditTrailContractTest extends TestCase
 
                 return;
             case 'createPartner':
-                $ops->execute('createPartner', ['number' => 'D-1000', 'name' => 'Kunde AG', 'role' => 'customer']);
+                $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
 
                 return;
             case 'updatePartner':
                 /** @var array<string, mixed> $partner */
-                $partner = $ops->execute('createPartner', ['number' => 'D-1000', 'name' => 'Kunde AG', 'role' => 'customer']);
+                $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
                 $partnerId = $partner['id'] ?? null;
                 self::assertIsString($partnerId, 'createPartner must return the partner id');
                 $ops->execute('updatePartner', ['partnerId' => $partnerId, 'name' => 'Kunde SE']);
