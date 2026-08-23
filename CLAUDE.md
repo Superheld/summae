@@ -34,7 +34,10 @@ self-describing data set incl. field catalogue is `journalExport`; turning it in
 DTD-conforming data carrier is the app's — `datenformat.md`: "a mapping, not an invention", and
 no test goes red for its absence) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
 are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
-*posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax).
+*posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax) ·
+**cost-accounting steering instruments** (planned-cost/variance, activity-based, contribution-margin — decided
+2026-08-23; the *balance-sheet* part of cost accounting, production cost per § 255 Abs. 2 HGB for inventory
+valuation, is deliberately **in** scope and simply not built yet).
 
 ## Architecture (the big picture)
 

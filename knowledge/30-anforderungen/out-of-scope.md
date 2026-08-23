@@ -28,6 +28,7 @@ Einbettungsprojekte können das selbst ergänzen:
 - **Belegerkennung/OCR und E-Rechnungs-Parsing** — Belege werden als Referenz + Datei verwaltet, nicht ausgelesen. E-Rechnung ist App-Sache (entschieden 2026-06-07, siehe Abgrenzungsprinzip oben).
 - **IFRS, AT/CH** — Architektur hält die Tür offen (Kern jurisdiktionsfrei), Inhalte kommen später.
 - **Steuerberatung/-berechnung** über USt hinaus (ESt, GewSt, KSt): keine Steuerermittlung, nur Buchführung.
+- **KLR-Steuerungsinstrumente** (entschieden 2026-08-23): Plankostenrechnung und Abweichungsanalyse, Prozesskostenrechnung, Deckungsbeitrags-/Teilkostenrechnung. Das sind Controlling-Werkzeuge ohne Rechtsbezug — „*der Nutzer muss…*", also App. **Bewusst NICHT out of scope** ist der bilanzwirksame Teil der KLR: die **Herstellungskostenermittlung** für die Vorratsbewertung (§ 255 Abs. 2 HGB) samt ihrer Voraussetzungen (Gleichungsverfahren für gegenseitige Kostenstellenbeziehungen, Zuschlagskalkulation Kostenstelle → Kostenträger). Der Aufbau ist Mechanik (Kern), *welche Bestandteile einbezogen werden müssen bzw. dürfen* ist Recht (Pack). Noch nicht gebaut; Reihenfolge und Begründung in `00-projekt/backlog-rechtssicherheit-2026-08-23.md`, P7.
 
 ## Jurisdiktion: v1 = DE-Pack auf neutralem Kern
 
