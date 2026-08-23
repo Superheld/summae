@@ -43,6 +43,7 @@ export { Voucher, type VoucherProps } from './records/voucher.js';
 export { Period } from './substrate/period.js';
 export { FiscalYear, type PeriodDefinition } from './substrate/fiscal-year.js';
 export { AuditRecord, type AuditChanges } from './records/audit-record.js';
+export { UnfinalizedEntriesProjection } from './policies/projection/unfinalized-entries.js';
 export { OpenItem } from './records/open-item.js';
 export { Settlement } from './policies/expansion/settlement.js';
 export { PostResult } from './substrate/post-result.js';

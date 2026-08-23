@@ -72,6 +72,11 @@ final class ProjectionParameters
             'from' => ['type' => 'date'],
             'to' => ['type' => 'date'],
         ],
+        'unfinalizedEntries' => [
+            'asOf' => ['type' => 'date'],
+            'olderThanDays' => ['type' => 'integer'],
+            'fiscalYear' => ['type' => 'integer'],
+        ],
         'journalExport' => [
             'fiscalYear' => ['type' => 'integer', 'required' => true],
             'format' => ['type' => 'string'],

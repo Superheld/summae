@@ -6,6 +6,7 @@ import { AuditDataExportProjection } from '../policies/projection/audit-data-exp
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
+import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
 import { BalanceSheetProjection } from '../policies/projection/balance-sheet.js';
 import { CashBasisProjection } from '../policies/projection/cash-basis.js';
 import { DatevExportProjection } from '../policies/projection/datev-export.js';
@@ -137,6 +138,8 @@ export class TenantOperations {
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
+      case 'unfinalizedEntries':
+        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
       case 'assetRegister':
         return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'costAllocationSheet':

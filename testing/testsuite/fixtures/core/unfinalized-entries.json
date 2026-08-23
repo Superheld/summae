@@ -1,0 +1,129 @@
+{
+  "fixture": "unfinalized-entries",
+  "description": "F-CORE-027: die Festschreibe-Frist muss überwachbar sein. GoBD verlangt Festschreibung spätestens mit der USt-Voranmeldung (Rz. 47 ff.) — eine *deutsche* Frist, die das jurisdiktionsfreie Substrat nicht erzwingen darf. Es kann sie aber sichtbar machen: `entryDate` und `recordedAt` liegen im Journal, das Alter einer offenen Buchung ist damit eine reine Faltung. Gemessen wird ab `entryDate` gegen `asOf`, nicht ab `recordedAt` — eine spät erfasste Buchung auf ein altes Datum ist genau der Fall, um den es geht, und ab Erfassungszeitpunkt zu messen würde ihn verstecken. Drei Buchungen: eine festgeschriebene (taucht nie auf), eine 45 Tage alte und eine 2 Tage alte. `olderThanDays` schneidet die junge weg. Die Projektion meldet, sie blockiert nicht — was ab welchem Alter passiert, ist Workflow der einbettenden App.",
+  "covers": ["F-CORE-027"],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-01-10" },
+      { "id": "$V2", "voucherNumber": "ER-2", "voucherDate": "2026-02-01" },
+      { "id": "$V3", "voucherNumber": "ER-3", "voucherDate": "2026-03-14" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-10",
+        "voucherId": "$V1",
+        "text": "festgeschrieben, taucht nie auf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "finalize",
+      "input": { "entryId": "$E1" },
+      "expect": { "result": { "finalizedCount": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-01",
+        "voucherId": "$V2",
+        "text": "offen seit 45 Tagen",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "20.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "20.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2, "id": "$E2" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-14",
+        "voucherId": "$V3",
+        "text": "offen seit 2 Tagen",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "30.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "30.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3, "id": "$E3" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "unfinalizedEntries",
+      "params": { "asOf": "2026-03-16" },
+      "expect": {
+        "asOf": "2026-03-16",
+        "olderThanDays": 0,
+        "count": 2,
+        "oldestAgeInDays": 43,
+        "entries": [
+          {
+            "entryId": "$E2",
+            "sequenceNumber": 2,
+            "entryDate": "2026-02-01",
+            "fiscalYear": 2026,
+            "period": 2,
+            "ageInDays": 43,
+            "text": "offen seit 45 Tagen"
+          },
+          {
+            "entryId": "$E3",
+            "sequenceNumber": 3,
+            "entryDate": "2026-03-14",
+            "fiscalYear": 2026,
+            "period": 3,
+            "ageInDays": 2,
+            "text": "offen seit 2 Tagen"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unfinalizedEntries",
+      "params": { "asOf": "2026-03-16", "olderThanDays": 30 },
+      "expect": {
+        "asOf": "2026-03-16",
+        "olderThanDays": 30,
+        "count": 1,
+        "oldestAgeInDays": 43,
+        "entries": [
+          {
+            "entryId": "$E2",
+            "sequenceNumber": 2,
+            "entryDate": "2026-02-01",
+            "ageInDays": 43
+          }
+        ]
+      }
+    },
+    {
+      "name": "unfinalizedEntries",
+      "params": { "asOf": "2026-03-16", "fiscalYear": 2027 },
+      "expect": {
+        "asOf": "2026-03-16",
+        "count": 0,
+        "oldestAgeInDays": 0,
+        "entries": []
+      }
+    }
+  ]
+}
