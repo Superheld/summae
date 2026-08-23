@@ -66,3 +66,14 @@ export function parseSettlementDifferenceKind(value: unknown): SettlementDiffere
 export function parseOpenItemKind(value: unknown): OpenItemKind | null {
   return value === 'receivable' || value === 'payable' ? value : null;
 }
+
+/**
+ * What a business partner is to this tenant. The manual has named these three since the partner
+ * record existed; the field was a plain string that took anything, so `custommer` was a partner
+ * kind like any other and only turned up as a category nobody could filter on.
+ */
+export type PartnerKind = 'customer' | 'supplier' | 'both';
+
+export function parsePartnerKind(value: unknown): PartnerKind | null {
+  return value === 'customer' || value === 'supplier' || value === 'both' ? value : null;
+}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Partner;
 
+use Summae\Core\Substrate\CanonicalJson;
 use Summae\Core\Substrate\Uuid;
 
 /**
@@ -62,9 +63,40 @@ final class Partner implements \JsonSerializable
             $this->kind = $input['kind'];
         }
 
-        if (is_int($input['paymentTermsDays'] ?? null) && $input['paymentTermsDays'] !== $this->paymentTermsDays) {
+        // `null` clears the term, the way `vatId: null` above already did. Reading it with an
+        // is-int check meant an agreed payment term could be set and never taken back: neither null
+        // nor an absent field removed it, and the two fields behaved differently with nothing
+        // saying so.
+        if (
+            array_key_exists('paymentTermsDays', $input)
+            && (is_int($input['paymentTermsDays']) || $input['paymentTermsDays'] === null)
+            && $input['paymentTermsDays'] !== $this->paymentTermsDays
+        ) {
             $changes['paymentTermsDays'] = ['from' => $this->paymentTermsDays, 'to' => $input['paymentTermsDays']];
             $this->paymentTermsDays = $input['paymentTermsDays'];
+        }
+
+        // Create-only until now, which made a wrong account link permanent: the partner had to be
+        // abandoned and created again under a new id, and every open item stayed on the old one.
+        // Both replace wholesale rather than merging — "these are the accounts now" is a statement
+        // an application can make from a form, while a merge would need a way to say "remove this
+        // one".
+        if (is_array($input['accountNumbers'] ?? null)) {
+            /** @var list<string> $next */
+            $next = array_values(array_filter($input['accountNumbers'], is_string(...)));
+            if (CanonicalJson::encode($next) !== CanonicalJson::encode($this->accountNumbers)) {
+                $changes['accountNumbers'] = ['from' => $this->accountNumbers, 'to' => $next];
+                $this->accountNumbers = $next;
+            }
+        }
+
+        if (isset($input['address']) && is_array($input['address'])) {
+            /** @var array<string, mixed> $next */
+            $next = array_is_list($input['address']) && $input['address'] !== [] ? [] : $input['address'];
+            if (CanonicalJson::encode($next) !== CanonicalJson::encode($this->address)) {
+                $changes['address'] = ['from' => $this->address, 'to' => $next];
+                $this->address = $next;
+            }
         }
 
         return $changes;
