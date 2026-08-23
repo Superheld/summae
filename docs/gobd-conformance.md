@@ -74,6 +74,7 @@ The genuinely German parts are few, and they are where the ⚠️ rows cluster.
 | Same input → same result, in every language | ✅ | The top quality policy. 110 fixtures as a shared oracle + `make cross` (65 green in both directions) with both engines on one data set. |
 | VAT is computed per the applicable rules at the reference date | ✅ | `F-TAX-*`, tax codes versioned with `validFrom` in the pack; `NF-5.1`. |
 | **The postings represent what actually happened** | ➖ | Correct *accounts* for a real transaction is a bookkeeping judgement. summae enforces form, not truth. |
+| **A settlement that reduces the consideration corrects the VAT** | ➖ | `settle` does not post — it takes the app's entry, checks the allocation is covered (`E_SETTLEMENT_EXCEEDS_ENTRY`) and records it. Nothing requires a tax-correction line to accompany a `discount`, and `vatReturn` cannot catch the omission because it computes correctly from what is on the journal. Whether a reduction changes the taxable base is jurisdiction law, and the constraint policy kind has no socket yet (§14 item 6) — so it is the app's, collected as **A-13** in `GOBD-APP-OBLIGATIONS.md`. Candidate for the day that socket exists. |
 
 ## 5. Zeitgerechte Erfassung (Rz. 47–56)
 
@@ -184,6 +185,7 @@ preference.
 | 3 | Z3 Beschreibungsstandard mapping | ➖ **by design, now stated where it is looked for** | summae supplies the self-describing data set; the `index.xml` is the app's. The decision was deliberate but lived only in `datenformat.md`; it is now in the root `CLAUDE.md` out-of-scope list and in `30-anforderungen/out-of-scope.md`, spelled out with the reason no test goes red for it. Reversing the decision — shipping the mapping — remains a product call, not a defect. |
 | 4 | ~~Ten operations write no audit record of their own~~ | ✅ **closed 2026-08-23** | All 25 state-changing operations now write a record of their own kind; `UNCOVERED_KNOWN` is empty in both contract tests. `allocate` moved to the read-only list instead — it distributes an amount and returns the parts, with no journal effect, so there is nothing to log. |
 | 5 | Finalization deadline as a *constraint* | ➖ deliberately not | See §5. Reported, never enforced. |
+| 5b | VAT correction on a consideration-reducing settlement | ➖ **app's, and now written down** | Was neither built nor documented. Not a defect in `settle` — it is doing what it says — but the gap between "summae records the allocation" and "the books are right" was invisible. Now a ➖ row in §4 and **A-13** in the app's obligation list. |
 | 6 | The constraint policy kind has no socket | ⚠️ architectural | `core/src/CLAUDE.md`: "`Constraint/` — predicate gates (still thin; third kind unfinished)". No pack carries a `constraint` module; module kinds are `accounts`, `assetAccounts`, `depreciation`, `mapping`, `tax`, `policy`. Any GoBD rule that *is* a constraint would have to go into the core today — against the pack/substrate split. No open GoBD item is blocked on it any more (item 2 turned out not to need it), but the next jurisdiction-specific *rule* will be. |
 
 ## 15. What this document is not
