@@ -2,8 +2,8 @@
   "formatVersion": "0.6",
   "id": "de-afa",
   "kind": "depreciation",
-  "version": "2026.3",
-  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus AfA-Tabellen)",
+  "version": "2026.4",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV)",
   "contributes": [
     "depreciation"
   ],
@@ -25,6 +25,42 @@
       {
         "assetClass": "it-hardware",
         "months": 36
+      },
+      {
+        "assetClass": "printer",
+        "months": 36
+      },
+      {
+        "assetClass": "copier",
+        "months": 84
+      },
+      {
+        "assetClass": "passenger-car",
+        "months": 72
+      },
+      {
+        "assetClass": "truck",
+        "months": 108
+      },
+      {
+        "assetClass": "bicycle",
+        "months": 84
+      },
+      {
+        "assetClass": "office-furniture",
+        "months": 156
+      },
+      {
+        "assetClass": "storage-equipment",
+        "months": 168
+      },
+      {
+        "assetClass": "mobile-air-conditioner",
+        "months": 132
+      },
+      {
+        "assetClass": "telephone-system",
+        "months": 120
       }
     ]
   }

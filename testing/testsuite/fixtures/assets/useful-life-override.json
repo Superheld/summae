@@ -1,0 +1,80 @@
+{
+  "fixture": "useful-life-override",
+  "description": "The useful life of a capitalised asset can be given per acquisition instead of being looked up by asset class. Until now `acquireAsset` had no such parameter at all: the life came exclusively from the pack's usefulLife table, and an asset class missing from it was E_ASSET_UNKNOWN. That made a legitimate and common case impossible — a jurisdiction that lets a taxpayer prove a shorter life for an individual asset (Germany does, for buildings and in general where the evidence supports it) cannot be served by a table of class averages, however complete the table is. The parameter is refused rather than ignored where it cannot apply: a pooled asset takes its term from the pack's poolYears and an immediately expensed one has no schedule, so passing a life with either route is E_INPUT_INVALID and not a silently dropped input. Nothing is inferred from the parameter's presence either — it does not quietly force capitalisation; the caller says which route they want.",
+  "covers": ["F-AST-001"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0320", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" },
+      { "id": "$V2", "voucherNumber": "ER-KLEIN", "voucherDate": "2026-01-01" }
+    ],
+    "ruleModule": {
+      "gwgThresholds": [ { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false, "poolProRataInFirstYear": false } ],
+      "usefulLife": [ { "assetClass": "it-hardware", "months": 36 } ],
+      "assetAccounts": { "acquisitionCounterAccount": "1200", "depreciationExpenseAccount": "4830", "gwgExpenseAccount": "4855" }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Sondermaschine", "assetClass": "special-machine", "assetAccount": "0320",
+        "acquisitionCost": { "amount": "60000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize",
+        "usefulLifeMonths": 60
+      },
+      "expect": {
+        "result": {
+          "comment": "Die Klasse steht NICHT in der Pack-Tabelle — ohne den Parameter wäre das E_ASSET_UNKNOWN",
+          "route": "capitalize",
+          "usefulLifeMonths": 60,
+          "id": "$A1"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "60.000,00 über 60 Monate, volles Jahr ab Januar = 12/60",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "12000.00", "currency": "EUR" }
+        }
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Bohrmaschine", "assetClass": "it-hardware", "assetAccount": "0320",
+        "acquisitionCost": { "amount": "400.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V2", "gwgChoice": "pool",
+        "usefulLifeMonths": 60
+      },
+      "expect": {
+        "comment": "Der Pool nimmt seine Dauer aus poolYears — eine mitgegebene Nutzungsdauer wird zurückgewiesen statt still verworfen",
+        "error": "E_INPUT_INVALID"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "0320", "balance": "48000.00" },
+          { "account": "1200", "balance": "-60000.00" },
+          { "account": "4830", "balance": "12000.00" }
+        ]
+      }
+    }
+  ]
+}
