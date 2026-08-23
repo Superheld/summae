@@ -99,13 +99,29 @@ final readonly class OpenItemsProjection
         return $entry === null ? 0 : $entry->sequenceNumber;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Both `partnerId` and `due` were known here and neither was published.
+     *
+     * The partner was accepted as a FILTER and dropped from the result, so a list could be narrowed
+     * to one debtor and then could not say which. The due date sits on the voucher — which this
+     * method already loads, for the voucher number — and without it the list cannot be aged at all,
+     * which is what a maturity disclosure is built from.
+     *
+     * Null where the voucher names no date: present and null, so "no date agreed" stays
+     * distinguishable from "this view does not say".
+     *
+     * @return array<string, mixed>
+     */
     private function serializeItem(OpenItem $item, ?CalendarDate $asOf): array
     {
+        $voucher = $this->vouchers->byId($item->voucherId);
+
         return [
             'id' => $item->id->value,
             'kind' => $item->kind->value,
-            'voucherNumber' => $this->vouchers->byId($item->voucherId)?->voucherNumber,
+            'voucherNumber' => $voucher?->voucherNumber,
+            'partnerId' => $item->partnerId?->value,
+            'due' => $voucher?->due?->iso,
             'money' => $item->money->jsonSerialize(),
             'remaining' => $item->remainingAt($asOf)->jsonSerialize(),
             'status' => $item->statusAt($asOf)->value,

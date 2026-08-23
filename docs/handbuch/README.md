@@ -1087,8 +1087,13 @@ as-of evaluations.
 
 `asOf` (no, cutoff date), `kind` (no, `receivable`/`payable`), `partnerId` (no).
 Items with a remaining amount of 0 as of the cutoff date drop out. Output:
-`items[]` with `id`, `kind`, `voucherNumber`, `money` (original, Money),
-`remaining` (Money), `status`.
+`items[]` with `id`, `kind`, `voucherNumber`, `partnerId`, `due`, `money` (original,
+Money), `remaining` (Money), `status`.
+
+`partnerId` and `due` are `null` where none is known — present and null, so "no partner
+recorded" / "no date agreed" stays distinguishable from "this view does not say". `due`
+comes from the **voucher**, so every item created by one voucher shares it; an instalment
+plan with a different date per part has no place to record that yet.
 
 ```json
 // params { "asOf": "2026-02-20", "kind": "receivable" }
