@@ -257,9 +257,6 @@ final class AssetService
             ? Uuid::fromString($input['voucherId'])
             : $asset->voucherId;
 
-        // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the
-        // pool keeps running its term, so there is no carrying amount of its own to clear. Only
-        // the proceeds are booked, as before.
         // Where the pack keeps a disposed item in the pool (F-AST-006, see runDepreciation), the
         // pool keeps running its term and there is no carrying amount of its own to clear — only
         // the proceeds are booked. Where the pack takes it out, it is written off like any other.
@@ -267,7 +264,17 @@ final class AssetService
         if (!$staysPooled) {
             $this->catchUpDepreciation($asset, $disposedOn, $voucherId);
         }
-        $carrying = $staysPooled ? Money::zero($this->baseCurrency) : $asset->bookValueAt($disposedOn);
+        // What is written off is what stands on the account, not what an as-of query says stood
+        // there on the disposal date (IMPL-026). The two are not the same: a yearly run books the
+        // whole year in one entry dated 31 December, so a disposal on 30 September read the
+        // carrying amount, saw that entry as later than itself, ignored it, and wrote off the full
+        // acquisition cost — of which the run had already written off a part. The asset account was
+        // left at a credit balance that nothing clears, while the entry balanced and every
+        // invariant held. Every other reader of the accumulated depreciation in this service
+        // already asks the whole ledger; the disposal was the only as-of query, and it is the one
+        // place an as-of query cannot be right, because what leaves the account must equal what
+        // stands on it (F-AST-004).
+        $carrying = $staysPooled ? Money::zero($this->baseCurrency) : $asset->bookValueAt(null);
         $lines = $this->disposalLines($asset, $carrying, $proceeds, $bankAccount, $proceedsAccount);
 
         if ($lines !== []) {

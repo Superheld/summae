@@ -74,10 +74,56 @@ a short file.
 | IMPL-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions (`acquireAsset(dimensions)`), and acquisition, depreciation, catch-up and disposal all book with them; both persistence adapters carry them through the round trip. Fixture `asset-dimensions` |
 | IMPL-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
 | IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the IMPL-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
+| IMPL-026 a yearly depreciation run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount *as of the disposal date* and so ignored a run booked on 31 December; it wrote off the full cost on top of what the run had already written off. Now read from the whole ledger, like every other caller. Found by the embedding app (its F-15), fixture `disposal-after-yearly-depreciation` |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
-IMPL-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
-is empty.**
+IMPL-020 were **found and closed** the same day while closing the gate gaps below.
+
+**2026-08-24: the list is being filled from outside.** IMPL-026 did not come from this side at all —
+it came from an app embedding summae, which hit it building a fixed-asset screen and wrote it down
+as its own F-15. That is the return on dogfooding, and it is also a warning about where our own
+tests stop: every asset fixture until now either disposed before the yearly run or never combined
+the two, so the suite was green on an ordering that put a credit balance on an asset account. The
+other findings that arrived with it are tracked as requirements rather than findings; the
+classification is in `docs/SUMMAE-BRIEF.md`.
+
+### IMPL-026 — a yearly run before a mid-year disposal left the asset account below zero — RESOLVED
+
+**Found by the embedding app, not by us** (its `FINDINGS.md`, F-15), and it is the only finding on
+its list where the books came out wrong rather than merely incomplete.
+
+Acquire 3.600,00 on 15 January over 36 months, `runDepreciation({ fiscalYear: 2026 })`, then
+`disposeAsset({ disposedOn: '2026-09-30', proceeds: 2.000,00 })`. Expected a carrying amount of
+2.400,00 and a loss of 400,00. What happened: the disposal wrote off 3.600,00, booked a loss of
+1.600,00, and left the asset account at **−1.200,00**.
+
+Two readings of "how much is already depreciated" disagreed. The yearly run books the whole year in
+**one entry dated 31 December** and records twelve plan months against it. `catchUpDepreciation`
+(IMPL-022) asks the **plan**, finds every month recorded, and books nothing — correct.
+`bookValueAt(disposedOn)` asked the **posting dates**, saw the 31 December entry as later than
+30 September, ignored it, and reported the full acquisition cost as still carried. So the write-off
+was computed against a ledger state that no longer existed.
+
+The fix is one argument: the disposal reads `bookValueAt(null)`, the whole ledger. What made it the
+obvious answer rather than a choice is that **every other caller in the service already did that** —
+the write-down, the special depreciation, the usage report, the traces, all of them ask for the
+accumulated depreciation without an as-of. The disposal was the only as-of query in the file, and it
+is the one place where an as-of query cannot be right: what leaves the account has to equal what
+stands on it, or the account cannot reach zero. That is F-AST-004, and the fixture pins the trial
+balance rather than the asset's own numbers for exactly that reason.
+
+**What was deliberately not changed.** The disposal year's depreciation is not re-apportioned to the
+disposal month. Under the fix the year keeps its twelve months of depreciation and the disposal takes
+the difference into its result — 1.200,00 depreciation + 400,00 loss, against 900,00 + 700,00 if the
+three months after the disposal were given back. The income statement carries the same 1.600,00
+either way, and the split is a *jurisdiction's* answer: Germany apportions monthly, US conventions
+use half-year or mid-quarter. IMPL-022 already recorded that reasoning for the catch-up direction and
+left it to the pack; taking it back in the core here would have made the same mistake IMPL-025
+describes, one direction over.
+
+**Where our own coverage failed.** Twelve asset fixtures, and not one of them ran a yearly
+depreciation *before* a mid-year disposal. Each half was tested; the order was not. The new fixture
+pins the order, not the arithmetic.
 
 ### IMPL-025 — the pool-disposal rule was German law inside the core — RESOLVED
 

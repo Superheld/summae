@@ -148,3 +148,4 @@ de-pack-resolves-current
 default-pack-resolves-current
 us-pack-resolves-current
 xx-6-pack-version-pinning
+disposal-after-yearly-depreciation

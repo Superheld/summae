@@ -175,6 +175,23 @@ versioning per SemVer (0.x: minor may break).
 
 ### Fixed
 
+- **A yearly depreciation run before a mid-year disposal left the asset account below zero.**
+  `runDepreciation({ fiscalYear })` books the whole year in one entry dated 31 December. A disposal
+  on 30 September then read the carrying amount *as of the disposal date*, treated that entry as
+  later than itself, and wrote off the full acquisition cost — on top of what the run had already
+  written off. The books balanced, every invariant held, and the asset account carried a credit
+  balance that nothing ever cleared. The disposal now reads the carrying amount from the whole
+  ledger, like every other caller in the service: what leaves the account equals what stands on it
+  (F-AST-004, IMPL-026). Found by an app embedding summae, not by our own suite — twelve asset
+  fixtures, and none of them had ever run the two in this order. Fixture
+  `disposal-after-yearly-depreciation`.
+
+  The disposal year's depreciation is deliberately **not** re-apportioned to the disposal month: the
+  year keeps its twelve months and the disposal takes the difference into its result. The income
+  statement carries the same total either way, and whether the year of departure grants a full year,
+  a half year or nine months is a jurisdiction's answer that belongs in a pack (same reasoning as
+  IMPL-022).
+
 - **A published pack version was not immutable.** `de@2026.2` named at least three different bundles:
   the manifest kept its version while `de-ust` moved 2026.2 → 2026.4, `de-afa` 2026.5 → 2026.7 and a
   whole module joined, and the old module files were overwritten rather than kept alongside. Whoever
