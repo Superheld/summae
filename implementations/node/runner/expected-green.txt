@@ -24,6 +24,7 @@ customer-credit-note
 datev-export
 datev-general-reversal
 de-afa-lauf
+de-afa-nutzungsdauern
 de-bewirtung
 de-bilanz-guv
 de-complete-override-remove-equals-base
@@ -107,6 +108,7 @@ us-sales-tax
 us-sales-tax-return
 us-schedule-c
 us-use-tax
+useful-life-override
 vat-cash-basis-reversal-unpaid
 vat-return
 vat-return-cash-basis

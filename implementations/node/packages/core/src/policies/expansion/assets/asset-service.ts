@@ -1,4 +1,4 @@
-import { DomainError } from '../../../domain-error.js';
+import { DomainError, rejectedValue } from '../../../domain-error.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { Ledger } from '../../../ledger/ledger.js';
 import { Voucher } from '../../../records/voucher.js';
@@ -82,11 +82,28 @@ export class AssetService {
     const dimensions = AssetService.parseDimensions(input.dimensions);
 
     const route = this.resolveRoute(choice, cost, acquiredOn);
+    const explicitLife = AssetService.parseUsefulLifeMonths(input.usefulLifeMonths);
+
+    // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
+    // immediately expensed one has no schedule at all, so a life given with either route cannot be
+    // honoured — and dropping it in silence would let a caller believe a number took effect that
+    // never did.
+    if (explicitLife !== null && route !== 'capitalize') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `acquireAsset: "usefulLifeMonths" applies to a capitalised asset, not to route "${route}"`,
+        { usefulLifeMonths: explicitLife, route },
+      );
+    }
 
     let usefulLifeMonths: number | null = null;
     const schedule: Money[] = [];
     if (route === 'capitalize') {
-      usefulLifeMonths = this.usefulLifeMonths(assetClass);
+      // The caller's own figure wins over the class average. A table of class averages cannot serve a
+      // jurisdiction that lets a taxpayer prove a shorter life for an individual asset, however
+      // complete the table is — and without this parameter an asset class missing from the pack was
+      // simply unusable.
+      usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
       schedule.push(...cost.allocateEvenly(usefulLifeMonths));
     } else if (route === 'pool') {
       // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
@@ -502,6 +519,25 @@ export class AssetService {
       });
     }
     return thresholds;
+  }
+
+  /**
+   * A useful life given per acquisition: a whole number of months, at least one. JSON has no
+   * int/float split, so 60.0 is the same value as 60 — but 60.4 is a caller's mistake and not a
+   * number to round into shape.
+   */
+  private static parseUsefulLifeMonths(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "usefulLifeMonths" must be a whole number of months, at least 1',
+        { usefulLifeMonths: rejectedValue(value) },
+      );
+    }
+
+    return value;
   }
 
   private usefulLifeMonths(assetClass: string): number {

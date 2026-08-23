@@ -1,0 +1,84 @@
+{
+  "fixture": "de-afa-nutzungsdauern",
+  "description": "DE-Pack: the depreciation module carries the useful lives of the official AfA-Tabelle AV, not just one class. Until 2026-08-23 `de-afa` declared exactly one entry — `it-hardware`, 36 months — so a car, a lorry or office furniture could not be capitalised at all: an asset class missing from the table is E_ASSET_UNKNOWN, and that is deliberate (guessing a life in the core would put one jurisdiction's table into the substrate). The gap was therefore not a core defect but an empty pack. This fixture pins three classes with their table figures — Personenkraftwagen 6 years (Fundstelle 4.2.1), Büromöbel 13 years (6.15), Kopiergeräte 7 years (6.14.10) — so that shortening the table later fails a test instead of quietly breaking an embedder. It also shows what the table cannot do: a life proven for an individual asset is passed per acquisition (`usefulLifeMonths`), which is the subject of `assets/useful-life-override`.",
+  "covers": ["F-AST-001", "SF-05"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Fuhrpark GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-PKW", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V1" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Firmenwagen", "assetClass": "passenger-car", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "36000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "auto"
+      },
+      "expect": {
+        "result": {
+          "comment": "PKW: 6 Jahre laut AfA-Tabelle AV, Fundstelle 4.2.1",
+          "route": "capitalize",
+          "usefulLifeMonths": 72
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-MOEBEL", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V2" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Büroausstattung", "assetClass": "office-furniture", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "15600.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V2", "gwgChoice": "auto"
+      },
+      "expect": {
+        "result": {
+          "comment": "Büromöbel: 13 Jahre, Fundstelle 6.15",
+          "route": "capitalize",
+          "usefulLifeMonths": 156
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "ER-KOPIERER", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V3" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Kopierer", "assetClass": "copier", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "8400.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V3", "gwgChoice": "auto"
+      },
+      "expect": {
+        "result": {
+          "comment": "Kopiergeräte: 7 Jahre, Fundstelle 6.14.10",
+          "route": "capitalize",
+          "usefulLifeMonths": 84
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "Volles Jahr für alle drei: 36000×12/72 = 6000, 15600×12/156 = 1200, 8400×12/84 = 1200",
+          "entriesCreated": 3,
+          "totalDepreciation": { "amount": "8400.00", "currency": "EUR" }
+        }
+      }
+    }
+  ]
+}
