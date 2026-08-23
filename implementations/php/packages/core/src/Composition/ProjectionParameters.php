@@ -54,6 +54,7 @@ final class ProjectionParameters
         'vatReturn' => [
             'year' => ['type' => 'integer', 'required' => true],
             'quarter' => ['type' => 'integer'],
+            'month' => ['type' => 'integer'],
             'asOf' => ['type' => 'date'],
         ],
         'ecSalesList' => [

@@ -123,6 +123,7 @@ vat-cash-basis-reversal-unpaid
 vat-return
 vat-return-cash-basis
 vat-return-cash-basis-rounding
+vat-return-month
 vat-return-reversal
 voucher-unknown
 xx-1-tax-perline-vs-pervoucher

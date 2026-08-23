@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\DomainError;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Summae\Core\Substrate\JournalEntry;
@@ -56,6 +57,25 @@ final readonly class VatReturnProjection
     {
         $year = Parameters::integerOr($params['year'] ?? null, 0);
         $quarter = Parameters::integerOr($params['quarter'] ?? null, 0);
+        $month = Parameters::integerOr($params['month'] ?? null, 0);
+
+        // Both would describe two different windows, and picking one silently is how a return gets
+        // filed for the wrong period. Absent is still "the whole year".
+        if ($quarter !== 0 && $month !== 0) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'vatReturn: give either "quarter" or "month", not both',
+                ['quarter' => $quarter, 'month' => $month],
+            );
+        }
+
+        if ($month !== 0 && ($month < 1 || $month > 12)) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'vatReturn: "month" must be between 1 and 12',
+                ['month' => DomainError::rejectedValue($params['month'] ?? null)],
+            );
+        }
         $asOf = is_string($params['asOf'] ?? null) ? CalendarDate::of($params['asOf']) : null;
 
         $zero = Money::zero($this->baseCurrency);
@@ -88,7 +108,7 @@ final readonly class VatReturnProjection
                         continue;
                     }
 
-                    if ($this->inQuarter($share['settledAt'], $year, $quarter)) {
+                    if (self::inPeriod($share['settledAt'], $year, $quarter, $month)) {
                         $add($share['key'], $share['base'], $share['tax']);
                     }
                 }
@@ -96,7 +116,7 @@ final readonly class VatReturnProjection
 
             // Tagged postings without their own open item count directly.
             foreach ($this->journal->all() as $entry) {
-                if (!$this->inQuarter($entry->entryDate, $year, $quarter)) {
+                if (!self::inPeriod($entry->entryDate, $year, $quarter, $month)) {
                     continue;
                 }
 
@@ -138,7 +158,7 @@ final readonly class VatReturnProjection
                     $taxDate = $voucher === null ? $entry->entryDate : $voucher->taxDate();
                 }
 
-                if (!$this->inQuarter($taxDate, $year, $quarter)) {
+                if (!self::inPeriod($taxDate, $year, $quarter, $month)) {
                     continue;
                 }
 
@@ -381,12 +401,27 @@ final readonly class VatReturnProjection
         );
     }
 
-    private function inQuarter(CalendarDate $date, int $year, int $quarter): bool
+    /**
+     * Does a date fall in the requested filing period?
+     *
+     * Three windows, and which one applies is the caller's to say: a month, a quarter, or — when
+     * neither is given — the whole year. The month matters more than it looks: for a business above
+     * the threshold the monthly period is not a convenience but the prescribed one, and the only
+     * alternative an app had was to call twice cumulatively and subtract. That difference is not the
+     * period's figure once cash-basis taxation or a reversal is involved, which is why it had to
+     * become a window here rather than arithmetic there.
+     */
+    private static function inPeriod(CalendarDate $date, int $year, int $quarter, int $month): bool
     {
         if ($date->year() !== $year) {
             return false;
         }
 
+        if ($month !== 0) {
+            return $date->month() === $month;
+        }
+
         return $quarter === 0 || intdiv($date->month() - 1, 3) + 1 === $quarter;
     }
+
 }

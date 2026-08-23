@@ -50,6 +50,7 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   vatReturn: {
     year: { type: 'integer', required: true },
     quarter: { type: 'integer' },
+    month: { type: 'integer' },
     asOf: { type: 'date' },
   },
   ecSalesList: {
