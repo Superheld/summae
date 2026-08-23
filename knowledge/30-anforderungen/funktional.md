@@ -75,7 +75,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 
 | ID | Anforderung | SF |
 |---|---|---|
-| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. | 12 |
+| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. **Präzisiert 2026-08-24:** „versioniert" heißt persistent — Läufe liegen hinter einem eigenen Port (`CostingRunRepository`), die nächste Version kommt aus dem Bestand, nicht aus einem Zähler im Prozess. | 12 |
 | F-KLR-002 | Die Abgrenzungsrechnung MUSS regelbasiert übernehmen/ausschließen/ersetzen/hinzufügen und eine beidseitige Abstimmbrücke liefern. | 12 |
 | F-KLR-003 | Umlagen MÜSSEN Anbau-, Stufenleiter- und Gleichungsverfahren unterstützen; Verrechnungssumme bleibt erhalten, Hilfskostenstellen enden bei 0. | 12 |
 | F-KLR-004 | BAB und Kalkulationssätze MÜSSEN als Projektion eines released Laufs abrufbar sein. | 12 |

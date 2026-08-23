@@ -11,6 +11,8 @@ import {
   AuditRecord,
   type AuditTrail,
   CalendarDate,
+  CostingRun,
+  type CostingRunRepository,
   type EntryStatus,
   FiscalYear,
   type FiscalYearRepository,
@@ -20,10 +22,14 @@ import {
   OpenItem,
   type OpenItemKind,
   type OpenItemRepository,
+  Money,
+  type OverheadRate,
   Partner,
   type PartnerRepository,
   Period,
   PeriodRef,
+  type ProductionCostResult,
+  type RateWarning,
   type PeriodStatus,
   Settlement,
   type SettlementDifferenceKind,
@@ -429,6 +435,92 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
 
   private table() {
     return this.db.table(`${TABLE_PREFIX}open_items`);
+  }
+}
+
+/**
+ * Costing runs — payload as JSON, one row per run (F-KLR-001/004).
+ *
+ * The table the library did not have. A released run is what the requirements say the BAB and the
+ * rates are a projection *of*, and it used to live in a `Map` inside the service: gone with the
+ * process, and the version counter restarted with it. Everything the three projections read is in
+ * the payload, frozen at release — a released run that answers differently tomorrow is not
+ * released.
+ */
+export class DatabaseCostingRunRepository implements CostingRunRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+  ) {}
+
+  add(run: CostingRun): void {
+    this.db.run(
+      this.table().insert({
+        id: run.id.value,
+        tenant_id: this.tenantId.value,
+        fiscal_year: run.period.fiscalYear,
+        period: run.period.period,
+        version: run.version,
+        status: run.status(),
+        payload: H.encode(run.toJSON()),
+      }),
+    );
+  }
+
+  save(run: CostingRun): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', run.id.value)
+        .update({ status: run.status(), payload: H.encode(run.toJSON()) }),
+    );
+  }
+
+  byId(id: Uuid): CostingRun | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
+    return row === null ? null : this.hydrate(row);
+  }
+
+  all(): CostingRun[] {
+    return this.db
+      .all(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .orderBy('fiscal_year')
+          .orderBy('period')
+          .orderBy('version'),
+      )
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): CostingRun {
+    const data = H.decode(row.payload);
+    const totals = (raw: unknown): Map<string, Money> => {
+      const out = new Map<string, Money>();
+      if (!H.isRecord(raw)) return out;
+      for (const [code, value] of Object.entries(raw)) {
+        if (H.isRecord(value)) out.set(code, H.money(value));
+      }
+      return out;
+    };
+
+    return CostingRun.restore(
+      Uuid.fromString(str(row, 'id')),
+      new PeriodRef(Number(row.fiscal_year), Number(row.period)),
+      Number(row.version),
+      str(row, 'status'),
+      totals(data.primary),
+      totals(data.afterAllocation),
+      H.money(H.isRecord(data.grandTotal) ? data.grandTotal : {}),
+      typeof data.method === 'string' ? data.method : 'step_ladder',
+      Array.isArray(data.rates) ? (data.rates as OverheadRate[]) : [],
+      Array.isArray(data.rateWarnings) ? (data.rateWarnings as RateWarning[]) : [],
+      H.isRecord(data.productionCost) ? (data.productionCost as unknown as ProductionCostResult) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}costing_runs`);
   }
 }
 

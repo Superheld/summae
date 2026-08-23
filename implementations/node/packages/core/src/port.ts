@@ -2,6 +2,7 @@ import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';
 import type { Uuid } from './substrate/uuid.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
+import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { Partner } from './partner/partner.js';
 import type { Account } from './substrate/account.js';
 import type { AuditRecord } from './records/audit-record.js';
@@ -74,6 +75,22 @@ export interface AssetRepository {
   byId(id: Uuid): Asset | null;
   /** in acquisition order */
   all(): Asset[];
+}
+
+/**
+ * Costing runs (F-KLR-001/004).
+ *
+ * The one repository that was missing for years, and its absence was not neutral: the service kept
+ * its runs in a private `Map`, so a released run — the thing the requirements say evaluations read —
+ * was gone with the process that produced it. `all()` is what gives a period its next version
+ * number, which is also why the version no longer restarts at 1 after a restart.
+ */
+export interface CostingRunRepository {
+  add(run: CostingRun): void;
+  save(run: CostingRun): void;
+  byId(id: Uuid): CostingRun | null;
+  /** sorted by period, then version */
+  all(): CostingRun[];
 }
 
 export interface PartnerRepository {

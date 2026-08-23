@@ -61,4 +61,84 @@ final class CostingRun
 
         $this->status = 'released';
     }
+
+    /**
+     * Persistable form (F-KLR-001/004).
+     *
+     * A run used to live in an array inside the service, which meant a released run was gone with
+     * the process that made it. The requirements had said otherwise all along — runs are versioned
+     * per period, and the BAB and the rates are a projection *of a released run* — so a run no
+     * later process can read satisfies neither. Everything the three projections read is in here,
+     * and nothing else is: what a run answers must not depend on configuration that has moved.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id->value,
+            'period' => $this->period->jsonSerialize(),
+            'version' => $this->version,
+            'status' => $this->status,
+            'method' => $this->method,
+            'primary' => self::totalsToJson($this->primary),
+            'afterAllocation' => self::totalsToJson($this->afterAllocation),
+            'grandTotal' => $this->grandTotal->jsonSerialize(),
+            'rates' => $this->rates,
+            'rateWarnings' => $this->rateWarnings,
+            'productionCost' => $this->productionCost,
+        ];
+    }
+
+    /**
+     * Restore from persistence — status taken over directly, no re-validation.
+     *
+     * @param array<string, Money> $primary
+     * @param array<string, Money> $afterAllocation
+     * @param list<array{costCenter: string, label: string, overhead: string, base: string, rate: string|null}> $rates
+     * @param list<array{costCenter: string, reason: string}> $rateWarnings
+     * @param array{total: string, components: list<array{id: string, amount: string, treatment: string, included: bool}>}|null $productionCost
+     */
+    public static function restore(
+        Uuid $id,
+        PeriodRef $period,
+        int $version,
+        string $status,
+        array $primary,
+        array $afterAllocation,
+        Money $grandTotal,
+        string $method,
+        array $rates,
+        array $rateWarnings,
+        ?array $productionCost,
+    ): self {
+        $run = new self($id, $period, $version, $primary, $afterAllocation, $grandTotal, $method, $rates, $rateWarnings, $productionCost);
+        $run->status = $status;
+
+        return $run;
+    }
+
+    /**
+     * Cost-centre totals as an object, keys sorted by code point.
+     *
+     * A JSON object preserves insertion order, so writing the map as it happens to be iterated
+     * would make the stored bytes depend on the order the postings arrived in — and the export has
+     * to be byte-identical across implementations (SF-15).
+     *
+     * @param array<string, Money> $totals
+     *
+     * @return array<string, mixed>
+     */
+    private static function totalsToJson(array $totals): array
+    {
+        $codes = array_keys($totals);
+        sort($codes, SORT_STRING);
+
+        $out = [];
+        foreach ($codes as $code) {
+            $out[$code] = $totals[$code]->jsonSerialize();
+        }
+
+        return $out;
+    }
 }

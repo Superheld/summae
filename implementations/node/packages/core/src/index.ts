@@ -65,6 +65,7 @@ export type {
   VoucherRepository,
   OpenItemRepository,
   AssetRepository,
+  CostingRunRepository,
   AuditTrail,
 } from './port.js';
 export {
@@ -84,13 +85,18 @@ export { AssetService } from './policies/expansion/assets/asset-service.js';
 
 // Costing
 export { CostingRun } from './policies/expansion/costing/costing-run.js';
-export { CostingService } from './policies/expansion/costing/costing-service.js';
+export {
+  CostingService,
+  type OverheadRate,
+  type ProductionCostResult,
+  type RateWarning,
+} from './policies/expansion/costing/costing-service.js';
 
 // Partner
 export { Partner } from './partner/partner.js';
 export { PartnerService } from './partner/partner-service.js';
 export type { PartnerRepository } from './port.js';
-export { InMemoryPartnerRepository } from './in-memory.js';
+export { InMemoryPartnerRepository, InMemoryCostingRunRepository } from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 
 // Projektionen

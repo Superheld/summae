@@ -9,6 +9,7 @@ use Brick\Math\BigInteger;
 use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\CostingRunRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\AccountType;
@@ -71,16 +72,21 @@ final class CostingService
 
     private string $method = 'step_ladder';
 
-    /** @var array<string, CostingRun> */
-    private array $runs = [];
-
-    /** @var array<string, int> "year-period" -> latest version */
-    private array $versions = [];
-
     public function __construct(
         private readonly Currency $baseCurrency,
         private readonly AccountRepository $accounts,
         private readonly JournalRepository $journal,
+        /**
+         * Where the runs live (F-KLR-001/004).
+         *
+         * They used to live in two private arrays in this class — the runs themselves and a
+         * per-period version counter — which meant a released run was gone with the process that
+         * produced it and the version restarted at 1 after every restart. The requirements had said
+         * otherwise all along: runs are versioned per period, and the BAB and the rates are a
+         * projection *of a released run*. A run no later process can read satisfies neither; it
+         * satisfies them inside one process, which is not what a repository port is for.
+         */
+        private readonly CostingRunRepository $runs,
         private readonly IdGenerator $ids,
         // The allocation scheme is a tenant-level singleton — see TaxService for why the
         // audit record names the tenant as its object (F-CORE-014 "Profile").
@@ -256,9 +262,10 @@ final class CostingService
         $rates = $this->computeRates($after, $accountTotals);
         $productionCost = $this->computeProductionCost($after, $accountTotals);
 
-        $key = $fiscalYear . '-' . $period;
-        $version = ($this->versions[$key] ?? 0) + 1;
-        $this->versions[$key] = $version;
+        // The next version comes from what is stored, not from a counter in this object: a counter
+        // starts at zero in every new process, so the second run of a period would have claimed to
+        // be its first.
+        $version = $this->nextVersionFor($fiscalYear, $period);
 
         $run = new CostingRun(
             $this->ids->next(),
@@ -272,7 +279,7 @@ final class CostingService
             $rates['warnings'],
             $productionCost,
         );
-        $this->runs[$run->id->value] = $run;
+        $this->runs->add($run);
         if ($this->audit !== null) {
             $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'created', [
                 'period' => ['from' => null, 'to' => $periodRef->fiscalYear . '/' . $periodRef->period],
@@ -291,6 +298,7 @@ final class CostingService
         $run = $this->requireRun($input['runId'] ?? null);
         $before = $run->status();
         $run->release();
+        $this->runs->save($run);
         if ($this->audit !== null) {
             $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'released', [
                 'status' => ['from' => $before, 'to' => $run->status()],
@@ -818,13 +826,35 @@ final class CostingService
         return $rows;
     }
 
+    /**
+     * The next version for a period: one more than the highest stored for it.
+     *
+     * Derived rather than counted, because a counter in this object starts at zero in every new
+     * process — the second run of a period would have claimed to be its first, and F-KLR-001's
+     * "versioned per period" would have held only until a restart.
+     */
+    private function nextVersionFor(int $fiscalYear, int $period): int
+    {
+        $highest = 0;
+        foreach ($this->runs->all() as $run) {
+            if ($run->period->fiscalYear !== $fiscalYear || $run->period->period !== $period) {
+                continue;
+            }
+            if ($run->version > $highest) {
+                $highest = $run->version;
+            }
+        }
+
+        return $highest + 1;
+    }
+
     private function requireRun(mixed $runId): CostingRun
     {
         $run = null;
 
         if (is_string($runId) && $runId !== '') {
             try {
-                $run = $this->runs[Uuid::fromString($runId)->value] ?? null;
+                $run = $this->runs->byId(Uuid::fromString($runId));
             } catch (InvalidValue) {
                 $run = null;
             }

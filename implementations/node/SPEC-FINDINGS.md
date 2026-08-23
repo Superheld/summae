@@ -52,6 +52,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — now `poolReducedOnDisposal` in the pack, refused rather than defaulted. Write-up on the PHP side |
 | IMPL-026 a yearly run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount as of the disposal date and ignored a run booked on 31 December. Now read from the whole ledger. Found by the embedding app (its F-15). Write-up on the PHP side |
 | IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — `accountIds` declared but never written, `accountNumbers` written but never declared, and partners exported with nulls that the schema refuses. No schema test had exported a partner; one does now. Write-up on the PHP side |
+| IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `.cross-dbs/` was never cleared, so a retired fixture's old oracle kept being compared. Write-up on the PHP side |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **IMPL-015**, which turned out to matter here too: giving the persistence adapters their own
