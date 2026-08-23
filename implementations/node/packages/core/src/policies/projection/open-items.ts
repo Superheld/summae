@@ -55,11 +55,25 @@ export class OpenItemsProjection {
     return this.journal.byId(item.originEntryId)?.sequenceNumber ?? 0;
   }
 
+  /**
+   * Both `partnerId` and `due` were known here and neither was published.
+   *
+   * The partner was accepted as a FILTER and dropped from the result, so a list could be narrowed to
+   * one debtor and then could not say which. The due date sits on the voucher — which this method
+   * already loads, for the voucher number — and without it the list cannot be aged at all, which is
+   * what a maturity disclosure is built from.
+   *
+   * Null where the voucher names no date: present and null, so "no date agreed" stays
+   * distinguishable from "this view does not say".
+   */
   private serializeItem(item: OpenItem, asOf: CalendarDate | null): Record<string, unknown> {
+    const voucher = this.vouchers.byId(item.voucherId);
     return {
       id: item.id.value,
       kind: item.kind,
-      voucherNumber: this.vouchers.byId(item.voucherId)?.voucherNumber ?? null,
+      voucherNumber: voucher?.voucherNumber ?? null,
+      partnerId: item.partnerId?.value ?? null,
+      due: voucher?.due?.iso ?? null,
       money: item.money.toJSON(),
       remaining: item.remainingAt(asOf).toJSON(),
       status: item.statusAt(asOf),

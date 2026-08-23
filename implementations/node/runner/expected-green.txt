@@ -69,6 +69,7 @@ mixed-tax-rates
 money-transit
 monthly-income-statement
 non-cash-benefit
+open-items-partner-and-due
 open-items-settlement
 opening-balance-takeover
 parameter-contract

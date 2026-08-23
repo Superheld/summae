@@ -1,0 +1,71 @@
+{
+  "fixture": "open-items-partner-and-due",
+  "description": "An open item names its partner and its due date. Both were already known and neither was published: the projection ACCEPTS partnerId as a filter but never returned it, and the due date sits on the voucher — which `serializeItem` loads anyway, to read the voucher number off it. So the list could be narrowed to one debtor and then could not say which debtor, and it could not be aged at all. That is not only a convenience: a balance sheet has to disclose receivables with a remaining term over one year, and liabilities split by remaining term (§ 268 Abs. 4 and 5 HGB, over five years in the notes per § 285 Nr. 1a), and no maturity schedule can be built from a list that omits the maturity. `due` is null where the voucher gives none — present and null, so 'no date agreed' is distinguishable from 'this view does not say'. Known limit, deliberately not papered over: the due date belongs to the VOUCHER, so all items from one voucher share it; an instalment plan with different dates per part has no place to put them yet.",
+  "covers": ["F-CORE-022"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AR-100", "voucherDate": "2026-02-01", "due": "2026-03-03" },
+      { "id": "$V2", "voucherNumber": "AR-101", "voucherDate": "2026-02-05" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": { "name": "Muster GmbH", "kind": "customer", "paymentTermsDays": 30, "accountNumbers": ["1400"] },
+      "expect": { "result": { "id": "$P1" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-200", "voucherDate": "2026-02-10", "partnerId": "$P1", "due": "2026-03-12", "kind": "invoice_out" },
+        "entryDate": "2026-02-10", "text": "Rechnung mit Partner und Fälligkeit",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" }, "openItem": { "kind": "receivable" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-05", "voucherId": "$V2", "text": "Rechnung ohne Fälligkeit",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" }, "openItem": { "kind": "receivable" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": { "kind": "receivable" },
+      "expect": {
+        "comment": "Sortiert nach Belegdatum: die Rechnung ohne Fälligkeit ist die ältere. `due` ist dort null — vorhanden und null, nicht fehlend.",
+        "items": [
+          { "voucherNumber": "AR-101", "partnerId": null, "due": null },
+          { "voucherNumber": "AR-200", "partnerId": "$P1", "due": "2026-03-12" }
+        ]
+      }
+    },
+    {
+      "name": "openItems",
+      "params": { "kind": "receivable", "partnerId": "$P1" },
+      "expect": {
+        "comment": "Derselbe Filter, den es schon gab — jetzt sagt das Ergebnis auch, auf wen es sich bezieht",
+        "items": [
+          { "voucherNumber": "AR-200", "partnerId": "$P1", "due": "2026-03-12" }
+        ]
+      }
+    }
+  ]
+}
