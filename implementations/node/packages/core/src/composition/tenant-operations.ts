@@ -143,7 +143,7 @@ export class TenantOperations {
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
       case 'systemDescription':
-        return new SystemDescriptionProjection(tenant.id, tenant.name, tenant.baseCurrency).compute(params);
+        return new SystemDescriptionProjection(tenant.id, tenant.name, tenant.baseCurrency, tenant.packIdentity).compute(params);
       case 'cashJournal':
         return new CashJournalProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'assetRegister':

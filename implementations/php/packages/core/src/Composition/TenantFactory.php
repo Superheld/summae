@@ -86,6 +86,7 @@ final readonly class TenantFactory
             $taxProfile,
             $mappings,
             $granularity,
+            $this->packIdentity(),
         );
 
         $accountCount = 0;
@@ -131,6 +132,24 @@ final readonly class TenantFactory
                 'taxationMethod' => $taxProfile->taxationMethod(),
             ],
         ];
+    }
+
+    /**
+     * The pack the resolved bundle came from, when it came from one. An inline bundle has no
+     * manifest, so there is nothing to name and the description says so rather than guessing.
+     *
+     * @return array{id: string, version: string}|null
+     */
+    private function packIdentity(): ?array
+    {
+        $pack = $this->ruleModules['pack'] ?? null;
+        if (!is_array($pack)) {
+            return null;
+        }
+        $id = $pack['id'] ?? null;
+        $version = $pack['version'] ?? null;
+
+        return is_string($id) && is_string($version) ? ['id' => $id, 'version' => $version] : null;
     }
 
     /**

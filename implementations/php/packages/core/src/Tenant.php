@@ -64,9 +64,18 @@ final readonly class Tenant
         public MappingRegistry $mappings,
         public Clock $clock,
         public IdGenerator $ids,
+        /**
+         * Which pack this tenant was composed from — null for an inline rule bundle, where
+         * there is no manifest to name. Provenance, not rules: it exists so the system
+         * description can say what the books were kept under (F-IO-007).
+         *
+         * @var array{id: string, version: string}|null
+         */
+        public ?array $packIdentity = null,
     ) {
     }
 
+    /** @param array{id: string, version: string}|null $packIdentity */
     public static function inMemory(
         string $name,
         Currency $baseCurrency,
@@ -77,6 +86,7 @@ final readonly class Tenant
         ?TaxProfile $taxProfile = null,
         ?MappingRegistry $mappings = null,
         string $taxRoundingGranularity = 'perVoucher',
+        ?array $packIdentity = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -139,6 +149,7 @@ final readonly class Tenant
             $mappings,
             $clock,
             $ids,
+            $packIdentity,
         );
     }
 }

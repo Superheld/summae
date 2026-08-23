@@ -59,6 +59,12 @@ export class Tenant {
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
     readonly ids: IdGenerator,
+    /**
+     * Which pack this tenant was composed from — null for an inline rule bundle, where there
+     * is no manifest to name. Provenance, not rules: it exists so the system description can
+     * say what the books were kept under (F-IO-007).
+     */
+    readonly packIdentity: { id: string; version: string } | null = null,
   ) {}
 
   static inMemory(
@@ -71,6 +77,7 @@ export class Tenant {
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
+    packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     return Tenant.fromPorts(
@@ -94,6 +101,7 @@ export class Tenant {
       taxProfile,
       mappings,
       taxRoundingGranularity,
+      packIdentity,
     );
   }
 
@@ -124,6 +132,7 @@ export class Tenant {
     taxProfile: TaxProfile = TaxProfile.default(),
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
+    packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, audit } = ports;
     const ledger = new Ledger(
@@ -165,6 +174,7 @@ export class Tenant {
       mappings,
       clock,
       ids,
+      packIdentity,
     );
   }
 }

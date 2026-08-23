@@ -305,6 +305,9 @@ final class PackResolver
         $depreciation = is_array($pack['depreciation'] ?? null) ? $pack['depreciation'] : [];
 
         return [
+            // The identity travels with the bundle so a tenant can say which pack it runs on
+            // (systemDescription / F-IO-007). Everything else here is rules; this is provenance.
+            'pack' => ['id' => $pack['id'] ?? null, 'version' => $pack['version'] ?? null],
             'profiles' => [$profile],
             'chartsOfAccounts' => [[
                 'id' => self::str($profile['chartOfAccounts'] ?? null) ?? '',

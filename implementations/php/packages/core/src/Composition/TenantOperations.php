@@ -128,7 +128,7 @@ final readonly class TenantOperations
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
-            'systemDescription' => (new SystemDescriptionProjection($tenant->id, $tenant->name, $tenant->baseCurrency))->compute($params),
+            'systemDescription' => (new SystemDescriptionProjection($tenant->id, $tenant->name, $tenant->baseCurrency, $tenant->packIdentity))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),

@@ -26,11 +26,9 @@ use Summae\Core\Substrate\Uuid;
  * Deterministic and tenant-independent apart from the identity block: same version of
  * summae, same description.
  *
- * **Known limit, stated rather than papered over:** the description does not name the pack
- * the tenant runs on. A tenant does not retain its manifest — the factory resolves a pack
- * into a rule bundle and keeps the bundle, not the identity — so reporting "de 2026.2" would
- * mean adding that plumbing across both implementations. Until then a Verfahrensdokumentation
- * has to state the pack and its version by hand. Tracked in `docs/gobd-conformance.md`.
+ * `pack` names the manifest the tenant was composed from, or is null when it was built from
+ * an inline rule bundle — in which case there is no manifest to name and a
+ * Verfahrensdokumentation has to state the rule source by hand.
  *
  * The SAME lists live in the Node system-description.ts.
  */
@@ -167,6 +165,12 @@ final readonly class SystemDescriptionProjection
         private Uuid $tenantId,
         private string $tenantName,
         private Currency $baseCurrency,
+        /**
+         * Null when the tenant was composed from an inline bundle: there is no manifest to name.
+         *
+         * @var array{id: string, version: string}|null
+         */
+        private ?array $packIdentity = null,
     ) {
     }
 
@@ -186,6 +190,7 @@ final readonly class SystemDescriptionProjection
                 'name' => $this->tenantName,
                 'baseCurrency' => $this->baseCurrency->code,
             ],
+            'pack' => $this->packIdentity,
             'journal' => [
                 'appendOnly' => true,
                 'ordering' => 'sequenceNumber',
