@@ -766,10 +766,19 @@
               "maxRate": {
                 "type": "string",
                 "pattern": "^\\d+(\\.\\d{1,4})?$"
+              },
+              "assetClasses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1,
+                "description": "Anlageklassen, für die dieser Eintrag gilt. Fehlt das Feld, gilt der Eintrag für jede Klasse. Ein klassenspezifischer Eintrag schlägt einen allgemeinen, unabhängig von der Reihenfolge in der Datei — nötig, weil zwei Regime gleichzeitig in Kraft sein können: Deutschland lässt für bewegliche Wirtschaftsgüter (§ 7 Abs. 2 EStG) und für neue Wohngebäude (§ 7 Abs. 5a EStG) über sich überlappende Fenster degressiv abschreiben, zu verschiedenen Sätzen."
               }
             },
             "additionalProperties": false,
-            "description": "Degressive AfA: Satz = min(factor × linearer Satz, maxRate), jeweils vom Restbuchwert, mit automatischem Wechsel auf linear sobald linear über die Restnutzungsdauer mehr ergibt. Die Mechanik ist Kern und wird geteilt; Faktor, Deckel und Gültigkeitsfenster sind Pack-Daten, weil genau sie sich unterscheiden — Deutschland: bewegliche Wirtschaftsgüter, Anschaffung 01.07.2025–31.12.2027, Faktor 3, höchstens 30 % (§ 7 Abs. 2 EStG); für neue Wohngebäude gilt dieselbe Mechanik mit anderem Satz (§ 7 Abs. 5a EStG). Fehlt für ein Anschaffungsdatum eine Regel, ist die Wahl der Methode E_PACK_INCOHERENT statt eines geratenen Satzes."
+            "description": "Degressive AfA: Satz = min(factor × linearer Satz, maxRate), jeweils vom Restbuchwert, mit automatischem Wechsel auf linear sobald linear über die Restnutzungsdauer mehr ergibt. Die Mechanik ist Kern und wird geteilt; Faktor, Deckel, Gültigkeitsfenster und Klassenzuschnitt sind Pack-Daten, weil genau sie sich unterscheiden — Deutschland: bewegliche Wirtschaftsgüter, Anschaffung 01.07.2025–31.12.2027, Faktor 3, höchstens 30 % (§ 7 Abs. 2 EStG); für neue Wohngebäude gilt dieselbe Mechanik mit anderem Satz und eigenem Fenster (§ 7 Abs. 5a EStG). Fehlt für ein Anschaffungsdatum und eine Klasse eine Regel, ist die Wahl der Methode E_PACK_INCOHERENT statt eines geratenen Satzes."
           }
         }
       },

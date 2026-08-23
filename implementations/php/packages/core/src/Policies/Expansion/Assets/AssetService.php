@@ -126,7 +126,7 @@ final class AssetService
             // the pack was simply unusable.
             $usefulLifeMonths = $explicitLife ?? $this->usefulLifeMonths($assetClass);
             $schedule = $method === 'declining_balance'
-                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn)
+                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn, $assetClass)
                 : $cost->allocateEvenly($usefulLifeMonths);
         } elseif ($route === AssetRoute::Pool) {
             // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
@@ -721,9 +721,9 @@ final class AssetService
      *
      * @return list<Money>
      */
-    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn): array
+    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn, string $assetClass): array
     {
-        $rule = $this->decliningBalanceRule($acquiredOn);
+        $rule = $this->decliningBalanceRule($acquiredOn, $assetClass);
         $years = intdiv($usefulLifeMonths + 11, 12);
 
         // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the
@@ -757,15 +757,27 @@ final class AssetService
     }
 
     /**
-     * The declining-balance rule in force on the acquisition date. Refused rather than defaulted,
-     * like every other pack question here: a core that invents a rate has one jurisdiction's tax
-     * policy in the substrate, and these rates are the most short-lived numbers in the whole pack —
-     * Germany's current one applies to a window of two and a half years.
+     * The declining-balance rule in force on the acquisition date, for this kind of asset. Refused
+     * rather than defaulted, like every other pack question here: a core that invents a rate has one
+     * jurisdiction's tax policy in the substrate, and these rates are the most short-lived numbers in
+     * the whole pack — Germany's current one applies to a window of two and a half years.
+     *
+     * Two entries can be in force at once, because a jurisdiction may run one declining-balance
+     * regime for movables and another for buildings over overlapping windows — Germany does exactly
+     * that. So an entry may name the asset classes it covers, and **a class-specific entry wins over
+     * a general one no matter which comes first in the file.** Order-independence is the point: a
+     * rule that changed meaning when someone appended a line above it would be a trap, and the
+     * general entry is the one a pack author is most likely to add later.
+     *
+     * An entry without `assetClasses` covers every class, which is what a pack written before this
+     * distinction existed says — those keep computing what they always did.
      *
      * @return array{factor: int, maxRate: string}
      */
-    private function decliningBalanceRule(CalendarDate $acquiredOn): array
+    private function decliningBalanceRule(CalendarDate $acquiredOn, string $assetClass): array
     {
+        $general = null;
+
         foreach (is_array($this->ruleModule['decliningBalance'] ?? null) ? $this->ruleModule['decliningBalance'] : [] as $raw) {
             if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
                 continue;
@@ -785,13 +797,30 @@ final class AssetService
                 continue;
             }
 
-            return ['factor' => $factor, 'maxRate' => $maxRate];
+            $classes = is_array($raw['assetClasses'] ?? null) ? $raw['assetClasses'] : null;
+
+            if ($classes === null) {
+                $general ??= ['factor' => $factor, 'maxRate' => $maxRate];
+                continue;
+            }
+
+            if (in_array($assetClass, $classes, true)) {
+                return ['factor' => $factor, 'maxRate' => $maxRate];
+            }
+        }
+
+        if ($general !== null) {
+            return $general;
         }
 
         throw new DomainError(
             'E_PACK_INCOHERENT',
-            sprintf('declining-balance depreciation was asked for, but the pack declares no rule in force on %s', $acquiredOn->iso),
-            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso],
+            sprintf(
+                'declining-balance depreciation was asked for, but the pack declares no rule in force on %s for asset class "%s"',
+                $acquiredOn->iso,
+                $assetClass,
+            ),
+            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso, 'assetClass' => $assetClass],
         );
     }
 
