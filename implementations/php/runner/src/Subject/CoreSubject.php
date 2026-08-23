@@ -191,6 +191,7 @@ final class CoreSubject implements Subject
         }
 
         $tenant->assetService->setRuleModule($ruleModules);
+        $tenant->costing->setRuleModule($ruleModules);
 
         $this->tenant = $tenant;
     }

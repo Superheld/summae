@@ -1,0 +1,142 @@
+{
+  "fixture": "production-cost",
+  "description": "Production cost, the one piece of cost accounting that reaches the balance sheet — inventory is carried at it, so what may be counted into it is law rather than preference. The split is the same socket-and-plug the rest of the core uses: the CORE adds components up, the PACK says which ones must go in, may go in, or may not. Here the table is supplied inline: material and production cost with their overhead and the production-related depreciation are mandatory, general administration is a preparer's option, and research and distribution are forbidden. The books total 136,000.00; the mandatory five come to 114,000.00, the elected administration adds 12,000.00, and the 10,000.00 of research and distribution stay out. Three refusals go with it, and each replaces a silent answer: a component the pack does not declare is E_PACK_INCOHERENT (counting or dropping it unnoticed would move the balance sheet either way), electing one the pack forbids is E_INPUT_INVALID rather than a quiet exclusion (the caller has asserted something about their books that is not allowed), and asking for the figure without configuring components is refused rather than answered 0.00. Note what the projection returns: every configured component, INCLUDING the excluded ones, with its amount, the pack's treatment and whether it went in. A valuation that shows only its own total cannot be audited against the rule it claims to follow. What this deliberately does not do is divide by a quantity — per-unit cost needs produced quantities, and the core carries none; goods movements are the embedding application's data.",
+  "covers": ["F-KLR-004", "F-KLR-005"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Fertigungsmaterial", "type": "expense" },
+      { "number": "4100", "name": "Fertigungslöhne", "type": "expense" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "4830", "name": "AfA Fertigungsanlagen", "type": "expense" },
+      { "number": "4900", "name": "Forschung", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "MAT", "name": "Materialstelle" },
+      { "typeCode": "costCenter", "code": "FERT", "name": "Fertigungsstelle" },
+      { "typeCode": "costCenter", "code": "VW", "name": "Verwaltung" },
+      { "typeCode": "costCenter", "code": "VT", "name": "Vertrieb" }
+    ],
+    "ruleModule": {
+      "productionCost": {
+        "treatments": [
+          { "component": "materialDirect", "treatment": "mandatory" },
+          { "component": "productionDirect", "treatment": "mandatory" },
+          { "component": "materialOverhead", "treatment": "mandatory" },
+          { "component": "productionOverhead", "treatment": "mandatory" },
+          { "component": "productionDepreciation", "treatment": "mandatory" },
+          { "component": "administration", "treatment": "optional" },
+          { "component": "distribution", "treatment": "forbidden" },
+          { "component": "research", "treatment": "forbidden" }
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Kosten Januar",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "50000.00", "currency": "EUR" } },
+          { "account": "4100", "side": "debit", "money": { "amount": "30000.00", "currency": "EUR" } },
+          { "account": "4830", "side": "debit", "money": { "amount": "8000.00", "currency": "EUR" } },
+          { "account": "4900", "side": "debit", "money": { "amount": "4000.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "MAT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "21000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "12000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "6000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "136000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": ["distribution"],
+          "components": [ { "id": "distribution", "base": { "costCenters": ["VT"] } } ]
+        }
+      },
+      "expect": {
+        "comment": "Ein Einbeziehungsverbot lässt sich nicht per Wahlrecht aushebeln",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": [],
+          "components": [ { "id": "goodwill", "base": { "costCenters": ["VW"] } } ]
+        }
+      },
+      "expect": {
+        "comment": "Bestandteil, den das Pack nicht führt — nicht still mitzählen, nicht still weglassen",
+        "error": "E_PACK_INCOHERENT"
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": ["administration"],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["4000"] } },
+            { "id": "productionDirect", "base": { "accounts": ["4100"] } },
+            { "id": "productionDepreciation", "base": { "accounts": ["4830"] } },
+            { "id": "materialOverhead", "base": { "costCenters": ["MAT"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } },
+            { "id": "administration", "base": { "costCenters": ["VW"] } },
+            { "id": "distribution", "base": { "costCenters": ["VT"] } },
+            { "id": "research", "base": { "accounts": ["4900"] } }
+          ]
+        }
+      },
+      "expect": { "result": { "valid": true, "productionCostComponents": 8 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "productionCost",
+      "params": { "runId": "$R1" },
+      "expect": {
+        "comment": "Pflichtbestandteile 114.000,00 + gewähltes Wahlrecht 12.000,00; 10.000,00 Forschung und Vertrieb bleiben draußen",
+        "status": "released",
+        "total": "126000.00",
+        "components": [
+          { "id": "materialDirect", "amount": "50000.00", "treatment": "mandatory", "included": true },
+          { "id": "productionDirect", "amount": "30000.00", "treatment": "mandatory", "included": true },
+          { "id": "productionDepreciation", "amount": "8000.00", "treatment": "mandatory", "included": true },
+          { "id": "materialOverhead", "amount": "5000.00", "treatment": "mandatory", "included": true },
+          { "id": "productionOverhead", "amount": "21000.00", "treatment": "mandatory", "included": true },
+          { "id": "administration", "amount": "12000.00", "treatment": "optional", "included": true },
+          { "id": "distribution", "amount": "6000.00", "treatment": "forbidden", "included": false },
+          { "id": "research", "amount": "4000.00", "treatment": "forbidden", "included": false }
+        ]
+      }
+    }
+  ]
+}

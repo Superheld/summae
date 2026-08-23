@@ -19,7 +19,7 @@ use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -135,6 +135,8 @@ final class PackResolver
         $assetAccounts = null;
         /** @var array<mixed>|null $depreciation */
         $depreciation = null;
+        /** @var array<mixed>|null $productionCost */
+        $productionCost = null;
         /** @var array<mixed>|null $packPolicyModule */
         $packPolicyModule = null;
 
@@ -184,6 +186,9 @@ final class PackResolver
                     break;
                 case 'depreciation':
                     $depreciation = $data;
+                    break;
+                case 'productionCost':
+                    $productionCost = $data;
                     break;
                 case 'policy':
                     if ($packPolicyModule !== null) {
@@ -279,6 +284,7 @@ final class PackResolver
             'mappings' => $mappings,
             'assetAccounts' => $assetAccounts,
             'depreciation' => $depreciation,
+            'productionCost' => $productionCost,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
         ];
@@ -317,6 +323,9 @@ final class PackResolver
             'mappings' => is_array($pack['mappings'] ?? null) ? $pack['mappings'] : [],
             'assetAccounts' => $assetAccounts,
             ...$depreciation,
+            // Not spread like depreciation: the CostingService reads it under its own key, because
+            // "treatments" is a word another module could plausibly want too.
+            'productionCost' => is_array($pack['productionCost'] ?? null) ? $pack['productionCost'] : null,
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],
         ];
     }

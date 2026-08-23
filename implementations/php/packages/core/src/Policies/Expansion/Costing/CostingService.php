@@ -43,6 +43,22 @@ final class CostingService
     private array $schemeSteps = [];
 
     /**
+     * The pack's answer to "what may enter production cost". Data, never code — which components a
+     * jurisdiction requires, permits or forbids is the part that differs, and the summation is not.
+     *
+     * @var array<string, mixed>
+     */
+    private array $ruleModule = [];
+
+    /**
+     * Production-cost component definitions and the tenant's election among the optional ones,
+     * frozen into each run for the same reason the rates are.
+     *
+     * @var list<array{id: string, treatment: string, included: bool, accounts: list<string>, costCenters: list<string>}>|null
+     */
+    private ?array $productionCostConfig = null;
+
+    /**
      * Overhead rate definitions, part of the same tenant-level configuration as the scheme.
      *
      * They sit on `setAllocationScheme` rather than on an operation of their own because a rate is
@@ -71,6 +87,12 @@ final class CostingService
         private readonly ?Uuid $tenantId = null,
         private readonly ?AuditWriter $audit = null,
     ) {
+    }
+
+    /** @param array<string, mixed> $ruleModule the resolved pack bundle (`productionCost` is read here) */
+    public function setRuleModule(array $ruleModule): void
+    {
+        $this->ruleModule = $ruleModule;
     }
 
     /**
@@ -145,9 +167,15 @@ final class CostingService
             ];
         }
 
+        $productionCost = null;
+        if (is_array($input['productionCost'] ?? null)) {
+            $productionCost = $this->resolveProductionCost($input['productionCost']);
+        }
+
         $this->schemeSteps = $steps;
         $this->method = $method;
         $this->rateDefinitions = $rates;
+        $this->productionCostConfig = $productionCost;
 
         if ($this->audit !== null && $this->tenantId !== null) {
             $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
@@ -157,7 +185,13 @@ final class CostingService
             ]);
         }
 
-        return ['valid' => true, 'method' => $method, 'stepCount' => count($steps), 'rateCount' => count($rates)];
+        return [
+            'valid' => true,
+            'method' => $method,
+            'stepCount' => count($steps),
+            'rateCount' => count($rates),
+            'productionCostComponents' => $productionCost === null ? 0 : count($productionCost),
+        ];
     }
 
     /**
@@ -220,6 +254,7 @@ final class CostingService
         }
 
         $rates = $this->computeRates($after, $accountTotals);
+        $productionCost = $this->computeProductionCost($after, $accountTotals);
 
         $key = $fiscalYear . '-' . $period;
         $version = ($this->versions[$key] ?? 0) + 1;
@@ -235,6 +270,7 @@ final class CostingService
             $this->method,
             $rates['rates'],
             $rates['warnings'],
+            $productionCost,
         );
         $this->runs[$run->id->value] = $run;
         if ($this->audit !== null) {
@@ -341,6 +377,209 @@ final class CostingService
             'method' => $run->method,
             'rates' => $run->rates,
             'warnings' => $run->rateWarnings,
+        ];
+    }
+
+    /**
+     * Production cost of the period — the figure inventory is carried at.
+     *
+     * This is the one piece of cost accounting with balance-sheet effect, so what may be counted into
+     * it is law rather than preference. The split falls exactly along the socket/plug line the rest of
+     * the core uses — **this method sums, the pack says what may enter.** One jurisdiction requires
+     * material and production cost with their overhead and the production-related depreciation, leaves
+     * general administration to the preparer, and forbids research and distribution; another treats
+     * general administration as a period charge and so reaches a different inventory value from
+     * identical books. None of that is written here, and none of it should be: which of the three
+     * treatments a component gets is a row in the pack, not a branch in this method.
+     *
+     * Three rules, and each refuses rather than guesses:
+     *
+     * - a component the pack does not declare is `E_PACK_INCOHERENT` — an unknown component silently
+     *   counted or silently dropped would move the balance sheet either way;
+     * - electing a component the pack forbids is `E_INPUT_INVALID`, not a quiet exclusion, because
+     *   the caller has said something about their books that is not allowed;
+     * - asking for the figure without configuring the components is `E_INPUT_INVALID` rather than
+     *   0.00, since a valuation nobody set up is not a valuation of zero.
+     *
+     * What this deliberately does NOT do is divide by a quantity. Production cost per unit needs
+     * produced quantities, and the core carries no quantities at all — goods movements and production
+     * orders are the embedding application's data. summae answers what the components add up to and
+     * why; the division is arithmetic on top of that.
+     *
+     * @param array<string, Money> $after
+     * @param array<string, Money> $accountTotals
+     *
+     * @return array{total: string, components: list<array{id: string, amount: string, treatment: string, included: bool}>}|null
+     */
+    private function computeProductionCost(array $after, array $accountTotals): ?array
+    {
+        if ($this->productionCostConfig === null) {
+            return null;
+        }
+
+        $zero = Money::zero($this->baseCurrency);
+        $total = $zero;
+        $components = [];
+
+        foreach ($this->productionCostConfig as $component) {
+            $amount = $zero;
+
+            foreach ($component['accounts'] as $number) {
+                if ($this->accounts->byNumber(AccountNumber::of($number)) === null) {
+                    throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf(
+                        'production-cost component "%s" names account %s, which does not exist',
+                        $component['id'],
+                        $number,
+                    ), ['account' => $number]);
+                }
+
+                $amount = $amount->add($accountTotals[$number] ?? $zero);
+            }
+
+            foreach ($component['costCenters'] as $code) {
+                $amount = $amount->add($after[$code] ?? $zero);
+            }
+
+            if ($component['included']) {
+                $total = $total->add($amount);
+            }
+
+            // Excluded components stay in the answer with their amount and the reason. A valuation
+            // that shows only what it counted cannot be checked against the law it claims to follow.
+            $components[] = [
+                'id' => $component['id'],
+                'amount' => $amount->amountAsString(),
+                'treatment' => $component['treatment'],
+                'included' => $component['included'],
+            ];
+        }
+
+        return ['total' => $total->amountAsString(), 'components' => $components];
+    }
+
+    /**
+     * Applies the pack's treatment table to a production-cost configuration — at the moment the
+     * configuration is set, not at the moment the run happens, so a caller learns about a refusal
+     * where they can still do something about it.
+     *
+     * @param array<mixed> $raw
+     *
+     * @return list<array{id: string, treatment: string, included: bool, accounts: list<string>, costCenters: list<string>}>
+     */
+    private function resolveProductionCost(array $raw): array
+    {
+        $treatments = self::treatmentTable($this->ruleModule);
+        $elected = self::stringList($raw['include'] ?? null);
+
+        foreach ($elected as $componentId) {
+            $treatment = $treatments[$componentId] ?? null;
+
+            if ($treatment === null) {
+                throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                    'production-cost component "%s" was elected, but the pack declares no treatment for it',
+                    $componentId,
+                ), ['component' => $componentId]);
+            }
+
+            if ($treatment === 'forbidden') {
+                throw new DomainError('E_INPUT_INVALID', sprintf(
+                    'production-cost component "%s" may not be capitalised under this pack',
+                    $componentId,
+                ), ['component' => $componentId]);
+            }
+        }
+
+        $components = [];
+        foreach (is_array($raw['components'] ?? null) ? array_values($raw['components']) : [] as $rawComponent) {
+            if (!is_array($rawComponent) || !is_string($rawComponent['id'] ?? null)) {
+                throw new DomainError(
+                    'E_INPUT_INVALID',
+                    'setAllocationScheme: a production-cost component requires "id"',
+                    ['field' => 'productionCost.components'],
+                );
+            }
+
+            $treatment = $treatments[$rawComponent['id']] ?? null;
+
+            if ($treatment === null) {
+                throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                    'production-cost component "%s" is not declared by the pack',
+                    $rawComponent['id'],
+                ), ['component' => $rawComponent['id']]);
+            }
+
+            $base = is_array($rawComponent['base'] ?? null) ? $rawComponent['base'] : [];
+
+            $components[] = [
+                'id' => $rawComponent['id'],
+                'treatment' => $treatment,
+                'included' => $treatment === 'mandatory'
+                    || ($treatment === 'optional' && in_array($rawComponent['id'], $elected, true)),
+                'accounts' => self::stringList($base['accounts'] ?? null),
+                'costCenters' => self::stringList($base['costCenters'] ?? null),
+            ];
+        }
+
+        return $components;
+    }
+
+    /**
+     * @param array<string, mixed> $ruleModule
+     *
+     * @return array<string, string> component id -> mandatory|optional|forbidden
+     */
+    private static function treatmentTable(array $ruleModule): array
+    {
+        $module = is_array($ruleModule['productionCost'] ?? null) ? $ruleModule['productionCost'] : null;
+
+        if ($module === null) {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'production cost was asked for, but the pack declares no production-cost treatments',
+                ['field' => 'productionCost'],
+            );
+        }
+
+        $table = [];
+        foreach (is_array($module['treatments'] ?? null) ? $module['treatments'] : [] as $row) {
+            if (!is_array($row) || !is_string($row['component'] ?? null) || !is_string($row['treatment'] ?? null)) {
+                continue;
+            }
+
+            $table[$row['component']] = $row['treatment'];
+        }
+
+        return $table;
+    }
+
+    /**
+     * Production cost of a run, component by component (F-KLR-004's balance-sheet neighbour).
+     *
+     * Every configured component appears, whether it was counted or not, with the pack's treatment
+     * next to it — `mandatory`, `optional` or `forbidden` — and whether it went in. A valuation that
+     * shows only its own total is unauditable; this one shows what it left out and on whose authority.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    public function productionCost(array $params): array
+    {
+        $run = $this->requireRun($params['runId'] ?? null);
+
+        if ($run->productionCost === null) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'run %s has no production-cost components — declare them in setAllocationScheme before the run',
+                $run->id->value,
+            ), ['runId' => $run->id->value]);
+        }
+
+        return [
+            'runId' => $run->id->value,
+            'status' => $run->status(),
+            'version' => $run->version,
+            'total' => $run->productionCost['total'],
+            'components' => $run->productionCost['components'],
         ];
     }
 

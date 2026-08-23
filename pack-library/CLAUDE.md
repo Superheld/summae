@@ -15,6 +15,7 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `kind` | policy kind |
 |---|---|
 | `tax` · `depreciation` · `assetAccounts` | **expansion** (plug) |
+| `productionCost` | **projection** (which cost components may be capitalised into inventory) |
 | `mapping` | **projection** (mappings) |
 | `accounts` | fills the (account-less) **substrate** account primitive |
 | `policy` | **parameters** (rounding/scale via `packPolicy`) |

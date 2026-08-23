@@ -94,6 +94,7 @@ final readonly class DatabaseTenantFactory
             $clock,
             $ids,
             $taxCodes,
+            $tenantId,
         );
 
         // The same writer the ledger uses. Three services take it as an OPTIONAL argument, and this

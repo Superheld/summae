@@ -163,6 +163,7 @@ export class CoreSubject implements Subject {
 
     const tenant = this.buildTenant(name, currency, clock, ids, dimensions, taxCodes, taxProfile, mappings);
     tenant.assetService.setRuleModule(ruleModules);
+    tenant.costing.setRuleModule(ruleModules);
 
     for (const accountData of asRecordList(setup.accounts)) {
       tenant.accounts.add(this.buildAccount(tenant, accountData));

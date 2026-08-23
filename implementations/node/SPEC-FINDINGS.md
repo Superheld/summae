@@ -645,3 +645,24 @@ released runs" (in which case it is an app obligation and F-KLR-001 should say s
 hard refusal (in which case a new fixture has to establish it and `parameter-effect` stays as the
 record of what the contract used to allow). Left open deliberately; it is a question about intent,
 and guessing it would be the same mistake in the other direction.
+
+## SPEC-012: the shipped pack's manifest version cannot change — a fixture pins it
+
+**Found 2026-08-23, while adding the `productionCost` module to the `de` and `us` packs.**
+
+`pack/de-pack/de-pack-resolves` calls `resolvePack({ manifest: "de", version: "2026.2" })` and pins
+`pack.version` in the tenant it then creates. Raising the manifest's own version therefore makes an
+append-only fixture unresolvable — the pack the fixture asks for no longer exists.
+
+The practical consequence is that **only module versions move**. Every pack change so far has bumped
+the module (`de-afa` 2026.5 → 2026.6) and the manifest's *reference* to it, while the manifest's own
+`version` has stood at 2026.2 through several rounds of real change. A consumer reading `pack.version`
+— which `systemDescription` reports, and which is the field the "tzdata for accounting" idea rests on
+— cannot tell those rounds apart.
+
+**Not resolved by bending the fixture,** for the usual reason. What the contract needs is a decision:
+either the manifest version is deliberately a *format* version and something else carries the content
+version (then say so, and the field is fine as it is), or it is the content version (then the fixture
+has to stop pinning an exact one — `resolvePack` would take the manifest name alone, and a *new*
+fixture would establish that). Left open: guessing would either freeze the version forever or break a
+published contract.

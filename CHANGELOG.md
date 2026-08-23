@@ -69,6 +69,26 @@ versioning per SemVer (0.x: minor may break).
   straight-line rate depends on the year of completion, and the table has no date dimension, so
   one tabled figure would be wrong for every older building.
 
+- **`productionCost` — what inventory may be carried at.** The one cost-accounting figure with
+  balance-sheet effect, and the first module kind that is purely a legal table: the core adds
+  components up, the new `productionCost` pack module says which ones **must** be capitalised, which
+  **may** be (the preparer's election), and which **must not**. The `de` and `us` packs agree on full
+  absorption of production cost and disagree about general administration — so identical books value
+  at 126,000.00 under one and 114,000.00 under the other, with no branch anywhere in the core.
+
+  Every configured component comes back, including the excluded ones, with its treatment and whether
+  it was counted: a valuation that shows only its own total cannot be checked against the rule it
+  claims to follow. Three refusals replace silent answers — an undeclared component
+  (`E_PACK_INCOHERENT`), electing a forbidden one (`E_INPUT_INVALID`), and asking for the figure
+  without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
+  needs produced quantities, and the core carries none.
+
+- **`defineDimensionType` / `defineDimensionValue`.** Dimension master data was declarable only
+  through the in-memory construction path, so **every tenant created from a pack started with an
+  empty registry and rejected any posting carrying a cost centre** — cost accounting was unreachable
+  on `de`, `us` and `default` alike, and nothing in the packs said so. Cost centres are the tenant's
+  master data, not a jurisdiction's, so they are declared like accounts rather than shipped in a pack.
+
 ### Fixed
 
 - **`setAllocationScheme` refused to admit it could not do what was asked.** It read `method`,

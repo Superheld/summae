@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\Account;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\AccountStatus;
 use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\IdGenerator;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * Chart-of-accounts administration: creating, locking and bulk-importing accounts. Setup, not
@@ -23,7 +25,68 @@ final readonly class ChartAdminService
         private AccountRepository $accounts,
         private IdGenerator $ids,
         private AuditWriter $audit,
+        private ?DimensionRegistry $dimensions = null,
+        // A dimension has no id of its own, so the audit record names the tenant — the same shape the
+        // tax profile and the allocation scheme use for configuration that exists once per tenant.
+        private ?Uuid $tenantId = null,
     ) {
+    }
+
+    /**
+     * Declares a dimension type. Master data, like an account: `costCenter`, `project`, `segment`.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function defineDimensionType(array $input): array
+    {
+        $actor = $this->audit->actorOf($input);
+        $code = is_string($input['code'] ?? null) ? $input['code'] : '';
+
+        $this->requireDimensions()->defineType($code);
+
+        if ($this->tenantId !== null) {
+            $this->audit->record($actor, 'dimensionType', $this->tenantId, 'created', [
+                'code' => ['from' => null, 'to' => $code],
+            ]);
+        }
+
+        return ['code' => $code];
+    }
+
+    /**
+     * Declares a value of an existing dimension type.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function defineDimensionValue(array $input): array
+    {
+        $actor = $this->audit->actorOf($input);
+        $typeCode = is_string($input['type'] ?? null) ? $input['type'] : '';
+        $code = is_string($input['code'] ?? null) ? $input['code'] : '';
+
+        $this->requireDimensions()->defineValue($typeCode, $code);
+
+        if ($this->tenantId !== null) {
+            $this->audit->record($actor, 'dimensionValue', $this->tenantId, 'created', [
+                'type' => ['from' => null, 'to' => $typeCode],
+                'code' => ['from' => null, 'to' => $code],
+            ]);
+        }
+
+        return ['type' => $typeCode, 'code' => $code];
+    }
+
+    private function requireDimensions(): DimensionRegistry
+    {
+        return $this->dimensions ?? throw new DomainError(
+            'E_DIMENSION_INVALID',
+            'this tenant was built without a dimension registry',
+            ['type' => null],
+        );
     }
 
     /** @param array<string, mixed> $input */

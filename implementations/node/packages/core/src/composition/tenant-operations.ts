@@ -70,6 +70,10 @@ export class TenantOperations {
         return { fiscalYear: ledger.closeFiscalYear(input).year, status: 'closed' };
       case 'createAccount':
         return serialize(ledger.createAccount(input));
+      case 'defineDimensionType':
+        return ledger.defineDimensionType(input);
+      case 'defineDimensionValue':
+        return ledger.defineDimensionValue(input);
       case 'createFiscalYear': {
         const fiscalYear = ledger.createFiscalYear(input);
         return { year: fiscalYear.year, periodCount: fiscalYear.periods().length };
@@ -152,6 +156,8 @@ export class TenantOperations {
         return tenant.costing.costAllocationSheet(params);
       case 'overheadRates':
         return tenant.costing.overheadRates(params);
+      case 'productionCost':
+        return tenant.costing.productionCost(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,
