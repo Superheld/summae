@@ -214,3 +214,11 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    directions, so half the work fails the build.
 
 A contract surface without its own guard is a gate-gap finding, same as an untested requirement.
+
+**GoBD claims are a census, not a slogan.** `docs/gobd-conformance.md` maps every GoBD obligation to
+one of three statuses — verified (naming the fixture/test), open (named and scoped), or not verifiable
+in a library (and therefore the embedding app's, collected in the summae-app repo's
+`GOBD-APP-OBLIGATIONS.md`). Two rules when touching it: a row only becomes ✅ when a *named* test fails
+without it — never because the code looks right; and an open row is deleted only when it is built, never
+because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
+law — the litmus test applies here too.
