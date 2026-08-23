@@ -734,3 +734,23 @@ version (then say so, and the field is fine as it is), or it is the content vers
 has to stop pinning an exact one — `resolvePack` would take the manifest name alone, and a *new*
 fixture would establish that). Left open: guessing would either freeze the version forever or break a
 published contract.
+
+## SPEC-013: a shipped pack's chart of accounts cannot grow — a fixture pins its size
+
+**Found 2026-08-23, while adding the exempt-export tax code to the `de` pack.**
+
+`pack/de-pack/de-pack-resolves` pins `accountCount: 41` on the tenant it creates. Adding an account
+to `de-konten` therefore breaks an append-only fixture — the same shape as [SPEC-012], where the
+manifest's own version is pinned and so cannot move.
+
+The concrete cost here: `AUSFUHR` (§ 4 Nr. 1 Buchst. a, Kz 43) reports an exempt export, and the
+German chart has an account for exempt *intra-community supplies* (4030) and none for exempt
+*exports*. A user has to add one with `createAccount`, which the fixture `de-ausfuhr` demonstrates
+because it is what actually has to happen today. It works, but a shipped pack that cannot gain an
+account as its tax codes gain coverage will keep accumulating that kind of hole.
+
+**Not resolved by bending the fixture.** The decision it needs is the same one SPEC-012 needs, and
+probably the same answer: what a fixture may pin about a *shipped* pack. Pinning the resolver's
+behaviour is the point of `de-pack-resolves`; pinning the size of a product catalogue that is
+expected to grow is a different thing that came along for the ride. Left open — a new fixture could
+establish the resolver contract without the count, but deciding that is not a mechanical change.

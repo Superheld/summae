@@ -1,0 +1,141 @@
+{
+  "fixture": "de-ausfuhr",
+  "description": "DE-Pack: the exempt export to a third country (taxCode AUSFUHR). The `exempt` mechanism has existed since 0.5.0 and the German pack simply had no code using it — a business selling outside the EU had the intra-community supply available and nothing for Switzerland or the United States, which is a different exemption on a different line of the return. Two things distinguish it from `igL`, and both matter. It reports under Kz 43 (\"weitere steuerfreie Umsätze mit Vorsteuerabzug\", § 4 Nr. 1 Buchst. a in connection with § 6 UStG) rather than Kz 41, and it must NOT appear in the EC sales list — an export to a third country has no acquirer inside the Union to report, and listing one would be a false statement to the tax office rather than a cosmetic error. Note the `createAccount` step: the German pack's chart has an account for exempt intra-community supplies and none for exempt exports, so the tenant adds one — which is what a user has to do today. The pack cannot simply gain the account, because `de-pack-resolves` pins the number of accounts the shipped chart has and the fixtures are append-only (SPEC-013). Here 5,000.00 to a customer outside the EU: no tax line, the base tagged with Kz 43, the return showing 5,000.00 exempt and a payload of 0.00, and the EC sales list staying empty.",
+  "covers": [
+    "F-TAX-007",
+    "SF-04"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Export GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "createAccount",
+      "input": {
+        "tenant": "$T1",
+        "number": "4035",
+        "name": "Steuerfreie Ausfuhrlieferungen",
+        "type": "revenue"
+      },
+      "expect": {
+        "result": {
+          "number": "4035"
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-02",
+        "taxCode": "AUSFUHR",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "4035",
+            "money": {
+              "amount": "5000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Steuerfrei: keine Steuerzeile, aber ein Kz-43-Tag an der Basis",
+          "taxLines": [],
+          "grossTotal": {
+            "amount": "5000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AR-CH-1",
+          "voucherDate": "2026-05-02",
+          "kind": "invoice_out"
+        },
+        "entryDate": "2026-05-02",
+        "text": "Ausfuhrlieferung Schweiz, bar bezahlt",
+        "taxCode": "AUSFUHR",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "4035",
+            "money": {
+              "amount": "5000.00",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "1200"
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          },
+          "grossTotal": {
+            "amount": "5000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": {
+        "tenant": "$T1",
+        "year": 2026,
+        "quarter": 2
+      },
+      "expect": {
+        "comment": "Kz 43 statt Kz 41 — eine andere Befreiung auf einer anderen Zeile. Bar bezahlt, weil das de-Pack auf Ist-Versteuerung voreingestellt ist: ohne Zahlung erschiene der Umsatz noch nicht",
+        "keys": {
+          "43": {
+            "base": "5000.00",
+            "tax": "0.00"
+          }
+        },
+        "payload": {
+          "amount": "0.00",
+          "currency": "EUR"
+        }
+      }
+    },
+    {
+      "name": "ecSalesList",
+      "params": {
+        "tenant": "$T1",
+        "year": 2026,
+        "quarter": 2
+      },
+      "expect": {
+        "comment": "Kein Erwerber in der Union — eine Meldung hier wäre eine Falschangabe, kein Schönheitsfehler",
+        "rows": []
+      }
+    }
+  ]
+}

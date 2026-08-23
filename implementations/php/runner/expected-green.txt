@@ -50,6 +50,7 @@ de-kleinunternehmer
 de-pack-resolves
 de-reverse-charge
 de-ig-erwerb
+de-ausfuhr
 de-skonto
 de-system-description
 de-ust7-ermaessigt
