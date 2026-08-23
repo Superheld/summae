@@ -14,7 +14,7 @@ the accounts ourselves; SKR03/04 remain loadable via `importChartOfAccounts`.
 | Module | kind | Content |
 |---|---|---|
 | `accounts/de-konten` | accounts | Own DE chart of accounts, **41 accounts** (standard + DE extras: 1250 current-asset securities · 4020 cash discount/revenue reduction · 4030 intra-community supplies · 4040 small-business revenue · 4050 deemed supply · 6010/6020 entertainment · 1900/3900 accruals/deferrals) |
-| `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (intra-community supply), IGE19/IGE7 (intra-community acquisition, Kz 89/93 with input tax on Kz 61), USt19WA (deemed supply) — rates/codes, accounts on neutral numbers |
+| `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (intra-community supply), IGE19/IGE7 (intra-community acquisition, Kz 89/93 with input tax on Kz 61), AUSFUHR (exempt export to a third country, Kz 43), USt19WA (deemed supply) — rates/codes, accounts on neutral numbers |
 | `mappings/de-bilanz` | mapping | Balance-sheet structure HGB §266 |
 | `mappings/de-guv` | mapping | Income-statement structure HGB §275 (total-cost method) |
 | `mappings/de-euer` | mapping | Cash-basis categories — Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR) |
@@ -42,6 +42,7 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 | tax · igL | F-TAX-012 / SF-21 | `de-ig-lieferung` |
 | tax · USt19WA deemed supply | F-TAX-010 / SF-20 | `de-wertabgabe` |
 | tax · IGE19/IGE7 intra-community acquisition | F-TAX-006 / SF-04 | `de-ig-erwerb` |
+| tax · AUSFUHR exempt export | F-TAX-007 / SF-04 | `de-ausfuhr` |
 | tax · VAT return | F-TAX-005 / SF-09 | `de-vat-return` |
 | de-konten · 4020 cash discount §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang` |
 | de-konten · 6010/6020 entertainment §4(7) | SF-23 | `de-bewirtung` |

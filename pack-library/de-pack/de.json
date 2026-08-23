@@ -12,7 +12,7 @@
     {
       "kind": "tax",
       "id": "de-ust",
-      "version": "2026.3"
+      "version": "2026.4"
     },
     {
       "kind": "mapping",
@@ -60,7 +60,8 @@
     "igL",
     "USt19WA",
     "IGE19",
-    "IGE7"
+    "IGE7",
+    "AUSFUHR"
   ],
   "defaults": {
     "taxationMethod": "cash",

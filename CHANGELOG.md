@@ -83,6 +83,17 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **The `de` pack can record an exempt export (`AUSFUHR`).** The `exempt` mechanism has existed since
+  0.5.0 and the German pack had no code using it: a business selling outside the EU had the
+  intra-community supply and nothing for Switzerland or the United States — a different exemption on a
+  different line. It reports under Kz 43 rather than Kz 41 and, unlike `igL`, stays out of the EC
+  sales list, where an entry would be a false statement rather than a cosmetic error.
+
+  Recorded, not resolved: SPEC-013. The German chart has an account for exempt intra-community
+  supplies and none for exempt exports, and the pack cannot simply gain one — `de-pack-resolves` pins
+  the number of accounts the shipped chart has. The fixture shows the `createAccount` a user has to
+  do today.
+
 - **The `de` pack can record an intra-community acquisition (`IGE19`, `IGE7`).** It shipped `igL` for
   the selling side and nothing for the buying side — the more common case for most businesses — so a
   German company buying goods from another member state could not record the transaction at all.
