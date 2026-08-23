@@ -152,3 +152,4 @@ disposal-after-yearly-depreciation
 chart-of-accounts-projection
 fiscal-years-projection
 open-items-partner-name
+operation-input-contract

@@ -209,7 +209,7 @@ const AUDITED: readonly Case[] = [
     op: 'createPartner',
     objectType: 'partner',
     action: 'created',
-    run: (ops) => void ops.execute('createPartner', { number: 'D-1000', name: 'Kunde AG', role: 'customer' }),
+    run: (ops) => void ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }),
   },
   {
     op: 'updatePartner',
@@ -217,9 +217,8 @@ const AUDITED: readonly Case[] = [
     action: 'updated',
     run: (ops) => {
       const partner = ops.execute('createPartner', {
-        number: 'D-1000',
         name: 'Kunde AG',
-        role: 'customer',
+        kind: 'customer',
       }) as Record<string, unknown>;
       ops.execute('updatePartner', { partnerId: String(partner.id), name: 'Kunde SE' });
     },
@@ -306,7 +305,7 @@ const AUDITED: readonly Case[] = [
         assetAccount: '0400',
         acquisitionCost: { amount: '5000.00', currency: 'EUR' },
         acquiredOn: '2026-01-15',
-        usefulLifeYears: 5,
+        usefulLifeMonths: 60,
         voucherId,
       });
     },
@@ -325,7 +324,7 @@ const AUDITED: readonly Case[] = [
         assetAccount: '0400',
         acquisitionCost: { amount: '5000.00', currency: 'EUR' },
         acquiredOn: '2026-01-15',
-        usefulLifeYears: 5,
+        usefulLifeMonths: 60,
         voucherId,
       }) as Record<string, unknown>;
       ops.execute('disposeAsset', { assetId: String(asset.id), disposedOn: '2026-06-30', voucherId });

@@ -128,6 +128,7 @@ export {
   validateProjectionParams,
   type ParameterSpec,
 } from './composition/projection-parameters.js';
+export { OPERATION_PARAMETERS, validateOperationInput } from './composition/operation-parameters.js';
 export { PostVoucherService } from './composition/post-voucher-service.js';
 export { TenantFactory } from './composition/tenant-factory.js';
 export {

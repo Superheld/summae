@@ -1,0 +1,104 @@
+{
+  "fixture": "operation-input-contract",
+  "description": "F-9: the input contract of the operations, pinned where it is decided — the same JSON call must be refused the same way in every implementation. It is the write-side twin of `parameter-contract`, and the asymmetry it closes was the wrong way round: every projection parameter had been declared since 0.7, and `execute()` read what it recognised and ignored the rest. So a typo in a READ failed loudly, and a typo in a WRITE was silence plus a default — and the write is the one that ends up in the books. Four rules, each with its own defect behind it. (1) An undeclared input is a caller mistake: `usefulLifeYears` looks right, means nothing, and left the pack's lookup in charge of a useful life the caller believed they had set — summae's own audit-trail test passed it for months without a word. (2) A number sent as a string is rejected rather than dropped: every handler read `typeof value === 'number'`, so a form's \"30\" did not fail, it VANISHED, and the documented default stood in its place. (3) An amount is Money, not a number: `proceeds: 2000` was read with an is-object check and silently became 'no proceeds', booking a disposal as if the asset had been scrapped for nothing. (4) Absent is not wrong — an omitted optional input keeps its documented default, and null counts as omitted. Deliberately NOT enforced here: `required`. An operation missing its subject already fails with a better code than this layer could give (E_VOUCHER_UNKNOWN, E_ASSET_UNKNOWN); the finding is about inputs that are present and wrong.",
+  "covers": ["F-IO-003"],
+  "setup": {
+    "tenant": { "name": "Eingabevertrag GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "0500", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "6500", "name": "Abschreibungen", "type": "expense" },
+      { "number": "6510", "name": "GWG-Aufwand", "type": "expense" },
+      { "number": "4900", "name": "Erlöse aus Anlagenabgang", "type": "revenue" },
+      { "number": "6900", "name": "Verlust aus Anlagenabgang", "type": "expense" }
+    ],
+    "ruleModule": {
+      "usefulLife": [ { "assetClass": "machinery", "months": 36 } ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "6500",
+        "gwgExpenseAccount": "6510",
+        "disposalProceedsAccount": "4900",
+        "disposalLossAccount": "6900"
+      }
+    },
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-MASCHINE", "voucherDate": "2026-01-01" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine", "assetClass": "machinery", "assetAccount": "0500",
+        "acquisitionCost": { "amount": "3600.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1",
+        "usefulLifeYears": 5
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "input": "usefulLifeYears" },
+        "comment": "The near miss: it is called usefulLifeMonths. Before the contract the asset was created — with the pack's 36 months, not the caller's five years, and nothing said which of the two had won."
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine", "assetClass": "machinery", "assetAccount": "0500",
+        "acquisitionCost": { "amount": "3600.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1",
+        "usefulLifeMonths": 36
+      },
+      "expect": {
+        "comment": "The same call with the declared name goes through.",
+        "result": { "id": "$A1", "route": "capitalize", "usefulLifeMonths": 36 }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": "2026" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "fiscalYear": null },
+        "comment": "A form posts strings. The year was read with a number check, so it was not rejected but ignored, and the run silently used its default year of 0 — a run that touched nothing and reported success."
+      }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "$A1", "disposedOn": "2026-09-30", "proceeds": 2000 },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "proceeds": null },
+        "comment": "An amount is Money — an object with a decimal amount as a STRING. Passed as a JSON number it failed the is-object check and became 'no proceeds': the disposal booked the full carrying amount as a loss, as if the machine had been scrapped rather than sold for 2000.00."
+      }
+    },
+    {
+      "op": "disposeAsset",
+      "input": {
+        "assetId": "$A1", "disposedOn": "2026-09-30",
+        "proceeds": { "amount": "2000.00", "currency": "EUR" },
+        "voucherId": null
+      },
+      "expect": {
+        "comment": "Absent is not wrong: an omitted optional input keeps its documented default, and null counts as omitted — JSON callers and CLI wrappers write it both ways.",
+        "result": { "id": "$A1", "status": "disposed" }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Only the accepted calls are in the books: acquisition 3600.00, depreciation to the disposal month 900.00 (nine plan months), write-off of the remaining 2700.00 against 2000.00 proceeds, so 700.00 of loss. The four refused calls left no trace at all — a refusal that had already written something would be worse than the silence it replaces.",
+        "rows": [
+          { "account": "0500", "openingBalance": "0.00", "debitTotal": "3600.00", "creditTotal": "3600.00", "balance": "0.00" },
+          { "account": "1200", "openingBalance": "0.00", "debitTotal": "2000.00", "creditTotal": "3600.00", "balance": "-1600.00" },
+          { "account": "6500", "openingBalance": "0.00", "debitTotal": "900.00", "balance": "900.00" },
+          { "account": "6900", "openingBalance": "0.00", "debitTotal": "700.00", "balance": "700.00" }
+        ]
+      }
+    }
+  ]
+}

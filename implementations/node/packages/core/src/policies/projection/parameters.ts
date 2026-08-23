@@ -13,8 +13,19 @@
  * know what the dispatcher already proved.
  */
 
-/** The four types the parameter contract knows. */
-export type ParameterType = 'integer' | 'string' | 'date' | 'boolean';
+/**
+ * The types the parameter contract knows.
+ *
+ * The first four describe a projection's parameters, which are scalars by nature. Operations
+ * take structure as well — a voucher, a list of lines, an amount — so `object`, `array` and
+ * `money` came with the operation contract (F-9). Their *inner* shape stays the operation's
+ * business: this contract answers what a key may be, not what a voucher looks like.
+ *
+ * `money` is worth its own type rather than being an `object`, because the mistake it catches is
+ * a real one: an amount passed as a JSON number was silently ignored by every operation that read
+ * it with an is-object check, and the operation carried on with its default.
+ */
+export type ParameterType = 'integer' | 'string' | 'date' | 'boolean' | 'object' | 'array' | 'money';
 
 /** ISO calendar date, zoneless. Whether the date exists is `CalendarDate`'s business. */
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -39,6 +50,22 @@ export function matchesParameterType(value: unknown, type: ParameterType): boole
       return typeof value === 'string' && ISO_DATE.test(value);
     case 'boolean':
       return typeof value === 'boolean';
+    case 'object':
+      // An empty list counts as an empty object, and the reason is the other language:
+      // `json_decode('{}', true)` and `json_decode('[]', true)` both yield `[]` in PHP, which
+      // cannot tell them apart. Accepting it here rather than rejecting it keeps the two
+      // implementations answering the same question the same way, which outranks being strict.
+      if (Array.isArray(value)) return value.length === 0;
+      return typeof value === 'object' && value !== null;
+    case 'array':
+      return Array.isArray(value);
+    case 'money':
+      return (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        typeof (value as Record<string, unknown>).amount === 'string'
+      );
   }
 }
 

@@ -14,6 +14,33 @@ versioning per SemVer (0.x: minor may break).
 
 ### Added
 
+- **Operations declare their inputs, and an undeclared one is refused.** `PROJECTION_PARAMETERS`
+  had declared every projection parameter since 0.7 while `execute()` read what it recognised out
+  of an operation's input and ignored the rest. The asymmetry was the wrong way round: a typo in a
+  read failed loudly, a typo in a **write** was silence plus a default — and the write is the one
+  that ends up in the books. `testing/testsuite/schema/api-parameters.json` now carries an
+  `operations` block next to `projections`, both languages hold it as a constant, a drift test per
+  language asserts the two are equal, and `TenantOperations::execute` validates before routing. An
+  undeclared input is `E_INPUT_INVALID`; a declared one of the wrong type is rejected rather than
+  coerced; absent keeps its documented default and `null` counts as absent.
+
+  Three defects had already come out of that silence, and the contract catches all three shapes:
+  `usefulLifeYears` instead of `usefulLifeMonths` (accepted, ignored, the pack's lookup stayed in
+  charge), `"30"` instead of `30` (not rejected but *dropped*, the default stood), and
+  `proceeds: 2000` instead of Money (read with an is-object check, so a sale booked as a
+  scrapping). Two of them were live **in summae's own audit-trail test**, which had been passing
+  `usefulLifeYears: 5` and `role: 'customer'` for months; the new contract turned it red on the
+  first run.
+
+  Requiredness is deliberately not enforced here: an operation missing its subject already answers
+  with `E_VOUCHER_UNKNOWN` / `E_ASSET_UNKNOWN` / `E_ENTRY_NO_VOUCHER`, which says more than a
+  central `E_INPUT_INVALID` would.
+
+  Two things the declaration itself uncovered: `reverse` accepts a `voucherId` that the manual
+  never mentioned (documented now), and `setTaxProfile` accepts a `reason` that nothing records —
+  declared as accepted-without-effect rather than quietly dropped, the way
+  `importChartOfAccounts.format` already is.
+
 - **Three reads the write side already owned.** An embedding application kept arriving at the same
   wall: it could change something and could not show it. Each time the only honest test left was to
   trigger a refusal and read the error code.

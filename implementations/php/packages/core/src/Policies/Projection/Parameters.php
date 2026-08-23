@@ -52,6 +52,20 @@ final class Parameters
             'string' => is_string($value) && $value !== '',
             'date' => is_string($value) && preg_match(self::ISO_DATE, $value) === 1,
             'boolean' => is_bool($value),
+            // Structure, for the operation contract (F-9). The inner shape stays the operation's
+            // business: this answers what a key MAY be, not what a voucher looks like. `money` is
+            // its own type rather than an `object` because the mistake it catches is a real one —
+            // an amount passed as a JSON number was silently ignored by every operation reading it
+            // with an is-array check, and the operation carried on with its default.
+            //
+            // The empty case is where the two languages could drift and therefore says so out
+            // loud: `json_decode('{}', true)` and `json_decode('[]', true)` both yield `[]` here,
+            // while Node keeps `{}` and `[]` apart. So an empty list is accepted where an object
+            // is declared — in BOTH languages, see matchesParameterType — rather than one of them
+            // rejecting an input the other takes.
+            'object' => is_array($value) && ($value === [] || !array_is_list($value)),
+            'array' => is_array($value) && array_is_list($value),
+            'money' => is_array($value) && !array_is_list($value) && is_string($value['amount'] ?? null),
             default => false,
         };
     }
