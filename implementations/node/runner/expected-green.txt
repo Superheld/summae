@@ -49,6 +49,7 @@ finalize-reverse-period
 fiscal-year-management
 fiscalyear-close-guard
 gwg-and-depreciation
+gwg-pool-fiscal-year-fraction
 gwg-pool-period
 gwg-pool-period
 income-statement-gap

@@ -28,6 +28,7 @@ interface Threshold {
   poolMax: string | null;
   poolYears: number | null;
   poolReducedOnDisposal: boolean | null;
+  poolProRataInFirstYear: boolean | null;
 }
 
 /**
@@ -110,6 +111,7 @@ export class AssetService {
       schedule,
       voucherId,
       dimensions,
+      this.planStartFor(route, acquiredOn),
     );
     this.assets.add(asset);
 
@@ -409,6 +411,60 @@ export class AssetService {
    * the UK and Australia take disposals out of their pools. Deciding it here would have put a
    * statute back into the core — which is exactly what IMPL-019 accidentally did before this.
    */
+  /**
+   * Does the pool's first year get shortened by the acquisition month?
+   *
+   * Germany says no: the pool is dissolved in the fiscal year it is formed and the following ones by
+   * equal fractions, so an asset bought in November still carries a full fraction in that year, and
+   * the term ends after `poolYears` fiscal years. Treating a pool like ordinary linear depreciation —
+   * pro rata from the month of acquisition — understated the first year and invented a last one.
+   *
+   * Other pool regimes answer this differently, which is why the pack has to say it rather than the
+   * core assuming it — the same reason `poolYears` (SPEC-004) and `poolReducedOnDisposal` (IMPL-019)
+   * are pack data.
+   */
+  private poolProRataInFirstYear(acquiredOn: CalendarDate): boolean {
+    const threshold = this.applicableThreshold(acquiredOn);
+    if (threshold === null || threshold.poolProRataInFirstYear === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'gwgThresholds: a pool range (poolMin/poolMax) without poolProRataInFirstYear — the pack must say whether the first year is shortened by the acquisition month',
+        { field: 'poolProRataInFirstYear', acquiredOn: acquiredOn.iso },
+      );
+    }
+    return threshold.poolProRataInFirstYear;
+  }
+
+  /**
+   * Where the depreciation plan starts. Capitalised assets start in the month of acquisition (pro rata
+   * temporis). A pooled asset whose pack dissolves the pool in whole fiscal-year fractions starts at
+   * the beginning of the fiscal year it was acquired in — that, and nothing else, is what makes the
+   * first year full and the term end after `poolYears` years.
+   */
+  private planStartFor(route: AssetRoute, acquiredOn: CalendarDate): CalendarDate | null {
+    if (route !== 'pool') return null;
+
+    const year = this.fiscalYears.forDate(acquiredOn);
+
+    // Acquired on the first day of the fiscal year? Then both answers produce the same plan, and the
+    // pack is not asked. That is deliberate and mirrors `poolReducedOnDisposal`, which is only demanded
+    // when something is actually disposed: a pack owes an answer where the answer changes the books,
+    // not everywhere. The guarantee that a *pack* carries the field is the schema's job.
+    if (year !== null && acquiredOn.iso === year.start.iso) return null;
+
+    if (this.poolProRataInFirstYear(acquiredOn)) return null;
+
+    if (year === null) {
+      throw new DomainError(
+        'E_PERIOD_UNKNOWN',
+        `the pool for an asset acquired on ${acquiredOn.iso} is dissolved in whole fiscal-year fractions, but no fiscal year contains that date`,
+        { acquiredOn: acquiredOn.iso },
+      );
+    }
+
+    return year.start;
+  }
+
   private poolReducedOnDisposal(acquiredOn: CalendarDate): boolean {
     const threshold = this.applicableThreshold(acquiredOn);
     if (threshold === null || threshold.poolReducedOnDisposal === null) {
@@ -441,6 +497,8 @@ export class AssetService {
           ? item.poolYears
           : null,
         poolReducedOnDisposal: typeof item.poolReducedOnDisposal === 'boolean' ? item.poolReducedOnDisposal : null,
+        poolProRataInFirstYear:
+          typeof item.poolProRataInFirstYear === 'boolean' ? item.poolProRataInFirstYear : null,
       });
     }
     return thresholds;

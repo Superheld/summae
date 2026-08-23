@@ -2,16 +2,30 @@
   "formatVersion": "0.6",
   "id": "de-afa",
   "kind": "depreciation",
-  "version": "2026.2",
-  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Nutzungsdauern aus AfA-Tabellen)",
-  "contributes": ["depreciation"],
+  "version": "2026.3",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus AfA-Tabellen)",
+  "contributes": [
+    "depreciation"
+  ],
   "dependsOn": [],
   "data": {
     "gwgThresholds": [
-      { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01", "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false }
+      {
+        "validFrom": "2018-01-01",
+        "validTo": null,
+        "immediateMax": "800.00",
+        "poolMin": "250.01",
+        "poolMax": "1000.00",
+        "poolYears": 5,
+        "poolReducedOnDisposal": false,
+        "poolProRataInFirstYear": false
+      }
     ],
     "usefulLife": [
-      { "assetClass": "it-hardware", "months": 36 }
+      {
+        "assetClass": "it-hardware",
+        "months": 36
+      }
     ]
   }
 }
