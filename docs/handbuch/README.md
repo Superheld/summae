@@ -1041,7 +1041,7 @@ from the journal on every call. Orderings by Unicode codepoints resp.
 as-of evaluations.
 
 > ⚠ **Period parameters are not uniform.** Most projections take `fiscalYear`,
-> but **`vatReturn` takes `year` + `quarter`** and **`cashBasisReport` takes
+> but **`vatReturn` takes `year` + `quarter` or `month`** and **`cashBasisReport` takes
 > `year`**. `incomeStatement` and `balanceSheet` additionally *require*
 > `mapping`. Cheat sheet:
 > [CLI walkthrough § 12](cli-walkthrough.md#12-parameter-cheat-sheet).
@@ -1123,7 +1123,15 @@ present in fixtures, but not evaluated. Output: `runId`, `status`, `version`,
 
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
-`year` (yes), `quarter` (no, 0/missing = year), `asOf` (no). Accrual taxation
+`year` (yes), `quarter` (no), `month` (no, 1–12), `asOf` (no). Give **either**
+`quarter` **or** `month` — both together is `E_INPUT_INVALID`, because they describe
+different windows and picking one silently is how a return gets filed for the wrong
+period; neither means the whole year. The monthly window is not a convenience: where a
+jurisdiction prescribes monthly filing above a turnover threshold, it is the filing
+period, and computing it as the difference of two cumulative `asOf` calls is wrong as
+soon as cash-basis taxation or a reversal is involved. Note that `vatPeriod` on the tax
+profile is descriptive only — it records which period a tenant files in and does not
+select a window here. Accrual taxation
 counts by posting/service date; cash taxation follows the open-item settlements
 (`settledAt`, partial payments pro rata). Output: `keys` (each `reportingKey` →
 `{base, tax}`; `base` officially rounded down to full euros, `tax` to the cent),
