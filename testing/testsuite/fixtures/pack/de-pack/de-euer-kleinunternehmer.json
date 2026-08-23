@@ -1,0 +1,54 @@
+{
+  "fixture": "de-euer-kleinunternehmer",
+  "description": "A small-business filer's revenue reaches its own position in the cash-basis statement. This is the combination the de pack exists for — someone taxed under the small-business scheme almost always determines profit on a cash basis — and until 2026-08-23 it was the one combination the pack got wrong: account 4040 (small-business revenue) appeared in NO position of `de-euer`, because E1 covers 4000–4019 by range and 4040 sits outside it. The money did not vanish (a cash-basis position falls back to the account name), but it landed outside every official line of the form, silently: unlike the income statement, the cash-basis projection has no gap warning. Three fixtures existed around this and none could see it — `de-kleinunternehmer` posts to 4040 but only checks the trial balance, and `de-euer` checks the statement but never touches 4040. The pack now carries E5 for it, and `PackCompletenessTest` fails if any shipped account loses its position again.",
+  "covers": ["F-IO-003", "SF-11"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Klein GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-KU-1", "voucherDate": "2026-03-20" },
+        "entryDate": "2026-03-20", "text": "Verkauf ohne USt (Kleinunternehmer)",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "800.00", "currency": "EUR" } },
+          { "account": "4040", "side": "credit", "money": { "amount": "800.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-KU-1", "voucherDate": "2026-04-02" },
+        "entryDate": "2026-04-02", "text": "Bewirtung, nicht abziehbarer Anteil",
+        "lines": [
+          { "account": "6020", "side": "debit", "money": { "amount": "30.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "30.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "cashBasisReport",
+      "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "expect": {
+        "comment": "Beide Konten tragen jetzt eine amtliche Position statt ihres Kontonamens: 4040 die eigene Zeile für Kleinunternehmer-Einnahmen, 6020 die nicht abziehbaren Betriebsausgaben.",
+        "income": [
+          { "category": "Betriebseinnahmen als Kleinunternehmer (§ 19 UStG)", "amount": "800.00" }
+        ],
+        "expenses": [
+          { "category": "Nicht abziehbare Betriebsausgaben", "amount": "30.00" }
+        ]
+      }
+    }
+  ]
+}

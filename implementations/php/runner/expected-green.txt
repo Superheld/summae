@@ -33,6 +33,7 @@ de-complete-override-remove-equals-base
 de-degressive-afa
 de-eingangsrechnung
 de-euer
+de-euer-kleinunternehmer
 de-ig-lieferung
 de-jahresgang
 de-kleinunternehmer
