@@ -28,7 +28,10 @@ summae provides **capabilities** (GoBD-compliant posting, reports, exports); leg
 user must by X…*" = app. Library, not an app: **no UI, no server, no forced DB**
 (persistence behind an interface), multi-tenant at the data level. Deliberately **out of scope**
 (not „not yet built" — don't start it by accident): UI/frontend · ELSTER / authority submission ·
-e-invoice creation/parsing (XRechnung/ZUGFeRD) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+e-invoice creation/parsing (XRechnung/ZUGFeRD) · **the GoBD Z3 `index.xml` mapping** (the
+self-describing data set incl. field catalogue is `journalExport`; turning it into the
+DTD-conforming data carrier is the app's — `datenformat.md`: "a mapping, not an invention", and
+no test goes red for its absence) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
 are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
 *posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax).
 
