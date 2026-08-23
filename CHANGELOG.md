@@ -12,7 +12,24 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### ⚠ What breaks
+
+- **`createPartner` requires a name.** It defaulted to `""`, so a request that forgot the name
+  created a partner indistinguishable from the next one and impossible to pick out of a list. An
+  empty or whitespace-only name is now `E_INPUT_INVALID`, and `kind` must be one of
+  `customer`/`supplier`/`both` instead of any string. A caller that relied on either has to change;
+  everything that already sent proper master data is unaffected.
+
 ### Added
+
+- **Partner master data can be corrected, not only entered** (F-CORE-032). Three gaps that only add
+  up once a screen maintains partners: `accountNumbers` and `address` were create-only, so a wrong
+  account link was permanent — the partner had to be abandoned and recreated under a new id while
+  every open item stayed on the old one; `paymentTermsDays` could be set and never cleared, because
+  it was read with a number check while `vatId` had always accepted `null` to clear — two fields,
+  two behaviours, nothing saying so. `updatePartner` now takes `accountNumbers` and `address`
+  (replacing wholesale, not merging) and `paymentTermsDays: null` clears the term. Still no
+  `deletePartner`, deliberately: books keep what they referenced.
 
 - **Operations declare their inputs, and an undeclared one is refused.** `PROJECTION_PARAMETERS`
   had declared every projection parameter since 0.7 while `execute()` read what it recognised out

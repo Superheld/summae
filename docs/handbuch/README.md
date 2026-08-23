@@ -921,10 +921,16 @@ Error: `E_MAPPING_OVERLAP` (account in more than one position).
 #### createPartner
 
 Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
-All fields optional with defaults: `name` (`""`), `kind`
-(`customer`/`supplier`/`both`, default `both`), `vatId`, `paymentTermsDays`,
-`accountNumbers[]`, `address`. Output: serialized partner with a generated `id`.
-Writes an audit entry.
+`name` (**yes**, non-empty), `kind` (no, default `both` — one of
+`customer`/`supplier`/`both`, anything else is `E_INPUT_INVALID`), `vatId` (no),
+`paymentTermsDays` (no), `accountNumbers[]` (no), `address` (no). Output:
+serialized partner with a generated `id`. Writes an audit entry.
+
+⚠ **A nameless partner is refused**, and so is a whitespace-only one. `name`
+used to default to `""`, which produced a partner indistinguishable from the
+next and impossible to pick out of a list; a caller that relied on that has to
+supply a name now. `kind` used to take any string, so a misspelt one was stored
+as given and surfaced as a category nothing could filter on.
 
 ```json
 { "name": "Alpen Handel GmbH", "kind": "customer", "vatId": "ATU12345678", "paymentTermsDays": 30, "accountNumbers": ["1400"] }
@@ -933,9 +939,22 @@ Writes an audit entry.
 #### updatePartner
 
 Updates existing partners; only changed fields are written (diff in the audit
-trail). `partnerId` (yes), `name`/`vatId`/`kind`/`paymentTermsDays` (no).
-`vatId: null` clears the VAT ID; `accountNumbers`/`address` are not changed
-here. Output: serialized partner. Error: `E_PARTNER_UNKNOWN`.
+trail). `partnerId` (yes), `name`/`kind`/`vatId`/`paymentTermsDays`/
+`accountNumbers`/`address` (all no — an absent field is left alone). Output:
+serialized partner. Errors: `E_PARTNER_UNKNOWN`, `E_INPUT_INVALID` (empty
+`name`, unknown `kind`).
+
+**Clearing a field** is `null`: `vatId: null` drops the VAT ID and
+`paymentTermsDays: null` drops the payment term. `name` cannot be cleared —
+absent leaves it alone, present and empty is refused.
+
+**`accountNumbers` and `address` replace wholesale**, they do not merge: what
+you send is what the partner has afterwards. Both were create-only until 0.11,
+which made a wrong account link permanent — the only way back was a new partner
+under a new id, while every open item stayed on the old one.
+
+There is deliberately **no `deletePartner`**: books keep what they referenced,
+and an id that open items point at must not vanish.
 
 ### 6.4 Assets & cost accounting
 

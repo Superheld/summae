@@ -1,0 +1,104 @@
+{
+  "fixture": "partner-master-data",
+  "description": "F-CORE-032: partner master data can be entered correctly and corrected afterwards. Four gaps that only add up once a screen maintains partners, and an embedding application hit all four. (1) `createPartner` documented every field as optional and defaulted `name` to the empty string, so a request that forgot the name created a nameless partner indistinguishable from the next one — the app ended up refusing it in its own route, which is the wrong place: master data that is wrong here is wrong for every reader of the books. (2) `kind` was a plain string, so `custommer` was a partner kind like any other and only surfaced as a category nothing could filter on; the manual has named `customer`/`supplier`/`both` all along. (3) `accountNumbers` and `address` were create-only, so a wrong account link was permanent — the partner had to be abandoned and recreated under a new id while every open item stayed on the old one. (4) `paymentTermsDays` could be set and never cleared, because it was read with a number check while `vatId` accepted `null` to clear: two fields, two behaviours, nothing saying so. Deliberately still absent: `deletePartner`. Books keep what they referenced, and an id that open items point at must not vanish.",
+  "covers": ["F-CORE-032", "F-CORE-022"],
+  "setup": {
+    "tenant": { "name": "Stammdaten GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "1410", "name": "Forderungen Inland", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": { "kind": "customer", "vatId": "DE123456789" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "name": null },
+        "comment": "No name. Before this it created a partner called \"\" — findable by id and by nothing else."
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": { "name": "   ", "kind": "customer" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "name": "   " },
+        "comment": "Whitespace is not a name either. A form that trims nothing must not pass one through."
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": { "name": "Muster GmbH", "kind": "custommer" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "kind": "custommer" },
+        "comment": "The near miss. The three kinds are customer, supplier and both — anything else used to be stored as given."
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Muster GmbH", "kind": "customer", "vatId": "DE123456789",
+        "paymentTermsDays": 30, "accountNumbers": ["1400"],
+        "address": { "city": "Bremen" }
+      },
+      "expect": {
+        "result": {
+          "id": "$P1", "name": "Muster GmbH", "kind": "customer",
+          "paymentTermsDays": 30, "accountNumbers": ["1400"]
+        }
+      }
+    },
+    {
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "accountNumbers": ["1410"], "address": { "city": "Bremen", "street": "Marktplatz 1" } },
+      "expect": {
+        "comment": "The correction that was impossible: the account link moves, and so does the address. Both replace wholesale — 'these are the accounts now' is what a form can state.",
+        "result": { "id": "$P1", "accountNumbers": ["1410"], "address": { "city": "Bremen", "street": "Marktplatz 1" } }
+      }
+    },
+    {
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "paymentTermsDays": null },
+      "expect": {
+        "comment": "Clearing the term, the way vatId: null has always cleared the VAT id. Before this the field simply kept its old value and the answer looked like a success.",
+        "result": { "id": "$P1", "paymentTermsDays": null, "accountNumbers": ["1410"] }
+      }
+    },
+    {
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "name": "" },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": { "name": "" },
+        "comment": "A name cannot be cleared either — absent leaves it alone, present and empty is the same mistake as creating without one."
+      }
+    },
+    {
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "name": "Muster Handels GmbH", "kind": "both" },
+      "expect": {
+        "result": { "id": "$P1", "name": "Muster Handels GmbH", "kind": "both", "paymentTermsDays": null }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": {},
+      "expect": {
+        "comment": "Every accepted change is in the trail as a before/after diff, and the refused ones are not — a rejection must leave nothing behind. The cleared payment term shows as `to: null`, which is what makes 'cleared' distinguishable from 'never set' when reading the history back.",
+        "records": [
+          { "objectType": "partner", "action": "created" },
+          { "objectType": "partner", "action": "updated", "changes": { "accountNumbers": { "from": ["1400"], "to": ["1410"] } } },
+          { "objectType": "partner", "action": "updated", "changes": { "paymentTermsDays": { "from": 30, "to": null } } },
+          { "objectType": "partner", "action": "updated", "changes": { "name": { "from": "Muster GmbH", "to": "Muster Handels GmbH" }, "kind": { "from": "customer", "to": "both" } } }
+        ]
+      }
+    }
+  ]
+}
