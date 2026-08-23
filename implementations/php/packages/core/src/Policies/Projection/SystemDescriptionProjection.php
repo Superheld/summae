@@ -54,7 +54,7 @@ final readonly class SystemDescriptionProjection
 
     /** @var list<string> */
     public const API_PROJECTIONS = [
-        'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet', 'cashBasisReport',
+        'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet', 'cashBasisReport', 'cashJournal',
         'costAllocationSheet', 'datevExport', 'ecSalesList', 'incomeStatement', 'journalExport',
         'openItems', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn'
     ];

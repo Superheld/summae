@@ -37,6 +37,7 @@ final class TenantOperationsContractTest extends TestCase
     private const PROJECTIONS = [
         'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'unfinalizedEntries', 'assetRegister',
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
+        'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
     ];
 

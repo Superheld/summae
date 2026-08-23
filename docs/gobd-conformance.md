@@ -85,7 +85,8 @@ distinction matters for an audit.
 | Three dates kept apart (voucher date, posting date, recording time) | ✅ | `F-CORE-011`, fixture `core/post-and-invariants`; `entryDate` / `voucherDate` / `recordedAt` on every entry. |
 | The finalization deadline is **monitorable** | ✅ | `F-CORE-027`, fixture `core/unfinalized-entries` — projection `unfinalizedEntries` reports every posting still in status `entered`, its age in days measured from `entryDate`, filterable by `olderThanDays` and fiscal year. |
 | Cash transactions daily, non-cash within 10 days, posting by the end of the following month | ➖ | **Deadlines are not enforced and will not be.** They are German rules with exceptions, and the substrate is jurisdiction-free; a hard block would also make late but honest bookkeeping impossible, which the law does not ask for. summae supplies the number (`unfinalizedEntries`); acting on it is the application's workflow. |
-| Separation of cash and non-cash transactions (Rz. 57 ff.) | ⚠️ **open** | The journal carries no cash marker. Accounts of subtype `bank`/`cash` exist, but nothing marks a *transaction* as a cash transaction, so the separation cannot be projected. Scope: a data-format field, i.e. a `formatVersion` bump and a migration — deliberately not done as a side effect. |
+| Separation of cash and non-cash transactions (Rz. 57 ff.) | ✅ | `cashJournal`, fixture `projections/cash-journal`. The separation needs no marker and no format field: in double-entry a transaction *is* a cash transaction exactly when it touches an account of subtype `cash`. What was missing was the view — the cash account's sheet *is* the Kassenbuch. |
+| The cash balance is never negative (Kassensturzfähigkeit) | ✅ | Same projection: the running balance is checked at **every** movement, not only at the close, so a day that dips below zero and recovers is reported rather than hidden. `negativeBalances[]` names each point; `cashCountable` is false whenever the list is non-empty. Physics, not jurisdiction — hence substrate, not pack. |
 
 ## 6. Ordnung (Rz. 57–60)
 
@@ -93,7 +94,7 @@ distinction matters for an audit.
 |---|---|---|
 | Systematic recording (account assignment) | ✅ | `F-CORE-005`/`F-CORE-007`, chart of accounts as versioned pack data, own accounts creatable within the systematics. |
 | Periods close in order; postings into closed periods are refused | ✅ | `F-CORE-004`, fixtures `core/period-ordering`, `core/finalize-reverse-period` — `E_PERIOD_CLOSED`. |
-| Separation of cash / non-cash | ⚠️ **open** | Same gap as in section 5. |
+| Separation of cash / non-cash | ✅ | Same as section 5: `cashJournal` presents it, and flags any negative cash balance. |
 
 ## 7. Unveränderbarkeit (Rz. 58–60, 107–112) — the centre of the GoBD
 
@@ -178,11 +179,11 @@ preference.
 |---|---|---|---|
 | 1 | ~~`F-IO-007` technical system description~~ | ✅ **closed 2026-08-23** | Built as the `systemDescription` projection, pinned by `io/system-description` in both languages. One sub-item remains: it does not name the pack (next row). |
 | 1b | Pack identity in the system description | ⚠️ small, open | The tenant keeps the resolved rule bundle, not the manifest it came from. Needs the identity threaded through the factory in both languages. |
-| 2 | Cash / non-cash separation | ⚠️ gap | Needs a field in the journal, i.e. a `formatVersion` bump plus migration in both languages. Not done as a side effect of an audit review. |
+| 2 | ~~Cash / non-cash separation~~ | ✅ **closed 2026-08-23** | My earlier scoping was wrong and is worth recording: I judged it to need a journal field and a format bump. It needed neither — the separation was already structural through the account subtype, and only the projection was missing. The cash-count check came along for free and is the part that finds real defects. |
 | 3 | Z3 Beschreibungsstandard mapping | ⚠️ by design | See §10 — the decision that summae supplies the self-description and not the `index.xml` is deliberate, but it was never written next to the out-of-scope list, where an embedder would look. |
 | 4 | ~~Ten operations write no audit record of their own~~ | ✅ **closed 2026-08-23** | All 25 state-changing operations now write a record of their own kind; `UNCOVERED_KNOWN` is empty in both contract tests. `allocate` moved to the read-only list instead — it distributes an amount and returns the parts, with no journal effect, so there is nothing to log. |
 | 5 | Finalization deadline as a *constraint* | ➖ deliberately not | See §5. Reported, never enforced. |
-| 6 | The constraint policy kind has no socket | ⚠️ architectural | `core/src/CLAUDE.md`: "`Constraint/` — predicate gates (still thin; third kind unfinished)". No pack carries a `constraint` module; module kinds are `accounts`, `assetAccounts`, `depreciation`, `mapping`, `tax`, `policy`. Any GoBD rule that *is* a constraint would therefore have to go into the core today — against the pack/substrate split. This blocks item 2 from being solved cleanly in the pack. |
+| 6 | The constraint policy kind has no socket | ⚠️ architectural | `core/src/CLAUDE.md`: "`Constraint/` — predicate gates (still thin; third kind unfinished)". No pack carries a `constraint` module; module kinds are `accounts`, `assetAccounts`, `depreciation`, `mapping`, `tax`, `policy`. Any GoBD rule that *is* a constraint would have to go into the core today — against the pack/substrate split. No open GoBD item is blocked on it any more (item 2 turned out not to need it), but the next jurisdiction-specific *rule* will be. |
 
 ## 15. What this document is not
 

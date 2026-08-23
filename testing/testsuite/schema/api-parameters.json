@@ -141,6 +141,12 @@
       }
     },
     "systemDescription": {},
+    "cashJournal": {
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      }
+    },
     "journalExport": {
       "fiscalYear": {
         "type": "integer",

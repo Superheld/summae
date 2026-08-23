@@ -1,6 +1,6 @@
 {
   "fixture": "system-description",
-  "description": "F-IO-007: das Package MUSS eine technische Systembeschreibung erzeugen können — der Baustein der Verfahrensdokumentation (GoBD Rz. 151 ff.), den eine Bibliothek überhaupt liefern kann. Die anderen drei Teile (allgemeine Beschreibung, Anwender-, Betriebsdokumentation) beschreiben die Installation und die Prozesse des Anwenders; die technische beschreibt die Software und ist damit maschinell erzeugbar. Die Fixture nagelt beide Sprachen auf dieselbe Beschreibung fest: dieselben Invarianten, dieselbe API-Oberfläche, dieselben Audit-Ereignisse — und vor allem dieselbe Grenzziehung. `actorIsAuthenticated: false` steht ausdrücklich drin: die Beschreibung, die ein Prüfer bekommt, muss sagen, dass der Akteur mitgeschrieben und nie verifiziert wird. Das Setup trägt ein Konto und ein Geschäftsjahr, obwohl die Beschreibung nicht davon abhängt: der Cross-Test findet die Mandanten-ID über eine persistierte Zeile, und ein Bestand ohne jede Zeile hätte dort als rot gezählt statt als leer.",
+  "description": "F-IO-007: das Package MUSS eine technische Systembeschreibung erzeugen können — der Baustein der Verfahrensdokumentation (GoBD Rz. 151 ff.), den eine Bibliothek überhaupt liefern kann. Die anderen drei Teile (allgemeine Beschreibung, Anwender-, Betriebsdokumentation) beschreiben die Installation und die Prozesse des Anwenders; die technische beschreibt die Software und ist damit maschinell erzeugbar. Die Fixture nagelt beide Sprachen auf dieselbe Beschreibung fest: dieselben Invarianten, dieselbe API-Oberfläche, dieselben Audit-Ereignisse — und vor allem dieselbe Grenzziehung. `actorIsAuthenticated: false` steht ausdrücklich drin: die Beschreibung, die ein Prüfer bekommt, muss sagen, dass der Akteur mitgeschrieben und nie verifiziert wird. Das Setup trägt ein Konto und ein Geschäftsjahr, obwohl die Beschreibung nicht davon abhängt: der Cross-Test findet die Mandanten-ID über eine persistierte Zeile, und ein Bestand ohne jede Zeile hätte dort als rot gezählt statt als leer. Dass diese Fixture rot wird, sobald eine Operation oder Projektion dazukommt, ist beabsichtigt: die veröffentlichte Oberfläche ist Teil der Systembeschreibung, und eine neue Fähigkeit, die dort nicht auftaucht, wäre eine Beschreibung, die weniger kann als die Software.",
   "covers": [
     "F-IO-007"
   ],
@@ -237,6 +237,7 @@
             "auditLog",
             "balanceSheet",
             "cashBasisReport",
+            "cashJournal",
             "costAllocationSheet",
             "datevExport",
             "ecSalesList",

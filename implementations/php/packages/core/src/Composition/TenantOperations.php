@@ -12,6 +12,7 @@ use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
 use Summae\Core\Policies\Projection\BalanceSheetProjection;
 use Summae\Core\Policies\Projection\CashBasisProjection;
+use Summae\Core\Policies\Projection\CashJournalProjection;
 use Summae\Core\Policies\Projection\DatevExportProjection;
 use Summae\Core\Policies\Projection\EcSalesListProjection;
 use Summae\Core\Policies\Projection\IncomeStatementProjection;
@@ -128,6 +129,7 @@ final readonly class TenantOperations
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection($tenant->id, $tenant->name, $tenant->baseCurrency))->compute($params),
+            'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'journalExport' => (new JournalExportProjection(
