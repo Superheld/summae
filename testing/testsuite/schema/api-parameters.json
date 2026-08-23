@@ -352,6 +352,24 @@
     },
     "systemDescription": {},
     "accounts": {},
+    "journal": {
+      "fiscalYear": {
+        "type": "integer",
+        "required": true
+      },
+      "fromDate": {
+        "type": "date"
+      },
+      "toDate": {
+        "type": "date"
+      },
+      "offset": {
+        "type": "integer"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    },
     "fiscalYears": {
       "fiscalYear": {
         "type": "integer"

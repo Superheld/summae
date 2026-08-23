@@ -267,6 +267,7 @@
             "ecSalesList",
             "fiscalYears",
             "incomeStatement",
+            "journal",
             "journalExport",
             "openItems",
             "overheadRates",

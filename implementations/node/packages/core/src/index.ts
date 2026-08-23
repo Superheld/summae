@@ -99,6 +99,7 @@ export { OpenItemsProjection } from './policies/projection/open-items.js';
 export { AccountSheetProjection } from './policies/projection/account-sheet.js';
 export { AccountsProjection } from './policies/projection/accounts.js';
 export { FiscalYearsProjection } from './policies/projection/fiscal-years.js';
+export { JournalProjection } from './policies/projection/journal.js';
 export { AuditLogProjection } from './policies/projection/audit-log.js';
 export { VatReturnProjection } from './policies/projection/vat-return.js';
 export { IncomeStatementProjection } from './policies/projection/income-statement.js';

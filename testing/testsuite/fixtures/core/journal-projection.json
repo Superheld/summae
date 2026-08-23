@@ -1,0 +1,115 @@
+{
+  "fixture": "journal-projection",
+  "description": "F-CORE-031: a journal read that is both cheap and lossless. The plainest view a bookkeeping application has had two bad ways to be filled. `journalExport` is lossless and builds five streams with a SHA-256 each, has no date window and no paging — an archive format answering a list view's question, paid for on every page load. `datevExport` has the window and the weight but is DATEV-shaped and therefore LOSSY FOR SPLIT ENTRIES: an expense with its input tax against one bank line collapses into a single row and the tax line disappears, so a journal view built on it would quietly hide every tax line in the books. This projection is datevExport's cost with journalExport's completeness: every line of every entry, account numbers AND names resolved, no hashes. Paging counts ENTRIES rather than lines, because a page boundary falling inside a split entry would reproduce exactly the defect the projection exists to avoid; `count` is the number of entries in the window before paging, so a page header can name the total without a second call that costs an export. Ordered by sequenceNumber, the journal's own total order — paging needs a stable one and the ledger already has it.",
+  "covers": ["F-CORE-031", "F-CORE-011", "F-CORE-015"],
+  "setup": {
+    "tenant": { "name": "Journal GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" },
+      { "number": "6000", "name": "Sonstiger betrieblicher Aufwand", "type": "expense" },
+      { "number": "6800", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-TELEKOM", "voucherDate": "2026-01-08" },
+      { "id": "$V2", "voucherNumber": "ER-BÜRO", "voucherDate": "2026-02-03" },
+      { "id": "$V3", "voucherNumber": "ER-MÄRZ", "voucherDate": "2026-03-11" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-08", "voucherId": "$V1", "text": "Telefon Januar",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "75.00", "currency": "EUR" } },
+          { "account": "1576", "side": "debit", "money": { "amount": "14.25", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "89.25", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The split entry from the finding: three lines, and DATEV's one row per entry cannot carry them.",
+        "result": { "sequenceNumber": 1 }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-03", "voucherId": "$V2", "text": "Bürobedarf",
+        "lines": [
+          { "account": "6800", "side": "debit", "money": { "amount": "40.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "40.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-11", "voucherId": "$V3", "text": "Bürobedarf März",
+        "lines": [
+          { "account": "6800", "side": "debit", "money": { "amount": "60.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "60.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "journal",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "All three entries, the split one with all three of its lines, each account with its name. No window, no paging: count and the list agree.",
+        "fiscalYear": 2026,
+        "count": 3,
+        "offset": 0,
+        "limit": null,
+        "entries": [
+          {
+            "sequenceNumber": 1, "status": "entered", "entryDate": "2026-01-08",
+            "voucherNumber": "ER-TELEKOM", "voucherDate": "2026-01-08", "text": "Telefon Januar",
+            "reverses": null, "reversedBy": null,
+            "lines": [
+              { "account": "6000", "accountName": "Sonstiger betrieblicher Aufwand", "side": "debit", "money": { "amount": "75.00", "currency": "EUR" } },
+              { "account": "1576", "accountName": "Vorsteuer 19%", "side": "debit", "money": { "amount": "14.25", "currency": "EUR" } },
+              { "account": "1200", "accountName": "Bank", "side": "credit", "money": { "amount": "89.25", "currency": "EUR" } }
+            ]
+          },
+          { "sequenceNumber": 2, "voucherNumber": "ER-BÜRO", "text": "Bürobedarf" },
+          { "sequenceNumber": 3, "voucherNumber": "ER-MÄRZ", "text": "Bürobedarf März" }
+        ]
+      }
+    },
+    {
+      "name": "journal",
+      "params": { "fiscalYear": 2026, "fromDate": "2026-02-01", "toDate": "2026-02-28" },
+      "expect": {
+        "comment": "The date window journalExport does not have. count follows the window, not the year.",
+        "count": 1,
+        "entries": [ { "sequenceNumber": 2, "entryDate": "2026-02-03" } ]
+      }
+    },
+    {
+      "name": "journal",
+      "params": { "fiscalYear": 2026, "offset": 1, "limit": 1 },
+      "expect": {
+        "comment": "Paging: one entry from the second, and `count` still names all three so a page header does not need a second call. Never one LINE from the second — a page boundary inside a split entry is the defect this projection avoids.",
+        "count": 3,
+        "offset": 1,
+        "limit": 1,
+        "entries": [ { "sequenceNumber": 2, "text": "Bürobedarf" } ]
+      }
+    },
+    {
+      "name": "journal",
+      "params": { "fiscalYear": 2026, "offset": 99 },
+      "expect": {
+        "comment": "Past the end is an empty page, not an error: a caller paging forward finds out by getting nothing.",
+        "count": 3,
+        "entries": []
+      }
+    }
+  ]
+}

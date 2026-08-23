@@ -80,6 +80,13 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   // filter would only save the caller a `filter()` while making "which accounts exist" a question
   // with more than one answer.
   accounts: {},
+  journal: {
+    fiscalYear: { type: 'integer', required: true },
+    fromDate: { type: 'date' },
+    toDate: { type: 'date' },
+    offset: { type: 'integer' },
+    limit: { type: 'integer' },
+  },
   fiscalYears: {
     fiscalYear: { type: 'integer' },
   },
