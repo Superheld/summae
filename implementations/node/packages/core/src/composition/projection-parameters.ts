@@ -98,6 +98,9 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
     fiscalYear: { type: 'integer' },
     period: { type: 'integer' },
   },
+  overheadRates: {
+    runId: { type: 'string', required: true },
+  },
 };
 
 /**

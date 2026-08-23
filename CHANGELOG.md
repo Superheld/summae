@@ -35,6 +35,20 @@ versioning per SemVer (0.x: minor may break).
 - **The cost allocation sheet says which method produced it.** Two procedures answer the same
   question differently; a sheet that does not name one cannot be checked against anything.
 
+- **`overheadRates` — the calculation rates of a costing run.** F-KLR-004 asks for the allocation
+  sheet *and* the calculation rates; only the sheet existed. Where the sheet says what a cost centre
+  ended up carrying, a rate says how that attaches to a product. The numerator is the centre after
+  allocation, the denominator is declared per rate as direct-cost `accounts`, other `costCenters`, or
+  both — one primitive that covers the classic set without a special case, since cost of production
+  is simply "the direct-cost accounts plus the two production centres". Direct costs are read per
+  account rather than through the `costCenter` dimension, because that is what they are: costs of the
+  product, not of a department.
+
+  Rates are frozen into the run, so changing the scheme afterwards cannot change what a released run
+  says. A rate whose base came out zero is `null` and the centre is named in `warnings` — undefined
+  is not `0.0000`, and a zero returned there would be applied to products as though it meant
+  something.
+
 - **Declining-balance depreciation can now tell asset classes apart.** A pack may have two
   declining-balance regimes in force at once — Germany runs one for movables and another for new
   residential buildings over overlapping windows — and the core took whichever entry came first

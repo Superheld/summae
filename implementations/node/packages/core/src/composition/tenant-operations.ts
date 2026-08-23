@@ -150,6 +150,8 @@ export class TenantOperations {
         return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'costAllocationSheet':
         return tenant.costing.costAllocationSheet(params);
+      case 'overheadRates':
+        return tenant.costing.overheadRates(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

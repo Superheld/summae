@@ -22,6 +22,8 @@ final class CostingRun
     /**
      * @param array<string, Money> $primary cost center -> primary costs
      * @param array<string, Money> $afterAllocation
+     * @param list<array{costCenter: string, label: string, overhead: string, base: string, rate: string|null}> $rates
+     * @param list<array{costCenter: string, reason: string}> $rateWarnings
      */
     public function __construct(
         public readonly Uuid $id,
@@ -34,6 +36,10 @@ final class CostingRun
         // same question differently, and a sheet that does not say how it was allocated cannot be
         // checked against anything.
         public readonly string $method = 'step_ladder',
+        // Frozen with the run, not recomputed on read: the configuration can change after a release,
+        // and a released run that answers differently tomorrow is not released.
+        public readonly array $rates = [],
+        public readonly array $rateWarnings = [],
     ) {
     }
 

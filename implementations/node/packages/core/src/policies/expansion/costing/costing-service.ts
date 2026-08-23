@@ -7,6 +7,7 @@ import type { IdGenerator } from '../../../substrate/id-generator.js';
 import { Money } from '../../../substrate/money.js';
 import { PeriodRef } from '../../../substrate/period-ref.js';
 import { Uuid } from '../../../substrate/uuid.js';
+import { AccountNumber } from '../../../substrate/account-number.js';
 import { Rational } from '../../../substrate/rational.js';
 import { CostingRun } from './costing-run.js';
 import { solveSimultaneously } from './simultaneous-allocation.js';
@@ -22,6 +23,42 @@ interface Receiver {
 interface Step {
   sender: string;
   receivers: Receiver[];
+}
+
+interface RateDefinition {
+  costCenter: string;
+  label: string;
+  accounts: string[];
+  costCenters: string[];
+}
+
+export interface OverheadRate {
+  costCenter: string;
+  label: string;
+  overhead: string;
+  base: string;
+  rate: string | null;
+}
+
+export interface RateWarning {
+  costCenter: string;
+  reason: string;
+}
+
+/** A percentage with four decimals, commercial half-up (away from zero), like everything else here. */
+function formatRate(value: Rational): string {
+  const scaled = value.multiply(Rational.of(10n ** 4n));
+  const negative = scaled.isNegative();
+  const magnitude = negative ? scaled.negate() : scaled;
+  const rounded = magnitude.add(Rational.of(1, 2)).floorToBigInt();
+  const digits = rounded.toString().padStart(5, '0');
+  const decimal = `${digits.slice(0, digits.length - 4)}.${digits.slice(digits.length - 4)}`;
+
+  return `${negative && rounded !== 0n ? '-' : ''}${decimal}`;
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
 /**
@@ -40,6 +77,15 @@ const METHODS = ['step_ladder', 'simultaneous'];
 export class CostingService {
   private schemeSteps: Step[] = [];
   private method = 'step_ladder';
+
+  /**
+   * Overhead rate definitions, part of the same tenant-level configuration as the scheme.
+   *
+   * They sit on `setAllocationScheme` rather than on an operation of their own because a rate is
+   * computed FROM an allocation and frozen INTO the run: a second operation would need its own
+   * freezing rule against the same run, and two rules for one moment is how they drift apart.
+   */
+  private rateDefinitions: RateDefinition[] = [];
   private readonly runs = new Map<string, CostingRun>();
   private readonly versions = new Map<string, number>();
 
@@ -56,6 +102,7 @@ export class CostingService {
 
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
     const previousStepCount = this.schemeSteps.length;
+    const previousRateCount = this.rateDefinitions.length;
     const method = typeof input.method === 'string' ? input.method : 'step_ladder';
 
     if (!METHODS.includes(method)) {
@@ -85,18 +132,37 @@ export class CostingService {
       steps.push({ sender, receivers });
     }
 
+    const rates: RateDefinition[] = [];
+    for (const rawRate of Array.isArray(input.rates) ? input.rates : []) {
+      if (!isRecord(rawRate) || typeof rawRate.costCenter !== 'string') {
+        throw new DomainError('E_INPUT_INVALID', 'setAllocationScheme: an overhead rate requires "costCenter"', {
+          field: 'rates',
+        });
+      }
+
+      const base = isRecord(rawRate.base) ? rawRate.base : {};
+      rates.push({
+        costCenter: rawRate.costCenter,
+        label: typeof rawRate.label === 'string' ? rawRate.label : rawRate.costCenter,
+        accounts: stringList(base.accounts),
+        costCenters: stringList(base.costCenters),
+      });
+    }
+
     if (method === 'step_ladder') this.assertAcyclic(edges);
     this.schemeSteps = steps;
     this.method = method;
+    this.rateDefinitions = rates;
 
     if (this.audit !== null && this.tenantId !== null) {
       this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
         method: { from: null, to: method },
         stepCount: { from: previousStepCount, to: steps.length },
+        rateCount: { from: previousRateCount, to: rates.length },
       });
     }
 
-    return { valid: true, method, stepCount: steps.length };
+    return { valid: true, method, stepCount: steps.length, rateCount: rates.length };
   }
 
   run(input: Record<string, unknown>): CostingRun {
@@ -106,12 +172,22 @@ export class CostingService {
 
     const zero = Money.zero(this.baseCurrency);
     const primary = new Map<string, Money>();
+    const accountTotals = new Map<string, Money>();
 
     for (const entry of this.journal.forFiscalYear(fiscalYear)) {
       if (entry.periodRef.period !== period) continue;
       for (const line of entry.lines()) {
         const account = this.accounts.byId(line.accountId);
-        if (account === null || account.type !== 'expense') continue;
+        if (account === null) continue;
+
+        // Direct costs — the denominator of an overhead rate — are booked WITHOUT a cost centre:
+        // they belong to the product, not to a department. So they are collected per account here,
+        // in the same pass, and not through the costCenter dimension.
+        const number = account.number.toString();
+        const signedLine = line.side === 'debit' ? line.money : line.money.negate();
+        accountTotals.set(number, (accountTotals.get(number) ?? zero).add(signedLine));
+
+        if (account.type !== 'expense') continue;
         for (const dimension of line.dimensions) {
           if (dimension.type !== 'costCenter') continue;
           const signed = line.side === 'debit' ? line.money : line.money.negate();
@@ -129,11 +205,23 @@ export class CostingService {
     let grandTotal = zero;
     for (const total of after.values()) grandTotal = grandTotal.add(total);
 
+    const computed = this.computeRates(after, accountTotals);
+
     const key = `${fiscalYear}-${period}`;
     const version = (this.versions.get(key) ?? 0) + 1;
     this.versions.set(key, version);
 
-    const run = new CostingRun(this.ids.next(), periodRef, version, primary, after, grandTotal, this.method);
+    const run = new CostingRun(
+      this.ids.next(),
+      periodRef,
+      version,
+      primary,
+      after,
+      grandTotal,
+      this.method,
+      computed.rates,
+      computed.warnings,
+    );
     this.runs.set(run.id.value, run);
     if (this.audit !== null) {
       this.audit.record(this.audit.actorOf(input), 'costingRun', run.id, 'created', {
@@ -186,6 +274,95 @@ export class CostingService {
       afterAllocation: this.serializeTotals(run.afterAllocation),
       grandTotal: run.grandTotal.amountAsString(),
     };
+  }
+
+  /**
+   * Overhead rates of a run (F-KLR-004: "BAB *und Kalkulationssätze*").
+   *
+   * A rate answers the question the allocation sheet cannot: the sheet says what a cost centre ended
+   * up carrying, a rate says how that attaches to a product. Numerator is the centre after allocation,
+   * denominator is a base the scheme declares — direct-cost ACCOUNTS, other cost CENTRES, or both. The
+   * classic four fall straight out of that: material and production overhead over their direct costs,
+   * administration and sales overhead over cost of production, which is "the direct-cost accounts plus
+   * the two centres" and needs no special case.
+   *
+   * Rounded to four decimals, half-up away from zero — a rate is a published figure, not money, and
+   * four places is where the pack schema already puts a percentage.
+   *
+   * Note what this deliberately does NOT do: refuse a draft run. F-KLR-001 says evaluations read
+   * released runs only, and the fixture `parameter-effect` reads a draft sheet — an append-only
+   * contract that says otherwise. Bending the fixture would rewrite what the contract always said, so
+   * the rule is followed as the contract has it and the contradiction is recorded (SPEC-FINDINGS).
+   * `status` is in the answer, so nobody has to guess which they got.
+   */
+  overheadRates(params: Record<string, unknown>): Record<string, unknown> {
+    const run = this.requireRun(params.runId);
+
+    return {
+      runId: run.id.value,
+      status: run.status(),
+      version: run.version,
+      method: run.method,
+      rates: run.rates,
+      warnings: run.rateWarnings,
+    };
+  }
+
+  private computeRates(
+    after: Map<string, Money>,
+    accountTotals: Map<string, Money>,
+  ): { rates: OverheadRate[]; warnings: RateWarning[] } {
+    const zero = Money.zero(this.baseCurrency);
+    const rates: OverheadRate[] = [];
+    const warnings: RateWarning[] = [];
+
+    // Definition order, not alphabetical: an administration rate takes cost of production as its base,
+    // so the order the caller wrote is the order that reads correctly. It is deterministic for the
+    // same reason the steps are — it comes from the input.
+    for (const definition of this.rateDefinitions) {
+      const overhead = after.get(definition.costCenter) ?? zero;
+      let base = zero;
+
+      for (const number of definition.accounts) {
+        if (this.accounts.byNumber(AccountNumber.of(number)) === null) {
+          throw new DomainError(
+            'E_ACCOUNT_UNKNOWN',
+            `overhead rate for cost center "${definition.costCenter}" names account ${number}, which does not exist`,
+            { account: number },
+          );
+        }
+        base = base.add(accountTotals.get(number) ?? zero);
+      }
+
+      for (const code of definition.costCenters) base = base.add(after.get(code) ?? zero);
+
+      let rate: string | null = null;
+      if (base.isZero()) {
+        // A rate over an empty base is not zero and not infinite, it is undefined — and an undefined
+        // number returned as 0.00 would be applied to products as if it meant something. Named
+        // instead, in the same shape the cash-basis report uses for its gaps.
+        warnings.push({
+          costCenter: definition.costCenter,
+          reason: 'the base is zero, so no rate can be computed',
+        });
+      } else {
+        rate = formatRate(
+          Rational.fromDecimalString(overhead.amountAsString())
+            .divide(Rational.fromDecimalString(base.amountAsString()))
+            .multiply(Rational.of(100)),
+        );
+      }
+
+      rates.push({
+        costCenter: definition.costCenter,
+        label: definition.label,
+        overhead: overhead.amountAsString(),
+        base: base.amountAsString(),
+        rate,
+      });
+    }
+
+    return { rates, warnings };
   }
 
   /**

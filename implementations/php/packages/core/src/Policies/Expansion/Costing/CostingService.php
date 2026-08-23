@@ -10,6 +10,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
+use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Exception\InvalidValue;
@@ -40,6 +41,17 @@ final class CostingService
 
     /** @var list<array{sender: string, receivers: list<array{code: string, share: string}>}> */
     private array $schemeSteps = [];
+
+    /**
+     * Overhead rate definitions, part of the same tenant-level configuration as the scheme.
+     *
+     * They sit on `setAllocationScheme` rather than on an operation of their own because a rate is
+     * computed FROM an allocation and frozen INTO the run: a second operation would need its own
+     * freezing rule against the same run, and two rules for one moment is how they drift apart.
+     *
+     * @var list<array{costCenter: string, label: string, accounts: list<string>, costCenters: list<string>}>
+     */
+    private array $rateDefinitions = [];
 
     private string $method = 'step_ladder';
 
@@ -72,6 +84,7 @@ final class CostingService
     public function setAllocationScheme(array $input): array
     {
         $previousStepCount = count($this->schemeSteps);
+        $previousRateCount = count($this->rateDefinitions);
         $method = is_string($input['method'] ?? null) ? $input['method'] : 'step_ladder';
 
         if (!in_array($method, self::METHODS, true)) {
@@ -112,17 +125,39 @@ final class CostingService
             $this->assertAcyclic($edges);
         }
 
+        $rates = [];
+        foreach (is_array($input['rates'] ?? null) ? array_values($input['rates']) : [] as $rawRate) {
+            if (!is_array($rawRate) || !is_string($rawRate['costCenter'] ?? null)) {
+                throw new DomainError(
+                    'E_INPUT_INVALID',
+                    'setAllocationScheme: an overhead rate requires "costCenter"',
+                    ['field' => 'rates'],
+                );
+            }
+
+            $base = is_array($rawRate['base'] ?? null) ? $rawRate['base'] : [];
+
+            $rates[] = [
+                'costCenter' => $rawRate['costCenter'],
+                'label' => is_string($rawRate['label'] ?? null) ? $rawRate['label'] : $rawRate['costCenter'],
+                'accounts' => self::stringList($base['accounts'] ?? null),
+                'costCenters' => self::stringList($base['costCenters'] ?? null),
+            ];
+        }
+
         $this->schemeSteps = $steps;
         $this->method = $method;
+        $this->rateDefinitions = $rates;
 
         if ($this->audit !== null && $this->tenantId !== null) {
             $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
                 'method' => ['from' => null, 'to' => $method],
                 'stepCount' => ['from' => $previousStepCount, 'to' => count($steps)],
+                'rateCount' => ['from' => $previousRateCount, 'to' => count($rates)],
             ]);
         }
 
-        return ['valid' => true, 'method' => $method, 'stepCount' => count($steps)];
+        return ['valid' => true, 'method' => $method, 'stepCount' => count($steps), 'rateCount' => count($rates)];
     }
 
     /**
@@ -138,6 +173,8 @@ final class CostingService
         $zero = Money::zero($this->baseCurrency);
         /** @var array<string, Money> $primary */
         $primary = [];
+        /** @var array<string, Money> $accountTotals */
+        $accountTotals = [];
 
         foreach ($this->journal->forFiscalYear($fiscalYear) as $entry) {
             if ($entry->periodRef->period !== $period) {
@@ -146,7 +183,18 @@ final class CostingService
 
             foreach ($entry->lines() as $line) {
                 $account = $this->accounts->byId($line->accountId);
-                if ($account === null || $account->type !== AccountType::Expense) {
+                if ($account === null) {
+                    continue;
+                }
+
+                // Direct costs — the denominator of an overhead rate — are booked WITHOUT a cost
+                // centre: they belong to the product, not to a department. So they are collected per
+                // account here, in the same pass, and not through the costCenter dimension.
+                $number = (string) $account->number;
+                $signedLine = $line->side === Side::Debit ? $line->money : $line->money->negate();
+                $accountTotals[$number] = ($accountTotals[$number] ?? $zero)->add($signedLine);
+
+                if ($account->type !== AccountType::Expense) {
                     continue;
                 }
 
@@ -171,11 +219,23 @@ final class CostingService
             $grandTotal = $grandTotal->add($total);
         }
 
+        $rates = $this->computeRates($after, $accountTotals);
+
         $key = $fiscalYear . '-' . $period;
         $version = ($this->versions[$key] ?? 0) + 1;
         $this->versions[$key] = $version;
 
-        $run = new CostingRun($this->ids->next(), $periodRef, $version, $primary, $after, $grandTotal, $this->method);
+        $run = new CostingRun(
+            $this->ids->next(),
+            $periodRef,
+            $version,
+            $primary,
+            $after,
+            $grandTotal,
+            $this->method,
+            $rates['rates'],
+            $rates['warnings'],
+        );
         $this->runs[$run->id->value] = $run;
         if ($this->audit !== null) {
             $this->audit->record($this->audit->actorOf($input), 'costingRun', $run->id, 'created', [
@@ -245,6 +305,133 @@ final class CostingService
             'afterAllocation' => $this->serializeTotals($run->afterAllocation),
             'grandTotal' => $run->grandTotal->amountAsString(),
         ];
+    }
+
+    /**
+     * Overhead rates of a run (F-KLR-004: "BAB *und Kalkulationssätze*").
+     *
+     * A rate answers the question the allocation sheet cannot: the sheet says what a cost centre
+     * ended up carrying, a rate says how that attaches to a product. Numerator is the centre after
+     * allocation, denominator is a base the scheme declares — direct-cost ACCOUNTS, other cost
+     * CENTRES, or both. The classic four fall straight out of that: material and production overhead
+     * over their direct costs, administration and sales overhead over cost of production, which is
+     * "the direct-cost accounts plus the two centres" and needs no special case.
+     *
+     * Rounded to four decimals, half-up away from zero — a rate is a published figure, not money,
+     * and four places is where the pack schema already puts a percentage.
+     *
+     * Note what this deliberately does NOT do: refuse a draft run. F-KLR-001 says evaluations read
+     * released runs only, and the fixture `parameter-effect` reads a draft sheet — an append-only
+     * contract that says otherwise. Bending the fixture would rewrite what the contract always said,
+     * so the rule is followed as the contract has it and the contradiction is recorded
+     * (SPEC-FINDINGS). `status` is in the answer, so nobody has to guess which they got.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    public function overheadRates(array $params): array
+    {
+        $run = $this->requireRun($params['runId'] ?? null);
+
+        return [
+            'runId' => $run->id->value,
+            'status' => $run->status(),
+            'version' => $run->version,
+            'method' => $run->method,
+            'rates' => $run->rates,
+            'warnings' => $run->rateWarnings,
+        ];
+    }
+
+    /**
+     * @param array<string, Money> $after
+     * @param array<string, Money> $accountTotals
+     *
+     * @return array{rates: list<array{costCenter: string, label: string, overhead: string, base: string, rate: string|null}>, warnings: list<array{costCenter: string, reason: string}>}
+     */
+    private function computeRates(array $after, array $accountTotals): array
+    {
+        $zero = Money::zero($this->baseCurrency);
+        $rates = [];
+        $warnings = [];
+
+        // Definition order, not alphabetical: an administration rate takes cost of production as its
+        // base, so the order the caller wrote is the order that reads correctly. It is deterministic
+        // for the same reason the steps are — it comes from the input.
+        foreach ($this->rateDefinitions as $definition) {
+            $overhead = $after[$definition['costCenter']] ?? $zero;
+            $base = $zero;
+
+            foreach ($definition['accounts'] as $number) {
+                if ($this->accounts->byNumber(AccountNumber::of($number)) === null) {
+                    throw new DomainError('E_ACCOUNT_UNKNOWN', sprintf(
+                        'overhead rate for cost center "%s" names account %s, which does not exist',
+                        $definition['costCenter'],
+                        $number,
+                    ), ['account' => $number]);
+                }
+
+                $base = $base->add($accountTotals[$number] ?? $zero);
+            }
+
+            foreach ($definition['costCenters'] as $code) {
+                $base = $base->add($after[$code] ?? $zero);
+            }
+
+            $rate = null;
+            if ($base->isZero()) {
+                // A rate over an empty base is not zero and not infinite, it is undefined — and an
+                // undefined number returned as 0.00 would be applied to products as if it meant
+                // something. Named instead, in the same shape the cash-basis report uses for its gaps.
+                $warnings[] = [
+                    'costCenter' => $definition['costCenter'],
+                    'reason' => 'the base is zero, so no rate can be computed',
+                ];
+            } else {
+                $rate = self::formatRate(
+                    Rational::fromDecimalString($overhead->amountAsString())
+                        ->divide(Rational::fromDecimalString($base->amountAsString()))
+                        ->multiply(Rational::of(100)),
+                );
+            }
+
+            $rates[] = [
+                'costCenter' => $definition['costCenter'],
+                'label' => $definition['label'],
+                'overhead' => $overhead->amountAsString(),
+                'base' => $base->amountAsString(),
+                'rate' => $rate,
+            ];
+        }
+
+        return ['rates' => $rates, 'warnings' => $warnings];
+    }
+
+    /** A percentage with four decimals, commercial half-up (away from zero), like everything else here. */
+    private static function formatRate(Rational $value): string
+    {
+        $scaled = $value->multiply(Rational::of(BigInteger::of(10)->power(4)));
+        $negative = $scaled->isNegative();
+        $magnitude = $negative ? $scaled->negate() : $scaled;
+        $rounded = $magnitude->add(Rational::of(1, 2))->floorToBigInteger();
+
+        return (string) BigDecimal::ofUnscaledValue($negative ? $rounded->negated() : $rounded, 4);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        $result = [];
+        foreach (is_array($value) ? array_values($value) : [] as $item) {
+            if (is_string($item)) {
+                $result[] = $item;
+            }
+        }
+
+        return $result;
     }
 
     /**
