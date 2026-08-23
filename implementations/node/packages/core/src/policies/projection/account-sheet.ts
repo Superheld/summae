@@ -1,5 +1,6 @@
 import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
+import { ReversalIndex } from './reversal-index.js';
 import { AccountNumber } from '../../substrate/account-number.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
@@ -54,6 +55,9 @@ export class AccountSheetProjection {
 
     let running = opening;
     const lines: Array<Record<string, unknown>> = [];
+    // See cash-journal: a sheet that shows a reversal as an ordinary opposite movement leaves the
+    // reader unable to tell a correction from a removal.
+    const reversals = ReversalIndex.of(this.journal);
     for (const entry of this.journal.forFiscalYear(fiscalYear)) {
       if (entry.periodRef.period > throughPeriod) continue;
       for (const line of entry.lines()) {
@@ -66,6 +70,7 @@ export class AccountSheetProjection {
           side: line.side,
           money: line.money.toJSON(),
           runningBalance: running.amountAsString(),
+          ...reversals.forEntry(entry),
         });
       }
     }

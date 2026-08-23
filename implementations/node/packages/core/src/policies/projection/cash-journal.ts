@@ -1,5 +1,6 @@
 import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
+import { ReversalIndex } from './reversal-index.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isIntegerParam } from './parameters.js';
@@ -48,6 +49,9 @@ export class CashJournalProjection {
 
     const accounts: Array<Record<string, unknown>> = [];
     const negativeBalances: Array<Record<string, unknown>> = [];
+    // Built once for the whole run, not per movement: the sheet has to show a reversal AS a
+    // reversal, and the journal only knows the counterpart by id.
+    const reversals = ReversalIndex.of(this.journal);
 
     for (const account of cashAccounts) {
       // Cash is balance-carrying: last year's drawer is this year's opening.
@@ -74,6 +78,7 @@ export class CashJournalProjection {
             side: line.side,
             money: line.money.toJSON(),
             runningBalance: running.amountAsString(),
+            ...reversals.forEntry(entry),
           });
 
           if (running.isNegative()) {
