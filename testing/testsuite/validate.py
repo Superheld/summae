@@ -37,10 +37,11 @@ for f in sorted((BASE / "fixtures").rglob("*.json")):
     except Exception as e:
         print(f"FAIL {f.name}: {e}"); ok = False
 
-# Katalog zuerst lokal (gespiegelte Suite), dann in der Wissensbasis suchen.
-# Fehlt er ganz (unvollständiger Spiegel), Abdeckung überspringen statt crashen.
+# Der Katalog wohnt seit 2026-08-23 hier neben den Fixtures; der zweite Kandidat ist der alte
+# Wissensbasis-Pfad und bleibt nur stehen, damit ein älterer Checkout nicht crasht.
+# Fehlt er ganz, Abdeckung überspringen statt crashen.
 katalog_datei = next(
-    (p for p in (BASE / "fehlerkatalog.md", BASE / "../50-spezifikation/fehlerkatalog.md") if p.exists()),
+    (p for p in (BASE / "fehlerkatalog.md", BASE / "../../knowledge/50-spezifikation/fehlerkatalog.md") if p.exists()),
     None,
 )
 if katalog_datei is not None:
