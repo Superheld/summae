@@ -70,6 +70,8 @@ final readonly class TenantOperations
                 'status' => 'closed',
             ],
             'createAccount' => $this->serialize($ledger->createAccount($input)),
+            'defineDimensionType' => $ledger->defineDimensionType($input),
+            'defineDimensionValue' => $ledger->defineDimensionValue($input),
             'createFiscalYear' => [
                 'year' => $ledger->createFiscalYear($input)->year,
                 'periodCount' => count($tenant->fiscalYears->byYear(is_int($input['year'] ?? null) ? $input['year'] : 0)?->periods() ?? []),
@@ -133,6 +135,7 @@ final readonly class TenantOperations
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'overheadRates' => $tenant->costing->overheadRates($params),
+            'productionCost' => $tenant->costing->productionCost($params),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

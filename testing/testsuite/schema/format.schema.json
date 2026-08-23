@@ -809,7 +809,8 @@
             "mapping",
             "depreciation",
             "policy",
-            "assetAccounts"
+            "assetAccounts",
+            "productionCost"
           ]
         },
         "version": {
@@ -827,7 +828,8 @@
               "mappings",
               "assetAccounts",
               "policy",
-              "depreciation"
+              "depreciation",
+              "productionCost"
             ]
           }
         },
@@ -1173,6 +1175,44 @@
         }
       },
       "additionalProperties": false
+    },
+    "productionCostData": {
+      "type": "object",
+      "required": [
+        "treatments"
+      ],
+      "properties": {
+        "treatments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "component",
+              "treatment"
+            ],
+            "properties": {
+              "component": {
+                "type": "string",
+                "minLength": 1
+              },
+              "treatment": {
+                "enum": [
+                  "mandatory",
+                  "optional",
+                  "forbidden"
+                ]
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "data eines productionCost-Moduls (v0.6): je Kostenbestandteil, ob er in die Herstellungskosten MUSS (mandatory), DARF (optional, Wahlrecht des Bilanzierenden) oder NICHT DARF (forbidden). Die Summierung ist Kern-Mechanik und für jede Jurisdiktion dieselbe; diese Tabelle ist genau der Teil, der sich unterscheidet — Deutschland § 255 Abs. 2 HGB (Material- und Fertigungsgemeinkosten sowie fertigungsbedingter Werteverzehr Pflicht, allgemeine Verwaltung und freiwillige Sozialleistungen Wahlrecht, Forschung und Vertrieb verboten) gegen US-GAAP ASC 330 (full absorption, allgemeine Verwaltung dagegen Periodenaufwand). Ein Bestandteil, den die Tabelle nicht führt, ist E_PACK_INCOHERENT statt still mitgezählt oder still weggelassen — beides verschöbe die Bilanz."
     }
   }
 }

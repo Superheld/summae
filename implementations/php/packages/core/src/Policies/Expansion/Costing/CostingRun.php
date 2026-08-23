@@ -24,6 +24,7 @@ final class CostingRun
      * @param array<string, Money> $afterAllocation
      * @param list<array{costCenter: string, label: string, overhead: string, base: string, rate: string|null}> $rates
      * @param list<array{costCenter: string, reason: string}> $rateWarnings
+     * @param array{total: string, components: list<array{id: string, amount: string, treatment: string, included: bool}>}|null $productionCost
      */
     public function __construct(
         public readonly Uuid $id,
@@ -40,6 +41,7 @@ final class CostingRun
         // and a released run that answers differently tomorrow is not released.
         public readonly array $rates = [],
         public readonly array $rateWarnings = [],
+        public readonly ?array $productionCost = null,
     ) {
     }
 

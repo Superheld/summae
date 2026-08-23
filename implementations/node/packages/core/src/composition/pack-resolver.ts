@@ -18,7 +18,7 @@ import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -66,6 +66,7 @@ export interface ResolvedPack {
   mappings: Record<string, unknown>[];
   assetAccounts: Record<string, unknown> | null;
   depreciation: Record<string, unknown> | null;
+  productionCost: Record<string, unknown> | null;
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
 }
@@ -154,6 +155,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   const mappingIds = new Set<string>();
   let assetAccounts: Record<string, unknown> | null = null;
   let depreciation: Record<string, unknown> | null = null;
+  let productionCost: Record<string, unknown> | null = null;
   let packPolicyModule: Record<string, unknown> | null = null;
 
   for (const m of sorted) {
@@ -191,6 +193,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       }
       case 'assetAccounts':
         assetAccounts = m.data;
+        break;
+      case 'productionCost':
+        productionCost = m.data;
         break;
       case 'depreciation':
         depreciation = m.data;
@@ -277,6 +282,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     mappings,
     assetAccounts,
     depreciation,
+    productionCost,
     packPolicy: effectivePolicy,
     profile,
   };
@@ -300,6 +306,9 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     mappings: pack.mappings,
     assetAccounts,
     ...depreciation,
+    // Not spread like depreciation: the CostingService reads it under its own key, because
+    // "treatments" is a word another module could plausibly want too.
+    productionCost: isRecord(pack.productionCost) ? pack.productionCost : null,
     packPolicy: pack.packPolicy,
   };
 }

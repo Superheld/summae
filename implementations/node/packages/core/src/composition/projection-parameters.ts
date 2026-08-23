@@ -101,6 +101,9 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   overheadRates: {
     runId: { type: 'string', required: true },
   },
+  productionCost: {
+    runId: { type: 'string', required: true },
+  },
 };
 
 /**

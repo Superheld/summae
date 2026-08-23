@@ -147,6 +147,7 @@ export class Tenant {
       clock,
       ids,
       taxCodes,
+      tenantId,
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);

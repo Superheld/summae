@@ -4,18 +4,63 @@
   "name": "United States — complete pack (own chart + sales/use tax + US-GAAP mappings + cash-basis Schedule C + MACRS)",
   "version": "2026.2",
   "modules": [
-    { "kind": "accounts", "id": "us-accounts-2026", "version": "2026.1" },
-    { "kind": "tax", "id": "us-salestax-2026", "version": "2026.2" },
-    { "kind": "mapping", "id": "us-gaap-balance-sheet", "version": "2026.1" },
-    { "kind": "mapping", "id": "us-gaap-income-statement", "version": "2026.1" },
-    { "kind": "mapping", "id": "us-schedule-c-2026", "version": "2026.2" },
-    { "kind": "depreciation", "id": "macrs-us", "version": "2026.2" },
-    { "kind": "assetAccounts", "id": "us-asset-accounts", "version": "2026.1" },
-    { "kind": "policy", "id": "us-usd", "version": "2026.1" }
+    {
+      "kind": "accounts",
+      "id": "us-accounts-2026",
+      "version": "2026.1"
+    },
+    {
+      "kind": "tax",
+      "id": "us-salestax-2026",
+      "version": "2026.2"
+    },
+    {
+      "kind": "mapping",
+      "id": "us-gaap-balance-sheet",
+      "version": "2026.1"
+    },
+    {
+      "kind": "mapping",
+      "id": "us-gaap-income-statement",
+      "version": "2026.1"
+    },
+    {
+      "kind": "mapping",
+      "id": "us-schedule-c-2026",
+      "version": "2026.2"
+    },
+    {
+      "kind": "depreciation",
+      "id": "macrs-us",
+      "version": "2026.2"
+    },
+    {
+      "kind": "assetAccounts",
+      "id": "us-asset-accounts",
+      "version": "2026.1"
+    },
+    {
+      "kind": "policy",
+      "id": "us-usd",
+      "version": "2026.1"
+    },
+    {
+      "kind": "productionCost",
+      "id": "us-inventory-costing",
+      "version": "2026.1"
+    }
   ],
   "overrides": [],
-  "taxCodes": ["SALETAX", "USETAX", "EXEMPT"],
-  "defaults": { "taxationMethod": "accrual", "smallBusiness": false, "vatPeriod": "quarterly" },
+  "taxCodes": [
+    "SALETAX",
+    "USETAX",
+    "EXEMPT"
+  ],
+  "defaults": {
+    "taxationMethod": "accrual",
+    "smallBusiness": false,
+    "vatPeriod": "quarterly"
+  },
   "packPolicy": {
     "roundingMode": "halfUpAwayFromZero",
     "taxRoundingGranularity": "perVoucher",

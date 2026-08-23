@@ -122,6 +122,7 @@ final readonly class Tenant
             $clock,
             $ids,
             $taxCodes,
+            $tenantId,
         );
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);

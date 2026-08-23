@@ -1,5 +1,5 @@
 import { DomainError } from '../../../domain-error.js';
-import type { OverheadRate, RateWarning } from './costing-service.js';
+import type { OverheadRate, ProductionCostResult, RateWarning } from './costing-service.js';
 import type { Money } from '../../../substrate/money.js';
 import type { PeriodRef } from '../../../substrate/period-ref.js';
 import type { Uuid } from '../../../substrate/uuid.js';
@@ -26,6 +26,7 @@ export class CostingRun {
     // a released run that answers differently tomorrow is not released.
     readonly rates: OverheadRate[] = [],
     readonly rateWarnings: RateWarning[] = [],
+    readonly productionCost: ProductionCostResult | null = null,
   ) {}
 
   status(): string {

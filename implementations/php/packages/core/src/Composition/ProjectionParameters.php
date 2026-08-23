@@ -105,6 +105,9 @@ final class ProjectionParameters
         'overheadRates' => [
             'runId' => ['type' => 'string', 'required' => true],
         ],
+        'productionCost' => [
+            'runId' => ['type' => 'string', 'required' => true],
+        ],
     ];
 
     /**

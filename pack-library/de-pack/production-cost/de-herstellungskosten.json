@@ -1,0 +1,28 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-herstellungskosten",
+  "kind": "productionCost",
+  "version": "2026.1",
+  "name": "Herstellungskosten Deutschland (§ 255 Abs. 2 und Abs. 3 HGB — Pflichtbestandteile, Wahlrechte, Einbeziehungsverbote)",
+  "contributes": [
+    "productionCost"
+  ],
+  "dependsOn": [],
+  "data": {
+    "treatments": [
+      { "component": "materialDirect", "treatment": "mandatory", "note": "Materialkosten, § 255 Abs. 2 Satz 2 HGB" },
+      { "component": "productionDirect", "treatment": "mandatory", "note": "Fertigungskosten, § 255 Abs. 2 Satz 2 HGB" },
+      { "component": "specialProduction", "treatment": "mandatory", "note": "Sonderkosten der Fertigung, § 255 Abs. 2 Satz 2 HGB" },
+      { "component": "materialOverhead", "treatment": "mandatory", "note": "angemessene Teile der Materialgemeinkosten, § 255 Abs. 2 Satz 3 HGB" },
+      { "component": "productionOverhead", "treatment": "mandatory", "note": "angemessene Teile der Fertigungsgemeinkosten, § 255 Abs. 2 Satz 3 HGB" },
+      { "component": "productionDepreciation", "treatment": "mandatory", "note": "fertigungsbedingter Werteverzehr des Anlagevermögens, § 255 Abs. 2 Satz 3 HGB" },
+      { "component": "administration", "treatment": "optional", "note": "angemessene Teile der Kosten der allgemeinen Verwaltung, § 255 Abs. 2 Satz 4 HGB — Wahlrecht; steuerlich seit 2016 ebenfalls Wahlrecht (§ 6 Abs. 1 Nr. 1b EStG), aber übereinstimmend mit der Handelsbilanz auszuüben" },
+      { "component": "socialBenefits", "treatment": "optional", "note": "Aufwendungen für soziale Einrichtungen des Betriebs und für freiwillige soziale Leistungen, § 255 Abs. 2 Satz 4 HGB" },
+      { "component": "pensionContributions", "treatment": "optional", "note": "Aufwendungen für betriebliche Altersversorgung, § 255 Abs. 2 Satz 4 HGB" },
+      { "component": "borrowingCosts", "treatment": "optional", "note": "Fremdkapitalzinsen für die Finanzierung der Herstellung, soweit auf den Herstellungszeitraum entfallend, § 255 Abs. 3 Satz 2 HGB" },
+      { "component": "idleCapacity", "treatment": "forbidden", "note": "Leerkosten — § 255 Abs. 2 Satz 3 HGB lässt nur ANGEMESSENE Teile der Gemeinkosten zu; der auf Unterbeschäftigung entfallende Teil ist es nicht" },
+      { "component": "research", "treatment": "forbidden", "note": "Forschungskosten, § 255 Abs. 2 Satz 4 HGB (Einbeziehungsverbot); Entwicklungskosten sind davon zu trennen, § 255 Abs. 2a HGB" },
+      { "component": "distribution", "treatment": "forbidden", "note": "Vertriebskosten, § 255 Abs. 2 Satz 4 HGB (Einbeziehungsverbot)" }
+    ]
+  }
+}

@@ -45,6 +45,26 @@ export interface RateWarning {
   reason: string;
 }
 
+interface ComponentDefinition {
+  id: string;
+  treatment: string;
+  included: boolean;
+  accounts: string[];
+  costCenters: string[];
+}
+
+export interface ProductionCostComponent {
+  id: string;
+  amount: string;
+  treatment: string;
+  included: boolean;
+}
+
+export interface ProductionCostResult {
+  total: string;
+  components: ProductionCostComponent[];
+}
+
 /** A percentage with four decimals, commercial half-up (away from zero), like everything else here. */
 function formatRate(value: Rational): string {
   const scaled = value.multiply(Rational.of(10n ** 4n));
@@ -79,6 +99,18 @@ export class CostingService {
   private method = 'step_ladder';
 
   /**
+   * The pack's answer to "what may enter production cost". Data, never code — which components a
+   * jurisdiction requires, permits or forbids is the part that differs, and the summation is not.
+   */
+  private ruleModule: Record<string, unknown> = {};
+
+  /**
+   * Production-cost component definitions and the tenant's election among the optional ones, frozen
+   * into each run for the same reason the rates are.
+   */
+  private productionCostConfig: ComponentDefinition[] | null = null;
+
+  /**
    * Overhead rate definitions, part of the same tenant-level configuration as the scheme.
    *
    * They sit on `setAllocationScheme` rather than on an operation of their own because a rate is
@@ -99,6 +131,11 @@ export class CostingService {
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
   ) {}
+
+  /** The resolved pack bundle (`productionCost` is read here). */
+  setRuleModule(ruleModule: Record<string, unknown>): void {
+    this.ruleModule = ruleModule;
+  }
 
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
     const previousStepCount = this.schemeSteps.length;
@@ -149,10 +186,16 @@ export class CostingService {
       });
     }
 
+    let productionCost: ComponentDefinition[] | null = null;
+    if (isRecord(input.productionCost)) {
+      productionCost = this.resolveProductionCost(input.productionCost);
+    }
+
     if (method === 'step_ladder') this.assertAcyclic(edges);
     this.schemeSteps = steps;
     this.method = method;
     this.rateDefinitions = rates;
+    this.productionCostConfig = productionCost;
 
     if (this.audit !== null && this.tenantId !== null) {
       this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
@@ -162,7 +205,13 @@ export class CostingService {
       });
     }
 
-    return { valid: true, method, stepCount: steps.length, rateCount: rates.length };
+    return {
+      valid: true,
+      method,
+      stepCount: steps.length,
+      rateCount: rates.length,
+      productionCostComponents: productionCost === null ? 0 : productionCost.length,
+    };
   }
 
   run(input: Record<string, unknown>): CostingRun {
@@ -206,6 +255,7 @@ export class CostingService {
     for (const total of after.values()) grandTotal = grandTotal.add(total);
 
     const computed = this.computeRates(after, accountTotals);
+    const productionCost = this.computeProductionCost(after, accountTotals);
 
     const key = `${fiscalYear}-${period}`;
     const version = (this.versions.get(key) ?? 0) + 1;
@@ -221,6 +271,7 @@ export class CostingService {
       this.method,
       computed.rates,
       computed.warnings,
+      productionCost,
     );
     this.runs.set(run.id.value, run);
     if (this.audit !== null) {
@@ -306,6 +357,181 @@ export class CostingService {
       rates: run.rates,
       warnings: run.rateWarnings,
     };
+  }
+
+  /**
+   * Production cost of a run, component by component (F-KLR-004's balance-sheet neighbour).
+   *
+   * Every configured component appears, whether it was counted or not, with the pack's treatment next
+   * to it — `mandatory`, `optional` or `forbidden` — and whether it went in. A valuation that shows
+   * only its own total is unauditable; this one shows what it left out and on whose authority.
+   */
+  productionCost(params: Record<string, unknown>): Record<string, unknown> {
+    const run = this.requireRun(params.runId);
+
+    if (run.productionCost === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `run ${run.id.value} has no production-cost components — declare them in setAllocationScheme before the run`,
+        { runId: run.id.value },
+      );
+    }
+
+    return {
+      runId: run.id.value,
+      status: run.status(),
+      version: run.version,
+      total: run.productionCost.total,
+      components: run.productionCost.components,
+    };
+  }
+
+  /**
+   * Production cost of the period — the figure inventory is carried at.
+   *
+   * This is the one piece of cost accounting with balance-sheet effect, so what may be counted into it
+   * is law rather than preference. The split falls exactly along the socket/plug line the rest of the
+   * core uses — **this method sums, the pack says what may enter.** One jurisdiction requires material
+   * and production cost with their overhead and the production-related depreciation, leaves general
+   * administration to the preparer, and forbids research and distribution; another treats general
+   * administration as a period charge and so reaches a different inventory value from identical books.
+   * None of that is written here, and none of it should be: which of the three treatments a component
+   * gets is a row in the pack, not a branch in this method.
+   *
+   * Three rules, and each refuses rather than guesses:
+   *
+   * - a component the pack does not declare is `E_PACK_INCOHERENT` — an unknown component silently
+   *   counted or silently dropped would move the balance sheet either way;
+   * - electing a component the pack forbids is `E_INPUT_INVALID`, not a quiet exclusion, because the
+   *   caller has said something about their books that is not allowed;
+   * - asking for the figure without configuring the components is `E_INPUT_INVALID` rather than 0.00,
+   *   since a valuation nobody set up is not a valuation of zero.
+   *
+   * What this deliberately does NOT do is divide by a quantity. Production cost per unit needs produced
+   * quantities, and the core carries no quantities at all — goods movements and production orders are
+   * the embedding application's data. summae answers what the components add up to and why; the
+   * division is arithmetic on top of that.
+   */
+  private computeProductionCost(
+    after: Map<string, Money>,
+    accountTotals: Map<string, Money>,
+  ): ProductionCostResult | null {
+    if (this.productionCostConfig === null) return null;
+
+    const zero = Money.zero(this.baseCurrency);
+    let total = zero;
+    const components: ProductionCostComponent[] = [];
+
+    for (const component of this.productionCostConfig) {
+      let amount = zero;
+
+      for (const number of component.accounts) {
+        if (this.accounts.byNumber(AccountNumber.of(number)) === null) {
+          throw new DomainError(
+            'E_ACCOUNT_UNKNOWN',
+            `production-cost component "${component.id}" names account ${number}, which does not exist`,
+            { account: number },
+          );
+        }
+        amount = amount.add(accountTotals.get(number) ?? zero);
+      }
+
+      for (const code of component.costCenters) amount = amount.add(after.get(code) ?? zero);
+
+      if (component.included) total = total.add(amount);
+
+      // Excluded components stay in the answer with their amount and the reason. A valuation that
+      // shows only what it counted cannot be checked against the law it claims to follow.
+      components.push({
+        id: component.id,
+        amount: amount.amountAsString(),
+        treatment: component.treatment,
+        included: component.included,
+      });
+    }
+
+    return { total: total.amountAsString(), components };
+  }
+
+  /**
+   * Applies the pack's treatment table to a production-cost configuration — at the moment the
+   * configuration is set, not at the moment the run happens, so a caller learns about a refusal where
+   * they can still do something about it.
+   */
+  private resolveProductionCost(raw: Record<string, unknown>): ComponentDefinition[] {
+    const treatments = this.treatmentTable();
+    const elected = stringList(raw.include);
+
+    for (const componentId of elected) {
+      const treatment = treatments.get(componentId);
+
+      if (treatment === undefined) {
+        throw new DomainError(
+          'E_PACK_INCOHERENT',
+          `production-cost component "${componentId}" was elected, but the pack declares no treatment for it`,
+          { component: componentId },
+        );
+      }
+
+      if (treatment === 'forbidden') {
+        throw new DomainError(
+          'E_INPUT_INVALID',
+          `production-cost component "${componentId}" may not be capitalised under this pack`,
+          { component: componentId },
+        );
+      }
+    }
+
+    const components: ComponentDefinition[] = [];
+    for (const rawComponent of Array.isArray(raw.components) ? raw.components : []) {
+      if (!isRecord(rawComponent) || typeof rawComponent.id !== 'string') {
+        throw new DomainError('E_INPUT_INVALID', 'setAllocationScheme: a production-cost component requires "id"', {
+          field: 'productionCost.components',
+        });
+      }
+
+      const treatment = treatments.get(rawComponent.id);
+
+      if (treatment === undefined) {
+        throw new DomainError(
+          'E_PACK_INCOHERENT',
+          `production-cost component "${rawComponent.id}" is not declared by the pack`,
+          { component: rawComponent.id },
+        );
+      }
+
+      const base = isRecord(rawComponent.base) ? rawComponent.base : {};
+      components.push({
+        id: rawComponent.id,
+        treatment,
+        included: treatment === 'mandatory' || (treatment === 'optional' && elected.includes(rawComponent.id)),
+        accounts: stringList(base.accounts),
+        costCenters: stringList(base.costCenters),
+      });
+    }
+
+    return components;
+  }
+
+  /** component id -> mandatory | optional | forbidden */
+  private treatmentTable(): Map<string, string> {
+    const module = isRecord(this.ruleModule.productionCost) ? this.ruleModule.productionCost : null;
+
+    if (module === null) {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'production cost was asked for, but the pack declares no production-cost treatments',
+        { field: 'productionCost' },
+      );
+    }
+
+    const table = new Map<string, string>();
+    for (const row of Array.isArray(module.treatments) ? module.treatments : []) {
+      if (!isRecord(row) || typeof row.component !== 'string' || typeof row.treatment !== 'string') continue;
+      table.set(row.component, row.treatment);
+    }
+
+    return table;
   }
 
   private computeRates(

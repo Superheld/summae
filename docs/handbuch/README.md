@@ -770,6 +770,25 @@ asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
 `active`/`locked`). Output: serialized account. Errors:
 `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
 
+#### defineDimensionType / defineDimensionValue
+
+Dimension master data — the axes a posting line may carry (`costCenter`, `project`,
+`segment`) and the values on them. `defineDimensionType`: `code` (yes). Output:
+`{ "code" }`. `defineDimensionValue`: `type` (yes, must already exist), `code` (yes).
+Output: `{ "type", "code" }`. Errors: `E_DIMENSION_INVALID` — unknown type, empty
+code, or a type/value already defined.
+
+```json
+{ "code": "costCenter" }
+{ "type": "costCenter", "code": "MAT" }
+```
+
+These are the **tenant's** master data, not the pack's: "Materialstelle" is a fact
+about one company, not about a jurisdiction. That is why no shipped pack carries
+them and why a tenant created from a pack starts with no dimensions at all — until
+you declare them here, a line carrying `costCenter` is rejected, and with it every
+cost-accounting operation.
+
 #### importChartOfAccounts
 
 Atomic chart-of-accounts import: validate everything first, then create. `rows`
@@ -1184,6 +1203,52 @@ though it meant something. The centre is then named in `warnings`.
 
 Rates are computed during `runCosting` and frozen into the run, so changing the scheme
 afterwards does not change what a released run says.
+
+### productionCost — production cost (inventory valuation)
+
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). Output: `runId`, `status`,
+`version`, `total` and `components[]` (each `{id, amount, treatment, included}`).
+
+The one cost-accounting figure that reaches the balance sheet: inventory is carried at
+production cost, so which components may be counted into it is law rather than
+preference. summae splits that the way it splits everything else — **the core adds the
+components up, the pack says which ones may enter.** Each component the pack knows
+carries one of three treatments:
+
+| treatment | meaning |
+|---|---|
+| `mandatory` | must be capitalised — always counted |
+| `optional` | the preparer's choice — counted only if named in `include` |
+| `forbidden` | must not be capitalised — never counted, and electing it is refused |
+
+Components are declared in `setAllocationScheme`, with the same base primitive the
+overhead rates use:
+
+```json
+{ "productionCost": {
+    "include": ["administration"],
+    "components": [
+      { "id": "materialDirect",         "base": { "accounts": ["4000"] } },
+      { "id": "productionOverhead",     "base": { "costCenters": ["FERT"] } },
+      { "id": "administration",         "base": { "costCenters": ["VW"] } }
+    ] } }
+```
+
+Three refusals, each replacing a silent answer: a component the pack does not declare
+is `E_PACK_INCOHERENT` (counting or dropping it unnoticed would move the balance sheet
+either way); electing a `forbidden` one is `E_INPUT_INVALID` rather than a quiet
+exclusion; and asking for the figure without configuring components is refused rather
+than answered `0.00`. The projection returns **every** configured component, including
+the excluded ones, with its treatment — a valuation that shows only its own total
+cannot be checked against the rule it claims to follow.
+
+The same books therefore value differently under different packs: the `de` and `us`
+packs agree on full absorption of production cost and disagree about general
+administration, and that single row of pack data is the whole difference.
+
+What this does **not** do is divide by a quantity. Per-unit production cost needs
+produced quantities, and summae carries none — goods movements and production orders
+are your application's data. summae answers what the components add up to and why.
 
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 

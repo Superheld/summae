@@ -118,6 +118,8 @@ final readonly class TenantFactory
 
         // Asset/depreciation rules from the pack (assetAccounts, depreciation) — parity with the inline path.
         $tenant->assetService->setRuleModule($this->ruleModules);
+        // And the same for costing: the pack decides which components may enter production cost.
+        $tenant->costing->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,
