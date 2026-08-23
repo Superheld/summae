@@ -83,6 +83,18 @@ versioning per SemVer (0.x: minor may break).
   without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
   needs produced quantities, and the core carries none.
 
+- **The `de` pack can record an intra-community acquisition (`IGE19`, `IGE7`).** It shipped `igL` for
+  the selling side and nothing for the buying side — the more common case for most businesses — so a
+  German company buying goods from another member state could not record the transaction at all.
+
+  The engine never needed anything: an acquisition is structurally § 13b, tax and input tax arising
+  together and cancelling, and `reverse_charge` has expressed that since 0.5.0. What held it up was a
+  misreading recorded in the backlog — that the acquisition has no separate figure for the *tax* (Kz
+  89 carries the base and ELSTER computes 19 % of it) while the model appeared to require one. It does
+  not, and the pack already proved it: Kz 81 for ordinary sales is likewise a base-only figure used as
+  `reportingKey`. Kz 89 for 19 %, Kz 93 for 7 %, input tax on Kz 61, and the return comes out
+  payload-neutral, which is what an acquisition with full deduction is.
+
 - **`reportAssetUsage` — depreciation by output (`units_of_production`).** An asset that wears by use
   rather than by time — a lorry, a press, a copier — may in some jurisdictions be written off along
   its actual output, and that changes what a plan can be: the number comes from goods movements and

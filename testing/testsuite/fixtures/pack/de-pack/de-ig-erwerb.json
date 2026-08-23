@@ -1,0 +1,197 @@
+{
+  "fixture": "de-ig-erwerb",
+  "description": "DE-Pack: the intra-community ACQUISITION (taxCode IGE19) — the counterpart to the intra-community supply, and the one a buyer needs. The pack shipped `igL` for the selling side and nothing for the buying side, which is the more common case for most businesses; a German company buying goods from another member state could not record the transaction at all. Structurally it is the same mechanism as § 13b — the tax and the input tax arise at the same moment and cancel each other, so the payment is the net amount — and the engine has had that mechanism since 0.5.0. What was missing was two rows of pack data, and what held them up was a misreading: the acquisition has no separate figure for the TAX (Kz 89 carries only the base and ELSTER computes 19 % of it), and the model appeared to require one. It does not, and the pack already proves it — Kz 81 for ordinary sales is likewise a base-only figure used as `reportingKey`, with the bucket holding base and tax together and the exporter taking only what its form asks for. So IGE19 reports under Kz 89 with input tax under Kz 61, and the return comes out payload-neutral, which is exactly what an acquisition with full deduction is.",
+  "covers": [
+    "F-TAX-006",
+    "SF-04"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Einkauf GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-02",
+        "taxCode": "IGE19",
+        "direction": "input",
+        "netLines": [
+          {
+            "account": "5000",
+            "money": {
+              "amount": "10000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Steuer und Vorsteuer entstehen gleichzeitig — zu zahlen ist der Nettobetrag",
+          "taxLines": [
+            {
+              "account": "3100",
+              "side": "credit",
+              "money": {
+                "amount": "1900.00",
+                "currency": "EUR"
+              },
+              "taxTag": {
+                "code": "IGE19",
+                "reportingKey": "89"
+              }
+            },
+            {
+              "account": "1500",
+              "side": "debit",
+              "money": {
+                "amount": "1900.00",
+                "currency": "EUR"
+              },
+              "taxTag": {
+                "code": "IGE19",
+                "reportingKey": "61"
+              }
+            }
+          ],
+          "grossTotal": {
+            "amount": "10000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-05-02",
+        "taxCode": "IGE7",
+        "direction": "input",
+        "netLines": [
+          {
+            "account": "5000",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "comment": "Der ermäßigte Satz hat eine eigene Kennzahl — Kz 93, Zeile 35",
+          "taxLines": [
+            {
+              "account": "3110",
+              "side": "credit",
+              "money": {
+                "amount": "70.00",
+                "currency": "EUR"
+              },
+              "taxTag": {
+                "code": "IGE7",
+                "reportingKey": "93"
+              }
+            },
+            {
+              "account": "1510",
+              "side": "debit",
+              "money": {
+                "amount": "70.00",
+                "currency": "EUR"
+              },
+              "taxTag": {
+                "code": "IGE7",
+                "reportingKey": "61"
+              }
+            }
+          ],
+          "grossTotal": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-05-02",
+        "text": "Wareneinkauf aus Frankreich",
+        "taxCode": "IGE19",
+        "direction": "input",
+        "netLines": [
+          {
+            "account": "5000",
+            "money": {
+              "amount": "10000.00",
+              "currency": "EUR"
+            }
+          }
+        ],
+        "counterAccount": "3300",
+        "voucher": {
+          "voucherNumber": "ER-EU-1",
+          "voucherDate": "2026-05-02",
+          "kind": "invoice_in"
+        }
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          },
+          "grossTotal": {
+            "amount": "10000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": {
+        "tenant": "$T1",
+        "year": 2026,
+        "quarter": 2
+      },
+      "expect": {
+        "comment": "Kz 89 trägt Bemessungsgrundlage und Steuer, Kz 61 die Vorsteuer — Zahllast 0,00. Dass auch Kz 61 eine Bemessungsgrundlage ausweist, ist dieselbe Eigenschaft wie bei Kz 67 unter §13b: die Kennzahl hat im Formular kein Grundlagenfeld, ein Exporter liest nur, wonach sein Formular fragt",
+        "keys": {
+          "89": {
+            "base": "10000.00",
+            "tax": "1900.00"
+          },
+          "61": {
+            "base": "10000.00",
+            "tax": "1900.00"
+          }
+        },
+        "payload": {
+          "amount": "0.00",
+          "currency": "EUR"
+        }
+      }
+    }
+  ]
+}
