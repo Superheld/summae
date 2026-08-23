@@ -196,6 +196,12 @@
         "type": "integer",
         "$comment": "Must agree with the run named by runId — see fiscalYear."
       }
+    },
+    "overheadRates": {
+      "runId": {
+        "type": "string",
+        "required": true
+      }
     }
   }
 }

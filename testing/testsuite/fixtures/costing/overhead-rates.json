@@ -1,0 +1,95 @@
+{
+  "fixture": "overhead-rates",
+  "description": "Overhead rates as a projection of a costing run — the second half of F-KLR-004, which asks for the allocation sheet AND the calculation rates and only ever had the sheet. A rate answers what the sheet cannot: the sheet says what a cost centre ended up carrying, a rate says how that attaches to a product. Numerator is the centre after allocation; the denominator is declared in the scheme as direct-cost ACCOUNTS, other cost CENTRES, or both — and that one primitive covers the classic four without a special case. Material and production overhead sit over their own direct costs (5,000.00 / 50,000.00 = 10 %, 21,000.00 / 30,000.00 = 70 %); administration and sales sit over cost of production, which is simply \"the two direct-cost accounts plus the two centres\" = 106,000.00, giving 11.3208 % and 5.6604 %. Direct costs are deliberately read per ACCOUNT and not through the costCenter dimension, because that is what they are: costs belonging to the product, not to a department. Four decimals, commercial half-up. The fifth centre is the case worth pinning: development carries 900.00 of overhead but its base account saw no posting this period. A rate over an empty base is not zero and not infinite, it is undefined — and returning 0.0000 would let it be applied to products as though it meant something. So the rate is null and the centre is named in `warnings`, the same shape the cash-basis report uses for its mapping gaps.",
+  "covers": ["F-KLR-001", "F-KLR-004", "SF-12"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Fertigungsmaterial", "type": "expense" },
+      { "number": "4100", "name": "Fertigungslöhne", "type": "expense" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "4200", "name": "Entwicklungsmaterial", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "MAT", "name": "Materialstelle" },
+      { "typeCode": "costCenter", "code": "FERT", "name": "Fertigungsstelle" },
+      { "typeCode": "costCenter", "code": "VW", "name": "Verwaltung" },
+      { "typeCode": "costCenter", "code": "VT", "name": "Vertrieb" },
+      { "typeCode": "costCenter", "code": "ENT", "name": "Entwicklung" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Kosten Januar",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "50000.00", "currency": "EUR" } },
+          { "account": "4100", "side": "debit", "money": { "amount": "30000.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "MAT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "21000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "12000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "6000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "900.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "ENT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "124900.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [],
+        "rates": [
+          { "costCenter": "MAT", "label": "Materialgemeinkosten", "base": { "accounts": ["4000"] } },
+          { "costCenter": "FERT", "label": "Fertigungsgemeinkosten", "base": { "accounts": ["4100"] } },
+          { "costCenter": "VW", "label": "Verwaltungsgemeinkosten", "base": { "accounts": ["4000", "4100"], "costCenters": ["MAT", "FERT"] } },
+          { "costCenter": "VT", "label": "Vertriebsgemeinkosten", "base": { "accounts": ["4000", "4100"], "costCenters": ["MAT", "FERT"] } },
+          { "costCenter": "ENT", "label": "Entwicklungsgemeinkosten", "base": { "accounts": ["4200"] } }
+        ]
+      },
+      "expect": { "result": { "valid": true, "method": "step_ladder", "stepCount": 0, "rateCount": 5 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "overheadRates",
+      "params": { "runId": "$R1" },
+      "expect": {
+        "comment": "Herstellkosten 106.000,00 = 50.000 Material + 5.000 MGK + 30.000 Löhne + 21.000 FGK",
+        "status": "released",
+        "method": "step_ladder",
+        "rates": [
+          { "costCenter": "MAT", "label": "Materialgemeinkosten", "overhead": "5000.00", "base": "50000.00", "rate": "10.0000" },
+          { "costCenter": "FERT", "label": "Fertigungsgemeinkosten", "overhead": "21000.00", "base": "30000.00", "rate": "70.0000" },
+          { "costCenter": "VW", "label": "Verwaltungsgemeinkosten", "overhead": "12000.00", "base": "106000.00", "rate": "11.3208" },
+          { "costCenter": "VT", "label": "Vertriebsgemeinkosten", "overhead": "6000.00", "base": "106000.00", "rate": "5.6604" },
+          { "costCenter": "ENT", "label": "Entwicklungsgemeinkosten", "overhead": "900.00", "base": "0.00", "rate": null }
+        ],
+        "warnings": [
+          { "costCenter": "ENT", "reason": "the base is zero, so no rate can be computed" }
+        ]
+      }
+    }
+  ]
+}

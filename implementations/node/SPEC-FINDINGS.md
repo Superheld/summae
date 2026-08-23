@@ -620,3 +620,28 @@ claims? `importMapping` already computes `gapWarnings`, so the machinery exists 
 (b) Should `balanceSheet`'s result position use the income-statement mapping instead of all
 non-balance-carrying accounts, so the two cannot drift apart? (b) changes numbers and needs a
 fixture. Documented, not changed.
+
+## SPEC-011: F-KLR-001 says evaluations read released runs only — a fixture reads a draft
+
+**Found 2026-08-23, while building `overheadRates` (F-KLR-004).**
+
+F-KLR-001 reads: "Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released);
+**Auswertungen lesen nur released Läufe.**" Taken literally, `costAllocationSheet` and the new
+`overheadRates` should refuse a run that is still `draft`.
+
+The append-only fixture `core/parameter-effect` reads `costAllocationSheet` for a run it never
+releases, and expects numbers back. So the contract, as it has always been exercised, says draft
+runs *are* readable.
+
+**Not resolved by bending the fixture.** Editing it would rewrite what the contract always said and
+retroactively make every implementation that agreed with it wrong — the reason the suite is
+append-only in the first place. Nor by enforcing the rule on the new projection only: two costing
+projections with different rules about the same run is worse than one consistent rule.
+
+**Built with the next most plausible behaviour:** both projections read a run in any status and
+return `status` in the answer, so a caller can see which they got and decide. What is missing is the
+*decision*, not the code — either the requirement means "the embedding application must only publish
+released runs" (in which case it is an app obligation and F-KLR-001 should say so), or it means a
+hard refusal (in which case a new fixture has to establish it and `parameter-effect` stays as the
+record of what the contract used to allow). Left open deliberately; it is a question about intent,
+and guessing it would be the same mistake in the other direction.

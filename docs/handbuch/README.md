@@ -1152,6 +1152,39 @@ anything), `primary[]` and `afterAllocation[]` (each `{costCenter, total}`),
   "afterAllocation": [ { "costCenter": "VW", "total": "0.00" } ], "grandTotal": "4000.00" }
 ```
 
+### overheadRates — overhead rates (Zuschlagssätze)
+
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). Output: `runId`, `status`, `version`,
+`method`, `rates[]` (each `{costCenter, label, overhead, base, rate}`) and `warnings[]`.
+
+Where the allocation sheet says what a cost centre ended up carrying, a rate says how
+that attaches to a product. The numerator is the centre after allocation; the
+denominator is declared per rate in `setAllocationScheme`:
+
+```json
+{ "rates": [
+    { "costCenter": "MAT",  "label": "Materialgemeinkosten",    "base": { "accounts": ["4000"] } },
+    { "costCenter": "FERT", "label": "Fertigungsgemeinkosten",  "base": { "accounts": ["4100"] } },
+    { "costCenter": "VW",   "label": "Verwaltungsgemeinkosten", "base": { "accounts": ["4000", "4100"], "costCenters": ["MAT", "FERT"] } }
+  ] }
+```
+
+`accounts` are summed as posted in the period (debit minus credit), `costCenters` as
+those centres stand *after* allocation, and the two add up. That one primitive covers
+the classic set without a special case: material and production overhead over their own
+direct costs, administration and sales overhead over cost of production — which is
+exactly "the direct-cost accounts plus the two production centres". Direct costs are
+read per **account** rather than through the `costCenter` dimension on purpose: they
+belong to the product, not to a department, and are normally booked without a centre.
+
+`rate` is a percentage with four decimals, rounded commercially (half-up, away from
+zero). It is **`null`** when the base came out zero — a rate over an empty base is not
+zero and not infinite but undefined, and `0.0000` would be applied to products as
+though it meant something. The centre is then named in `warnings`.
+
+Rates are computed during `runCosting` and frozen into the run, so changing the scheme
+afterwards does not change what a released run says.
+
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
 `year` (yes), `quarter` (no), `month` (no, 1–12), `asOf` (no). Give **either**

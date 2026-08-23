@@ -132,6 +132,7 @@ final readonly class TenantOperations
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
+            'overheadRates' => $tenant->costing->overheadRates($params),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,
