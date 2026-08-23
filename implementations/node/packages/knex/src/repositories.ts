@@ -545,6 +545,8 @@ export class DatabaseAssetRepository implements AssetRepository {
       scheduleRevised: asset.scheduleWasRevised(),
       specialDepreciationBudget: asset.specialDepreciationBudget?.toJSON() ?? null,
       specialDepreciationWindowEnd: asset.specialDepreciationWindowEnd,
+      totalUnits: asset.totalUnits,
+      reportedUnits: asset.reportedUnits(),
     };
   }
 
@@ -603,6 +605,8 @@ export class DatabaseAssetRepository implements AssetRepository {
       data.scheduleRevised === true,
       H.isRecord(data.specialDepreciationBudget) ? H.money(data.specialDepreciationBudget) : null,
       typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
+      typeof data.totalUnits === 'number' ? data.totalUnits : null,
+      typeof data.reportedUnits === 'number' ? data.reportedUnits : 0,
     );
   }
 

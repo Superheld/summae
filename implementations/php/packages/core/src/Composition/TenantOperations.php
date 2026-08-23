@@ -83,6 +83,7 @@ final readonly class TenantOperations
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
+            'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
             'allocate' => $this->allocate($input),
             'setAllocationScheme' => $tenant->costing->setAllocationScheme($input),
             'runCosting' => [

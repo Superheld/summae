@@ -82,6 +82,7 @@ export class AssetService {
     const dimensions = AssetService.parseDimensions(input.dimensions);
 
     const special = input.specialDepreciation === true;
+    const totalUnits = AssetService.parseTotalUnits(input.totalUnits);
     const route = this.resolveRoute(choice, cost, acquiredOn);
     const explicitLife = AssetService.parseUsefulLifeMonths(input.usefulLifeMonths);
     const method = AssetService.parseMethod(input.depreciationMethod);
@@ -126,11 +127,16 @@ export class AssetService {
       // complete the table is — and without this parameter an asset class missing from the pack was
       // simply unusable.
       usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
-      schedule.push(
-        ...(method === 'declining_balance'
-          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn, assetClass)
-          : cost.allocateEvenly(usefulLifeMonths)),
-      );
+      // No schedule for output-based depreciation, on purpose. It cannot know at acquisition what any
+      // future period will take — the number comes from outside the books — so there is nothing to
+      // plan and the yearly run has nothing to do for this asset.
+      if (method !== 'units_of_production') {
+        schedule.push(
+          ...(method === 'declining_balance'
+            ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn, assetClass)
+            : cost.allocateEvenly(usefulLifeMonths)),
+        );
+      }
     } else if (route === 'pool') {
       // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
@@ -140,6 +146,22 @@ export class AssetService {
       for (const yearAmount of cost.allocateEvenly(poolYears)) {
         schedule.push(...yearAmount.allocateEvenly(12));
       }
+    }
+
+    if (method === 'units_of_production' && totalUnits === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "units_of_production" needs "totalUnits" — the expected output is what replaces the schedule',
+        { depreciationMethod: method },
+      );
+    }
+
+    if (totalUnits !== null && method !== 'units_of_production') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "totalUnits" applies to "units_of_production", and would have no effect otherwise',
+        { depreciationMethod: method },
+      );
     }
 
     const [specialBudget, specialWindowEnd] = special
@@ -162,6 +184,7 @@ export class AssetService {
       method,
       specialBudget,
       specialWindowEnd,
+      totalUnits,
     );
     this.assets.add(asset);
 
@@ -214,6 +237,124 @@ export class AssetService {
     });
 
     return asset.toJSON();
+  }
+
+  /**
+   * Reports what the asset has produced, and writes off what that use consumed.
+   *
+   * Where a jurisdiction allows it, an asset that wears by use rather than by time may be depreciated
+   * by output — kilometres, operating hours, copies. There is nothing to plan: the number comes from
+   * goods movements, meter readings, job cards, none of which are in the books. So the caller reports
+   * the meter and the core does the arithmetic.
+   *
+   * The arithmetic is cumulative on purpose. Each report splits the acquisition cost between what the
+   * asset has now given and what it has not, and books the difference against what is already written
+   * off. Computing each period on its own would let rounding drift, and the last report would leave a
+   * stray cent behind on an asset that is fully used up. This way the final report, the one that
+   * reaches the total output, lands on the cost exactly.
+   *
+   * More output than expected is not an error — a lorry can outlive its estimate — but there is no
+   * more cost to write off, so the booking is capped at the book value and the answer says so.
+   */
+  reportAssetUsage(input: Record<string, unknown>): Record<string, unknown> {
+    const asset = this.requireAsset(input.assetId);
+    asset.assertActive();
+
+    if (asset.totalUnits === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `asset ${asset.id.value} is not depreciated by output — "units_of_production" has to be chosen on acquisition`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const units = AssetService.parseTotalUnits(input.units);
+    if (units === null) {
+      throw new DomainError('E_INPUT_INVALID', 'reportAssetUsage: "units" is required', {
+        assetId: asset.id.value,
+      });
+    }
+
+    const fiscalYear = typeof input.fiscalYear === 'number' ? input.fiscalYear : 0;
+    const bookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+
+    if (bookValue.isZero()) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `asset ${asset.id.value} is already fully depreciated — further output has nothing left to write off`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const cumulative = asset.reportedUnits() + units;
+    const capped = cumulative > asset.totalUnits;
+    const effective = capped ? asset.totalUnits : cumulative;
+
+    const target =
+      effective === asset.totalUnits
+        ? asset.acquisitionCost
+        : asset.acquisitionCost.allocate(effective, asset.totalUnits - effective)[0]!;
+
+    const written = asset.accumulatedDepreciationAt(null);
+    const amount = target.subtract(written);
+
+    if (amount.isNegative() || amount.isZero()) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `reported output for asset ${asset.id.value} writes off nothing — ${asset.reportedUnits()} of ${asset.totalUnits} units are already accounted for`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const date = CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`);
+
+    const voucherId =
+      typeof input.voucherId === 'string' && input.voucherId !== ''
+        ? this.requireVoucherId(input.voucherId)
+        : this.usageVoucher(asset, fiscalYear);
+
+    const entry = this.postMachineEntry(
+      date,
+      voucherId,
+      `Output depreciation ${asset.name} ${fiscalYear} (${units} units)`,
+      this.withDimensions(asset, [
+        { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    const before = asset.reportedUnits();
+    asset.recordUsage(date, amount, entry, effective);
+    this.assets.save(asset);
+
+    this.trace(input, 'asset', asset.id, 'usageReported', {
+      reportedUnits: { from: String(before), to: String(effective) },
+      bookValue: {
+        from: bookValue.amountAsString(),
+        to: asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null)).amountAsString(),
+      },
+    });
+
+    return {
+      assetId: asset.id.value,
+      entryId: entry.value,
+      amount: amount.amountAsString(),
+      reportedUnits: effective,
+      totalUnits: asset.totalUnits,
+      capped,
+      bookValue: asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null)).amountAsString(),
+    };
+  }
+
+  private usageVoucher(asset: Asset, fiscalYear: number): Uuid {
+    const voucher = new Voucher({
+      id: this.ids.next(),
+      voucherNumber: `LAFA-${fiscalYear}-${asset.id.value.slice(-6)}`,
+      voucherDate: CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`),
+      kind: 'internal',
+    });
+    this.vouchers.add(voucher);
+    return voucher.id;
   }
 
   /**
@@ -864,13 +1005,35 @@ export class AssetService {
    * The depreciation method the caller asked for. Straight line when absent — the method every
    * jurisdiction allows and the only one this core knew until 2026-08-23.
    */
+  /**
+   * Expected total output. A whole number, at least one — JSON has no int/float split, so 100000.0 is
+   * the same value as 100000, but 100000.5 is a caller's mistake and not half a kilometre.
+   */
+  private static parseTotalUnits(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be a whole number', {
+        totalUnits: rejectedValue(value),
+      });
+    }
+
+    if (value < 1) {
+      throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be at least 1', {
+        totalUnits: value,
+      });
+    }
+
+    return value;
+  }
+
   private static parseMethod(value: unknown): string {
     if (value === null || value === undefined) return 'straight_line';
 
-    if (value !== 'straight_line' && value !== 'declining_balance') {
+    if (value !== 'straight_line' && value !== 'declining_balance' && value !== 'units_of_production') {
       throw new DomainError(
         'E_INPUT_INVALID',
-        'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+        'acquireAsset: "depreciationMethod" must be "straight_line", "declining_balance" or "units_of_production"',
         { depreciationMethod: rejectedValue(value) },
       );
     }

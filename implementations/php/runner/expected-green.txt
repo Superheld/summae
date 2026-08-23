@@ -60,6 +60,7 @@ declining-balance-depreciation
 declining-balance-asset-class
 asset-write-down
 special-depreciation
+units-of-production
 default-pack-resolves
 depreciation-deviating-fiscal-year
 depreciation-monthly-allocation

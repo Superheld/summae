@@ -92,6 +92,7 @@ final class AssetService
         $dimensions = self::parseDimensions($input['dimensions'] ?? null);
 
         $special = ($input['specialDepreciation'] ?? false) === true;
+        $totalUnits = self::parseTotalUnits($input['totalUnits'] ?? null);
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
         $explicitLife = self::parseUsefulLifeMonths($input['usefulLifeMonths'] ?? null);
         $method = self::parseMethod($input['depreciationMethod'] ?? null);
@@ -136,9 +137,17 @@ final class AssetService
             // however complete the table is — and without this parameter an asset class missing from
             // the pack was simply unusable.
             $usefulLifeMonths = $explicitLife ?? $this->usefulLifeMonths($assetClass);
-            $schedule = $method === 'declining_balance'
-                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn, $assetClass)
-                : $cost->allocateEvenly($usefulLifeMonths);
+
+            if ($method === 'units_of_production') {
+                // No schedule, on purpose. Output-based depreciation cannot know at acquisition what
+                // any future period will take — the number comes from outside the books — so there is
+                // nothing to plan and the yearly run has nothing to do for this asset.
+                $schedule = [];
+            } else {
+                $schedule = $method === 'declining_balance'
+                    ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn, $assetClass)
+                    : $cost->allocateEvenly($usefulLifeMonths);
+            }
         } elseif ($route === AssetRoute::Pool) {
             // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
@@ -153,6 +162,22 @@ final class AssetService
                     $schedule[] = $monthAmount;
                 }
             }
+        }
+
+        if ($method === 'units_of_production' && $totalUnits === null) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "units_of_production" needs "totalUnits" — the expected output is what replaces the schedule',
+                ['depreciationMethod' => $method],
+            );
+        }
+
+        if ($totalUnits !== null && $method !== 'units_of_production') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "totalUnits" applies to "units_of_production", and would have no effect otherwise',
+                ['depreciationMethod' => $method],
+            );
         }
 
         [$specialBudget, $specialWindowEnd] = $special
@@ -175,6 +200,7 @@ final class AssetService
             $method,
             $specialBudget,
             $specialWindowEnd,
+            $totalUnits,
         );
 
         $this->assets->add($asset);
@@ -254,6 +280,128 @@ final class AssetService
         ]);
 
         return $asset->jsonSerialize();
+    }
+
+    /**
+     * Reports what the asset has produced, and writes off what that use consumed.
+     *
+     * Where a jurisdiction allows it, an asset that wears by use rather than by time may be
+     * depreciated by output — kilometres, operating hours, copies. There is nothing to plan: the
+     * number comes from goods movements, meter readings, job cards, none of which are in the books.
+     * So the caller reports the meter and the core does the arithmetic.
+     *
+     * The arithmetic is cumulative on purpose. Each report splits the acquisition cost between what
+     * the asset has now given and what it has not, and books the difference against what is already
+     * written off. Computing each period on its own would let rounding drift, and the last report
+     * would leave a stray cent behind on an asset that is fully used up. This way the final report,
+     * the one that reaches the total output, lands on the cost exactly.
+     *
+     * More output than expected is not an error — a lorry can outlive its estimate — but there is no
+     * more cost to write off, so the booking is capped at the book value and the answer says so.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function reportAssetUsage(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        if ($asset->totalUnits === null) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s is not depreciated by output — "units_of_production" has to be chosen on acquisition',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $units = self::parseTotalUnits($input['units'] ?? null);
+        if ($units === null) {
+            throw new DomainError('E_INPUT_INVALID', 'reportAssetUsage: "units" is required', [
+                'assetId' => $asset->id->value,
+            ]);
+        }
+
+        $fiscalYear = is_int($input['fiscalYear'] ?? null) ? $input['fiscalYear'] : 0;
+        $bookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+
+        if ($bookValue->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s is already fully depreciated — further output has nothing left to write off',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $cumulative = $asset->reportedUnits() + $units;
+        $capped = $cumulative > $asset->totalUnits;
+        $effective = $capped ? $asset->totalUnits : $cumulative;
+
+        $target = $effective === $asset->totalUnits
+            ? $asset->acquisitionCost
+            : $asset->acquisitionCost->allocate($effective, $asset->totalUnits - $effective)[0];
+
+        $written = $asset->accumulatedDepreciationAt(null);
+        $amount = $target->subtract($written);
+
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'reported output for asset %s writes off nothing — %d of %d units are already accounted for',
+                $asset->id->value,
+                $asset->reportedUnits(),
+                $asset->totalUnits,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $date = CalendarDate::of(sprintf('%04d-12-31', $fiscalYear));
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->usageVoucher($asset, $fiscalYear);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Output depreciation %s %d (%d units)', $asset->name, $fiscalYear, $units),
+            $this->withDimensions($asset, [
+                ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $before = $asset->reportedUnits();
+        $asset->recordUsage($date, $amount, $entry, $effective);
+        $this->assets->save($asset);
+
+        $this->trace($input, 'asset', $asset->id, 'usageReported', [
+            'reportedUnits' => ['from' => (string) $before, 'to' => (string) $effective],
+            'bookValue' => [
+                'from' => $bookValue->amountAsString(),
+                'to' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+            ],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'reportedUnits' => $effective,
+            'totalUnits' => $asset->totalUnits,
+            'capped' => $capped,
+            'bookValue' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+        ];
+    }
+
+    private function usageVoucher(Asset $asset, int $fiscalYear): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('LAFA-%d-%s', $fiscalYear, substr($asset->id->value, -6)),
+            CalendarDate::of(sprintf('%04d-12-31', $fiscalYear)),
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
     }
 
     /**
@@ -1005,16 +1153,45 @@ final class AssetService
      * The depreciation method the caller asked for. Straight line when absent — the method every
      * jurisdiction allows and the only one this core knew until 2026-08-23.
      */
+    /**
+     * Expected total output. A whole number, at least one — JSON has no int/float split, so 100000.0
+     * is the same value as 100000, but 100000.5 is a caller's mistake and not half a kilometre.
+     */
+    private static function parseTotalUnits(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value)) {
+            $units = $value;
+        } elseif (is_float($value) && $value === floor($value)) {
+            $units = (int) $value;
+        } else {
+            throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be a whole number', [
+                'totalUnits' => DomainError::rejectedValue($value),
+            ]);
+        }
+
+        if ($units < 1) {
+            throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be at least 1', [
+                'totalUnits' => $units,
+            ]);
+        }
+
+        return $units;
+    }
+
     private static function parseMethod(mixed $value): string
     {
         if ($value === null) {
             return 'straight_line';
         }
 
-        if ($value !== 'straight_line' && $value !== 'declining_balance') {
+        if ($value !== 'straight_line' && $value !== 'declining_balance' && $value !== 'units_of_production') {
             throw new DomainError(
                 'E_INPUT_INVALID',
-                'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+                'acquireAsset: "depreciationMethod" must be "straight_line", "declining_balance" or "units_of_production"',
                 ['depreciationMethod' => DomainError::rejectedValue($value)],
             );
         }
