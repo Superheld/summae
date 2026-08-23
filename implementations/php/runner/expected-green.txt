@@ -34,6 +34,7 @@ de-degressive-afa
 de-eingangsrechnung
 de-euer
 de-euer-kleinunternehmer
+de-euer-mapping-gap
 de-ig-lieferung
 de-jahresgang
 de-kleinunternehmer
