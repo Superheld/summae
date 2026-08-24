@@ -105,9 +105,25 @@ function scenarios(): Scenario[] {
   return [...documentedScenarios(), ...scenariosIn(regressionDir)];
 }
 
+/**
+ * These tests do real file I/O, so they get a real timeout.
+ *
+ * Every step is its own CLI invocation against a fresh SQLite workspace in `tmpdir()` — which is
+ * the point of the scenarios and also what makes them the slowest thing in this suite. Locally the
+ * `de` scenario runs in ~80ms; on a shared CI runner one of them once took longer than vitest's
+ * 5-second default, on a commit that passed on the very same SHA in another run. Not a regression
+ * and not a hang: an I/O stall with no headroom in front of it.
+ *
+ * A gate that goes red at random is worse than a slow one — it teaches people to re-run instead of
+ * to look. So the budget here is large enough that exceeding it means something is genuinely stuck,
+ * and small enough to still fail rather than hang forever. It applies to these tests only; the unit
+ * suite keeps the default, where 5 seconds really would mean a bug.
+ */
+const SCENARIO_TIMEOUT_MS = 30_000;
+
 describe('CLI walkthrough scenarios (the documentation, gated)', () => {
   for (const scenario of scenarios()) {
-    test(`${scenario.id}: ${scenario.description}`, () => {
+    test(`${scenario.id}: ${scenario.description}`, { timeout: SCENARIO_TIMEOUT_MS }, () => {
       const dir = mkdtempSync(join(tmpdir(), `summae-walkthrough-${scenario.id}-`));
       const captured = new Map<string, unknown>();
 
