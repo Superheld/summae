@@ -1,0 +1,111 @@
+{
+  "fixture": "voucher-net-line-dimensions",
+  "description": "F-CORE-006 für den zweiten Weg ins Journal: postVoucher trug die Dimensionen seiner Netto-Zeilen nicht durch. Die Steuerexpansion baute jede Eingabezeile auf {account, money, code} zurück, und alles andere — `dimensions` vor allem — war weg, bevor die Zeile den Ledger erreichte. Die Buchung gelang, die Zahlen stimmten, der Eintrag landete mit `dimensions: []` im Journal, und die Kostenstelle war verschwunden; kein Fehler, keine Warnung. Betroffen war ausgerechnet der Normalfall: ein Betriebsaufwand MIT Vorsteuer ist genau die Art, wie eine Kostenstelle Kosten aufnimmt, und nur eine steuerfreie Buchung (Miete, Löhne, Bankgebühr) behielt ihre Zuordnung. Die Kostenrechnung funktionierte also — auf der Minderheit der Buchungen. Die Steuerzeile darf sie ausdrücklich NICHT bekommen: sie gehört auf das Steuerkonto, nicht in eine Abteilung, und diese Asymmetrie ist der eigentliche Inhalt dieser Fixture. Gemeldet von einer einbettenden Anwendung als deren F-23.",
+  "covers": ["F-CORE-006", "F-TAX-001"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" },
+      { "number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "6040", "name": "Energie und Wasser", "type": "expense" },
+      { "number": "6030", "name": "Raumkosten", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "dimensionTypes": [ { "code": "costCenter" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "FERTIGUNG" },
+      { "typeCode": "costCenter", "code": "VERWALTUNG" }
+    ],
+    "taxCodes": [
+      {
+        "code": "VSt19",
+        "versions": [ { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1576", "reportingKey": "66" } ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "comment": "Eine Eingangsrechnung über zwei Kostenstellen. Die beiden Netto-Zeilen behalten ihre Dimension, die Steuerzeile bekommt keine, das Gegenkonto (Verbindlichkeit) auch nicht.",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-2026-014", "voucherDate": "2026-04-03" },
+        "entryDate": "2026-04-03",
+        "text": "Stromrechnung April",
+        "taxCode": "VSt19",
+        "direction": "input",
+        "counterAccount": "1600",
+        "netLines": [
+          {
+            "account": "6040",
+            "money": { "amount": "600.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERTIGUNG" } ]
+          },
+          {
+            "account": "6030",
+            "money": { "amount": "400.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VERWALTUNG" } ]
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "grossTotal": { "amount": "1190.00", "currency": "EUR" },
+          "entry": {
+            "lines": [
+              { "account": "1600", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" }, "dimensions": [] },
+              { "account": "6040", "side": "debit", "money": { "amount": "600.00", "currency": "EUR" }, "dimensions": [ { "type": "costCenter", "code": "FERTIGUNG" } ] },
+              { "account": "6030", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" }, "dimensions": [ { "type": "costCenter", "code": "VERWALTUNG" } ] },
+              { "account": "1576", "side": "debit", "money": { "amount": "190.00", "currency": "EUR" }, "dimensions": [] }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "comment": "Eine Netto-Zeile ohne Dimension bleibt ohne — das Durchreichen erfindet nichts.",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-2026-015", "voucherDate": "2026-04-10" },
+        "entryDate": "2026-04-10",
+        "text": "Wartung, nicht zugeordnet",
+        "taxCode": "VSt19",
+        "direction": "input",
+        "counterAccount": "1600",
+        "netLines": [ { "account": "6040", "money": { "amount": "100.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "lines": [
+              { "account": "1600", "side": "credit", "money": { "amount": "119.00", "currency": "EUR" }, "dimensions": [] },
+              { "account": "6040", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" }, "dimensions": [] },
+              { "account": "1576", "side": "debit", "money": { "amount": "19.00", "currency": "EUR" }, "dimensions": [] }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "comment": "Ein unbekannter Dimensionswert wird weiterhin abgelehnt: die Zeile erreicht den Ledger jetzt vollständig, also greift auch seine Prüfung. Ohne das Durchreichen wäre diese Buchung stillschweigend durchgegangen — mit verlorener Kostenstelle.",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-2026-016", "voucherDate": "2026-04-11" },
+        "entryDate": "2026-04-11",
+        "text": "unbekannte Kostenstelle",
+        "taxCode": "VSt19",
+        "direction": "input",
+        "counterAccount": "1600",
+        "netLines": [
+          {
+            "account": "6040",
+            "money": { "amount": "50.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "LOGISTIK" } ]
+          }
+        ]
+      },
+      "expect": { "error": "E_DIMENSION_INVALID" }
+    }
+  ]
+}

@@ -725,12 +725,24 @@ and tax lines are produced automatically.
 | `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
-| `netLines` | array of `{account, money}` | no | net lines |
+| `netLines` | array of `{account, money, taxCode?, dimensions?}` | no | net lines; `dimensions` carries onto the resulting net line, not onto the tax line |
 | `counterAccount` | string | yes | gross contra-account (bank/receivable) |
 | `entryDate` | string | no | default = `voucher.voucherDate` |
 
 Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
+
+> **Dimensions belong to the net line, never to the tax line.** A net line's
+> `dimensions` (`[{ "type": "costCenter", "code": "FERTIGUNG" }]`) are carried through the tax
+> expansion onto the posting line for that account. The derived tax line and the gross
+> contra-account get none: input tax belongs to the tax account and a payable to the creditor —
+> neither belongs to a department, and splitting them across cost centres would invent an
+> allocation nobody asked for. The values are validated by the ledger as always, so an undeclared
+> cost centre is `E_DIMENSION_INVALID` here exactly as it is on `post`.
+>
+> This is what makes an operating expense with input tax usable in cost accounting — the ordinary
+> way a cost reaches a cost centre. Until 2026-08-24 the expansion dropped it: the posting
+> succeeded, the figures were right, and the entry reached the journal with `dimensions: []`.
 
 > **A tax code is required in practice.** `taxCode` is formally optional, but a
 > net line without one — and without a pack default — is rejected with
@@ -957,7 +969,7 @@ lines including tax lines, tax tags, and the gross total (the precursor to
 | `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
 | `direction` | string | no | `output` (default, credit) or `input` (debit) |
 | `taxCode` | string | no | default key for positions without their own |
-| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`) |
+| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions`) |
 
 Calculation: tax **per voucher and per rate** (net total per key, rounded
 half-up once — not per position); groups sorted by tax account (codepoints).

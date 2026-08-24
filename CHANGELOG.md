@@ -12,6 +12,27 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### `postVoucher` keeps the dimensions of its net lines (F-CORE-006)
+
+The tax expansion rebuilt every input line as account/money/code, so anything else on it —
+`dimensions` above all — was gone before the line reached the ledger. The posting succeeded, the
+figures were right, the entry reached the journal with `dimensions: []`, and the cost centre had
+disappeared with no error and no warning.
+
+The case it broke is the ordinary one: **an operating expense with input tax is exactly how a cost
+lands on a cost centre.** Only an untaxed posting — rent, wages, a bank charge — kept its
+attribution, so cost accounting worked on the minority of postings. Reported by an embedding
+application as its F-23.
+
+- A net line's `dimensions` are carried onto the resulting posting line. The **derived tax line and
+  the gross contra-account get none** — input tax belongs to the tax account and a payable to the
+  creditor, not to a department.
+- Passthrough, not interpretation: the ledger validates the values as it always has, so an
+  undeclared cost centre is still `E_DIMENSION_INVALID` — now that the line arrives whole.
+- Fixture `tax/voucher-net-line-dimensions` in both languages, covering all three: dimensions kept,
+  absent dimensions not invented, unknown value refused.
+
+
 ### Tenant configuration is persisted (SPEC-015) — **breaking for direct factory callers**
 
 Five operations changed configuration that no store kept: `setTaxProfile`,
