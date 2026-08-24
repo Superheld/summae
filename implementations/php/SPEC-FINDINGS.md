@@ -93,8 +93,8 @@ it came from an app embedding summae, which hit it building a fixed-asset screen
 as its own F-15. That is the return on dogfooding, and it is also a warning about where our own
 tests stop: every asset fixture until now either disposed before the yearly run or never combined
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
-other findings that arrived with it are tracked as requirements rather than findings; the
-classification is in `docs/SUMMAE-BRIEF.md`.
+other findings that arrived with it are tracked as requirements rather than findings, because they
+ask for a capability the library does not have yet rather than reporting one that misbehaves.
 
 ### IMPL-026 — a yearly run before a mid-year disposal left the asset account below zero — RESOLVED
 
