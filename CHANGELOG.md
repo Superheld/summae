@@ -12,6 +12,26 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+## 0.12.0 — 2026-08-25
+
+**The second package an embedding application wrote** — and the round where our own tests were
+found to have a blind spot they could not have covered. Eight of the nine entries on the app's
+list are closed; the ninth is answered in the manual rather than in code, because a tenant
+register is the embedding's and saying so is the deliverable.
+
+Two of the defects were ours to find and had shipped: `postVoucher` dropped the cost centre of
+every taxed line, and the CLI carried four configuration operations that reported success and
+changed nothing that outlived the process. Neither could fail a fixture — a fixture builds one
+tenant in one process, where an in-memory registry and a stored one are indistinguishable, and a
+posting that loses a dimension still balances. That is a category gap, not a coverage one, and
+closing it is why this release adds a scenario guard and two adapter suites rather than only
+fixtures.
+
+**Breaking:** `DatabaseTenantFactory.build` in Node takes `(db, clock, ids, options)`; `name` and
+`baseCurrency` moved into `options` and became optional. In PHP they became optional leading
+parameters, so existing calls keep working.
+
+
 ### The read side publishes what the write side owns
 
 Four gaps of one shape, closed in one pass: state the library held and did not report, so an
