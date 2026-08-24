@@ -1,0 +1,271 @@
+{
+  "fixture": "parameter-effect-current",
+  "description": "Two parameters that were accepted and read by nobody. journalExport took a `format` and ignored it: whatever you asked for, you got the GoBD-Z3 stream, so a caller who typed a format that does not exist was told nothing and shipped the wrong file to an auditor believing otherwise. costAllocationSheet took `fiscalYear` and `period` next to `runId` — the run already fixes both, so the two could contradict each other and the report simply answered for the run. Neither parameter selects anything today (there is exactly one journal format, and the run is the addressable thing), but a parameter that cannot be wrong cannot help either: both now have to agree with reality or they are a caller mistake. Absent keeps its default, as everywhere. | Successor to `parameter-effect`, and what moved is one number that was never this fixture's subject: the expectation carried `formatVersion: \"0.6\"`, so the DATA FORMAT could not be versioned without this going red. That is the same weld a shipped pack's version was retired for — the contract is that an export states the current format version, which `format-version.test.ts` and its PHP twin already pin against the schema's own `$id` in both languages; the value is the product's, and it moved to 0.7 when the partner record gained a status. The successor pins everything this fixture is actually about and leaves the number to the product.",
+  "covers": [
+    "F-IO-003"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "4120",
+        "name": "Gehälter",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "LOHN-2026-01",
+        "voucherDate": "2026-01-31"
+      }
+    ],
+    "dimensionTypes": [
+      {
+        "code": "costCenter",
+        "name": "Kostenstelle"
+      }
+    ],
+    "dimensionValues": [
+      {
+        "typeCode": "costCenter",
+        "code": "VW",
+        "name": "Verwaltung (Hilfsstelle)"
+      },
+      {
+        "typeCode": "costCenter",
+        "code": "FE",
+        "name": "Fertigung"
+      },
+      {
+        "typeCode": "costCenter",
+        "code": "VT",
+        "name": "Vertrieb"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31",
+        "voucherId": "$V1",
+        "text": "Gehälter Januar",
+        "lines": [
+          {
+            "account": "4120",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "VW"
+              }
+            ]
+          },
+          {
+            "account": "4120",
+            "side": "debit",
+            "money": {
+              "amount": "2000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "FE"
+              }
+            ]
+          },
+          {
+            "account": "4120",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "VT"
+              }
+            ]
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "4000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        }
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [
+          {
+            "sender": "VW",
+            "receivers": [
+              {
+                "code": "FE",
+                "share": "60"
+              },
+              {
+                "code": "VT",
+                "share": "40"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "valid": true
+        }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "result": {
+          "runId": "$R1",
+          "status": "draft",
+          "version": 1
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "costAllocationSheet",
+      "params": {
+        "runId": "$R1",
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "comment": "Positivfall: Angaben stimmen mit dem Lauf überein",
+        "runId": "$R1"
+      }
+    },
+    {
+      "name": "costAllocationSheet",
+      "params": {
+        "runId": "$R1"
+      },
+      "expect": {
+        "comment": "Positivfall: abwesend bleibt erlaubt, die runId genügt",
+        "runId": "$R1"
+      }
+    },
+    {
+      "name": "costAllocationSheet",
+      "params": {
+        "runId": "$R1",
+        "fiscalYear": 2026,
+        "period": 2
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": {
+          "period": "2"
+        },
+        "comment": "Der Lauf gehört zu Periode 1. Vorher kam der Bericht für Periode 1 zurück, überschrieben mit der Frage nach Periode 2 — eine Antwort auf eine andere Frage."
+      }
+    },
+    {
+      "name": "costAllocationSheet",
+      "params": {
+        "runId": "$R1",
+        "fiscalYear": 2025,
+        "period": 1
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": {
+          "fiscalYear": "2025"
+        },
+        "comment": "dasselbe für das Geschäftsjahr"
+      }
+    },
+    {
+      "name": "journalExport",
+      "params": {
+        "fiscalYear": 2026,
+        "format": "gobd-z3"
+      },
+      "expect": {
+        "comment": "Positivfall: das einzige Format, das es gibt (The manifest assertion is gone with the format version it consisted of — see the register.)"
+      }
+    },
+    {
+      "name": "journalExport",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "comment": "Positivfall: abwesend bedeutet weiterhin gobd-z3 (The manifest assertion is gone with the format version it consisted of — see the register.)"
+      }
+    },
+    {
+      "name": "journalExport",
+      "params": {
+        "fiscalYear": 2026,
+        "format": "csv"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": {
+          "format": "csv"
+        },
+        "comment": "Es gibt kein CSV-Format. Vorher bekam man kommentarlos den Z3-Strom und hätte ihn für ein CSV gehalten."
+      }
+    },
+    {
+      "name": "journalExport",
+      "params": {
+        "fiscalYear": 2026,
+        "format": "gobd_z3"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID",
+        "details": {
+          "format": "gobd_z3"
+        },
+        "comment": "der Beinahe-Treffer mit Unterstrich"
+      }
+    }
+  ]
+}

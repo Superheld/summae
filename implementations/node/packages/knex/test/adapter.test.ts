@@ -135,6 +135,79 @@ describe('adapter round-trip', () => {
   });
 });
 
+describe('costing runs survive the process', () => {
+  /**
+   * The finding this port exists for (F-KLR-001/004): a run created in one process used to be gone
+   * in the next, because the service kept it in a private Map. An application that builds a tenant
+   * per request could therefore release a run and never read it again — and `costAllocationSheet`
+   * needs the runId, so there was no way to have a valid one.
+   *
+   * The test is the shape of the defect: write with one tenant instance, read with a second one on
+   * the same database, and nothing in between may come from the object graph.
+   */
+  function seedCosting(tenant: Tenant): string {
+    const ops = new TenantOperations(tenant);
+    ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+    ops.execute('createAccount', { number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+    ops.execute('createAccount', { number: '6000', name: 'Aufwand', type: 'expense' });
+    ops.execute('defineDimensionType', { code: 'costCenter' });
+    ops.execute('defineDimensionValue', { type: 'costCenter', code: 'K100' });
+    ops.execute('setAllocationScheme', { method: 'step_ladder', steps: [] });
+    const voucher = ops.execute('createVoucher', {
+      voucher: { voucherNumber: 'ER-1', voucherDate: '2026-01-20' },
+    }) as Record<string, unknown>;
+    ops.execute('post', {
+      entryDate: '2026-01-20',
+      voucherId: String(voucher.id),
+      text: 'Kosten der Stelle K100',
+      lines: [
+        {
+          account: '6000',
+          side: 'debit',
+          money: { amount: '240.00', currency: 'EUR' },
+          dimensions: [{ type: 'costCenter', code: 'K100' }],
+        },
+        { account: '1200', side: 'credit', money: { amount: '240.00', currency: 'EUR' } },
+      ],
+    });
+    const run = ops.execute('runCosting', { fiscalYear: 2026, period: 1 }) as Record<string, unknown>;
+    ops.execute('releaseCosting', { runId: String(run.runId) });
+    return String(run.runId);
+  }
+
+  it('reads a released run back through a second tenant instance', () => {
+    const runId = seedCosting(tenantOn(TENANT_A));
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const sheet = reader.project('costAllocationSheet', { runId }) as Record<string, unknown>;
+
+    expect(sheet.status).toBe('released');
+    expect(sheet.version).toBe(1);
+    expect(sheet.grandTotal).toBe('240.00');
+    expect(sheet.primary).toEqual([{ costCenter: 'K100', total: '240.00' }]);
+  });
+
+  it('counts the next version from the store, not from a counter that restarts', () => {
+    seedCosting(tenantOn(TENANT_A));
+
+    // A second run of the SAME period, from a new instance. With the counter that used to live in
+    // the service this came back as version 1 — two runs both claiming to be the first.
+    const second = new TenantOperations(tenantOn(TENANT_A)).execute('runCosting', {
+      fiscalYear: 2026,
+      period: 1,
+    }) as Record<string, unknown>;
+
+    expect(second.version).toBe(2);
+  });
+
+  it('keeps one tenant’s runs out of another’s', () => {
+    const runId = seedCosting(tenantOn(TENANT_A));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    expect(() => other.project('costAllocationSheet', { runId })).toThrow(/does not exist/);
+  });
+});
+
 describe('tenant scoping', () => {
   const lookup = (tenant: Tenant, port: string, id: string): unknown => {
     const uuid = Uuid.fromString(id);

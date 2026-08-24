@@ -12,6 +12,7 @@ use Summae\Core\InMemory\InMemoryAuditTrail;
 use Summae\Core\InMemory\InMemoryFiscalYearRepository;
 use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
+use Summae\Core\InMemory\InMemoryCostingRunRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
@@ -101,6 +102,7 @@ final readonly class Tenant
         $journal = new InMemoryJournalRepository();
         $openItems = new InMemoryOpenItemRepository();
         $partners = new InMemoryPartnerRepository();
+        $costingRuns = new InMemoryCostingRunRepository();
         $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
@@ -122,12 +124,13 @@ final readonly class Tenant
             $clock,
             $ids,
             $taxCodes,
+            $tenantId,
         );
 
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
-        $costing = new CostingService($baseCurrency, $accounts, $journal, $ids, $tenantId, $auditWriter);
+        $costing = new CostingService($baseCurrency, $accounts, $journal, $costingRuns, $ids, $tenantId, $auditWriter);
 
         return new self(
             $tenantId,

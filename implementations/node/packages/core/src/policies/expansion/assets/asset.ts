@@ -10,6 +10,7 @@ interface Depreciation {
   date: CalendarDate;
   amount: Money;
   entryId: Uuid;
+  kind: string;
 }
 
 /** Last day of the month `monthsToAdd` after `base` (1-based plan months). */
@@ -29,6 +30,16 @@ function lastDayOfMonthAfter(base: CalendarDate, monthsToAdd: number): CalendarD
  */
 export class Asset {
   private readonly depreciations: Depreciation[] = [];
+
+  /**
+   * True once an unplanned write-down has rewritten the remaining plan. From then on the schedule IS
+   * the plan and may not be re-derived from the acquisition cost — the whole point of the write-down
+   * is that the cost is no longer the basis.
+   */
+  private scheduleRevised = false;
+
+  private reportedUnitsValue = 0;
+
   private disposed = false;
   private disposedOn: CalendarDate | null = null;
 
@@ -41,7 +52,7 @@ export class Asset {
     readonly acquiredOn: CalendarDate,
     readonly route: AssetRoute,
     readonly usefulLifeMonths: number | null,
-    readonly monthlySchedule: Money[],
+    public monthlySchedule: Money[],
     readonly voucherId: Uuid,
     /**
      * Cost centre and friends, carried by the asset itself (IMPL-023). Depreciation is booked by the
@@ -74,7 +85,87 @@ export class Asset {
      * Null means straight line, so assets written before the field existed rehydrate unchanged.
      */
     readonly depreciationMethod: string | null = null,
+    /**
+     * An additional allowance running ALONGSIDE the plan, not instead of it.
+     *
+     * Some jurisdictions let a business deduct an extra share of the cost within the first few years,
+     * freely distributed over them. It is not a depreciation method — the ordinary plan carries on
+     * untouched on the original basis while the window is open — so it cannot be expressed as a
+     * different schedule. It is a budget: this much may still be taken, until this fiscal year. Both
+     * numbers come from the pack; the asset only remembers them.
+     *
+     * Null means no such allowance was elected, which is every asset written before this existed.
+     */
+    readonly specialDepreciationBudget: Money | null = null,
+    readonly specialDepreciationWindowEnd: number | null = null,
+    /**
+     * Total expected output of the asset, where depreciation follows use rather than time —
+     * kilometres for a lorry, operating hours for a press, copies for a machine.
+     *
+     * It changes what "a year" means. Time-based depreciation knows at acquisition what every future
+     * period will take; output-based depreciation cannot, because the number comes from outside the
+     * books. So there is no schedule to build and the yearly run has nothing to do here: usage is
+     * reported as it happens, and each report books the difference between what the asset has now
+     * given and what has already been written off.
+     */
+    readonly totalUnits: number | null = null,
   ) {}
+
+  /** Units reported so far — never more than `totalUnits`, which is what caps the last booking. */
+  reportedUnits(): number {
+    return this.reportedUnitsValue;
+  }
+
+  recordUsage(date: CalendarDate, amount: Money, entryId: Uuid, unitsAfter: number): void {
+    this.reportedUnitsValue = unitsAfter;
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'usage' });
+  }
+
+  /** What is left of the additional allowance. */
+  specialDepreciationRemaining(): Money | null {
+    if (this.specialDepreciationBudget === null) return null;
+
+    let used = this.specialDepreciationBudget.subtract(this.specialDepreciationBudget);
+    for (const booking of this.depreciations) {
+      if (booking.kind === 'special') used = used.add(booking.amount);
+    }
+
+    return this.specialDepreciationBudget.subtract(used);
+  }
+
+  hasSpecialDepreciation(): boolean {
+    if (this.specialDepreciationBudget === null) return false;
+    return this.depreciations.some((booking) => booking.kind === 'special');
+  }
+
+  recordSpecialDepreciation(date: CalendarDate, amount: Money, entryId: Uuid): void {
+    // No re-spreading here, unlike a write-down. While the window is open the ordinary plan runs on
+    // the original basis — that is what "alongside" means, and lowering it now would quietly take back
+    // part of the allowance the same year it was granted. The plan is re-based once, after the window
+    // closes.
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'special' });
+  }
+
+  /**
+   * Spreads whatever book value is left over the plan months not yet booked.
+   *
+   * Two occasions need exactly this: an unplanned write-down, where the basis fell; and the end of an
+   * additional allowance's window, where part of the cost has already been deducted outside the plan
+   * and the rest has to last for the remaining life. Same arithmetic, and it should stay the same
+   * arithmetic — two spreadings that drifted apart would be two different answers to one question.
+   */
+  rebaseRemainingPlan(openPlanMonths: number[]): void {
+    this.scheduleRevised = true;
+
+    if (openPlanMonths.length === 0) return;
+
+    const remaining = this.acquisitionCost.subtract(this.accumulatedDepreciationAt(null));
+    const shares = remaining.allocate(...openPlanMonths.map(() => 1));
+
+    openPlanMonths.forEach((planMonth, index) => {
+      this.monthlySchedule[planMonth - 1] = shares[index]!;
+    });
+  }
 
   /** Straight line unless the pack offered, and the caller chose, something else. */
   method(): string {
@@ -83,7 +174,11 @@ export class Asset {
 
   /** A schedule that cannot be re-derived from month counts and must be read as it stands. */
   scheduleIsAuthoritative(): boolean {
-    return this.method() !== 'straight_line';
+    return this.method() !== 'straight_line' || this.scheduleRevised;
+  }
+
+  scheduleWasRevised(): boolean {
+    return this.scheduleRevised;
   }
 
   /** Where the depreciation plan begins — the acquisition month unless the pack moved it. */
@@ -119,8 +214,26 @@ export class Asset {
     return this.depreciations.some((booking) => booking.planMonth === planMonth);
   }
 
-  recordDepreciation(planMonth: number, date: CalendarDate, amount: Money, entryId: Uuid): void {
-    this.depreciations.push({ planMonth, date, amount, entryId });
+  recordDepreciation(planMonth: number, date: CalendarDate, amount: Money, entryId: Uuid, kind = 'planned'): void {
+    this.depreciations.push({ planMonth, date, amount, entryId, kind });
+  }
+
+  /**
+   * An unplanned write-down: the amount lowers the book value at once, and what is left is spread over
+   * the plan months that have not been booked yet.
+   *
+   * Re-spreading is the part that is easy to leave out and wrong to leave out. Continuing the old plan
+   * after a write-down would depreciate more than the asset is still worth — the invariant says the
+   * book value never goes below zero — and stopping early instead would finish the asset before its
+   * life is over. Neither is what a lasting impairment means: the reduced value is carried on over the
+   * REMAINING life, which is exactly what this does.
+   *
+   * `planMonth: 0` marks it as belonging to no plan month; plan months are 1-based, so nothing reads
+   * it as one, while the accumulated depreciation picks it up like any other booking.
+   */
+  recordWriteDown(date: CalendarDate, amount: Money, entryId: Uuid, openPlanMonths: number[]): void {
+    this.depreciations.push({ planMonth: 0, date, amount, entryId, kind: 'unplanned' });
+    this.rebaseRemainingPlan(openPlanMonths);
   }
 
   /** Depreciation history in persistable form — counterpart to PHP's `depreciationsForPersistence`. */
@@ -129,12 +242,14 @@ export class Asset {
     date: string;
     amount: { amount: string; currency: string };
     entryId: string;
+    kind: string;
   }> {
     return this.depreciations.map((booking) => ({
       planMonth: booking.planMonth,
       date: booking.date.iso,
       amount: booking.amount.toJSON(),
       entryId: booking.entryId.value,
+      kind: booking.kind,
     }));
   }
 
@@ -153,12 +268,17 @@ export class Asset {
     usefulLifeMonths: number | null,
     monthlySchedule: Money[],
     voucherId: Uuid,
-    depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid }>,
+    depreciations: ReadonlyArray<{ planMonth: number; date: CalendarDate; amount: Money; entryId: Uuid; kind?: string }>,
     disposed: boolean,
     disposedOn: CalendarDate | null,
     dimensions: ReadonlyArray<{ type: string; code: string }> = [],
     depreciationStart: CalendarDate | null = null,
     depreciationMethod: string | null = null,
+    scheduleRevised = false,
+    specialDepreciationBudget: Money | null = null,
+    specialDepreciationWindowEnd: number | null = null,
+    totalUnits: number | null = null,
+    reportedUnits = 0,
   ): Asset {
     const asset = new Asset(
       id,
@@ -174,15 +294,22 @@ export class Asset {
       dimensions,
       depreciationStart,
       depreciationMethod,
+      specialDepreciationBudget,
+      specialDepreciationWindowEnd,
+      totalUnits,
     );
+    asset.reportedUnitsValue = reportedUnits;
     for (const booking of depreciations) {
       asset.depreciations.push({
         planMonth: booking.planMonth,
         date: booking.date,
         amount: booking.amount,
         entryId: booking.entryId,
+        // A booking written before write-downs existed is a planned one — that is what it was.
+        kind: booking.kind ?? 'planned',
       });
     }
+    asset.scheduleRevised = scheduleRevised;
     asset.disposed = disposed;
     asset.disposedOn = disposedOn;
     return asset;

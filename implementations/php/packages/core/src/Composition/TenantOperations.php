@@ -18,6 +18,9 @@ use Summae\Core\Policies\Projection\EcSalesListProjection;
 use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
+use Summae\Core\Policies\Projection\AccountsProjection;
+use Summae\Core\Policies\Projection\JournalProjection;
+use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
@@ -48,6 +51,12 @@ final readonly class TenantOperations
      */
     public function execute(string $op, array $input): array
     {
+        // The input contract is checked here, before routing: one place instead of one check per
+        // handler, and the same place in both languages — the mirror of what `project()` does
+        // below. An operation below therefore reads inputs that are either absent or of the
+        // declared type.
+        OperationParameters::validate($op, $input);
+
         $tenant = $this->tenant;
         $ledger = $tenant->ledger;
 
@@ -70,15 +79,22 @@ final readonly class TenantOperations
                 'status' => 'closed',
             ],
             'createAccount' => $this->serialize($ledger->createAccount($input)),
+            'defineDimensionType' => $ledger->defineDimensionType($input),
+            'defineDimensionValue' => $ledger->defineDimensionValue($input),
             'createFiscalYear' => [
                 'year' => $ledger->createFiscalYear($input)->year,
                 'periodCount' => count($tenant->fiscalYears->byYear(is_int($input['year'] ?? null) ? $input['year'] : 0)?->periods() ?? []),
             ],
             'createPartner' => $this->serialize($tenant->partnerService->create($input)),
+            'deactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'inactive')),
+            'reactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'active')),
             'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
+            'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
+            'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
+            'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
             'allocate' => $this->allocate($input),
             'setAllocationScheme' => $tenant->costing->setAllocationScheme($input),
             'runCosting' => [
@@ -91,6 +107,7 @@ final readonly class TenantOperations
                 'status' => $released->status(),
             ],
             'lockAccount' => $this->serialize($ledger->lockAccount($input)),
+            'unlockAccount' => $this->serialize($ledger->unlockAccount($input)),
             'importChartOfAccounts' => ['importedCount' => $ledger->importChartOfAccounts($input)],
             'importMapping' => (new MappingImporter(
                 $tenant->accounts,
@@ -120,7 +137,11 @@ final readonly class TenantOperations
         ProjectionParameters::validate($name, $params);
 
         return match ($name) {
-            'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal))
+            'accounts' => (new AccountsProjection($tenant->accounts))->compute($params),
+            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers))
+                ->compute($params),
+            'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
+            'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
                 ->compute($params),
             'trialBalance' => (new TrialBalanceProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                 ->compute($params),
@@ -132,6 +153,8 @@ final readonly class TenantOperations
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
+            'overheadRates' => $tenant->costing->overheadRates($params),
+            'productionCost' => $tenant->costing->productionCost($params),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

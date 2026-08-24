@@ -28,6 +28,7 @@ use Summae\Laravel\Repository\DatabaseAuditTrail;
 use Summae\Laravel\Repository\DatabaseFiscalYearRepository;
 use Summae\Laravel\Repository\DatabaseJournalRepository;
 use Summae\Laravel\Repository\DatabaseOpenItemRepository;
+use Summae\Laravel\Repository\DatabaseCostingRunRepository;
 use Summae\Laravel\Repository\DatabasePartnerRepository;
 use Summae\Laravel\Repository\DatabaseVoucherRepository;
 
@@ -79,6 +80,7 @@ final readonly class DatabaseTenantFactory
         $journal = new DatabaseJournalRepository($this->connection, $tenantId);
         $openItems = new DatabaseOpenItemRepository($this->connection, $tenantId);
         $partners = new DatabasePartnerRepository($this->connection, $tenantId);
+        $costingRuns = new DatabaseCostingRunRepository($this->connection, $tenantId);
         $assets = new DatabaseAssetRepository($this->connection, $tenantId);
         $audit = new DatabaseAuditTrail($this->connection, $tenantId);
 
@@ -94,6 +96,7 @@ final readonly class DatabaseTenantFactory
             $clock,
             $ids,
             $taxCodes,
+            $tenantId,
         );
 
         // The same writer the ledger uses. Three services take it as an OPTIONAL argument, and this
@@ -107,7 +110,7 @@ final readonly class DatabaseTenantFactory
         $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
-        $costing = new CostingService($baseCurrency, $accounts, $journal, $ids, $tenantId, $auditWriter);
+        $costing = new CostingService($baseCurrency, $accounts, $journal, $costingRuns, $ids, $tenantId, $auditWriter);
 
         return new Tenant(
             $tenantId,

@@ -11,6 +11,8 @@ import {
   AuditRecord,
   type AuditTrail,
   CalendarDate,
+  CostingRun,
+  type CostingRunRepository,
   type EntryStatus,
   FiscalYear,
   type FiscalYearRepository,
@@ -20,10 +22,14 @@ import {
   OpenItem,
   type OpenItemKind,
   type OpenItemRepository,
+  Money,
+  type OverheadRate,
   Partner,
   type PartnerRepository,
   Period,
   PeriodRef,
+  type ProductionCostResult,
+  type RateWarning,
   type PeriodStatus,
   Settlement,
   type SettlementDifferenceKind,
@@ -432,6 +438,92 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
   }
 }
 
+/**
+ * Costing runs — payload as JSON, one row per run (F-KLR-001/004).
+ *
+ * The table the library did not have. A released run is what the requirements say the BAB and the
+ * rates are a projection *of*, and it used to live in a `Map` inside the service: gone with the
+ * process, and the version counter restarted with it. Everything the three projections read is in
+ * the payload, frozen at release — a released run that answers differently tomorrow is not
+ * released.
+ */
+export class DatabaseCostingRunRepository implements CostingRunRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+  ) {}
+
+  add(run: CostingRun): void {
+    this.db.run(
+      this.table().insert({
+        id: run.id.value,
+        tenant_id: this.tenantId.value,
+        fiscal_year: run.period.fiscalYear,
+        period: run.period.period,
+        version: run.version,
+        status: run.status(),
+        payload: H.encode(run.toJSON()),
+      }),
+    );
+  }
+
+  save(run: CostingRun): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', run.id.value)
+        .update({ status: run.status(), payload: H.encode(run.toJSON()) }),
+    );
+  }
+
+  byId(id: Uuid): CostingRun | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
+    return row === null ? null : this.hydrate(row);
+  }
+
+  all(): CostingRun[] {
+    return this.db
+      .all(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .orderBy('fiscal_year')
+          .orderBy('period')
+          .orderBy('version'),
+      )
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): CostingRun {
+    const data = H.decode(row.payload);
+    const totals = (raw: unknown): Map<string, Money> => {
+      const out = new Map<string, Money>();
+      if (!H.isRecord(raw)) return out;
+      for (const [code, value] of Object.entries(raw)) {
+        if (H.isRecord(value)) out.set(code, H.money(value));
+      }
+      return out;
+    };
+
+    return CostingRun.restore(
+      Uuid.fromString(str(row, 'id')),
+      new PeriodRef(Number(row.fiscal_year), Number(row.period)),
+      Number(row.version),
+      str(row, 'status'),
+      totals(data.primary),
+      totals(data.afterAllocation),
+      H.money(H.isRecord(data.grandTotal) ? data.grandTotal : {}),
+      typeof data.method === 'string' ? data.method : 'step_ladder',
+      Array.isArray(data.rates) ? (data.rates as OverheadRate[]) : [],
+      Array.isArray(data.rateWarnings) ? (data.rateWarnings as RateWarning[]) : [],
+      H.isRecord(data.productionCost) ? (data.productionCost as unknown as ProductionCostResult) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}costing_runs`);
+  }
+}
+
 /** Business partners — payload as JSON. */
 export class DatabasePartnerRepository implements PartnerRepository {
   constructor(
@@ -478,6 +570,8 @@ export class DatabasePartnerRepository implements PartnerRepository {
       typeof data.paymentTermsDays === 'number' ? data.paymentTermsDays : null,
       accountNumbers,
       address,
+      // A partner written before the status existed rehydrates as active — which is what it was.
+      data.status === 'inactive' ? 'inactive' : 'active',
     );
   }
 
@@ -504,8 +598,22 @@ export class DatabaseAssetRepository implements AssetRepository {
     );
   }
 
+  /**
+   * The payload is written too, not only the state.
+   *
+   * It used not to be, and that was safe exactly as long as nothing in the payload could change —
+   * master data does not, so `add` wrote it once and `save` only touched the history. An unplanned
+   * write-down broke that: it rewrites the depreciation SCHEDULE, which lives in the payload, and a
+   * database-backed tenant kept booking the old plan while the in-memory one booked the new. Same
+   * input, two different sets of books, and only the run against a real adapter could see it.
+   */
   save(asset: Asset): void {
-    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', asset.id.value).update({ state: H.encode(this.state(asset)) }));
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', asset.id.value)
+        .update({ payload: H.encode(this.payload(asset)), state: H.encode(this.state(asset)) }),
+    );
   }
 
   byId(id: Uuid): Asset | null {
@@ -525,6 +633,14 @@ export class DatabaseAssetRepository implements AssetRepository {
       // asset register an auditor reads. Losing it here would silently move a pooled asset's plan
       // back to its acquisition month after a restart.
       depreciationStart: asset.depreciationStart?.iso ?? null,
+      // Also mechanics, and also silently destructive if lost: after an unplanned write-down the
+      // schedule IS the plan, and a restart that forgot this would go back to re-deriving the plan
+      // from the acquisition cost — the very figure the write-down said is no longer valid.
+      scheduleRevised: asset.scheduleWasRevised(),
+      specialDepreciationBudget: asset.specialDepreciationBudget?.toJSON() ?? null,
+      specialDepreciationWindowEnd: asset.specialDepreciationWindowEnd,
+      totalUnits: asset.totalUnits,
+      reportedUnits: asset.reportedUnits(),
     };
   }
 
@@ -550,6 +666,7 @@ export class DatabaseAssetRepository implements AssetRepository {
         date: H.requireDate(booking.date, 'depreciation date'),
         amount: H.money(H.isRecord(booking.amount) ? booking.amount : {}),
         entryId: Uuid.fromString(str(booking, 'entryId')),
+        kind: typeof booking.kind === 'string' ? booking.kind : 'planned',
       }));
     return Asset.restore(
       Uuid.fromString(str(row, 'id')),
@@ -579,6 +696,11 @@ export class DatabaseAssetRepository implements AssetRepository {
         : [],
       H.date(data.depreciationStart),
       typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
+      data.scheduleRevised === true,
+      H.isRecord(data.specialDepreciationBudget) ? H.money(data.specialDepreciationBudget) : null,
+      typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
+      typeof data.totalUnits === 'number' ? data.totalUnits : null,
+      typeof data.reportedUnits === 'number' ? data.reportedUnits : 0,
     );
   }
 

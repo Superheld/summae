@@ -1,0 +1,68 @@
+{
+  "fixture": "allocation-method-refused",
+  "description": "Two ways of asking for an allocation the core cannot perform, and why both have to be refusals rather than approximations. First: an unknown method. `setAllocationScheme` used to read `method`, echo it back in its answer and then ignore it entirely, so asking for anything other than the step ladder returned step-ladder numbers labelled with the name of a different procedure — the worst shape a defect can take, because the reply asserts it did what was asked. It is now E_INPUT_INVALID, and the two the core does perform are named in the message. Second: a scheme with no way out. The simultaneous-equation method solves the whole scheme at once, and a group of cost centres that passes everything among themselves without ever reaching one that keeps it produces a singular system — cost circulates forever, and there is no answer to round to. E_COSTING_UNSOLVABLE names the centre where the elimination ran out, so the modelling mistake is findable. Note the step ladder answers the same shape differently and correctly: for it a cycle is a violation of its own precondition (E_COSTING_CYCLE), while for the equation method a cycle is the ordinary case and only a CLOSED one is fatal.",
+  "covers": ["F-KLR-003", "SF-12"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "AA", "name": "Kreisstelle A" },
+      { "typeCode": "costCenter", "code": "BB", "name": "Kreisstelle B" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Primärkosten Januar",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "600.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "AA" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "BB" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "activity_based",
+        "steps": [ { "sender": "AA", "receivers": [ { "code": "BB", "share": "100" } ] } ]
+      },
+      "expect": {
+        "comment": "Früher: valid=true, method=\"activity_based\", und danach Stufenleiter-Zahlen",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "simultaneous",
+        "steps": [
+          { "sender": "AA", "receivers": [ { "code": "BB", "share": "100" } ] },
+          { "sender": "BB", "receivers": [ { "code": "AA", "share": "100" } ] }
+        ]
+      },
+      "expect": {
+        "comment": "Das Schema wird angenommen — beim Gleichungsverfahren ist ein Zyklus der Normalfall",
+        "result": { "valid": true, "method": "simultaneous", "stepCount": 2 }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": {
+        "comment": "Geschlossener Kreis ohne Hauptkostenstelle: 1.000,00 kreisen ewig, es gibt keine Lösung",
+        "error": "E_COSTING_UNSOLVABLE"
+      }
+    }
+  ]
+}

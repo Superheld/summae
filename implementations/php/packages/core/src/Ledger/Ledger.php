@@ -77,10 +77,13 @@ final readonly class Ledger
         /** Null = unwired; treated as an EMPTY registry, so a caller-supplied tax tag is
          *  rejected rather than waved through — same behaviour as Node's default. */
         private ?TaxCodeRegistry $taxCodes = null,
+        // Only needed so that dimension declarations — which have no id of their own — can name
+        // their tenant in the audit trail, like the other per-tenant configuration does.
+        ?Uuid $tenantId = null,
     ) {
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
-        $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter);
+        $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter, $dimensions, $tenantId);
         $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids, $this->auditWriter);
     }
 
@@ -442,10 +445,36 @@ final readonly class Ledger
         return $this->chart->createAccount($input);
     }
 
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function defineDimensionType(array $input): array
+    {
+        return $this->chart->defineDimensionType($input);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function defineDimensionValue(array $input): array
+    {
+        return $this->chart->defineDimensionValue($input);
+    }
+
     /** @param array<string, mixed> $input */
     public function lockAccount(array $input): Account
     {
         return $this->chart->lockAccount($input);
+    }
+
+    /** @param array<string, mixed> $input */
+    public function unlockAccount(array $input): Account
+    {
+        return $this->chart->unlockAccount($input);
     }
 
     /**

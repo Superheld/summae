@@ -1,0 +1,103 @@
+{
+  "fixture": "vat-return-gap-warnings",
+  "description": "F-TAX-013: the VAT return says when a posting touched a tax account without a tax code. The return is built from tax-CODED postings — the tag carries the reporting key and the base — and a hand-written `expense / input tax / bank` posting has none. That posting balances, satisfies every invariant, and shows correct figures on the accounts and in the trial balance; only the return reports nothing for it, because nothing said which key the amount belongs to. The books look right everywhere except the one place that decides what is filed, and an embedding application's seed script fell into it on the first attempt. The warning therefore lives at the figures rather than in a projection of its own that whoever files may never open. It is deliberately NOT a refusal: a correction posting legitimately touches a tax account, and the same rule that catches the mistake would block the repair. Which accounts count is the pack's answer — `tax_in`/`tax_out` are subtypes the chart assigns, so a jurisdiction without input-tax deduction has no `tax_in` account and produces no such warning.",
+  "covers": ["F-TAX-013", "F-TAX-005"],
+  "setup": {
+    "tenant": { "name": "Steuerlücke GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" },
+      { "number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out" },
+      { "number": "6000", "name": "Sonstiger betrieblicher Aufwand", "type": "expense" },
+      { "number": "8400", "name": "Erlöse 19%", "type": "revenue" }
+    ],
+    "taxCodes": [
+      {
+        "code": "USt19",
+        "versions": [
+          { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81" }
+        ]
+      }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-TELEKOM", "voucherDate": "2026-02-10", "kind": "invoice_in" },
+      { "id": "$V2", "voucherNumber": "AR-100", "voucherDate": "2026-02-15", "kind": "invoice_out" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Telefonrechnung von Hand gebucht",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "75.00", "currency": "EUR" } },
+          { "account": "1576", "side": "debit", "money": { "amount": "14.25", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "89.25", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The posting the finding is about. It is accepted — it balances and every invariant holds — and the input tax on 1576 carries no tax code, so no reporting key can claim it.",
+        "result": { "sequenceNumber": 1 }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-101", "voucherDate": "2026-02-15", "kind": "invoice_out" },
+        "entryDate": "2026-02-15", "text": "Rechnung mit Steuerschlüssel",
+        "taxCode": "USt19", "direction": "output", "counterAccount": "1400",
+        "netLines": [ { "account": "8400", "money": { "amount": "1000.00", "currency": "EUR" } } ]
+      },
+      "expect": {
+        "comment": "The same books done properly: the expansion tags the tax line, so the return can claim it.",
+        "result": { "entry": { "sequenceNumber": 2 } }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Both postings look correct here, which is exactly why the gap is hard to see: 14,25 input tax stands on 1576 and 190,00 output tax on 1776.",
+        "rows": [
+          { "account": "1200", "balance": "-89.25" },
+          { "account": "1400", "balance": "1190.00" },
+          { "account": "1576", "balance": "14.25" },
+          { "account": "1776", "balance": "-190.00" },
+          { "account": "6000", "balance": "75.00" },
+          { "account": "8400", "balance": "-1000.00" }
+        ]
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026 },
+      "expect": {
+        "comment": "Key 81 carries the coded sale. The 14,25 of input tax appears in NO key — it never did, and the difference is that the return now says so instead of leaving the reader to notice that 1576 and the return disagree.",
+        "keys": { "81": { "base": "1000.00", "tax": "190.00" } },
+        "payload": { "amount": "190.00", "currency": "EUR" },
+        "gapWarnings": [
+          {
+            "reason": "tax_account_without_tax_code",
+            "sequenceNumber": 1,
+            "entryDate": "2026-02-10",
+            "account": "1576",
+            "side": "debit",
+            "money": { "amount": "14.25", "currency": "EUR" }
+          }
+        ]
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "month": 3 },
+      "expect": {
+        "comment": "The warning follows the filing window, not the whole ledger: March contains neither posting, so there is nothing to warn about.",
+        "gapWarnings": []
+      }
+    }
+  ]
+}

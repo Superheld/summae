@@ -28,8 +28,41 @@ final readonly class PartnerService
     }
 
     /** @param array<string, mixed> $input */
+    /**
+     * A partner needs a name, and the kinds are the three the manual names (F-CORE-032).
+     *
+     * Both used to be optional in the widest sense: `name` defaulted to `''`, so a request that
+     * forgot it created a nameless partner indistinguishable from the next one and impossible to
+     * pick out of a list; `kind` was a plain string, so `custommer` was a partner kind like any
+     * other and only surfaced as a category nothing could filter on. An embedding application ended
+     * up validating both itself, which is the wrong place: master data that is wrong here is wrong
+     * for every reader of the books, not just for the screen that entered it.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function validateMasterData(array $input, bool $nameRequired): void
+    {
+        $name = is_string($input['name'] ?? null) ? $input['name'] : null;
+        $nameGiven = array_key_exists('name', $input);
+        if (($nameRequired || $nameGiven) && ($name === null || trim($name) === '')) {
+            throw new DomainError('E_INPUT_INVALID', 'createPartner: "name" must not be empty', [
+                'name' => $input['name'] ?? null,
+            ]);
+        }
+
+        $kind = $input['kind'] ?? null;
+        if ($kind !== null && (!is_string($kind) || PartnerKind::tryFrom($kind) === null)) {
+            throw new DomainError('E_INPUT_INVALID', 'partner "kind" must be "customer", "supplier" or "both"', [
+                'kind' => $kind,
+            ]);
+        }
+    }
+
+    /** @param array<string, mixed> $input */
     public function create(array $input): Partner
     {
+        $this->validateMasterData($input, true);
+
         /** @var list<string> $accountNumbers */
         $accountNumbers = array_values(array_filter(
             is_array($input['accountNumbers'] ?? null) ? $input['accountNumbers'] : [],
@@ -59,11 +92,44 @@ final readonly class PartnerService
     public function update(array $input): Partner
     {
         $partner = $this->require($input['partnerId'] ?? null);
+        // Absent leaves the name alone; present and empty is the same mistake as creating without one.
+        $this->validateMasterData($input, false);
         $changes = $partner->update($input);
 
         if ($changes !== []) {
             $this->partners->save($partner);
             $this->recordAudit($input, 'updated', $partner->id, $changes);
+        }
+
+        return $partner;
+    }
+
+    /**
+     * Marks a partner as no longer in use, and takes it back (F-CORE-034).
+     *
+     * Both directions in one place, like the account lock, because the audit record is the point of
+     * the operation and two copies of it would be two chances for one direction to record less.
+     *
+     * @param array<string, mixed> $input
+     */
+    public function setStatus(array $input, string $target): Partner
+    {
+        $partner = $this->require($input['partnerId'] ?? null);
+        $before = $partner->status();
+        if ($target === 'inactive') {
+            $partner->deactivate();
+        } else {
+            $partner->reactivate();
+        }
+
+        if ($before !== $partner->status()) {
+            $this->partners->save($partner);
+            $this->recordAudit(
+                $input,
+                $target === 'inactive' ? 'deactivated' : 'reactivated',
+                $partner->id,
+                ['status' => ['from' => $before, 'to' => $partner->status()]],
+            );
         }
 
         return $partner;

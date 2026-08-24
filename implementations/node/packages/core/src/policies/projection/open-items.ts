@@ -1,5 +1,10 @@
 import { DomainError, rejectedValue } from '../../domain-error.js';
-import type { JournalRepository, OpenItemRepository, VoucherRepository } from '../../port.js';
+import type {
+  JournalRepository,
+  OpenItemRepository,
+  PartnerRepository,
+  VoucherRepository,
+} from '../../port.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { OpenItem } from '../../records/open-item.js';
 import { parseOpenItemKind } from '../../substrate/types.js';
@@ -13,6 +18,7 @@ export class OpenItemsProjection {
     private readonly openItems: OpenItemRepository,
     private readonly vouchers: VoucherRepository,
     private readonly journal: JournalRepository,
+    private readonly partners: PartnerRepository,
   ) {}
 
   compute(params: Record<string, unknown>): { items: Array<Record<string, unknown>> } {
@@ -65,6 +71,13 @@ export class OpenItemsProjection {
    *
    * Null where the voucher names no date: present and null, so "no date agreed" stays
    * distinguishable from "this view does not say".
+   *
+   * `partnerName` joined the same way and for the same reason (F-CORE-030). The list could name
+   * the invoice but not the customer, and resolving the id meant a second projection inside one
+   * view — which is exactly the mixing an application's read layer is supposed to avoid. A dunning
+   * notice without a recipient is not a notice. Null where the partner is unknown or was never
+   * recorded, so a deleted-from-view partner does not turn into an empty string that reads like a
+   * name.
    */
   private serializeItem(item: OpenItem, asOf: CalendarDate | null): Record<string, unknown> {
     const voucher = this.vouchers.byId(item.voucherId);
@@ -73,10 +86,16 @@ export class OpenItemsProjection {
       kind: item.kind,
       voucherNumber: voucher?.voucherNumber ?? null,
       partnerId: item.partnerId?.value ?? null,
+      partnerName: this.partnerName(item),
       due: voucher?.due?.iso ?? null,
       money: item.money.toJSON(),
       remaining: item.remainingAt(asOf).toJSON(),
       status: item.statusAt(asOf),
     };
+  }
+
+  private partnerName(item: OpenItem): string | null {
+    if (item.partnerId === null) return null;
+    return this.partners.byId(item.partnerId)?.name() ?? null;
   }
 }

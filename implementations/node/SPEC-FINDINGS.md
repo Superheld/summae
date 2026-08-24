@@ -50,6 +50,9 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | IMPL-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions and every machine entry books with them; `packages/knex` carries them through the round trip. Write-up on the PHP side |
 | IMPL-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` zeroed everything but `capitalize`. Write-up on the PHP side |
 | IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — now `poolReducedOnDisposal` in the pack, refused rather than defaulted. Write-up on the PHP side |
+| IMPL-026 a yearly run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount as of the disposal date and ignored a run booked on 31 December. Now read from the whole ledger. Found by the embedding app (its F-15). Write-up on the PHP side |
+| IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — `accountIds` declared but never written, `accountNumbers` written but never declared, and partners exported with nulls that the schema refuses. No schema test had exported a partner; one does now. Write-up on the PHP side |
+| IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `.cross-dbs/` was never cleared, so a retired fixture's old oracle kept being compared. Write-up on the PHP side |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **IMPL-015**, which turned out to matter here too: giving the persistence adapters their own
@@ -620,3 +623,126 @@ claims? `importMapping` already computes `gapWarnings`, so the machinery exists 
 (b) Should `balanceSheet`'s result position use the income-statement mapping instead of all
 non-balance-carrying accounts, so the two cannot drift apart? (b) changes numbers and needs a
 fixture. Documented, not changed.
+
+## SPEC-011: F-KLR-001 says evaluations read released runs only — a fixture reads a draft
+
+**Found 2026-08-23, while building `overheadRates` (F-KLR-004).**
+
+F-KLR-001 reads: "Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released);
+**Auswertungen lesen nur released Läufe.**" Taken literally, `costAllocationSheet` and the new
+`overheadRates` should refuse a run that is still `draft`.
+
+The append-only fixture `core/parameter-effect` reads `costAllocationSheet` for a run it never
+releases, and expects numbers back. So the contract, as it has always been exercised, says draft
+runs *are* readable.
+
+**Not resolved by bending the fixture.** Editing it would rewrite what the contract always said and
+retroactively make every implementation that agreed with it wrong — the reason the suite is
+append-only in the first place. Nor by enforcing the rule on the new projection only: two costing
+projections with different rules about the same run is worse than one consistent rule.
+
+**Built with the next most plausible behaviour:** both projections read a run in any status and
+return `status` in the answer, so a caller can see which they got and decide. What is missing is the
+*decision*, not the code — either the requirement means "the embedding application must only publish
+released runs" (in which case it is an app obligation and F-KLR-001 should say so), or it means a
+hard refusal (in which case a new fixture has to establish it and `parameter-effect` stays as the
+record of what the contract used to allow). Left open deliberately; it is a question about intent,
+and guessing it would be the same mistake in the other direction.
+
+## SPEC-012: the shipped pack's manifest version cannot change — a fixture pins it
+
+**Found 2026-08-23, while adding the `productionCost` module to the `de` and `us` packs.**
+
+`pack/de-pack/de-pack-resolves` calls `resolvePack({ manifest: "de", version: "2026.2" })` and pins
+`pack.version` in the tenant it then creates. Raising the manifest's own version therefore makes an
+append-only fixture unresolvable — the pack the fixture asks for no longer exists.
+
+The practical consequence is that **only module versions move**. Every pack change so far has bumped
+the module (`de-afa` 2026.5 → 2026.6) and the manifest's *reference* to it, while the manifest's own
+`version` has stood at 2026.2 through several rounds of real change. A consumer reading `pack.version`
+— which `systemDescription` reports, and which is the field the "tzdata for accounting" idea rests on
+— cannot tell those rounds apart.
+
+**Not resolved by bending the fixture,** for the usual reason. What the contract needs is a decision:
+either the manifest version is deliberately a *format* version and something else carries the content
+version (then say so, and the field is fine as it is), or it is the content version (then the fixture
+has to stop pinning an exact one — `resolvePack` would take the manifest name alone, and a *new*
+fixture would establish that). Left open: guessing would either freeze the version forever or break a
+published contract.
+
+**Resolved 2026-08-23** (`fix/pack-version-immutability`). The second reading was the right one: the
+manifest version *is* the content version, so the fixture had to stop pinning it. Investigating it
+also made the finding worse than written above — a published `(id, version)` was not merely lagging,
+it was **not immutable**. `de@2026.2` named at least three different bundles, because the module
+files it referenced were overwritten rather than versioned alongside. The fix is in four parts:
+
+1. `de-pack-resolves` is **superseded**, not edited (`testing/testsuite/superseded.json`), by
+   `de-pack-resolves-current`, which pins the behaviour and leaves the product's numbers alone. Same
+   for `us` and `default`. What the retired fixtures pinned about the mechanism moved to
+   `xx-6-pack-version-pinning`, which brings its own pack and is therefore frozen for good.
+2. `PackResolver::findManifest` is now the single place that selects a manifest — runner and CLI both
+   call it — and a request without a version resolves to the **highest** version, not the first
+   match, so several versions of one pack can live in the library side by side.
+3. `resolvePack` returns a derived `contentDigest` (SHA-256 over the canonical JSON of the whole
+   resolution, byte-identical in both languages), and a tenant carries it. It is what a hand-written
+   version cannot be: impossible to forget.
+4. `de` and `us` moved to `2026.3`, and `PackVersionIdentityTest` / `pack-version-identity` refuse two
+   files claiming the same published identity.
+
+Deliberately **not** done: no fabricated history. `de@2026.2` is gone rather than reconstructed from
+today's modules, because a frozen file claiming to be the old bundle would be a second lie on top of
+the first. Immutability starts here.
+
+## SPEC-013: a shipped pack's chart of accounts cannot grow — a fixture pins its size
+
+**Found 2026-08-23, while adding the exempt-export tax code to the `de` pack.**
+
+`pack/de-pack/de-pack-resolves` pins `accountCount: 41` on the tenant it creates. Adding an account
+to `de-konten` therefore breaks an append-only fixture — the same shape as [SPEC-012], where the
+manifest's own version is pinned and so cannot move.
+
+The concrete cost here: `AUSFUHR` (§ 4 Nr. 1 Buchst. a, Kz 43) reports an exempt export, and the
+German chart has an account for exempt *intra-community supplies* (4030) and none for exempt
+*exports*. A user has to add one with `createAccount`, which the fixture `de-ausfuhr` demonstrates
+because it is what actually has to happen today. It works, but a shipped pack that cannot gain an
+account as its tax codes gain coverage will keep accumulating that kind of hole.
+
+**Not resolved by bending the fixture.** The decision it needs is the same one SPEC-012 needs, and
+probably the same answer: what a fixture may pin about a *shipped* pack. Pinning the resolver's
+behaviour is the point of `de-pack-resolves`; pinning the size of a product catalogue that is
+expected to grow is a different thing that came along for the ride. Left open — a new fixture could
+establish the resolver contract without the count, but deciding that is not a mechanical change.
+
+**Resolved 2026-08-23** together with [SPEC-012] — it was the same defect, and the guess in the last
+paragraph was right: the two needed one decision, not two. `de-pack-resolves-current` pins that the
+pack resolves, that a tenant is built from it and that a standard VAT sale comes out right; it pins
+neither the version nor the account count. The chart can grow again, which unblocks the missing
+exempt-export account and the operating-expense accounts the embedding app asked for.
+
+## SPEC-014: summae has no way to evolve a shipped database schema
+
+**Found 2026-08-23, while scoping the costing persistence port.**
+
+Both adapters create their tables exactly once, at workspace initialisation —
+`SchemaInstaller::create` in PHP, `installSchema` in Node — and nothing upgrades an existing
+database. PHP at least sits behind Laravel migrations, so a second dated migration file could add a
+table; Node has no migration concept at all, and an existing SQLite workspace would simply lack the
+new table with no path to gain it.
+
+Nothing has needed this yet: the eight tables have been enough since 0.2.0. The costing port is the
+first change that adds a table, which is why the question surfaces there and why it is the *actual*
+blocker — the port, the adapters and the table itself are mechanical work.
+
+**Three answers are defensible and they are not equivalent:**
+
+1. **Versioned migrations in both languages.** Honest and conventional, and a subsystem of its own —
+   Node would need a migration runner it does not have.
+2. **Idempotent schema install.** `create` becomes "ensure", guarded per table, run on open rather
+   than on init. Cheap, covers additive changes, and covers nothing else — a column that changes
+   type still has no path.
+3. **Frozen for 0.x.** Say plainly that a schema change means recreating the workspace, and hold the
+   line until 1.0. Defensible for a 0.x library and the only one of the three that costs nothing —
+   but it means the costing port waits.
+
+Left open deliberately. Whichever is chosen becomes a promise to every existing installation, and
+that is not a mechanical decision.

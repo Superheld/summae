@@ -4,6 +4,8 @@ import { Account } from '../substrate/account.js';
 import { AccountNumber } from '../substrate/account-number.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
 import { isAccountType } from '../substrate/types.js';
+import type { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
+import type { Uuid } from '../substrate/uuid.js';
 import type { AuditWriter } from './audit-writer.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,7 +26,53 @@ export class ChartAdminService {
     private readonly accounts: AccountRepository,
     private readonly ids: IdGenerator,
     private readonly audit: AuditWriter,
+    private readonly dimensions: DimensionRegistry | null = null,
+    // A dimension has no id of its own, so the audit record names the tenant — the same shape the tax
+    // profile and the allocation scheme use for configuration that exists once per tenant.
+    private readonly tenantId: Uuid | null = null,
   ) {}
+
+  /** Declares a dimension type. Master data, like an account: `costCenter`, `project`, `segment`. */
+  defineDimensionType(input: Record<string, unknown>): Record<string, unknown> {
+    const actor = this.audit.actorOf(input);
+    const code = asString(input.code) ?? '';
+
+    this.requireDimensions().defineType(code);
+
+    if (this.tenantId !== null) {
+      this.audit.record(actor, 'dimensionType', this.tenantId, 'created', { code: { from: null, to: code } });
+    }
+
+    return { code };
+  }
+
+  /** Declares a value of an existing dimension type. */
+  defineDimensionValue(input: Record<string, unknown>): Record<string, unknown> {
+    const actor = this.audit.actorOf(input);
+    const typeCode = asString(input.type) ?? '';
+    const code = asString(input.code) ?? '';
+
+    this.requireDimensions().defineValue(typeCode, code);
+
+    if (this.tenantId !== null) {
+      this.audit.record(actor, 'dimensionValue', this.tenantId, 'created', {
+        type: { from: null, to: typeCode },
+        code: { from: null, to: code },
+      });
+    }
+
+    return { type: typeCode, code };
+  }
+
+  private requireDimensions(): DimensionRegistry {
+    if (this.dimensions === null) {
+      throw new DomainError('E_DIMENSION_INVALID', 'this tenant was built without a dimension registry', {
+        type: null,
+      });
+    }
+
+    return this.dimensions;
+  }
 
   createAccount(input: Record<string, unknown>): Account {
     const actor = this.audit.actorOf(input);
@@ -42,6 +90,19 @@ export class ChartAdminService {
   }
 
   lockAccount(input: Record<string, unknown>): Account {
+    return this.setAccountStatus(input, 'locked');
+  }
+
+  /** The counterpart to `lockAccount` — see `Account.unlock` for why it is core mechanism. */
+  unlockAccount(input: Record<string, unknown>): Account {
+    return this.setAccountStatus(input, 'active');
+  }
+
+  /**
+   * Both directions in one place: the audit record is the whole point of the operation, and two
+   * copies of it would be two chances for one direction to record less than the other.
+   */
+  private setAccountStatus(input: Record<string, unknown>, target: 'locked' | 'active'): Account {
     const actor = this.audit.actorOf(input);
     const number = asString(input.number) ?? '';
     const account = this.accounts.byNumber(AccountNumber.of(number));
@@ -51,9 +112,10 @@ export class ChartAdminService {
     }
 
     const before = account.status();
-    account.lock();
+    if (target === 'locked') account.lock();
+    else account.unlock();
     this.accounts.save(account);
-    this.audit.record(actor, 'account', account.id, 'locked', {
+    this.audit.record(actor, 'account', account.id, target === 'locked' ? 'locked' : 'unlocked', {
       status: { from: before, to: account.status() },
     });
     return account;

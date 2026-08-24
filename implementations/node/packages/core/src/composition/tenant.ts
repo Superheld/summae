@@ -7,6 +7,7 @@ import {
   InMemoryFiscalYearRepository,
   InMemoryJournalRepository,
   InMemoryOpenItemRepository,
+  InMemoryCostingRunRepository,
   InMemoryPartnerRepository,
   InMemoryVoucherRepository,
 } from '../in-memory.js';
@@ -22,6 +23,7 @@ import type {
   AccountRepository,
   AssetRepository,
   AuditTrail,
+  CostingRunRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -92,6 +94,7 @@ export class Tenant {
         openItems: new InMemoryOpenItemRepository(),
         assets: new InMemoryAssetRepository(),
         partners: new InMemoryPartnerRepository(),
+        costingRuns: new InMemoryCostingRunRepository(),
         audit: new InMemoryAuditTrail(),
       },
       clock,
@@ -123,6 +126,7 @@ export class Tenant {
       openItems: OpenItemRepository;
       assets: AssetRepository;
       partners: PartnerRepository;
+      costingRuns: CostingRunRepository;
       audit: AuditTrail;
     },
     clock: Clock,
@@ -134,7 +138,7 @@ export class Tenant {
     taxRoundingGranularity = 'perVoucher',
     packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
-    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, audit } = ports;
+    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
     const ledger = new Ledger(
       baseCurrency,
       accounts,
@@ -147,11 +151,12 @@ export class Tenant {
       clock,
       ids,
       taxCodes,
+      tenantId,
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
     const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids, tenantId, auditWriter);
-    const costing = new CostingService(baseCurrency, accounts, journal, ids, tenantId, auditWriter);
+    const costing = new CostingService(baseCurrency, accounts, journal, costingRuns, ids, tenantId, auditWriter);
     const partnerService = new PartnerService(partners, audit, clock, ids);
 
     return new Tenant(

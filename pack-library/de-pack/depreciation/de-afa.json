@@ -2,8 +2,8 @@
   "formatVersion": "0.6",
   "id": "de-afa",
   "kind": "depreciation",
-  "version": "2026.5",
-  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV, degressive AfA §7 Abs. 2 EStG)",
+  "version": "2026.7",
+  "name": "AfA Deutschland (GWG-Grenzen §6 Abs. 2 EStG, Sammelposten §6 Abs. 2a EStG, Nutzungsdauern aus der amtlichen AfA-Tabelle AV, degressive AfA §7 Abs. 2 EStG für bewegliche Wirtschaftsgüter und §7 Abs. 5a EStG für neue Wohngebäude, Sonderabschreibung §7g Abs. 5 EStG)",
   "contributes": [
     "depreciation"
   ],
@@ -69,6 +69,29 @@
         "validTo": "2027-12-31",
         "factor": 3,
         "maxRate": "30.00"
+      },
+      {
+        "validFrom": "2023-10-01",
+        "validTo": "2029-09-30",
+        "factor": 3,
+        "maxRate": "5.00",
+        "assetClasses": [
+          "residential-building"
+        ]
+      }
+    ],
+    "specialDepreciation": [
+      {
+        "validFrom": "2020-01-01",
+        "validTo": "2023-12-31",
+        "rate": "20.00",
+        "years": 5
+      },
+      {
+        "validFrom": "2024-01-01",
+        "validTo": null,
+        "rate": "40.00",
+        "years": 5
       }
     ]
   }

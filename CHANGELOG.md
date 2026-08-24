@@ -10,6 +10,442 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
 
+## Unreleased
+
+## 0.11.0 — 2026-08-24
+
+**The release an embedding application wrote.** Every item below started as a finding in the
+`FINDINGS.md` of an app that builds screens on summae — fifteen of them, worked through in one
+pass. That is the return on dogfooding, and it is also a verdict on our own tests: the worst of
+the fifteen (**F-15**, below) left a credit balance standing on an asset account while every
+invariant held, twelve asset fixtures stayed green, and nobody here had run a yearly depreciation
+before a mid-year disposal.
+
+Four more defects came out of the work that nobody had reported at all. summae's own audit-trail
+test had been passing `usefulLifeYears` and `role: 'customer'` for months — neither key exists;
+`systemDescription` under-reported what the audit trail records; the partner stream could not
+validate against its own schema; and the cross-test compared against stale artifacts. Each of them
+was invisible for the same reason: a contract surface without a guard of its own. Most of what this
+release adds is that guard.
+
+### ⚠ What breaks
+
+- **The data format is 0.7.** The partner record gained `status` (`active`/`inactive`), so the
+  schema moved and the version with it — `journalExport.manifest.formatVersion` and
+  `systemDescription.formatVersion` now read `"0.7"`. An application that pins the format version
+  has to follow, deliberately and visibly: that is what the field is for. Two long-standing schema
+  defects in the same record are fixed on the way (see below), and older stored partners rehydrate
+  as `active`, which is what they were.
+
+- **`createPartner` requires a name.** It defaulted to `""`, so a request that forgot the name
+  created a partner indistinguishable from the next one and impossible to pick out of a list. An
+  empty or whitespace-only name is now `E_INPUT_INVALID`, and `kind` must be one of
+  `customer`/`supplier`/`both` instead of any string. A caller that relied on either has to change;
+  everything that already sent proper master data is unaffected.
+
+### Changed
+
+- **The DE pack can be extended without a statement losing the accounts** (`de@2026.4`). The trap
+  was the finding, not the missing accounts: `de-guv` mapped position 6 by the **range** 6000–6099
+  while `de-euer` position A5 listed explicit `numbers: ["6000","6700"]`, so an account added at
+  6035 flowed into the income statement and vanished from the EÜR — same chart, same posting, two
+  statements disagreeing, and nothing saying so. `de-euer` now maps by range like `de-guv`, carved
+  around the three numbers the law treats individually (entertainment deductible / non-deductible,
+  carrying amount on disposal). Seven operating-expense accounts follow (6030–6090: rooms, energy,
+  telephone, vehicles, tools, insurance, bank charges), which is what an embedding app asked for and
+  what is only safe *after* the mappings agree. Fixture `de-aufwandskonten-erweiterbar` pins the
+  property rather than the account list. Superseded module files stay in `de-pack/versions/`, so
+  `de@2026.3` keeps resolving to exactly what it always did.
+
+- **The `de-pack` README stops overpromising SKR03/04.** "Remain loadable via
+  `importChartOfAccounts`" was true in the narrow sense — the accounts get created — and false in
+  the sense a reader takes: all three mappings reference *this* chart's numbers, so an SKR03 tenant
+  gets a balance sheet, an income statement and an EÜR that find almost nothing. The README now says
+  what the limitation is, and the extendable bands are documented alongside it.
+
+- **The cross-test no longer compares against stale artifacts** (IMPL-028). `cross-export` wrote
+  into `.cross-dbs/` without clearing it, so a fixture that stopped being exported left its database
+  and its oracle behind and the read side kept comparing against them. It surfaced when the format
+  moved to 0.7: three retired fixtures' old oracles still said 0.6 and failed a run that no longer
+  happens. The export starts from an empty directory now.
+
+- **Three fixtures superseded, none edited.** `de-jahresgang` and `de-wertpapierdepot` pinned
+  `accountCount: 41` in passing — the same weld `de-pack-resolves` was retired for, and the reason
+  the chart could not grow. `de-euer-mapping-gap` is the rarer case: the mechanism it pins (an
+  account the mapping does not know is *reported*, not filed silently) still holds, but its example
+  account 6050 became a mapped account when the pack grew. Its successor pins the same mechanism on
+  a number that lies outside every DE mapping by design. Reasons in
+  `testing/testsuite/superseded.json`.
+
+### Added
+
+- **Costing runs are persisted** (F-KLR-001/004). `CostingService` kept its runs in a private `Map`,
+  so a run created in one process was gone in the next — and an application that builds a tenant per
+  request could release a run and never read it again, while `costAllocationSheet` needs the runId.
+  The requirements had said otherwise all along: runs are versioned per period, and the BAB and the
+  rates are a projection *of a released run*. A run no later process can read satisfies neither.
+  There is now a `CostingRunRepository` port with an in-memory and a database implementation in both
+  languages, a `summae_costing_runs` table, and the per-period version comes from the store — it used
+  to restart at 1 after every restart, so the second run of a period claimed to be its first.
+
+- **The schema install is idempotent** (SPEC-014, decided). Both adapters created their tables
+  exactly once at workspace initialisation and nothing upgraded an existing database — the first
+  change that added a table would have meant recreating every workspace. `create` is now "ensure",
+  guarded per table, and the costing table reached existing workspaces without one. The limit is
+  stated rather than hidden: it covers **additive** changes and nothing else; a column that changes
+  its type still needs a real migration, which neither language has.
+
+- **A partner can be marked as no longer in use** (`deactivatePartner` / `reactivatePartner`,
+  F-CORE-034). There is no `deletePartner` and there should not be — the books keep what they
+  referenced — but a partner nobody trades with any more had nowhere to be recorded, so every
+  application invented its own inactive-list beside the ledger. It is a **state, not a control**:
+  an inactive partner refuses nothing, its open items still settle and a posting that names it is
+  not rejected. Whether a picker still offers it is the application's workflow, which is also why
+  the word is not "lock" — `lockAccount` does refuse postings, and the difference is deliberate.
+  Both directions are audited with the status diff.
+
+- **Two schema defects in the partner record, both latent, both fixed** (IMPL-027). The format
+  declared `accountIds` (uuids) while the engine writes `accountNumbers` (strings), and
+  `journalExport` wrote partners **without** stripping nulls, unlike accounts and vouchers — so a
+  partner with no VAT id exported a `null` where the schema demands a string. Either one would have
+  made a GoBD Z3 export fail its own schema; neither ever did, because no schema test had exported
+  a partner. One does now, in both languages, and it exports the leanest partner there is.
+
+- **`journal` — a journal read that is both cheap and lossless** (F-CORE-031). The plainest view a
+  bookkeeping application has had two bad ways to be filled: `journalExport` is lossless and builds
+  five streams with a SHA-256 each, with no date window and no paging — an archive format paid for
+  on every page load; `datevExport` has the window and the weight but is DATEV-shaped and therefore
+  **lossy for split entries**, so an expense with its input tax collapses into one row and the tax
+  line disappears. The new projection takes `fiscalYear` with an optional `fromDate`/`toDate` window
+  and `offset`/`limit`, and returns every line of every entry with account number *and* name.
+  Paging counts **entries**, not lines — a page boundary inside a split entry would reproduce the
+  very defect it exists to avoid — and `count` names the total in the window before paging, so a
+  page header no longer costs an export.
+
+- **`vatReturn.gapWarnings` — the silent tax gap says something now** (F-TAX-013). The return is
+  built from tax-*coded* postings, so a hand-written `expense / input tax / bank` entry balances,
+  satisfies every invariant, shows correct figures on the accounts and in the trial balance, and
+  contributes nothing to the filing. The books looked right everywhere except the one place that
+  decides what is filed — an embedding application's seed script fell into it on the first attempt.
+  Every line in the filing window that touches a `tax_in`/`tax_out` account without a tax code is
+  now listed with its posting, account, side and amount. Reported, never blocked: a correction
+  posting legitimately touches those accounts, and refusing it would stop the repair along with the
+  mistake.
+
+- **`unlockAccount`** (F-CORE-033) — `lockAccount` had no counterpart, so a mis-clicked lock could
+  only be repaired by abandoning the account and opening a second one under a new number, leaving
+  the old one in the chart forever and moving nothing that was posted on it. The question that
+  decided this was whether the irreversibility was *law*: it is not. What the German rules protect
+  against unrecognisable change are **postings**; for master data they ask that the change be
+  *logged* — which the audit trail does, in both directions, and no other jurisdiction answers it
+  differently either, so nothing about it belongs in a pack. The lock keeps its teeth while it
+  lasts, and unlocking changes nothing about the past. Both directions are audited (`locked` /
+  `unlocked` with the status diff).
+
+  Found on the way, and fixed with it: `systemDescription` under-reported what the audit trail
+  records — five asset actions and both dimension object types were missing from
+  `auditTrail.events`, so the description a Verfahrensdokumentation quotes claimed less than the
+  software does. And the audit-completeness guard kept its own hand-written list of mutating
+  operations, which had fallen behind by the same seven names as the published surface; it now
+  reads `API_OPERATIONS` and covers all 32.
+
+- **Partner master data can be corrected, not only entered** (F-CORE-032). Three gaps that only add
+  up once a screen maintains partners: `accountNumbers` and `address` were create-only, so a wrong
+  account link was permanent — the partner had to be abandoned and recreated under a new id while
+  every open item stayed on the old one; `paymentTermsDays` could be set and never cleared, because
+  it was read with a number check while `vatId` had always accepted `null` to clear — two fields,
+  two behaviours, nothing saying so. `updatePartner` now takes `accountNumbers` and `address`
+  (replacing wholesale, not merging) and `paymentTermsDays: null` clears the term. Still no
+  `deletePartner`, deliberately: books keep what they referenced.
+
+- **Operations declare their inputs, and an undeclared one is refused.** `PROJECTION_PARAMETERS`
+  had declared every projection parameter since 0.7 while `execute()` read what it recognised out
+  of an operation's input and ignored the rest. The asymmetry was the wrong way round: a typo in a
+  read failed loudly, a typo in a **write** was silence plus a default — and the write is the one
+  that ends up in the books. `testing/testsuite/schema/api-parameters.json` now carries an
+  `operations` block next to `projections`, both languages hold it as a constant, a drift test per
+  language asserts the two are equal, and `TenantOperations::execute` validates before routing. An
+  undeclared input is `E_INPUT_INVALID`; a declared one of the wrong type is rejected rather than
+  coerced; absent keeps its documented default and `null` counts as absent.
+
+  Three defects had already come out of that silence, and the contract catches all three shapes:
+  `usefulLifeYears` instead of `usefulLifeMonths` (accepted, ignored, the pack's lookup stayed in
+  charge), `"30"` instead of `30` (not rejected but *dropped*, the default stood), and
+  `proceeds: 2000` instead of Money (read with an is-object check, so a sale booked as a
+  scrapping). Two of them were live **in summae's own audit-trail test**, which had been passing
+  `usefulLifeYears: 5` and `role: 'customer'` for months; the new contract turned it red on the
+  first run.
+
+  Requiredness is deliberately not enforced here: an operation missing its subject already answers
+  with `E_VOUCHER_UNKNOWN` / `E_ASSET_UNKNOWN` / `E_ENTRY_NO_VOUCHER`, which says more than a
+  central `E_INPUT_INVALID` would.
+
+  Two things the declaration itself uncovered: `reverse` accepts a `voucherId` that the manual
+  never mentioned (documented now), and `setTaxProfile` accepts a `reason` that nothing records —
+  declared as accepted-without-effect rather than quietly dropped, the way
+  `importChartOfAccounts.format` already is.
+
+- **Three reads the write side already owned.** An embedding application kept arriving at the same
+  wall: it could change something and could not show it. Each time the only honest test left was to
+  trigger a refusal and read the error code.
+  - **`accounts`** (F-CORE-028) — the chart of accounts as a screen can afford to read it: number,
+    name, type, `subtype`, `status`, ordered by number, no balances and no hashes. `subtype` is what
+    identifies an account's role (bank, cash, receivable, payable) and lived only in
+    `journalExport`, behind five streams with a SHA-256 each; `datevExport({kind:'accounts'})` is
+    cheap but DATEV-shaped and stops at number, name and type. Applications were reading the
+    **pack** instead — the chart the tenant started from, which one `createAccount` makes wrong.
+    `status` is the read side of `lockAccount`, which had none.
+  - **`fiscalYears`** (F-CORE-029) — years and their periods with `start`, `end` and `status`, the
+    read side of `closePeriod` / `reopenPeriod` / `closeFiscalYear`. `auditLog` recorded every
+    close, but a trail is not a state: replaying it makes an application rebuild library state from
+    a log, and it is wrong the moment a period is closed elsewhere. The dates are what make a period
+    *list* possible — a fiscal year running July to June has no twelve calendar months to invent.
+  - **`openItems.partnerName`** (F-CORE-030) — the list could name the invoice and not the customer,
+    and resolving the id meant a second projection inside one view. It is the name the partner has
+    *now*, read from the master record: a renamed customer must not be dunned under its old name.
+
+- **Cost allocation can solve mutual services (`method: "simultaneous"`).** The step ladder
+  allocates in one pass and therefore cannot describe cost centres that serve each other — the power
+  plant heats the workshop, the workshop maintains the power plant. Ordering the two is not a
+  modelling choice but a wrong answer, which is why the step ladder refuses a cycle outright. The
+  simultaneous-equation method solves all centres at once instead (x = p + Aᵀx), so a cycle is the
+  ordinary case; only a *closed* one, where cost never reaches a centre that keeps it, is refused
+  (`E_COSTING_UNSOLVABLE`). This closes the part of F-KLR-003 that was never built.
+
+  Two details it needed and did not get for free. The elimination runs on exact fractions
+  (`Rational`, new in the substrate), not on decimals: a solved share is routinely a fraction with
+  no decimal form, and a solver that rounds mid-computation gives an answer that depends on where it
+  rounded — something two implementations cannot agree on by construction. And turning the solution
+  back into money is one largest-remainder step over the whole vector rather than one rounding per
+  centre, so the sheet still says that allocation distributes and never creates.
+
+  The direct method (*Anbauverfahren*) needs no mechanism of its own: it is the step ladder with a
+  scheme that leaves the auxiliary-to-auxiliary edges out.
+
+- **The cost allocation sheet says which method produced it.** Two procedures answer the same
+  question differently; a sheet that does not name one cannot be checked against anything.
+
+- **`overheadRates` — the calculation rates of a costing run.** F-KLR-004 asks for the allocation
+  sheet *and* the calculation rates; only the sheet existed. Where the sheet says what a cost centre
+  ended up carrying, a rate says how that attaches to a product. The numerator is the centre after
+  allocation, the denominator is declared per rate as direct-cost `accounts`, other `costCenters`, or
+  both — one primitive that covers the classic set without a special case, since cost of production
+  is simply "the direct-cost accounts plus the two production centres". Direct costs are read per
+  account rather than through the `costCenter` dimension, because that is what they are: costs of the
+  product, not of a department.
+
+  Rates are frozen into the run, so changing the scheme afterwards cannot change what a released run
+  says. A rate whose base came out zero is `null` and the centre is named in `warnings` — undefined
+  is not `0.0000`, and a zero returned there would be applied to products as though it meant
+  something.
+
+- **Declining-balance depreciation can now tell asset classes apart.** A pack may have two
+  declining-balance regimes in force at once — Germany runs one for movables and another for new
+  residential buildings over overlapping windows — and the core took whichever entry came first
+  in the file. A building therefore inherited the movables entry, and the damage is not what the
+  headline rates suggest: at a 400-month life the movables cap of 30 % never binds, so the rate
+  came out at 3 × 2.9412 % = 8.8235 % and the first year booked 35,294.00 where 20,000.00 was
+  due. No error, no crash, 76 % too much depreciation.
+
+  A `decliningBalance` entry may now name the `assetClasses` it covers, and **a class-specific
+  entry wins over a general one regardless of file order** — order-independence being the point,
+  since a rule that changed meaning when someone appended a line above it would be a trap. An
+  entry without the field still covers every class, so every pack written before this keeps
+  computing exactly what it did.
+
+- **The `de` pack carries § 7 Abs. 5a EStG**: 5 % of the residual value for new residential
+  buildings acquired between 1 October 2023 and 30 September 2029. The useful life comes with the
+  acquisition rather than from the pack's table, deliberately: for a residential building the
+  straight-line rate depends on the year of completion, and the table has no date dimension, so
+  one tabled figure would be wrong for every older building.
+
+- **`productionCost` — what inventory may be carried at.** The one cost-accounting figure with
+  balance-sheet effect, and the first module kind that is purely a legal table: the core adds
+  components up, the new `productionCost` pack module says which ones **must** be capitalised, which
+  **may** be (the preparer's election), and which **must not**. The `de` and `us` packs agree on full
+  absorption of production cost and disagree about general administration — so identical books value
+  at 126,000.00 under one and 114,000.00 under the other, with no branch anywhere in the core.
+
+  Every configured component comes back, including the excluded ones, with its treatment and whether
+  it was counted: a valuation that shows only its own total cannot be checked against the rule it
+  claims to follow. Three refusals replace silent answers — an undeclared component
+  (`E_PACK_INCOHERENT`), electing a forbidden one (`E_INPUT_INVALID`), and asking for the figure
+  without configuring it. What it deliberately does not do is divide by a quantity: per-unit cost
+  needs produced quantities, and the core carries none.
+
+- **The `de` pack can record an exempt export (`AUSFUHR`).** The `exempt` mechanism has existed since
+  0.5.0 and the German pack had no code using it: a business selling outside the EU had the
+  intra-community supply and nothing for Switzerland or the United States — a different exemption on a
+  different line. It reports under Kz 43 rather than Kz 41 and, unlike `igL`, stays out of the EC
+  sales list, where an entry would be a false statement rather than a cosmetic error.
+
+  Recorded, not resolved: SPEC-013. The German chart has an account for exempt intra-community
+  supplies and none for exempt exports, and the pack cannot simply gain one — `de-pack-resolves` pins
+  the number of accounts the shipped chart has. The fixture shows the `createAccount` a user has to
+  do today.
+
+- **The `de` pack can record an intra-community acquisition (`IGE19`, `IGE7`).** It shipped `igL` for
+  the selling side and nothing for the buying side — the more common case for most businesses — so a
+  German company buying goods from another member state could not record the transaction at all.
+
+  The engine never needed anything: an acquisition is structurally § 13b, tax and input tax arising
+  together and cancelling, and `reverse_charge` has expressed that since 0.5.0. What held it up was a
+  misreading recorded in the backlog — that the acquisition has no separate figure for the *tax* (Kz
+  89 carries the base and ELSTER computes 19 % of it) while the model appeared to require one. It does
+  not, and the pack already proved it: Kz 81 for ordinary sales is likewise a base-only figure used as
+  `reportingKey`. Kz 89 for 19 %, Kz 93 for 7 %, input tax on Kz 61, and the return comes out
+  payload-neutral, which is what an acquisition with full deduction is.
+
+- **`reportAssetUsage` — depreciation by output (`units_of_production`).** An asset that wears by use
+  rather than by time — a lorry, a press, a copier — may in some jurisdictions be written off along
+  its actual output, and that changes what a plan can be: the number comes from goods movements and
+  meter readings that are not in the books. Such an asset has no schedule and `runDepreciation` passes
+  it by; the caller reports the meter instead.
+
+  The arithmetic is cumulative, which is the part that matters. Each report splits the cost between
+  what the asset has now given and what it has not, and books the difference against what is already
+  written off — so the report that reaches the total output lands on the cost exactly, where
+  period-by-period rounding would drift. Outliving the estimate is not an error: the booking is capped
+  at the book value and says `capped`. Once written off, further output is refused rather than booked
+  as a silent `0.00`.
+
+- **`bookSpecialDepreciation` — an additional allowance next to the plan.** Some jurisdictions let a
+  business deduct an extra share of an asset's cost within its first few years, freely distributed
+  over them (Germany: § 7g Abs. 5 EStG, 20 % until 2023 and 40 % from 2024, over five years — now in
+  the `de` pack). It is not a depreciation method, which is why it could not be expressed before: the
+  ordinary plan runs on unchanged on the original basis while the window is open. It is a budget, and
+  the split is the taxpayer's, so it is an operation rather than a schedule.
+
+  The part that had to come with it is the re-basing. When the window closes, part of the cost has
+  left the plan and the plan would keep asking for its original yearly amount — removing that step
+  turns the fixture's asset account to −12,000.00. The remaining book value is spread over the plan
+  months still open, using the same code a write-down uses; two spreadings that drifted apart would
+  be two answers to one question.
+
+  What the core does not do is check entitlement. A profit limit and a share of business use are
+  facts about the business, not about the books; it enforces the budget and the window, which is what
+  it can actually know.
+
+- **`writeDownAsset` — unplanned write-downs (impairment).** The planned schedule answers wear and
+  tear and has nothing to say about a machine damaged in March. Where the loss is expected to last,
+  writing the asset down is an obligation, not an option, and the only ways to express it were
+  disposing of an asset that still exists or posting by hand past the asset register — after which
+  the register and the ledger disagree about what the asset is worth.
+
+  The part that is easy to leave out is what happens next: **the remaining plan is rewritten**, so
+  what is left is spread over the plan months still open. Leaving the plan alone depreciates past
+  zero (removing that re-spread turns the fixture's asset account to −1,800.00); stopping it finishes
+  the asset early. A `reason` is required — an unplanned write-down that does not say why is not
+  auditable.
+
+- **The constraint policy kind has a pack socket (`constraint` module).** summae has always described
+  itself as substrate plus three policy kinds — constraint, projection, expansion — and only two of
+  them could be plugged from a pack. A jurisdiction could contribute rules and views but never a
+  *prohibition*, so any rule that is a constraint had to go into the core, against the whole split.
+
+  The mechanism existed: `DimensionRegistry` enforces mandatory dimensions per account range, and it
+  was reachable only by constructing a tenant in memory — a tenant built from a pack got a registry
+  with nothing in it. A `constraint` module now carries `dimensionRules`, and several such modules add
+  up rather than replace, so module order in a manifest stays meaningless.
+
+  One predicate is not a general socket, and the GoBD census says so: the shape is settled, the
+  vocabulary is not. A pack still cannot express a rule about a settlement or a deadline.
+
+- **`defineDimensionType` / `defineDimensionValue`.** Dimension master data was declarable only
+  through the in-memory construction path, so **every tenant created from a pack started with an
+  empty registry and rejected any posting carrying a cost centre** — cost accounting was unreachable
+  on `de`, `us` and `default` alike, and nothing in the packs said so. Cost centres are the tenant's
+  master data, not a jurisdiction's, so they are declared like accounts rather than shipped in a pack.
+
+- **`contentDigest` on `resolvePack` and on a tenant's `pack`.** A SHA-256 over the canonical JSON of
+  the whole resolution, byte-identical in both implementations. Two tenants carrying the same digest
+  run on the same rules whatever their labels claim; the same version showing two digests means a
+  published version changed underneath somebody. It is derived, so unlike a hand-written version
+  number it cannot be forgotten — which is the whole reason it exists (see *Fixed* below).
+
+### Fixed
+
+- **Seven routed capabilities were not published, and nothing asked.** The dispatcher answered
+  `writeDownAsset`, `bookSpecialDepreciation`, `reportAssetUsage`, `defineDimensionType`,
+  `defineDimensionValue`, `overheadRates` and `productionCost` — all finished, documented and
+  fixture-covered — while `systemDescription` named none of them. The contract test only ever asked
+  one direction (every published name resolves to a handler), so a surface larger than its
+  declaration passed a green suite in both languages. For an embedding application that validates
+  its calls against the published list, an unpublished operation does not exist: the app that
+  reported this had no außerplanmäßige Abschreibung, no Sonderabschreibung and no Leistungs-AfA on
+  its fixed-asset screen, because the three operations were unreachable by contract.
+
+  All seven are now published, and the contract test compares **both** directions in both
+  languages — it reads the dispatcher's own source for the routed names, because a `switch`/`match`
+  has no runtime shape to enumerate. The `system-description` fixture carries the larger surface, as
+  it does whenever the API grows: a description that does not mention a capability the software has
+  lies by omission.
+
+- **The manual was missing four published names.** `cashJournal`, `unfinalizedEntries`,
+  `systemDescription` and the `allocate` operation had no section in `docs/handbuch/README.md` —
+  published, tested, and undiscoverable. All four are documented now, and a new guard in both
+  languages fails the build when a published name has no heading in the manual. Coverage of the
+  documentation, next to the walkthrough scenarios that already gate its correctness.
+
+- **A yearly depreciation run before a mid-year disposal left the asset account below zero.**
+  `runDepreciation({ fiscalYear })` books the whole year in one entry dated 31 December. A disposal
+  on 30 September then read the carrying amount *as of the disposal date*, treated that entry as
+  later than itself, and wrote off the full acquisition cost — on top of what the run had already
+  written off. The books balanced, every invariant held, and the asset account carried a credit
+  balance that nothing ever cleared. The disposal now reads the carrying amount from the whole
+  ledger, like every other caller in the service: what leaves the account equals what stands on it
+  (F-AST-004, IMPL-026). Found by an app embedding summae, not by our own suite — twelve asset
+  fixtures, and none of them had ever run the two in this order. Fixture
+  `disposal-after-yearly-depreciation`.
+
+  The disposal year's depreciation is deliberately **not** re-apportioned to the disposal month: the
+  year keeps its twelve months and the disposal takes the difference into its result. The income
+  statement carries the same total either way, and whether the year of departure grants a full year,
+  a half year or nine months is a jurisdiction's answer that belongs in a pack (same reasoning as
+  IMPL-022).
+
+- **A published pack version was not immutable.** `de@2026.2` named at least three different bundles:
+  the manifest kept its version while `de-ust` moved 2026.2 → 2026.4, `de-afa` 2026.5 → 2026.7 and a
+  whole module joined, and the old module files were overwritten rather than kept alongside. Whoever
+  pinned that version got different books depending on the day they installed. `us@2026.2` had the
+  same defect.
+
+  The version could not move because three conformance fixtures pinned it — and pinned the account
+  count with it, so the shipped charts could not grow either (SPEC-012 and SPEC-013, which turned out
+  to be one defect). Those fixtures are **superseded**, not edited: the files stay byte-identical,
+  `testing/testsuite/superseded.json` names the successor and the reason, and both runners skip them.
+  Their successors pin the behaviour — the pack resolves, a tenant is built, the posting comes out
+  right — and leave the product's numbers to the product. What they pinned about the *mechanism* moved
+  to `xx-6-pack-version-pinning`, which brings its own pack and is frozen for good.
+
+  Selecting a manifest is now one function in the core (`PackResolver::findManifest`), called by the
+  runner and by `summae init` alike, and a request without a version resolves to the **highest**
+  version rather than the first match — so old versions can live in the library beside new ones, and
+  the answer does not depend on directory order. `de` and `us` are now `2026.3`.
+
+  **Breaking for anyone pinning a version:** `resolvePack({ manifest: "de", version: "2026.2" })` now
+  fails with `E_PACK_UNRESOLVED_REF`. That version was never reconstructed from today's modules — a
+  frozen file claiming to be the old bundle would be a second lie on top of the first. Immutability
+  starts here.
+
+- **A database-backed asset never saw a change to its own master data.** `save()` wrote the state
+  and never the payload, which was safe exactly as long as nothing in the payload could change. The
+  depreciation schedule lives there, so the first operation that rewrites it — the write-down above —
+  would have left a database tenant booking the old plan while the in-memory one booked the new: same
+  input, two sets of books. Caught by `make fixtures-db`, which exists because of the audit-writer
+  defect in 0.10.1 and has now paid for itself twice.
+
+- **`setAllocationScheme` refused to admit it could not do what was asked.** It read `method`,
+  echoed it back in its answer and then ignored it entirely, so asking for anything other than the
+  step ladder returned step-ladder numbers labelled with the name of a different procedure. That is
+  the worst shape a defect can take, because the reply asserts it did what was asked. An unrecognised
+  method is now `E_INPUT_INVALID`, with the ones this core performs named in the message.
+
+- **The v0.10.0 release notes now carry a warning.** That version's PHP `summae-laravel` package
+  builds a database-backed tenant without an audit writer. Packagist has no per-version
+  deprecation, so the warning sits where someone landing on that version actually reads it. The
+  npm packages of 0.10.0 are byte-identical to 0.10.1 and are not affected.
+
 ## 0.10.1 — 2026-08-23
 
 One fix, and it is the kind that only shows up where it matters: **with a real database, three

@@ -93,7 +93,7 @@ final class OpenItemsTest extends LedgerTestCase
         // Time travel: remainingAt mid-February = after partial payment.
         self::assertSame('690.00', $item->remainingAt(CalendarDate::of('2026-02-20'))->amountAsString());
 
-        $projection = new OpenItemsProjection($this->tenant->openItems, $this->tenant->vouchers, $this->tenant->journal);
+        $projection = new OpenItemsProjection($this->tenant->openItems, $this->tenant->vouchers, $this->tenant->journal, $this->tenant->partners);
         $atFeb = $projection->compute(['asOf' => '2026-02-20', 'kind' => 'receivable']);
         self::assertCount(1, $atFeb['items']);
         $atYearEnd = $projection->compute(['asOf' => '2026-12-31', 'kind' => 'receivable']);

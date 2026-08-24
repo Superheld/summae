@@ -131,7 +131,8 @@
               "objectType": "account",
               "actions": [
                 "created",
-                "locked"
+                "locked",
+                "unlocked"
               ]
             },
             {
@@ -184,7 +185,22 @@
               "objectType": "asset",
               "actions": [
                 "acquired",
-                "disposed"
+                "disposed",
+                "usageReported",
+                "specialDepreciationBooked",
+                "writtenDown"
+              ]
+            },
+            {
+              "objectType": "dimensionType",
+              "actions": [
+                "created"
+              ]
+            },
+            {
+              "objectType": "dimensionValue",
+              "actions": [
+                "created"
               ]
             },
             {
@@ -206,6 +222,7 @@
           "operations": [
             "acquireAsset",
             "allocate",
+            "bookSpecialDepreciation",
             "closeFiscalYear",
             "closePeriod",
             "correct",
@@ -213,6 +230,8 @@
             "createFiscalYear",
             "createPartner",
             "createVoucher",
+            "defineDimensionType",
+            "defineDimensionValue",
             "disposeAsset",
             "expandTax",
             "finalize",
@@ -223,16 +242,20 @@
             "postVoucher",
             "releaseCosting",
             "reopenPeriod",
+            "reportAssetUsage",
             "reverse",
             "runCosting",
             "runDepreciation",
             "setAllocationScheme",
             "setTaxProfile",
             "settle",
-            "updatePartner"
+            "unlockAccount",
+            "updatePartner",
+            "writeDownAsset"
           ],
           "projections": [
             "accountSheet",
+            "accounts",
             "assetRegister",
             "auditDataExport",
             "auditLog",
@@ -242,9 +265,13 @@
             "costAllocationSheet",
             "datevExport",
             "ecSalesList",
+            "fiscalYears",
             "incomeStatement",
+            "journal",
             "journalExport",
             "openItems",
+            "overheadRates",
+            "productionCost",
             "systemDescription",
             "trialBalance",
             "unfinalizedEntries",

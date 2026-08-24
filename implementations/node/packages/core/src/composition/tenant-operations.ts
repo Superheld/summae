@@ -16,10 +16,14 @@ import { JournalExportProjection } from '../policies/projection/journal-export.j
 import { IncomeStatementProjection } from '../policies/projection/income-statement.js';
 import { EcSalesListProjection } from '../policies/projection/ec-sales-list.js';
 import { OpenItemsProjection } from '../policies/projection/open-items.js';
+import { AccountsProjection } from '../policies/projection/accounts.js';
+import { FiscalYearsProjection } from '../policies/projection/fiscal-years.js';
+import { JournalProjection } from '../policies/projection/journal.js';
 import { TrialBalanceProjection } from '../policies/projection/trial-balance.js';
 import { VatReturnProjection } from '../policies/projection/vat-return.js';
 import { PostVoucherService } from './post-voucher-service.js';
 import { validateProjectionParams } from './projection-parameters.js';
+import { validateOperationInput } from './operation-parameters.js';
 import type { Tenant } from './tenant.js';
 
 /** Plain-JSON serialization via toJSON() (like PHP's json_encode/decode). */
@@ -36,6 +40,11 @@ export class TenantOperations {
   constructor(private readonly tenant: Tenant) {}
 
   execute(op: string, input: Record<string, unknown>): Record<string, unknown> {
+    // The input contract is checked here, before routing: one place instead of one check per
+    // handler, and the same place in both languages — the mirror of what `project()` does below.
+    // An operation below therefore reads inputs that are either absent or of the declared type.
+    validateOperationInput(op, input);
+
     const ledger = this.tenant.ledger;
 
     switch (op) {
@@ -70,12 +79,18 @@ export class TenantOperations {
         return { fiscalYear: ledger.closeFiscalYear(input).year, status: 'closed' };
       case 'createAccount':
         return serialize(ledger.createAccount(input));
+      case 'defineDimensionType':
+        return ledger.defineDimensionType(input);
+      case 'defineDimensionValue':
+        return ledger.defineDimensionValue(input);
       case 'createFiscalYear': {
         const fiscalYear = ledger.createFiscalYear(input);
         return { year: fiscalYear.year, periodCount: fiscalYear.periods().length };
       }
       case 'lockAccount':
         return serialize(ledger.lockAccount(input));
+      case 'unlockAccount':
+        return serialize(ledger.unlockAccount(input));
       case 'importChartOfAccounts':
         return { importedCount: ledger.importChartOfAccounts(input) };
       case 'importMapping':
@@ -87,12 +102,22 @@ export class TenantOperations {
         ).import(input);
       case 'createPartner':
         return serialize(this.tenant.partnerService.create(input));
+      case 'deactivatePartner':
+        return serialize(this.tenant.partnerService.setStatus(input, 'inactive'));
+      case 'reactivatePartner':
+        return serialize(this.tenant.partnerService.setStatus(input, 'active'));
       case 'updatePartner':
         return serialize(this.tenant.partnerService.update(input));
       case 'acquireAsset':
         return this.tenant.assetService.acquire(input);
       case 'disposeAsset':
         return this.tenant.assetService.dispose(input);
+      case 'reportAssetUsage':
+        return this.tenant.assetService.reportAssetUsage(input);
+      case 'bookSpecialDepreciation':
+        return this.tenant.assetService.bookSpecialDepreciation(input);
+      case 'writeDownAsset':
+        return this.tenant.assetService.writeDownAsset(input);
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
       case 'allocate': {
@@ -135,7 +160,18 @@ export class TenantOperations {
       case 'trialBalance':
         return new TrialBalanceProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'openItems':
-        return new OpenItemsProjection(tenant.openItems, tenant.vouchers, tenant.journal).compute(params);
+        return new OpenItemsProjection(
+          tenant.openItems,
+          tenant.vouchers,
+          tenant.journal,
+          tenant.partners,
+        ).compute(params);
+      case 'accounts':
+        return new AccountsProjection(tenant.accounts).compute(params);
+      case 'journal':
+        return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers).compute(params);
+      case 'fiscalYears':
+        return new FiscalYearsProjection(tenant.fiscalYears).compute(params);
       case 'accountSheet':
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
@@ -150,6 +186,10 @@ export class TenantOperations {
         return new AssetRegisterProjection(tenant.assets).compute(params);
       case 'costAllocationSheet':
         return tenant.costing.costAllocationSheet(params);
+      case 'overheadRates':
+        return tenant.costing.overheadRates(params);
+      case 'productionCost':
+        return tenant.costing.productionCost(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

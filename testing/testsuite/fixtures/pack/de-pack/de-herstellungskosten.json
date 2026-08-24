@@ -1,0 +1,376 @@
+{
+  "fixture": "de-herstellungskosten",
+  "description": "DE-Pack: production cost under § 255 Abs. 2 HGB. The core adds components up; this table is the pack's, and it is the whole difference between one jurisdiction and the next. Germany requires material and production cost, their overhead, and the production-related depreciation of fixed assets; it leaves general administration, voluntary social benefits, occupational pensions and (per § 255 Abs. 3) borrowing costs to the preparer; and it forbids research and distribution outright. Here the preparer takes the administration option: 114,000.00 of mandatory components plus 12,000.00 of administration = 126,000.00, while 6,000.00 of distribution stays out because no election can lift a statutory prohibition. Note the four `defineDimensionValue` calls: cost centres are the tenant's own master data, not the pack's — \"Materialstelle\" is a fact about one company and not about German law — and until now they could only be declared through the in-memory construction path, which left every pack-built tenant with an empty registry and cost accounting unreachable on every shipped pack. Read this fixture next to `us-inventory-costing`, which drives the SAME books through the US pack and comes out 12,000.00 lower — general and administrative expense is a period charge under ASC 330, and that single row of pack data is the entire reason the inventory value differs.",
+  "covers": [
+    "F-KLR-004",
+    "F-KLR-005",
+    "SF-12"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Fertigung GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "defineDimensionType",
+      "input": {
+        "tenant": "$T1",
+        "code": "costCenter"
+      },
+      "expect": {
+        "result": {
+          "code": "costCenter"
+        }
+      }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": {
+        "tenant": "$T1",
+        "type": "costCenter",
+        "code": "MAT"
+      },
+      "expect": {
+        "result": {
+          "type": "costCenter",
+          "code": "MAT"
+        }
+      }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": {
+        "tenant": "$T1",
+        "type": "costCenter",
+        "code": "FERT"
+      },
+      "expect": {
+        "result": {
+          "type": "costCenter",
+          "code": "FERT"
+        }
+      }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": {
+        "tenant": "$T1",
+        "type": "costCenter",
+        "code": "VW"
+      },
+      "expect": {
+        "result": {
+          "type": "costCenter",
+          "code": "VW"
+        }
+      }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": {
+        "tenant": "$T1",
+        "type": "costCenter",
+        "code": "VT"
+      },
+      "expect": {
+        "result": {
+          "type": "costCenter",
+          "code": "VT"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "KOST-2026-01",
+          "voucherDate": "2026-01-31"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-01-31",
+        "voucherId": "$V1",
+        "text": "Kosten Januar",
+        "lines": [
+          {
+            "account": "5000",
+            "side": "debit",
+            "money": {
+              "amount": "50000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "6300",
+            "side": "debit",
+            "money": {
+              "amount": "30000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "6500",
+            "side": "debit",
+            "money": {
+              "amount": "8000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "5000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "MAT"
+              }
+            ]
+          },
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "21000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "FERT"
+              }
+            ]
+          },
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "12000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "VW"
+              }
+            ]
+          },
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "6000.00",
+              "currency": "EUR"
+            },
+            "dimensions": [
+              {
+                "type": "costCenter",
+                "code": "VT"
+              }
+            ]
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "132000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        }
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "tenant": "$T1",
+        "steps": [],
+        "productionCost": {
+          "include": [
+            "administration"
+          ],
+          "components": [
+            {
+              "id": "materialDirect",
+              "base": {
+                "accounts": [
+                  "5000"
+                ]
+              }
+            },
+            {
+              "id": "productionDirect",
+              "base": {
+                "accounts": [
+                  "6300"
+                ]
+              }
+            },
+            {
+              "id": "productionDepreciation",
+              "base": {
+                "accounts": [
+                  "6500"
+                ]
+              }
+            },
+            {
+              "id": "materialOverhead",
+              "base": {
+                "costCenters": [
+                  "MAT"
+                ]
+              }
+            },
+            {
+              "id": "productionOverhead",
+              "base": {
+                "costCenters": [
+                  "FERT"
+                ]
+              }
+            },
+            {
+              "id": "administration",
+              "base": {
+                "costCenters": [
+                  "VW"
+                ]
+              }
+            },
+            {
+              "id": "distribution",
+              "base": {
+                "costCenters": [
+                  "VT"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "result": {
+          "valid": true,
+          "productionCostComponents": 7
+        }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": {
+        "tenant": "$T1",
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "result": {
+          "runId": "$R1",
+          "status": "draft",
+          "version": 1
+        }
+      }
+    },
+    {
+      "op": "releaseCosting",
+      "input": {
+        "tenant": "$T1",
+        "runId": "$R1"
+      },
+      "expect": {
+        "result": {
+          "status": "released"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "productionCost",
+      "params": {
+        "tenant": "$T1",
+        "runId": "$R1"
+      },
+      "expect": {
+        "comment": "Pflicht 114.000,00 + Wahlrecht Verwaltung 12.000,00; Vertrieb bleibt draußen (§ 255 Abs. 2 Satz 4 HGB)",
+        "total": "126000.00",
+        "components": [
+          {
+            "id": "materialDirect",
+            "amount": "50000.00",
+            "treatment": "mandatory",
+            "included": true
+          },
+          {
+            "id": "productionDirect",
+            "amount": "30000.00",
+            "treatment": "mandatory",
+            "included": true
+          },
+          {
+            "id": "productionDepreciation",
+            "amount": "8000.00",
+            "treatment": "mandatory",
+            "included": true
+          },
+          {
+            "id": "materialOverhead",
+            "amount": "5000.00",
+            "treatment": "mandatory",
+            "included": true
+          },
+          {
+            "id": "productionOverhead",
+            "amount": "21000.00",
+            "treatment": "mandatory",
+            "included": true
+          },
+          {
+            "id": "administration",
+            "amount": "12000.00",
+            "treatment": "optional",
+            "included": true
+          },
+          {
+            "id": "distribution",
+            "amount": "6000.00",
+            "treatment": "forbidden",
+            "included": false
+          }
+        ]
+      }
+    }
+  ]
+}

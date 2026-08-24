@@ -74,10 +74,58 @@ a short file.
 | IMPL-023 machine entries cannot carry a required dimension | **RESOLVED 2026-08-16** — the asset carries its dimensions (`acquireAsset(dimensions)`), and acquisition, depreciation, catch-up and disposal all book with them; both persistence adapters carry them through the round trip. Fixture `asset-dimensions` |
 | IMPL-024 pooled assets reported a carrying amount of zero | **RESOLVED 2026-08-16** — `bookValueAt` returned zero for everything except `capitalize`, so the fixed-asset schedule (F-AST-005) understated the balance sheet it explains. Only `immediate_expense` has no carrying amount |
 | IMPL-025 the pool-disposal rule was German law inside the core | **RESOLVED 2026-08-16** — the IMPL-019 fix hard-coded § 6 Abs. 2a EStG (`route !== 'pool'`). It is now the pack's answer (`poolReducedOnDisposal`, conditionally required next to `poolMax`), refused rather than defaulted, with fixtures for both answers |
+| IMPL-026 a yearly depreciation run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount *as of the disposal date* and so ignored a run booked on 31 December; it wrote off the full cost on top of what the run had already written off. Now read from the whole ledger, like every other caller. Found by the embedding app (its F-15), fixture `disposal-after-yearly-depreciation` |
+| IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — two halves of one gap: the format declared `accountIds` (uuids) while the engine writes `accountNumbers` (strings), and `journalExport` exported partners without stripping nulls, unlike accounts and vouchers, so a partner with no `vatId` wrote a `null` where the schema demands a string. Latent because no schema test had ever exported a partner; one does now in both languages, with the leanest partner there is. Found while adding `status` for the format 0.7 bump |
+| IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `cross-export` wrote into `.cross-dbs/` without clearing it, so a fixture that stopped being exported left its database and its oracle behind and the read side kept comparing against them. Surfaced when the format moved to 0.7: three retired fixtures' old oracles said 0.6 and failed the cross test on a run that no longer happens. The export starts from an empty directory now |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
-IMPL-020 were **found and closed** the same day while closing the gate gaps below. **The findings list
-is empty.**
+IMPL-020 were **found and closed** the same day while closing the gate gaps below.
+
+**2026-08-24: the list is being filled from outside.** IMPL-026 did not come from this side at all —
+it came from an app embedding summae, which hit it building a fixed-asset screen and wrote it down
+as its own F-15. That is the return on dogfooding, and it is also a warning about where our own
+tests stop: every asset fixture until now either disposed before the yearly run or never combined
+the two, so the suite was green on an ordering that put a credit balance on an asset account. The
+other findings that arrived with it are tracked as requirements rather than findings; the
+classification is in `docs/SUMMAE-BRIEF.md`.
+
+### IMPL-026 — a yearly run before a mid-year disposal left the asset account below zero — RESOLVED
+
+**Found by the embedding app, not by us** (its `FINDINGS.md`, F-15), and it is the only finding on
+its list where the books came out wrong rather than merely incomplete.
+
+Acquire 3.600,00 on 15 January over 36 months, `runDepreciation({ fiscalYear: 2026 })`, then
+`disposeAsset({ disposedOn: '2026-09-30', proceeds: 2.000,00 })`. Expected a carrying amount of
+2.400,00 and a loss of 400,00. What happened: the disposal wrote off 3.600,00, booked a loss of
+1.600,00, and left the asset account at **−1.200,00**.
+
+Two readings of "how much is already depreciated" disagreed. The yearly run books the whole year in
+**one entry dated 31 December** and records twelve plan months against it. `catchUpDepreciation`
+(IMPL-022) asks the **plan**, finds every month recorded, and books nothing — correct.
+`bookValueAt(disposedOn)` asked the **posting dates**, saw the 31 December entry as later than
+30 September, ignored it, and reported the full acquisition cost as still carried. So the write-off
+was computed against a ledger state that no longer existed.
+
+The fix is one argument: the disposal reads `bookValueAt(null)`, the whole ledger. What made it the
+obvious answer rather than a choice is that **every other caller in the service already did that** —
+the write-down, the special depreciation, the usage report, the traces, all of them ask for the
+accumulated depreciation without an as-of. The disposal was the only as-of query in the file, and it
+is the one place where an as-of query cannot be right: what leaves the account has to equal what
+stands on it, or the account cannot reach zero. That is F-AST-004, and the fixture pins the trial
+balance rather than the asset's own numbers for exactly that reason.
+
+**What was deliberately not changed.** The disposal year's depreciation is not re-apportioned to the
+disposal month. Under the fix the year keeps its twelve months of depreciation and the disposal takes
+the difference into its result — 1.200,00 depreciation + 400,00 loss, against 900,00 + 700,00 if the
+three months after the disposal were given back. The income statement carries the same 1.600,00
+either way, and the split is a *jurisdiction's* answer: Germany apportions monthly, US conventions
+use half-year or mid-quarter. IMPL-022 already recorded that reasoning for the catch-up direction and
+left it to the pack; taking it back in the core here would have made the same mistake IMPL-025
+describes, one direction over.
+
+**Where our own coverage failed.** Twelve asset fixtures, and not one of them ran a yearly
+depreciation *before* a mid-year disposal. Each half was tested; the order was not. The new fixture
+pins the order, not the arithmetic.
 
 ### IMPL-025 — the pool-disposal rule was German law inside the core — RESOLVED
 
@@ -688,3 +736,144 @@ data-format decision) before either language moves.
   Deliberately **not** done here: it is a test-writing job, not a gate-wiring one. Node has no
   counterpart — `packages/knex` has no tests of its own either, but is covered through the CLI
   package's tests and does carry a floor there.
+
+## SPEC-011: F-KLR-001 says evaluations read released runs only — a fixture reads a draft
+
+**Found 2026-08-23, while building `overheadRates` (F-KLR-004).**
+
+F-KLR-001 reads: "Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released);
+**Auswertungen lesen nur released Läufe.**" Taken literally, `costAllocationSheet` and the new
+`overheadRates` should refuse a run that is still `draft`.
+
+The append-only fixture `core/parameter-effect` reads `costAllocationSheet` for a run it never
+releases, and expects numbers back. So the contract, as it has always been exercised, says draft
+runs *are* readable.
+
+**Not resolved by bending the fixture.** Editing it would rewrite what the contract always said and
+retroactively make every implementation that agreed with it wrong — the reason the suite is
+append-only in the first place. Nor by enforcing the rule on the new projection only: two costing
+projections with different rules about the same run is worse than one consistent rule.
+
+**Built with the next most plausible behaviour:** both projections read a run in any status and
+return `status` in the answer, so a caller can see which they got and decide. What is missing is the
+*decision*, not the code — either the requirement means "the embedding application must only publish
+released runs" (in which case it is an app obligation and F-KLR-001 should say so), or it means a
+hard refusal (in which case a new fixture has to establish it and `parameter-effect` stays as the
+record of what the contract used to allow). Left open deliberately; it is a question about intent,
+and guessing it would be the same mistake in the other direction.
+
+## SPEC-012: the shipped pack's manifest version cannot change — a fixture pins it
+
+**Found 2026-08-23, while adding the `productionCost` module to the `de` and `us` packs.**
+
+`pack/de-pack/de-pack-resolves` calls `resolvePack({ manifest: "de", version: "2026.2" })` and pins
+`pack.version` in the tenant it then creates. Raising the manifest's own version therefore makes an
+append-only fixture unresolvable — the pack the fixture asks for no longer exists.
+
+The practical consequence is that **only module versions move**. Every pack change so far has bumped
+the module (`de-afa` 2026.5 → 2026.6) and the manifest's *reference* to it, while the manifest's own
+`version` has stood at 2026.2 through several rounds of real change. A consumer reading `pack.version`
+— which `systemDescription` reports, and which is the field the "tzdata for accounting" idea rests on
+— cannot tell those rounds apart.
+
+**Not resolved by bending the fixture,** for the usual reason. What the contract needs is a decision:
+either the manifest version is deliberately a *format* version and something else carries the content
+version (then say so, and the field is fine as it is), or it is the content version (then the fixture
+has to stop pinning an exact one — `resolvePack` would take the manifest name alone, and a *new*
+fixture would establish that). Left open: guessing would either freeze the version forever or break a
+published contract.
+
+**Resolved 2026-08-23** (`fix/pack-version-immutability`). The second reading was the right one: the
+manifest version *is* the content version, so the fixture had to stop pinning it. Investigating it
+also made the finding worse than written above — a published `(id, version)` was not merely lagging,
+it was **not immutable**. `de@2026.2` named at least three different bundles, because the module
+files it referenced were overwritten rather than versioned alongside. The fix is in four parts:
+
+1. `de-pack-resolves` is **superseded**, not edited (`testing/testsuite/superseded.json`), by
+   `de-pack-resolves-current`, which pins the behaviour and leaves the product's numbers alone. Same
+   for `us` and `default`. What the retired fixtures pinned about the mechanism moved to
+   `xx-6-pack-version-pinning`, which brings its own pack and is therefore frozen for good.
+2. `PackResolver::findManifest` is now the single place that selects a manifest — runner and CLI both
+   call it — and a request without a version resolves to the **highest** version, not the first
+   match, so several versions of one pack can live in the library side by side.
+3. `resolvePack` returns a derived `contentDigest` (SHA-256 over the canonical JSON of the whole
+   resolution, byte-identical in both languages), and a tenant carries it. It is what a hand-written
+   version cannot be: impossible to forget.
+4. `de` and `us` moved to `2026.3`, and `PackVersionIdentityTest` / `pack-version-identity` refuse two
+   files claiming the same published identity.
+
+Deliberately **not** done: no fabricated history. `de@2026.2` is gone rather than reconstructed from
+today's modules, because a frozen file claiming to be the old bundle would be a second lie on top of
+the first. Immutability starts here.
+
+## SPEC-013: a shipped pack's chart of accounts cannot grow — a fixture pins its size
+
+**Found 2026-08-23, while adding the exempt-export tax code to the `de` pack.**
+
+`pack/de-pack/de-pack-resolves` pins `accountCount: 41` on the tenant it creates. Adding an account
+to `de-konten` therefore breaks an append-only fixture — the same shape as [SPEC-012], where the
+manifest's own version is pinned and so cannot move.
+
+The concrete cost here: `AUSFUHR` (§ 4 Nr. 1 Buchst. a, Kz 43) reports an exempt export, and the
+German chart has an account for exempt *intra-community supplies* (4030) and none for exempt
+*exports*. A user has to add one with `createAccount`, which the fixture `de-ausfuhr` demonstrates
+because it is what actually has to happen today. It works, but a shipped pack that cannot gain an
+account as its tax codes gain coverage will keep accumulating that kind of hole.
+
+**Not resolved by bending the fixture.** The decision it needs is the same one SPEC-012 needs, and
+probably the same answer: what a fixture may pin about a *shipped* pack. Pinning the resolver's
+behaviour is the point of `de-pack-resolves`; pinning the size of a product catalogue that is
+expected to grow is a different thing that came along for the ride. Left open — a new fixture could
+establish the resolver contract without the count, but deciding that is not a mechanical change.
+
+**Resolved 2026-08-23** together with [SPEC-012] — it was the same defect, and the guess in the last
+paragraph was right: the two needed one decision, not two. `de-pack-resolves-current` pins that the
+pack resolves, that a tenant is built from it and that a standard VAT sale comes out right; it pins
+neither the version nor the account count. The chart can grow again, which unblocks the missing
+exempt-export account and the operating-expense accounts the embedding app asked for.
+
+## SPEC-014: summae has no way to evolve a shipped database schema
+
+**Found 2026-08-23, while scoping the costing persistence port.**
+
+Both adapters create their tables exactly once, at workspace initialisation —
+`SchemaInstaller::create` in PHP, `installSchema` in Node — and nothing upgrades an existing
+database. PHP at least sits behind Laravel migrations, so a second dated migration file could add a
+table; Node has no migration concept at all, and an existing SQLite workspace would simply lack the
+new table with no path to gain it.
+
+Nothing has needed this yet: the eight tables have been enough since 0.2.0. The costing port is the
+first change that adds a table, which is why the question surfaces there and why it is the *actual*
+blocker — the port, the adapters and the table itself are mechanical work.
+
+**Three answers are defensible and they are not equivalent:**
+
+1. **Versioned migrations in both languages.** Honest and conventional, and a subsystem of its own —
+   Node would need a migration runner it does not have.
+2. **Idempotent schema install.** `create` becomes "ensure", guarded per table, run on open rather
+   than on init. Cheap, covers additive changes, and covers nothing else — a column that changes
+   type still has no path.
+3. **Frozen for 0.x.** Say plainly that a schema change means recreating the workspace, and hold the
+   line until 1.0. Defensible for a 0.x library and the only one of the three that costs nothing —
+   but it means the costing port waits.
+
+Left open deliberately. Whichever is chosen becomes a promise to every existing installation, and
+that is not a mechanical decision.
+
+**Decided 2026-08-24: option 2, the idempotent install** — `create` became "ensure", guarded per
+table, and both languages now create only what is absent. The costing-run table went in on the same
+day and reached an existing workspace without recreating it, which is the whole test of the choice.
+
+The limit is kept explicit rather than papered over, in the code comment and in the manual: it
+covers **additive** changes — a new table, and by hand a new nullable column — and nothing else. A
+column that changes its type or a table that has to be rewritten still needs a real migration, which
+neither language has, and a change of that kind still means recreating the workspace. Saying that
+plainly is better than a runner that only looks like one; if a non-additive change ever becomes
+necessary, option 1 is still open and this note is where the reasoning starts.
+
+**IMPL-028 came with it:** the cross-test kept comparing against stale artifacts. `cross-export`
+wrote into `.cross-dbs/` without clearing it, so a fixture that stopped being exported — retired
+into `superseded.json`, or renamed — left its database and its oracle behind, and the read side
+compares whatever it finds. After the format moved to 0.7 the three retired fixtures' old oracles
+failed the cross test forever, describing a run that no longer happens. The export now starts from
+an empty directory.

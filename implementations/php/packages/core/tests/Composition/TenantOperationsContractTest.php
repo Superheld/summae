@@ -30,7 +30,9 @@ final class TenantOperationsContractTest extends TestCase
         'finalize', 'reverse', 'settle', 'closePeriod', 'reopenPeriod', 'closeFiscalYear',
         'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
         'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
-        'releaseCosting', 'lockAccount', 'importChartOfAccounts', 'importMapping',
+        'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
+        'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
+        'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
     ];
 
     /** @var list<string> */
@@ -39,6 +41,7 @@ final class TenantOperationsContractTest extends TestCase
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
         'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
+        'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal',
     ];
 
     private function freshOps(): TenantOperations
@@ -130,6 +133,78 @@ final class TenantOperationsContractTest extends TestCase
         sort($pinned);
 
         self::assertSame($pinned, $published);
+    }
+
+    /**
+     * The dispatcher's own routing table, read off its source.
+     *
+     * The constants above are an oracle for "everything published resolves". They cannot answer
+     * the other direction — that nothing resolves which is *not* published — because a `match`
+     * has no runtime shape to enumerate. So the test reads the file: `execute` routes everything
+     * up to `project`, `project` everything after it, and every arm at the match's own
+     * indentation is one routed name (a nested array key sits deeper and is not one).
+     *
+     * The direction matters. summae had seven routed names in neither published list
+     * (`writeDownAsset`, `bookSpecialDepreciation`, `reportAssetUsage`, `defineDimensionType`,
+     * `defineDimensionValue`, `overheadRates`, `productionCost`) — finished, documented,
+     * fixture-covered capabilities that `systemDescription` did not admit to. An embedding app
+     * whose contract test holds every call against the published list cannot call them at all,
+     * which is what an app reported. A surface larger than its declaration passes a green suite in
+     * both languages as long as only one direction is asked.
+     *
+     * @return array{operations: list<string>, projections: list<string>}
+     */
+    private function routedNames(): array
+    {
+        $source = (string) file_get_contents(
+            __DIR__ . '/../../src/Composition/TenantOperations.php'
+        );
+
+        // Bounded to the match block itself, not to the rest of the file: the private helpers
+        // below `project()` build result arrays whose keys sit at the same indentation and would
+        // otherwise read as routed names.
+        $arms = static function (string $head) use ($source): array {
+            $start = (int) strpos($source, $head);
+            $end = (int) strpos($source, "\n        };", $start);
+            preg_match_all("/^            '([A-Za-z]+)' =>/m", substr($source, $start, $end - $start), $matches);
+
+            return $matches[1];
+        };
+
+        return [
+            'operations' => $arms('return match ($op) {'),
+            'projections' => $arms('return match ($name) {'),
+        ];
+    }
+
+    public function testPublishesEveryOperationTheDispatcherRoutes(): void
+    {
+        $undeclared = array_values(array_diff(
+            $this->routedNames()['operations'],
+            SystemDescriptionProjection::API_OPERATIONS,
+        ));
+
+        self::assertSame([], $undeclared, 'a routed operation that systemDescription does not publish cannot be called by a caller that trusts the published list');
+    }
+
+    public function testPublishesEveryProjectionTheDispatcherRoutes(): void
+    {
+        $undeclared = array_values(array_diff(
+            $this->routedNames()['projections'],
+            SystemDescriptionProjection::API_PROJECTIONS,
+        ));
+
+        self::assertSame([], $undeclared, 'a routed projection that systemDescription does not publish is a surface larger than its declaration');
+    }
+
+    public function testReadsTheDispatcherSourceItClaimsToRead(): void
+    {
+        // Without this, a renamed file or a `match` turned into a lookup table would make both
+        // tests above pass on an empty list — the guard would be gone and nothing would say so.
+        $routed = $this->routedNames();
+
+        self::assertCount(count(SystemDescriptionProjection::API_OPERATIONS), $routed['operations']);
+        self::assertCount(count(SystemDescriptionProjection::API_PROJECTIONS), $routed['projections']);
     }
 
     public function testDescribesItselfWithoutParametersAndNamesItsOwnLimits(): void

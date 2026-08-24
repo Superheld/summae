@@ -30,20 +30,28 @@ import type { Uuid } from '../../substrate/uuid.js';
  * publishes; `tenant-operations-contract.test.ts` holds its own literal copy and asserts
  * both agree, so a case dropped from the dispatcher and a name dropped from here cannot
  * cancel each other out.
+ *
+ * The test asks **both** directions, and the second one was missing for a long time: every
+ * published name resolves to a handler, *and* every routed name is published. Seven finished,
+ * documented, fixture-covered capabilities were routed and unpublished — an embedding app
+ * validating its calls against this list could not call them at all, which is how it was
+ * found. A surface larger than its declaration is the same defect as one smaller than it.
  */
 export const API_OPERATIONS = [
-  'acquireAsset', 'allocate', 'closeFiscalYear', 'closePeriod', 'correct', 'createAccount',
-  'createFiscalYear', 'createPartner', 'createVoucher', 'disposeAsset', 'expandTax',
-  'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post', 'postVoucher',
-  'releaseCosting', 'reopenPeriod', 'reverse', 'runCosting', 'runDepreciation',
-  'setAllocationScheme', 'setTaxProfile', 'settle', 'updatePartner',
+   'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
+   'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
+   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
+   'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
+   'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
+   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setTaxProfile', 'settle',
+   'unlockAccount', 'updatePartner', 'writeDownAsset',
 ] as const;
 
 export const API_PROJECTIONS = [
-  'accountSheet', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
-  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList', 'incomeStatement',
-  'journalExport', 'openItems', 'systemDescription', 'trialBalance', 'unfinalizedEntries',
-  'vatReturn',
+  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
+  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList',
+  'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
+  'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**
@@ -113,15 +121,17 @@ const INVARIANTS: ReadonlyArray<{ id: string; statement: string; enforcedBy: str
 const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readonly string[] }> = [
   { objectType: 'journalEntry', actions: ['created', 'corrected', 'finalized', 'reversed'] },
   { objectType: 'voucher', actions: ['created'] },
-  { objectType: 'account', actions: ['created', 'locked'] },
+  { objectType: 'account', actions: ['created', 'locked', 'unlocked'] },
   { objectType: 'openItem', actions: ['settled', 'cancelled'] },
-  { objectType: 'partner', actions: ['created', 'updated'] },
+  { objectType: 'partner', actions: ['created', 'updated', 'deactivated', 'reactivated'] },
   { objectType: 'fiscalYear', actions: ['created', 'closed'] },
   { objectType: 'period', actions: ['closed', 'reopened'] },
   { objectType: 'taxProfile', actions: ['changed'] },
   { objectType: 'mapping', actions: ['imported'] },
   { objectType: 'allocationScheme', actions: ['changed'] },
-  { objectType: 'asset', actions: ['acquired', 'disposed'] },
+  { objectType: 'asset', actions: ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown'] },
+  { objectType: 'dimensionType', actions: ['created'] },
+  { objectType: 'dimensionValue', actions: ['created'] },
   { objectType: 'depreciationRun', actions: ['completed'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];

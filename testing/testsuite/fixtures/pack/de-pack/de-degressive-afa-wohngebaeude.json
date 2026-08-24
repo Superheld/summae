@@ -1,0 +1,46 @@
+{
+  "fixture": "de-degressive-afa-wohngebaeude",
+  "description": "DE-Pack: declining balance for new residential buildings — 5 % of the residual value, for acquisitions between 1 October 2023 and 30 September 2029 (§ 7 Abs. 5a EStG). This is the second declining-balance regime the German pack carries, and its window overlaps the one for movables (§ 7 Abs. 2 EStG, mid-2025 to end of 2027), so on a date in 2026 both are in force. The pack tells them apart by asset class; the core's rule is that a class-specific entry wins over a general one whatever the file order. Without it the building falls into the movables entry, where the 30 % cap does not even bind at this life: 3 x 2.9412 % = 8.8235 %, so 35,294.00 instead of 20,000.00 in the first year, with nothing to indicate anything went wrong. The useful life comes with the acquisition rather than from the pack's table on purpose: for a residential building the straight-line rate depends on the year of completion (3 % since 2023, 2 % before), and the table has no date dimension, so tabling one figure would be wrong for every older building. 400,000.00 over 400 months: min(3 x 2.9412 %, 5 %) = 5 %.",
+  "covers": ["F-AST-002", "SF-05"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Wohnbau GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "KV-HAUS", "voucherDate": "2026-01-01" } },
+      "expect": { "result": { "id": "$V1" } }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1", "name": "Mehrfamilienhaus", "assetClass": "residential-building", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "400000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize",
+        "usefulLifeMonths": 400, "depreciationMethod": "declining_balance"
+      },
+      "expect": {
+        "result": {
+          "comment": "33⅓ Jahre = 400 Monate (§ 7 Abs. 4 Nr. 2a EStG für nach 2022 fertiggestellte Wohngebäude), je Anschaffung übergeben statt tabelliert",
+          "route": "capitalize",
+          "usefulLifeMonths": 400,
+          "depreciationMethod": "declining_balance"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": {
+        "result": {
+          "comment": "400.000,00 × 5 % = 20.000,00 — nach dem Eintrag für bewegliche Wirtschaftsgüter wären es 35.294,00",
+          "entriesCreated": 1,
+          "totalDepreciation": { "amount": "20000.00", "currency": "EUR" }
+        }
+      }
+    }
+  ]
+}

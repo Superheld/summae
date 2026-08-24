@@ -18,9 +18,24 @@ final class SchemaInstaller
 {
     public const string PREFIX = 'summae_';
 
+    /**
+     * Installs what is missing, **per table** (SPEC-014).
+     *
+     * It used to create all of them unconditionally, exactly once, at workspace initialisation, and
+     * nothing upgraded an existing database — so the first change that added a table (the costing
+     * runs) had no path into a workspace that already existed except recreating it. Running this
+     * again now creates only what is absent.
+     *
+     * What that covers and what it does not is worth stating plainly, because the honest limit is
+     * the reason this shape was chosen over a migration runner: it covers **additive** changes — a
+     * new table, and by hand a new nullable column — and nothing else. A column that changes its
+     * type or a table that has to be rewritten still needs a real migration, which neither language
+     * has. Until one exists, a change of that kind means recreating the workspace, and saying so out
+     * loud is better than a runner that only looks like one.
+     */
     public static function create(Builder $schema): void
     {
-        $schema->create(self::PREFIX . 'accounts', static function (Blueprint $table): void {
+        self::ensure($schema, 'accounts', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->string('number', 64);
@@ -31,7 +46,7 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'number']);
         });
 
-        $schema->create(self::PREFIX . 'fiscal_years', static function (Blueprint $table): void {
+        self::ensure($schema, 'fiscal_years', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->integer('year');
@@ -42,13 +57,13 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'year']);
         });
 
-        $schema->create(self::PREFIX . 'vouchers', static function (Blueprint $table): void {
+        self::ensure($schema, 'vouchers', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->json('payload');
         });
 
-        $schema->create(self::PREFIX . 'journal_entries', static function (Blueprint $table): void {
+        self::ensure($schema, 'journal_entries', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->integer('fiscal_year');
@@ -66,7 +81,7 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'fiscal_year', 'sequence_number']);
         });
 
-        $schema->create(self::PREFIX . 'open_items', static function (Blueprint $table): void {
+        self::ensure($schema, 'open_items', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->string('kind', 16);
@@ -80,24 +95,38 @@ final class SchemaInstaller
             $table->json('settlements');
         });
 
-        $schema->create(self::PREFIX . 'partners', static function (Blueprint $table): void {
+        self::ensure($schema, 'partners', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->json('payload');
         });
 
-        $schema->create(self::PREFIX . 'assets', static function (Blueprint $table): void {
+        self::ensure($schema, 'assets', static function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->json('payload');
             $table->json('state');
         });
 
-        $schema->create(self::PREFIX . 'audit_log', static function (Blueprint $table): void {
+        self::ensure($schema, 'audit_log', static function (Blueprint $table): void {
             $table->bigIncrements('seq');
             $table->uuid('id')->unique();
             $table->uuid('tenant_id')->index();
             $table->json('payload');
+        });
+
+        self::ensure($schema, 'costing_runs', static function (Blueprint $table): void {
+            // Period, version and status are columns rather than payload fields because they are
+            // what a run is *found* by — the next version of a period, and the released runs an
+            // evaluation may read.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->integer('fiscal_year');
+            $table->integer('period');
+            $table->integer('version');
+            $table->string('status', 16);
+            $table->json('payload');
+            $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
         });
     }
 
@@ -105,9 +134,24 @@ final class SchemaInstaller
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'audit_log',
+            'open_items', 'partners', 'assets', 'costing_runs', 'audit_log',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);
         }
+    }
+
+    /**
+     * Creates one table if it is not there yet.
+     *
+     * @param \Closure(Blueprint): void $definition
+     */
+    private static function ensure(Builder $schema, string $table, \Closure $definition): void
+    {
+        $name = self::PREFIX . $table;
+        if ($schema->hasTable($name)) {
+            return;
+        }
+
+        $schema->create($name, $definition);
     }
 }

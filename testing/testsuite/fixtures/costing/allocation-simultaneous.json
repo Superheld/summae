@@ -1,0 +1,88 @@
+{
+  "fixture": "allocation-simultaneous",
+  "description": "Internal cost allocation when two cost centres serve each other — the case the step ladder cannot answer. The power plant supplies the repair shop and the repair shop maintains the power plant; there is no order in which one can go first, because whichever does sends on cost it has not received yet. The step ladder does the honest thing and refuses (E_COSTING_CYCLE). The simultaneous-equation method solves all centres at once instead: x = p + A^T x, n equations for n unknowns. Primary costs 10,000.00 power / 5,000.00 repair / 20,000.00 production / 8,000.00 administration, with power sending 20/60/20 and repair sending 10/70/20. The solution is 525,000/49 through power and 350,000/49 through repair — fractions with no decimal form, which is exactly why the solver runs on exact rationals rather than on rounded decimals: rounding mid-computation makes the answer depend on where you rounded, and two implementations cannot agree on that. Production ends at 1,540,000/49 = 31,428.571..., administration at 567,000/49 = 11,571.428.... Turning those back into money is a single largest-remainder step over the whole vector, not one rounding per centre: the cent goes to administration (remainder 6/7 against production's 1/7), and the total is still 43,000.00 to the cent. Allocation distributes and never creates — the same invariant the step ladder has, reached by solving instead of by ordering.",
+  "covers": ["F-KLR-001", "F-KLR-003", "F-KLR-004", "SF-12"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "ST", "name": "Stromversorgung (Hilfsstelle)" },
+      { "typeCode": "costCenter", "code": "RE", "name": "Reparatur (Hilfsstelle)" },
+      { "typeCode": "costCenter", "code": "FE", "name": "Fertigung" },
+      { "typeCode": "costCenter", "code": "VW", "name": "Verwaltung" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Primärkosten Januar",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "10000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "ST" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "RE" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "20000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FE" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "8000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "43000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "simultaneous",
+        "steps": [
+          { "sender": "ST", "receivers": [ { "code": "RE", "share": "20" }, { "code": "FE", "share": "60" }, { "code": "VW", "share": "20" } ] },
+          { "sender": "RE", "receivers": [ { "code": "ST", "share": "10" }, { "code": "FE", "share": "70" }, { "code": "VW", "share": "20" } ] }
+        ]
+      },
+      "expect": {
+        "comment": "Gegenseitige Leistung — die Stufenleiter würde hier E_COSTING_CYCLE werfen",
+        "result": { "valid": true, "method": "simultaneous", "stepCount": 2 }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "costAllocationSheet",
+      "params": { "fiscalYear": 2026, "period": 1, "runId": "$R1" },
+      "expect": {
+        "comment": "Der BAB nennt das Verfahren — zwei Verfahren beantworten dieselbe Frage verschieden, ein Blatt ohne Angabe ist gegen nichts prüfbar",
+        "method": "simultaneous",
+        "primary": [
+          { "costCenter": "FE", "total": "20000.00" },
+          { "costCenter": "RE", "total": "5000.00" },
+          { "costCenter": "ST", "total": "10000.00" },
+          { "costCenter": "VW", "total": "8000.00" }
+        ],
+        "afterAllocation": [
+          { "costCenter": "FE", "total": "31428.57" },
+          { "costCenter": "RE", "total": "0.00" },
+          { "costCenter": "ST", "total": "0.00" },
+          { "costCenter": "VW", "total": "11571.43" }
+        ],
+        "grandTotal": "43000.00"
+      }
+    }
+  ]
+}

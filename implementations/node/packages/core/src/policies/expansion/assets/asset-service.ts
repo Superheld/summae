@@ -81,9 +81,21 @@ export class AssetService {
     const choice = asString(input.gwgChoice) ?? 'auto';
     const dimensions = AssetService.parseDimensions(input.dimensions);
 
+    const special = input.specialDepreciation === true;
+    const totalUnits = AssetService.parseTotalUnits(input.totalUnits);
     const route = this.resolveRoute(choice, cost, acquiredOn);
     const explicitLife = AssetService.parseUsefulLifeMonths(input.usefulLifeMonths);
     const method = AssetService.parseMethod(input.depreciationMethod);
+
+    // Same again: an additional allowance is a share of a capitalised asset's cost, and there is
+    // nothing for it to attach to on a route that expenses the whole cost at once.
+    if (special && route !== 'capitalize') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `acquireAsset: "specialDepreciation" applies to a capitalised asset, not to route "${route}"`,
+        { route },
+      );
+    }
 
     // Refused, not ignored. A pooled asset takes its term from the pack's poolYears and an
     // immediately expensed one has no schedule at all, so a life given with either route cannot be
@@ -115,11 +127,16 @@ export class AssetService {
       // complete the table is — and without this parameter an asset class missing from the pack was
       // simply unusable.
       usefulLifeMonths = explicitLife ?? this.usefulLifeMonths(assetClass);
-      schedule.push(
-        ...(method === 'declining_balance'
-          ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn)
-          : cost.allocateEvenly(usefulLifeMonths)),
-      );
+      // No schedule for output-based depreciation, on purpose. It cannot know at acquisition what any
+      // future period will take — the number comes from outside the books — so there is nothing to
+      // plan and the yearly run has nothing to do for this asset.
+      if (method !== 'units_of_production') {
+        schedule.push(
+          ...(method === 'declining_balance'
+            ? this.decliningBalanceSchedule(cost, usefulLifeMonths, acquiredOn, assetClass)
+            : cost.allocateEvenly(usefulLifeMonths)),
+        );
+      }
     } else if (route === 'pool') {
       // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is one
       // jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime would have
@@ -130,6 +147,26 @@ export class AssetService {
         schedule.push(...yearAmount.allocateEvenly(12));
       }
     }
+
+    if (method === 'units_of_production' && totalUnits === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "units_of_production" needs "totalUnits" — the expected output is what replaces the schedule',
+        { depreciationMethod: method },
+      );
+    }
+
+    if (totalUnits !== null && method !== 'units_of_production') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'acquireAsset: "totalUnits" applies to "units_of_production", and would have no effect otherwise',
+        { depreciationMethod: method },
+      );
+    }
+
+    const [specialBudget, specialWindowEnd] = special
+      ? this.specialDepreciationTerms(cost, acquiredOn, assetClass)
+      : [null, null];
 
     const asset = new Asset(
       this.ids.next(),
@@ -145,6 +182,9 @@ export class AssetService {
       dimensions,
       this.planStartFor(route, acquiredOn),
       method,
+      specialBudget,
+      specialWindowEnd,
+      totalUnits,
     );
     this.assets.add(asset);
 
@@ -184,7 +224,16 @@ export class AssetService {
     // proceeds are booked. Where the pack takes it out, it is written off like any other asset.
     const staysPooled = this.staysInPool(asset);
     if (!staysPooled) this.catchUpDepreciation(asset, disposedOn, voucherId);
-    const carrying = staysPooled ? Money.zero(this.baseCurrency) : asset.bookValueAt(disposedOn);
+    // What is written off is what stands on the account, not what an as-of query says stood there
+    // on the disposal date (IMPL-026). The two are not the same: a yearly run books the whole year
+    // in one entry dated 31 December, so a disposal on 30 September read the carrying amount, saw
+    // that entry as later than itself, ignored it, and wrote off the full acquisition cost — of
+    // which the run had already written off a part. The asset account was left at a credit balance
+    // that nothing clears, while the entry balanced and every invariant held. Every other reader of
+    // the accumulated depreciation in this service already asks the whole ledger; the disposal was
+    // the only as-of query, and it is the one place an as-of query cannot be right, because what
+    // leaves the account must equal what stands on it (F-AST-004).
+    const carrying = staysPooled ? Money.zero(this.baseCurrency) : asset.bookValueAt(null);
     const lines = this.disposalLines(asset, carrying, proceeds, bankAccount, asString(input.proceedsAccount));
 
     if (lines.length > 0) {
@@ -197,6 +246,390 @@ export class AssetService {
     });
 
     return asset.toJSON();
+  }
+
+  /**
+   * Reports what the asset has produced, and writes off what that use consumed.
+   *
+   * Where a jurisdiction allows it, an asset that wears by use rather than by time may be depreciated
+   * by output — kilometres, operating hours, copies. There is nothing to plan: the number comes from
+   * goods movements, meter readings, job cards, none of which are in the books. So the caller reports
+   * the meter and the core does the arithmetic.
+   *
+   * The arithmetic is cumulative on purpose. Each report splits the acquisition cost between what the
+   * asset has now given and what it has not, and books the difference against what is already written
+   * off. Computing each period on its own would let rounding drift, and the last report would leave a
+   * stray cent behind on an asset that is fully used up. This way the final report, the one that
+   * reaches the total output, lands on the cost exactly.
+   *
+   * More output than expected is not an error — a lorry can outlive its estimate — but there is no
+   * more cost to write off, so the booking is capped at the book value and the answer says so.
+   */
+  reportAssetUsage(input: Record<string, unknown>): Record<string, unknown> {
+    const asset = this.requireAsset(input.assetId);
+    asset.assertActive();
+
+    if (asset.totalUnits === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `asset ${asset.id.value} is not depreciated by output — "units_of_production" has to be chosen on acquisition`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const units = AssetService.parseTotalUnits(input.units);
+    if (units === null) {
+      throw new DomainError('E_INPUT_INVALID', 'reportAssetUsage: "units" is required', {
+        assetId: asset.id.value,
+      });
+    }
+
+    const fiscalYear = typeof input.fiscalYear === 'number' ? input.fiscalYear : 0;
+    const bookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+
+    if (bookValue.isZero()) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `asset ${asset.id.value} is already fully depreciated — further output has nothing left to write off`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const cumulative = asset.reportedUnits() + units;
+    const capped = cumulative > asset.totalUnits;
+    const effective = capped ? asset.totalUnits : cumulative;
+
+    const target =
+      effective === asset.totalUnits
+        ? asset.acquisitionCost
+        : asset.acquisitionCost.allocate(effective, asset.totalUnits - effective)[0]!;
+
+    const written = asset.accumulatedDepreciationAt(null);
+    const amount = target.subtract(written);
+
+    if (amount.isNegative() || amount.isZero()) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `reported output for asset ${asset.id.value} writes off nothing — ${asset.reportedUnits()} of ${asset.totalUnits} units are already accounted for`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const date = CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`);
+
+    const voucherId =
+      typeof input.voucherId === 'string' && input.voucherId !== ''
+        ? this.requireVoucherId(input.voucherId)
+        : this.usageVoucher(asset, fiscalYear);
+
+    const entry = this.postMachineEntry(
+      date,
+      voucherId,
+      `Output depreciation ${asset.name} ${fiscalYear} (${units} units)`,
+      this.withDimensions(asset, [
+        { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    const before = asset.reportedUnits();
+    asset.recordUsage(date, amount, entry, effective);
+    this.assets.save(asset);
+
+    this.trace(input, 'asset', asset.id, 'usageReported', {
+      reportedUnits: { from: String(before), to: String(effective) },
+      bookValue: {
+        from: bookValue.amountAsString(),
+        to: asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null)).amountAsString(),
+      },
+    });
+
+    return {
+      assetId: asset.id.value,
+      entryId: entry.value,
+      amount: amount.amountAsString(),
+      reportedUnits: effective,
+      totalUnits: asset.totalUnits,
+      capped,
+      bookValue: asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null)).amountAsString(),
+    };
+  }
+
+  private usageVoucher(asset: Asset, fiscalYear: number): Uuid {
+    const voucher = new Voucher({
+      id: this.ids.next(),
+      voucherNumber: `LAFA-${fiscalYear}-${asset.id.value.slice(-6)}`,
+      voucherDate: CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`),
+      kind: 'internal',
+    });
+    this.vouchers.add(voucher);
+    return voucher.id;
+  }
+
+  /**
+   * Books part of an additional allowance (see `Asset.specialDepreciationBudget`).
+   *
+   * Two things make this an operation rather than a plan. The amount is the taxpayer's to choose — a
+   * jurisdiction that grants "up to 40 % over five years" grants exactly that, and any split is as
+   * valid as any other — and the entitlement itself is a question about the business (a profit limit,
+   * a share of business use) that summae has no way to check and does not pretend to. So the caller
+   * says how much and when, and the core enforces only what it can know: not more than the budget,
+   * not outside the window, not on an asset that has none.
+   */
+  bookSpecialDepreciation(input: Record<string, unknown>): Record<string, unknown> {
+    const asset = this.requireAsset(input.assetId);
+    asset.assertActive();
+
+    const remaining = asset.specialDepreciationRemaining();
+    if (remaining === null || asset.specialDepreciationWindowEnd === null) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `asset ${asset.id.value} carries no special depreciation — it has to be elected on acquisition`,
+        { assetId: asset.id.value },
+      );
+    }
+
+    const fiscalYear = typeof input.fiscalYear === 'number' ? input.fiscalYear : 0;
+    const firstYear = this.planMonthYear(asset, 1);
+
+    if (fiscalYear < firstYear || fiscalYear > asset.specialDepreciationWindowEnd) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `special depreciation for asset ${asset.id.value} is available in ${firstYear} through ${asset.specialDepreciationWindowEnd}, not in ${fiscalYear}`,
+        { fiscalYear },
+      );
+    }
+
+    const amount = this.parseMoney(input.amount);
+    if (amount.isNegative() || amount.isZero()) {
+      throw new DomainError('E_INPUT_INVALID', 'bookSpecialDepreciation: "amount" must be greater than zero', {
+        amount: amount.amountAsString(),
+      });
+    }
+
+    if (amount.compareTo(remaining) > 0) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `special depreciation of ${amount.amountAsString()} exceeds the remaining allowance of ${remaining.amountAsString()}`,
+        { amount: amount.amountAsString(), remaining: remaining.amountAsString() },
+      );
+    }
+
+    const date = CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`);
+
+    const voucherId =
+      typeof input.voucherId === 'string' && input.voucherId !== ''
+        ? this.requireVoucherId(input.voucherId)
+        : this.specialDepreciationVoucher(asset, fiscalYear);
+
+    const entry = this.postMachineEntry(
+      date,
+      voucherId,
+      `Special depreciation ${asset.name} ${fiscalYear}`,
+      this.withDimensions(asset, [
+        { account: this.depreciationExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    asset.recordSpecialDepreciation(date, amount, entry);
+    this.assets.save(asset);
+
+    const left = asset.specialDepreciationRemaining();
+
+    this.trace(input, 'asset', asset.id, 'specialDepreciationBooked', {
+      remainingAllowance: { from: remaining.amountAsString(), to: left?.amountAsString() ?? null },
+      fiscalYear: { from: null, to: String(fiscalYear) },
+    });
+
+    return {
+      assetId: asset.id.value,
+      entryId: entry.value,
+      amount: amount.amountAsString(),
+      remainingAllowance: left?.amountAsString() ?? null,
+      bookValue: asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null)).amountAsString(),
+    };
+  }
+
+  private specialDepreciationVoucher(asset: Asset, fiscalYear: number): Uuid {
+    const voucher = new Voucher({
+      id: this.ids.next(),
+      voucherNumber: `SAFA-${fiscalYear}-${asset.id.value.slice(-6)}`,
+      voucherDate: CalendarDate.of(`${String(fiscalYear).padStart(4, '0')}-12-31`),
+      kind: 'internal',
+    });
+    this.vouchers.add(voucher);
+    return voucher.id;
+  }
+
+  /**
+   * Rate and window of the additional allowance, from the pack. Refused rather than defaulted, like
+   * every other pack question here: a core that invents "40 % over five years" has one jurisdiction's
+   * tax policy in the substrate.
+   */
+  private specialDepreciationTerms(cost: Money, acquiredOn: CalendarDate, assetClass: string): [Money, number] {
+    const raw = Array.isArray(this.ruleModule.specialDepreciation) ? this.ruleModule.specialDepreciation : [];
+
+    for (const item of raw) {
+      if (!isRecord(item) || typeof item.validFrom !== 'string') continue;
+
+      const validFrom = CalendarDate.of(item.validFrom);
+      const validTo = typeof item.validTo === 'string' ? CalendarDate.of(item.validTo) : null;
+      if (acquiredOn.isBefore(validFrom) || (validTo !== null && acquiredOn.isAfter(validTo))) continue;
+
+      const rate = typeof item.rate === 'string' ? item.rate : null;
+      const years = typeof item.years === 'number' && Number.isSafeInteger(item.years) ? item.years : null;
+      if (rate === null || years === null || years < 1) continue;
+
+      const rest = String(Math.round((100 - Number(rate)) * 10000) / 10000);
+      const budget = cost.allocate(rate, rest)[0]!;
+
+      return [budget, acquiredOn.year() + years - 1];
+    }
+
+    throw new DomainError(
+      'E_PACK_INCOHERENT',
+      `special depreciation was elected, but the pack declares no allowance in force on ${acquiredOn.iso}`,
+      { field: 'specialDepreciation', acquiredOn: acquiredOn.iso, assetClass },
+    );
+  }
+
+  /**
+   * An unplanned write-down — the value fell, and not because time passed.
+   *
+   * The planned schedule answers wear and tear; it has nothing to say about a machine damaged in March
+   * or a building whose neighbourhood lost its factory. Where the loss is expected to last, writing
+   * the asset down is not an option a preparer takes but an obligation, and until now the only ways to
+   * express it were disposing of the asset (wrong — it still exists) or posting by hand past the asset
+   * register (wrong — the register then disagrees with the ledger about what the asset is worth).
+   *
+   * A reason is required. An unplanned write-down that does not say why is not auditable, and "why" is
+   * the whole difference between an impairment and a mistake.
+   *
+   * The remaining plan is rewritten: what is left after the write-down is spread over the plan months
+   * still open. Leaving the plan alone would depreciate past zero; stopping the plan would finish the
+   * asset early. Carrying the reduced value over the remaining life is what a lasting impairment means.
+   */
+  writeDownAsset(input: Record<string, unknown>): Record<string, unknown> {
+    const asset = this.requireAsset(input.assetId);
+    asset.assertActive();
+
+    const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+    if (reason === '') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'writeDownAsset: "reason" is required — an unplanned write-down that does not say why is not auditable',
+        { assetId: asset.id.value },
+      );
+    }
+
+    const amount = this.parseMoney(input.amount);
+    if (amount.isNegative() || amount.isZero()) {
+      throw new DomainError('E_INPUT_INVALID', 'writeDownAsset: "amount" must be greater than zero', {
+        amount: amount.amountAsString(),
+      });
+    }
+
+    const bookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+    if (amount.compareTo(bookValue) > 0) {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `writeDownAsset: ${amount.amountAsString()} exceeds the book value of ${bookValue.amountAsString()} — an asset cannot be written below zero`,
+        { amount: amount.amountAsString(), bookValue: bookValue.amountAsString() },
+      );
+    }
+
+    const date = CalendarDate.of(typeof input.date === 'string' ? input.date : '');
+
+    const openPlanMonths: number[] = [];
+    for (let planMonth = 1; planMonth <= asset.monthlySchedule.length; planMonth++) {
+      if (!asset.isMonthBooked(planMonth)) openPlanMonths.push(planMonth);
+    }
+
+    const voucherId =
+      typeof input.voucherId === 'string' && input.voucherId !== ''
+        ? this.requireVoucherId(input.voucherId)
+        : this.writeDownVoucher(asset, date);
+
+    const entry = this.postMachineEntry(
+      date,
+      voucherId,
+      `Write-down ${asset.name}: ${reason}`,
+      this.withDimensions(asset, [
+        { account: this.impairmentExpenseAccount(), side: 'debit', money: amount.toJSON() },
+        { account: asset.assetAccount.value, side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    asset.recordWriteDown(date, amount, entry, openPlanMonths);
+    this.assets.save(asset);
+
+    const newBookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+
+    this.trace(input, 'asset', asset.id, 'writtenDown', {
+      bookValue: { from: bookValue.amountAsString(), to: newBookValue.amountAsString() },
+      reason: { from: null, to: reason },
+    });
+
+    return {
+      assetId: asset.id.value,
+      entryId: entry.value,
+      amount: amount.amountAsString(),
+      bookValue: newBookValue.amountAsString(),
+      remainingPlanMonths: openPlanMonths.length,
+    };
+  }
+
+  private rebaseAfterSpecialWindow(asset: Asset, fiscalYear: number): void {
+    if (
+      asset.specialDepreciationWindowEnd === null ||
+      fiscalYear <= asset.specialDepreciationWindowEnd ||
+      asset.scheduleWasRevised() ||
+      !asset.hasSpecialDepreciation()
+    ) {
+      return;
+    }
+
+    const openPlanMonths: number[] = [];
+    for (let planMonth = 1; planMonth <= asset.monthlySchedule.length; planMonth++) {
+      if (!asset.isMonthBooked(planMonth)) openPlanMonths.push(planMonth);
+    }
+
+    asset.rebaseRemainingPlan(openPlanMonths);
+    this.assets.save(asset);
+  }
+
+  private writeDownVoucher(asset: Asset, date: CalendarDate): Uuid {
+    const voucher = new Voucher({
+      id: this.ids.next(),
+      voucherNumber: `AFAA-${date.iso.replace(/-/g, '')}-${asset.id.value.slice(-6)}`,
+      voucherDate: date,
+      kind: 'internal',
+    });
+    this.vouchers.add(voucher);
+    return voucher.id;
+  }
+
+  private requireVoucherId(voucherId: string): Uuid {
+    const voucher = this.vouchers.byId(Uuid.fromString(voucherId));
+
+    if (voucher === null) {
+      throw new DomainError('E_VOUCHER_UNKNOWN', `voucher ${voucherId} does not exist`, { voucherId });
+    }
+
+    return voucher.id;
+  }
+
+  /**
+   * Where an unplanned write-down is booked. A pack that separates it from ordinary depreciation says
+   * so; one that does not gets the depreciation account, which is what it had before this operation
+   * existed and is not wrong, only less informative.
+   */
+  private impairmentExpenseAccount(): string {
+    const block = isRecord(this.ruleModule.assetAccounts) ? this.ruleModule.assetAccounts : {};
+    const value = block.impairmentExpenseAccount;
+
+    return typeof value === 'string' && value !== '' ? value : this.depreciationExpenseAccount();
   }
 
   runDepreciation(input: Record<string, unknown>): Record<string, unknown> {
@@ -214,6 +647,11 @@ export class AssetService {
       // (F-AST-006). Stopping unconditionally understated depreciation and overstated profit for
       // every remaining year of the term.
       if (asset.isDisposed() && !this.staysInPool(asset)) continue;
+
+      // The window closed, and part of the cost left the plan while it was open. What is left has
+      // to last the remaining life — otherwise the plan keeps asking for the original yearly amount
+      // and runs the book value below zero. Once, and only once, per asset.
+      this.rebaseAfterSpecialWindow(asset, fiscalYear);
 
       const [months, amount] =
         period === null ? this.yearTarget(asset, fiscalYear) : this.monthTarget(asset, fiscalYear, period);
@@ -576,13 +1014,35 @@ export class AssetService {
    * The depreciation method the caller asked for. Straight line when absent — the method every
    * jurisdiction allows and the only one this core knew until 2026-08-23.
    */
+  /**
+   * Expected total output. A whole number, at least one — JSON has no int/float split, so 100000.0 is
+   * the same value as 100000, but 100000.5 is a caller's mistake and not half a kilometre.
+   */
+  private static parseTotalUnits(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be a whole number', {
+        totalUnits: rejectedValue(value),
+      });
+    }
+
+    if (value < 1) {
+      throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be at least 1', {
+        totalUnits: value,
+      });
+    }
+
+    return value;
+  }
+
   private static parseMethod(value: unknown): string {
     if (value === null || value === undefined) return 'straight_line';
 
-    if (value !== 'straight_line' && value !== 'declining_balance') {
+    if (value !== 'straight_line' && value !== 'declining_balance' && value !== 'units_of_production') {
       throw new DomainError(
         'E_INPUT_INVALID',
-        'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+        'acquireAsset: "depreciationMethod" must be "straight_line", "declining_balance" or "units_of_production"',
         { depreciationMethod: rejectedValue(value) },
       );
     }
@@ -607,8 +1067,13 @@ export class AssetService {
    * percentage and the remaining-life figure go through allocate, so the cents fall where the rest of
    * the core puts them.
    */
-  private decliningBalanceSchedule(cost: Money, usefulLifeMonths: number, acquiredOn: CalendarDate): Money[] {
-    const rule = this.decliningBalanceRule(acquiredOn);
+  private decliningBalanceSchedule(
+    cost: Money,
+    usefulLifeMonths: number,
+    acquiredOn: CalendarDate,
+    assetClass: string,
+  ): Money[] {
+    const rule = this.decliningBalanceRule(acquiredOn, assetClass);
     const years = Math.ceil(usefulLifeMonths / 12);
 
     // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the rate is
@@ -641,13 +1106,25 @@ export class AssetService {
   }
 
   /**
-   * The declining-balance rule in force on the acquisition date. Refused rather than defaulted, like
-   * every other pack question here: a core that invents a rate has one jurisdiction's tax policy in
-   * the substrate, and these rates are the most short-lived numbers in the whole pack — Germany's
-   * current one applies to a window of two and a half years.
+   * The declining-balance rule in force on the acquisition date, for this kind of asset. Refused
+   * rather than defaulted, like every other pack question here: a core that invents a rate has one
+   * jurisdiction's tax policy in the substrate, and these rates are the most short-lived numbers in
+   * the whole pack — Germany's current one applies to a window of two and a half years.
+   *
+   * Two entries can be in force at once, because a jurisdiction may run one declining-balance regime
+   * for movables and another for buildings over overlapping windows — Germany does exactly that. So
+   * an entry may name the asset classes it covers, and **a class-specific entry wins over a general
+   * one no matter which comes first in the file.** Order-independence is the point: a rule that
+   * changed meaning when someone appended a line above it would be a trap, and the general entry is
+   * the one a pack author is most likely to add later.
+   *
+   * An entry without `assetClasses` covers every class, which is what a pack written before this
+   * distinction existed says — those keep computing what they always did.
    */
-  private decliningBalanceRule(acquiredOn: CalendarDate): { factor: number; maxRate: string } {
+  private decliningBalanceRule(acquiredOn: CalendarDate, assetClass: string): { factor: number; maxRate: string } {
     const raw = Array.isArray(this.ruleModule.decliningBalance) ? this.ruleModule.decliningBalance : [];
+    let general: { factor: number; maxRate: string } | null = null;
+
     for (const item of raw) {
       if (!isRecord(item) || typeof item.validFrom !== 'string') continue;
 
@@ -659,13 +1136,22 @@ export class AssetService {
       const maxRate = typeof item.maxRate === 'string' ? item.maxRate : null;
       if (factor === null || factor < 1 || maxRate === null) continue;
 
-      return { factor, maxRate };
+      const classes = Array.isArray(item.assetClasses) ? item.assetClasses : null;
+
+      if (classes === null) {
+        general ??= { factor, maxRate };
+        continue;
+      }
+
+      if (classes.includes(assetClass)) return { factor, maxRate };
     }
+
+    if (general !== null) return general;
 
     throw new DomainError(
       'E_PACK_INCOHERENT',
-      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso}`,
-      { field: 'decliningBalance', acquiredOn: acquiredOn.iso },
+      `declining-balance depreciation was asked for, but the pack declares no rule in force on ${acquiredOn.iso} for asset class "${assetClass}"`,
+      { field: 'decliningBalance', acquiredOn: acquiredOn.iso, assetClass },
     );
   }
 

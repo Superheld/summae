@@ -13,6 +13,7 @@ use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Clock;
+use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
@@ -76,12 +77,21 @@ final readonly class TenantFactory
             is_array($this->ruleModules['mappings'] ?? null) ? array_values($this->ruleModules['mappings']) : [],
         );
 
+        // Constraint plugs from the pack. Types and values stay the tenant's own master data
+        // (defineDimensionType/Value) — a jurisdiction has no opinion about what a company calls its
+        // cost centres — but WHICH ACCOUNTS MAY NOT BE POSTED WITHOUT ONE is a rule a pack can hold,
+        // and until now no pack could: the registry was built with nothing at all.
+        /** @var list<array{accountRange: array{from: string, to: string}, requiredDimension: string}> $dimensionRules */
+        $dimensionRules = is_array($this->ruleModules['dimensionRules'] ?? null)
+            ? array_values($this->ruleModules['dimensionRules'])
+            : [];
+
         $tenant = Tenant::inMemory(
             is_string($input['name'] ?? null) ? $input['name'] : 'Tenant',
             Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR', $currencyScale),
             $this->clock,
             $this->ids,
-            null,
+            DimensionRegistry::fromData([], [], $dimensionRules),
             TaxCodeRegistry::fromData($taxCodeData),
             $taxProfile,
             $mappings,
@@ -118,6 +128,8 @@ final readonly class TenantFactory
 
         // Asset/depreciation rules from the pack (assetAccounts, depreciation) — parity with the inline path.
         $tenant->assetService->setRuleModule($this->ruleModules);
+        // And the same for costing: the pack decides which components may enter production cost.
+        $tenant->costing->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

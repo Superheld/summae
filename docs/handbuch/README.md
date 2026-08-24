@@ -339,9 +339,13 @@ want to serve, you create one module:
 | depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
 | rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
 
+`formatVersion` names the **data format the file was authored against**, not the pack's own
+version — a shipped module may declare an older one and stay perfectly valid, because a module
+carries nothing the later formats changed. Write the current one (`0.7`) in a new file.
+
 Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 ```json
-{ "formatVersion": "0.6", "id": "de-ust", "kind": "tax", "version": "2026.1",
+{ "formatVersion": "0.7", "id": "de-ust", "kind": "tax", "version": "2026.1",
   "contributes": ["taxCodes"], "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": { "taxCodes": [ { "code": "USt19", "versions": [
     { "validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "mechanism": "standard",
@@ -351,8 +355,8 @@ Module skeleton (`pack-library/<name>-pack/<kind>/<id>.json`):
 Manifest (`pack-library/<name>-pack/<id>.json`) — lists the modules, carries
 `packPolicy` + `defaults`:
 ```json
-{ "formatVersion": "0.6", "id": "de", "version": "2026.2",
-  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.2" },
+{ "formatVersion": "0.7", "id": "de", "version": "2026.4",
+  "modules": [ { "kind": "accounts", "id": "de-konten", "version": "2026.3" },
                { "kind": "tax", "id": "de-ust", "version": "2026.1" } ],
   "packPolicy": { "roundingMode": "halfUpAwayFromZero", "taxRoundingGranularity": "perVoucher", "currencyScale": 2 },
   "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "quarterly" } }
@@ -365,6 +369,24 @@ modules changes — the two lines above show it: the chart of accounts moved to
 version it was created from, so the books always say which rule set produced
 them. `YYYY.N` is the shipped convention, not a requirement: the resolver only
 compares strings.
+
+**A published `(id, version)` is frozen.** Once a version has shipped, that pair
+names one bundle for good: a changed module gets a new module version, and a
+manifest whose references move gets a new manifest version. Old versions may stay
+in the library beside the new ones, so a pin like `{ "id": "de", "version":
+"2026.3" }` keeps resolving what it always resolved. Asking **without** a version
+means *current*, and current is the highest version by code point — never
+whichever file the directory walk reached first, which would differ between two
+machines.
+
+**`contentDigest` is the part nobody can forget.** `resolvePack` returns it
+alongside `id` and `version`, and a tenant carries it in `pack.contentDigest`: a
+SHA-256 over the canonical JSON of the whole resolution, identical in every
+implementation. Two tenants with the same digest run on the same rules, whatever
+their labels say; the same version showing two digests means a published version
+changed underneath somebody, which is exactly the thing a hand-written number
+cannot report about itself. Compare digests when you need certainty; read the
+version when you need a name.
 
 Choose it with `summae init --pack de`. The **resolver checks coherence** (does
 a tax account point at an account the chart of accounts doesn't have? does a
@@ -542,6 +564,19 @@ Conventions for this whole section:
 - Every input may optionally carry `actor` (string) → audit trail, default `"system"`.
 - Errors are thrown as a `DomainError` with an `E_*` code (see § 9); when posting, **only the first** error in fixed check order is returned.
 
+> ⚠ **Getting an input name or type wrong fails loudly.** Every operation declares its
+> inputs, and the dispatcher checks them before routing — the same contract the
+> projections have had (§ 7), on the side that writes to the books. An **undeclared**
+> input is `E_INPUT_INVALID` and is never silently ignored, so `usefulLifeYears`
+> cannot quietly leave the pack's useful life in charge. A declared input of the
+> **wrong type** is rejected rather than coerced: `"30"` is not `30`, and an amount
+> is Money (`{"amount":"2000.00","currency":"EUR"}`), never a bare number. An
+> **absent** input keeps its documented default, and `null` counts as absent.
+>
+> What is *not* checked here is whether a required input is present: that stays with
+> the operation, which answers with a better code than this layer could —
+> `E_VOUCHER_UNKNOWN`, `E_ASSET_UNKNOWN`, `E_ENTRY_NO_VOUCHER` say *what* is missing.
+
 #### createTenant (bootstrap operation, SF-01)
 
 Create a tenant from a profile — **not** a normal `execute` op, but a bootstrap
@@ -700,7 +735,9 @@ set, or unknown `entryId`).
 
 Reversal by full counter-entry: a new posting with a back-reference
 (`reverses`), same accounts/sides, **negated amounts**. `entryId` (yes),
-`entryDate` (yes, open period), `text` (no, default `"Reversal <seqNo>"`). Output:
+`entryDate` (yes, open period), `text` (no, default `"Reversal <seqNo>"`),
+`voucherId` (no — the reversal reuses the original's voucher unless you give it
+one of its own). Output:
 serialized reversal posting; the original gets `reversedBy`. Errors:
 `E_ENTRY_UNKNOWN`, `E_ENTRY_ALREADY_REVERSED`, `E_PERIOD_UNKNOWN`,
 `E_PERIOD_CLOSED`, `E_ENTRY_HAS_SETTLED_ITEMS`.
@@ -770,6 +807,25 @@ asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
 `active`/`locked`). Output: serialized account. Errors:
 `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
 
+#### defineDimensionType / defineDimensionValue
+
+Dimension master data — the axes a posting line may carry (`costCenter`, `project`,
+`segment`) and the values on them. `defineDimensionType`: `code` (yes). Output:
+`{ "code" }`. `defineDimensionValue`: `type` (yes, must already exist), `code` (yes).
+Output: `{ "type", "code" }`. Errors: `E_DIMENSION_INVALID` — unknown type, empty
+code, or a type/value already defined.
+
+```json
+{ "code": "costCenter" }
+{ "type": "costCenter", "code": "MAT" }
+```
+
+These are the **tenant's** master data, not the pack's: "Materialstelle" is a fact
+about one company, not about a jurisdiction. That is why no shipped pack carries
+them and why a tenant created from a pack starts with no dimensions at all — until
+you declare them here, a line carrying `costCenter` is rejected, and with it every
+cost-accounting operation.
+
 #### importChartOfAccounts
 
 Atomic chart-of-accounts import: validate everything first, then create. `rows`
@@ -783,6 +839,20 @@ batch).
 Locks an account (`active` → `locked`); afterwards `E_ACCOUNT_LOCKED` on `post`.
 `number` (yes). Output: serialized account with `status:"locked"`. Error:
 `E_ACCOUNT_UNKNOWN`.
+
+#### unlockAccount
+
+The way back (`locked` → `active`). `number` (yes). Output: serialized account
+with `status:"active"`. Error: `E_ACCOUNT_UNKNOWN`. Both directions are in the
+audit trail, as `locked` and `unlocked` with the status diff.
+
+**Unlocking changes nothing about the past.** A lock stops *new* postings; it
+never hid the old ones, and the account keeps every posting ever made on it.
+That is also why the operation exists at all: the irreversibility of a lock is
+not a legal requirement anywhere — what the law asks of master data is that the
+change be logged, which it is — so a mis-clicked lock should not have to be
+repaired by abandoning the account and opening a second one under a new number.
+Read the current status with the `accounts` projection (§ 7).
 
 #### createFiscalYear
 
@@ -869,10 +939,16 @@ Error: `E_MAPPING_OVERLAP` (account in more than one position).
 #### createPartner
 
 Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
-All fields optional with defaults: `name` (`""`), `kind`
-(`customer`/`supplier`/`both`, default `both`), `vatId`, `paymentTermsDays`,
-`accountNumbers[]`, `address`. Output: serialized partner with a generated `id`.
-Writes an audit entry.
+`name` (**yes**, non-empty), `kind` (no, default `both` — one of
+`customer`/`supplier`/`both`, anything else is `E_INPUT_INVALID`), `vatId` (no),
+`paymentTermsDays` (no), `accountNumbers[]` (no), `address` (no). Output:
+serialized partner with a generated `id`. Writes an audit entry.
+
+⚠ **A nameless partner is refused**, and so is a whitespace-only one. `name`
+used to default to `""`, which produced a partner indistinguishable from the
+next and impossible to pick out of a list; a caller that relied on that has to
+supply a name now. `kind` used to take any string, so a misspelt one was stored
+as given and surfaced as a category nothing could filter on.
 
 ```json
 { "name": "Alpen Handel GmbH", "kind": "customer", "vatId": "ATU12345678", "paymentTermsDays": 30, "accountNumbers": ["1400"] }
@@ -881,9 +957,37 @@ Writes an audit entry.
 #### updatePartner
 
 Updates existing partners; only changed fields are written (diff in the audit
-trail). `partnerId` (yes), `name`/`vatId`/`kind`/`paymentTermsDays` (no).
-`vatId: null` clears the VAT ID; `accountNumbers`/`address` are not changed
-here. Output: serialized partner. Error: `E_PARTNER_UNKNOWN`.
+trail). `partnerId` (yes), `name`/`kind`/`vatId`/`paymentTermsDays`/
+`accountNumbers`/`address` (all no — an absent field is left alone). Output:
+serialized partner. Errors: `E_PARTNER_UNKNOWN`, `E_INPUT_INVALID` (empty
+`name`, unknown `kind`).
+
+**Clearing a field** is `null`: `vatId: null` drops the VAT ID and
+`paymentTermsDays: null` drops the payment term. `name` cannot be cleared —
+absent leaves it alone, present and empty is refused.
+
+**`accountNumbers` and `address` replace wholesale**, they do not merge: what
+you send is what the partner has afterwards. Both were create-only until 0.11,
+which made a wrong account link permanent — the only way back was a new partner
+under a new id, while every open item stayed on the old one.
+
+There is deliberately **no `deletePartner`**: books keep what they referenced,
+and an id that open items point at must not vanish. What a partner does have is
+a status — see `deactivatePartner`.
+
+#### deactivatePartner / reactivatePartner
+
+`partnerId` (yes). Output: serialized partner with `status:"inactive"` resp.
+`"active"`. Error: `E_PARTNER_UNKNOWN`. Both are audited (`deactivated` /
+`reactivated` with the status diff).
+
+**A state, not a control.** An inactive partner refuses nothing: its open items
+still settle, its vouchers still read, and a posting that names it is not
+rejected. Whether a picker still offers it is your workflow — the library
+records the fact, the application decides what follows from it. That is the
+difference to `lockAccount`, which does refuse postings, and the two words are
+different on purpose. The status is part of the partner record and of the
+`journalExport` partner stream (data format 0.7).
 
 ### 6.4 Assets & cost accounting
 
@@ -986,6 +1090,16 @@ The disposal books the whole event, in this order:
    fully depreciated asset scrapped for nothing books no entry rather than an
    empty one.
 
+The carrying amount is the acquisition cost less **everything already
+depreciated**, whatever date those entries carry — not the value the asset had
+on `disposedOn`. The difference shows when a yearly run has already booked the
+whole year on 31 December and the asset then leaves in September: the year keeps
+its twelve months of depreciation, and the disposal takes what is left as its
+gain or loss. The income statement carries the same total either way; only the
+split between depreciation and disposal result moves. Reading the value as of
+the disposal date instead would write off more than stands on the account and
+leave an asset account with a credit balance (IMPL-026).
+
 **Exception — pooled assets whose pack keeps them in the pool**
 (`poolReducedOnDisposal: false`): nothing is written off, the pool keeps running
 its term, and only the proceeds are booked.
@@ -993,6 +1107,95 @@ its term, and only the proceeds are booked.
 ⚠ **The month of departure:** depreciation is owed for plan months that have
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
+
+#### reportAssetUsage
+
+Depreciation by output. `assetId` (yes), `fiscalYear` (yes), `units` (yes, a whole
+number ≥ 1 — the output *since the last report*), `voucherId` (no — a machine voucher
+`LAFA-…` is created otherwise). Output: `{ "assetId", "entryId", "amount",
+"reportedUnits", "totalUnits", "capped", "bookValue" }`. Errors: `E_ASSET_UNKNOWN`,
+`E_ASSET_DISPOSED`, `E_INPUT_INVALID` (the asset is not depreciated by output, is
+already fully written off, or the report writes off nothing).
+
+Chosen at acquisition with `"depreciationMethod": "units_of_production"` and
+`"totalUnits"` (the expected total output — kilometres, operating hours, copies).
+Either without the other is refused rather than ignored.
+
+```json
+{ "assetId": "…", "fiscalYear": 2026, "units": 90000 }
+```
+
+Such an asset has **no schedule**, and `runDepreciation` passes it by. Time-based
+depreciation knows at acquisition what every future period will take; this one cannot,
+because the number comes from goods movements and meter readings that are not in the
+books.
+
+The arithmetic is cumulative: each report splits the acquisition cost between what the
+asset has now given and what it has not, and books the difference against what is
+already written off. Computing each period on its own would let rounding drift and
+leave a stray cent on a fully used-up asset; this way the report that reaches the total
+output lands on the cost exactly. Outliving the estimate is not an error — the booking
+is capped at the book value and `capped` says so — but once the asset is written off,
+further output is refused rather than booked as a silent `0.00`.
+
+#### bookSpecialDepreciation
+
+An additional allowance next to the ordinary plan. `assetId` (yes), `fiscalYear`
+(yes), `amount` (yes, Money > 0), `voucherId` (no — a machine voucher `SAFA-…` is
+created otherwise). Output: `{ "assetId", "entryId", "amount", "remainingAllowance",
+"bookValue" }`. Errors: `E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, `E_INPUT_INVALID`
+(no allowance elected, outside the window, more than is left).
+
+Elected once, at acquisition, with `"specialDepreciation": true` on `acquireAsset`;
+the rate and the length of the window come from the pack (`specialDepreciation` in
+the depreciation module), and a pack without one refuses the election with
+`E_PACK_INCOHERENT` rather than inventing a rate.
+
+```json
+{ "assetId": "…", "fiscalYear": 2026, "amount": { "amount": "8000.00", "currency": "EUR" } }
+```
+
+It is **not** a depreciation method. While the window is open the ordinary plan runs
+on unchanged, on the original basis — that is what "alongside" means. The amount and
+its timing are yours: an allowance of "up to 40 % over five years" is exactly that,
+and any split is as valid as any other. When the window closes, the core re-bases
+once: whatever book value is left is spread over the plan months still open, the same
+way a write-down does it. Without that the plan would keep asking for its original
+yearly amount and run the book value below zero.
+
+Whether you are **entitled** to the allowance — a profit limit, a minimum share of
+business use — is a fact about the business rather than about the books. summae
+cannot know it and does not pretend to; it enforces only the budget and the window.
+
+#### writeDownAsset
+
+Unplanned write-down (impairment). `assetId` (yes), `amount` (yes, Money > 0 and not
+more than the current book value), `date` (yes), `reason` (yes), `voucherId` (no —
+a machine voucher `AFAA-…` is created when you do not supply one). Output:
+`{ "assetId", "entryId", "amount", "bookValue", "remainingPlanMonths" }`. Errors:
+`E_ASSET_UNKNOWN`, `E_ASSET_DISPOSED`, `E_VOUCHER_UNKNOWN`, `E_INPUT_INVALID`
+(missing reason, amount ≤ 0, or more than the book value).
+
+```json
+{ "assetId": "…", "amount": { "amount": "1800.00", "currency": "EUR" },
+  "date": "2027-06-30", "reason": "Dauerhafte Wertminderung laut Gutachten" }
+```
+
+The planned schedule answers wear and tear; it has nothing to say about a machine
+damaged in March. Booking that by hand past the asset register leaves the register
+and the ledger disagreeing about what the asset is worth, and disposing of it is
+wrong because it still exists.
+
+Two things happen. The write-down is posted (`impairmentExpenseAccount` from the pack
+if it has one, otherwise the ordinary depreciation account) and it lowers the book
+value at once. And **the remaining plan is rewritten**: what is left is spread evenly
+over the plan months not yet booked. Leaving the plan alone would depreciate past
+zero; stopping it would finish the asset early. The reduced value carried over the
+remaining life is what a lasting impairment means.
+
+`reason` is required and not decoration — an unplanned write-down that does not say
+why is not auditable, and that is the whole difference between an impairment and a
+mistake. It goes into the entry text and the audit record.
 
 #### runDepreciation
 
@@ -1009,26 +1212,71 @@ no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 
 #### setAllocationScheme
 
-Allocation scheme (step-ladder). `method` (no, default `"step_ladder"`),
-`steps[]` (`sender` yes, `receivers[].code` yes, `receivers[].share` no, default
-`"1"`). Output: `{ "valid", "method", "stepCount" }`. Errors:
-`E_COSTING_CYCLE`; missing `sender` → `InvalidValue` ⚠.
+Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` yes,
+`receivers[].code` yes, `receivers[].share` no, default `"1"`). Output:
+`{ "valid", "method", "stepCount" }`. Errors: `E_INPUT_INVALID` (a method summae does
+not perform — it is refused, never approximated), `E_COSTING_CYCLE`; missing `sender`
+→ `InvalidValue` ⚠.
 
 ```json
 { "method": "step_ladder", "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] } ] }
 ```
 
+Two methods:
+
+- **`step_ladder`** — one pass in the order the steps are given. The scheme has to be
+  acyclic (`E_COSTING_CYCLE`), because in one pass a centre that has already been
+  emptied cannot receive anything back.
+- **`simultaneous`** — all cost centres solved at once as a linear system, so centres
+  that serve *each other* are allowed. Use it whenever the power plant heats the
+  workshop and the workshop maintains the power plant: there is no order in which one
+  of them can go first without sending on cost it has not received yet. Only a
+  **closed** circle is refused (`E_COSTING_UNSOLVABLE`) — one where a group of centres
+  passes everything among themselves and nothing ever reaches a centre that keeps it.
+
+```json
+{ "method": "simultaneous", "steps": [ { "sender": "ST", "receivers": [ { "code": "RE", "share": "20" }, { "code": "FE", "share": "80" } ] }, { "sender": "RE", "receivers": [ { "code": "ST", "share": "10" }, { "code": "FE", "share": "90" } ] } ] }
+```
+
+The textbook's third procedure, the *direct* method (German *Anbauverfahren*), needs no
+mechanism of its own: it is the step ladder with a scheme in which auxiliary centres send
+only to main ones. Leaving the auxiliary-to-auxiliary edges out of the scheme *is* the
+method.
+
 #### runCosting
 
 Costing run: primary costs from expense lines carrying a `costCenter` dimension,
-then allocation. `fiscalYear` (yes), `period` (yes). Output:
-`{ "runId", "status": "draft", "version" }`.
+then allocation by the method the scheme was set with. `fiscalYear` (yes), `period`
+(yes). Output: `{ "runId", "status": "draft", "version" }`. Errors:
+`E_COSTING_UNSOLVABLE` (see `setAllocationScheme`).
 
 #### releaseCosting
 
 Release (`draft` → `released`). `runId` (yes). Output:
 `{ "runId", "status": "released" }`. Errors: `E_COSTING_RUN_UNKNOWN`,
 `E_COSTING_RUN_RELEASED`.
+
+**Runs are persisted**, so a released run is still there in the next process —
+which is what makes `costAllocationSheet`, `overheadRates` and `productionCost`
+usable from an application that builds a tenant per request. The version of a
+period comes from the store, so a second run of the same period is version 2
+however many restarts lie in between. With a persistent adapter the runs live in
+`summae_costing_runs`; in memory they live as long as the tenant does.
+
+#### allocate
+
+`total` (yes, Money), `weights` (yes, list of numbers or numeric strings).
+Output: `{ "parts": [Money…], "total": Money }`. **Writes nothing** — no
+journal entry, no state; it is the largest-remainder split of `Money.allocate`
+(§ 8) reachable through the same dispatcher as everything else, so a caller that
+only speaks the API can split an amount without reimplementing the rounding.
+
+The scale comes from the tenant's currency (the pack's `currencyScale`), and the
+remainder goes to the earliest parts, so `100.00` over three equal weights is
+`33.34 / 33.33 / 33.33` and the sum is exactly the total. Use it wherever an
+amount has to be distributed before it is posted — a cost split, an instalment
+plan, an allocation key — rather than dividing in your own code and posting a
+rounding difference.
 
 ---
 
@@ -1083,17 +1331,152 @@ as-of evaluations.
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 
+### journal — the journal, windowed and paged
+
+`fiscalYear` (**yes**), `fromDate` (no), `toDate` (no), `offset` (no, default
+`0`), `limit` (no — absent means everything from the offset on). Output:
+`fiscalYear`, `count`, `offset`, `limit` and `entries[]`, ordered by
+`sequenceNumber`.
+
+Each entry carries `sequenceNumber`, `entryId`, `status`
+(`entered`/`finalized`), `entryDate`, `voucherNumber`, `voucherDate`, `text`,
+`reverses`, `reversedBy` and its **complete** `lines[]` — `account`,
+`accountName`, `side`, `money`, `dimensions`, `taxTag`.
+
+**This is the projection to fill a journal view with**, not `journalExport` and
+not `datevExport`. The export is lossless but builds five streams with a
+SHA-256 each and has neither window nor paging — an archive format, paid for on
+every page load. `datevExport` has the window and the weight but is DATEV-shaped
+and therefore **lossy for split entries**: an expense with its input tax against
+one bank line collapses into a single row and the tax line is gone.
+
+**Paging counts entries, not lines.** A page boundary inside a split entry would
+reproduce exactly the defect this projection avoids. `count` is the number of
+entries in the window *before* paging, so a page header can say "51–100 of
+3,204" without a second call. An offset past the end is an empty page, not an
+error.
+
+```json
+// params { "fiscalYear": 2026, "fromDate": "2026-02-01", "toDate": "2026-02-28", "limit": 50 }
+{ "fiscalYear": 2026, "count": 1, "offset": 0, "limit": 50,
+  "entries": [ { "sequenceNumber": 2, "status": "entered", "entryDate": "2026-02-03",
+    "voucherNumber": "ER-BÜRO", "text": "Bürobedarf",
+    "lines": [ { "account": "6800", "accountName": "Bürobedarf", "side": "debit",
+                 "money": { "amount": "40.00", "currency": "EUR" } },
+               { "account": "1200", "accountName": "Bank", "side": "credit",
+                 "money": { "amount": "40.00", "currency": "EUR" } } ] } ] }
+```
+
+### accounts — the chart of accounts
+
+No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`
+and `status`, ordered by account number. Nothing else — no balances (that is
+`trialBalance`), no movements (`accountSheet`), no hashes.
+
+The two fields worth naming are the two that were hard to get before.
+**`subtype`** says what an account is *for* — which one is the bank, which the
+cash box, which receivables and payables — and it is what an application should
+use to preselect a counter account. Reading the **pack** instead is the trap: the
+pack is the chart the tenant *started* from, and one `createAccount` later it is
+a guess. **`status`** is the read side of `lockAccount`; a locked account stays
+in the list, because it is still part of the chart and merely refuses postings.
+
+```json
+// params {}
+{ "accounts": [
+  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active" },
+  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked" } ] }
+```
+
+### fiscalYears — fiscal years and period status
+
+`fiscalYear` (no, scopes to one year). Output: `fiscalYears[]` with `year`,
+`start`, `end`, `status` and `periods[]` (`period`, `start`, `end`, `status`),
+ordered by year and period number.
+
+This is the read side of `closePeriod`, `reopenPeriod` and `closeFiscalYear`.
+Use it rather than replaying `auditLog`: the log is a **trail, not a state**, and
+reconstructing "period 3 is open" from it goes wrong the moment a period is
+closed by something that did not pass through your application.
+
+`start` and `end` are what make a period *list* possible. A fiscal year running
+July to June has twelve periods that are not the twelve calendar months, and
+period 1 is July — an application that assumes otherwise offers input the ledger
+will refuse. A year's own `status` is separate from its periods': closing every
+period does not close the year, `closeFiscalYear` does.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "fiscalYears": [ { "year": 2026, "start": "2025-07-01", "end": "2026-06-30", "status": "open",
+  "periods": [ { "period": 1, "start": "2025-07-01", "end": "2025-07-31", "status": "closed" },
+               { "period": 2, "start": "2025-08-01", "end": "2025-08-31", "status": "open" } ] } ] }
+```
+
+### cashJournal — cash book (Kassenbuch)
+
+`fiscalYear` (**yes**). Reports every account of subtype `cash`, so the pack (or
+your chart) decides what counts as a cash register — nothing is flagged on the
+posting. Output: `fiscalYear`, `accounts[]` with `account`, `name`,
+`openingBalance`, `movements[]` and `closingBalance`; plus `negativeBalances[]`
+and `cashCountable`.
+
+Each movement carries `sequenceNumber`, `entryDate`, `voucherId`, `text`,
+`side`, `money` and the **`runningBalance` after it**. The opening balance
+carries over from the years before — a drawer does not start empty in January.
+
+⚠ **`cashCountable` is the point of the projection.** A cash balance can never
+be negative: you cannot hold less than no cash. The running balance is checked
+at **every** movement, not at the close, because a day that dips below zero and
+recovers is exactly what a closing balance hides. Every such point lands in
+`negativeBalances[]` (`account`, `sequenceNumber`, `entryDate`,
+`runningBalance`), and `cashCountable` is `false` while that list is non-empty.
+Reported, never blocked — whether it stops a workflow is your application's
+decision.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "fiscalYear": 2026, "cashCountable": false,
+  "accounts": [ { "account": "1600", "openingBalance": "150.00", "closingBalance": "40.00" } ],
+  "negativeBalances": [ { "account": "1600", "entryDate": "2026-03-04", "runningBalance": "-60.00" } ] }
+```
+
+### unfinalizedEntries — postings still open
+
+`asOf` (no, default: today by the injected clock), `olderThanDays` (no, default
+`0`), `fiscalYear` (no). Output: `asOf`, `olderThanDays`, `count`,
+`oldestAgeInDays` and `entries[]` with `entryId`, `sequenceNumber`, `entryDate`,
+`recordedAt`, `fiscalYear`, `period`, `ageInDays` and `text`, in journal order.
+
+The age is measured from the **`entryDate`**, not from `recordedAt`: a posting
+recorded late for an old date is precisely the case a finalization deadline is
+about, and measuring from the moment of recording would hide it.
+
+Which age is too old is **not** the library's answer. GoBD asks for finalization
+"at the latest with the VAT return", which is one jurisdiction's rule; the
+substrate only makes the deadline observable. Pass your own `olderThanDays` and
+decide what happens.
+
+```json
+// params { "asOf": "2026-03-31", "olderThanDays": 30 }
+{ "asOf": "2026-03-31", "olderThanDays": 30, "count": 2, "oldestAgeInDays": 74,
+  "entries": [ { "sequenceNumber": 7, "entryDate": "2026-01-16", "ageInDays": 74, "text": "Miete Januar" } ] }
+```
+
 ### openItems — open-item list
 
 `asOf` (no, cutoff date), `kind` (no, `receivable`/`payable`), `partnerId` (no).
 Items with a remaining amount of 0 as of the cutoff date drop out. Output:
-`items[]` with `id`, `kind`, `voucherNumber`, `partnerId`, `due`, `money` (original,
-Money), `remaining` (Money), `status`.
+`items[]` with `id`, `kind`, `voucherNumber`, `partnerId`, `partnerName`, `due`,
+`money` (original, Money), `remaining` (Money), `status`.
 
-`partnerId` and `due` are `null` where none is known — present and null, so "no partner
-recorded" / "no date agreed" stays distinguishable from "this view does not say". `due`
-comes from the **voucher**, so every item created by one voucher shares it; an instalment
-plan with a different date per part has no place to record that yet.
+`partnerId`, `partnerName` and `due` are `null` where none is known — present and null, so
+"no partner recorded" / "no date agreed" stays distinguishable from "this view does not
+say". `due` comes from the **voucher**, so every item created by one voucher shares it; an
+instalment plan with a different date per part has no place to record that yet.
+
+`partnerName` is the name the partner has **now**, read from the master record rather than
+copied onto the item when it was opened: an open item is a claim against whoever the partner
+is today, and a renamed customer must not be dunned under its old name.
 
 ```json
 // params { "asOf": "2026-02-20", "kind": "receivable" }
@@ -1115,16 +1498,98 @@ plan with a different date per part has no place to record that yet.
 
 ### costAllocationSheet — cost allocation sheet (BAB)
 
-`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). ⚠ `fiscalYear`/`period`
-present in fixtures, but not evaluated. Output: `runId`, `status`, `version`,
-`primary[]` and `afterAllocation[]` (each `{costCenter, total}`), `grandTotal`
-(strings).
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). `fiscalYear`/`period` are optional
+and, if given, have to agree with the run — a mismatch is `E_INPUT_INVALID` rather
+than the run's own period returned under someone else's label. Output: `runId`,
+`status`, `version`, `method` (which procedure produced these numbers — the two answer
+the same question differently, so a sheet that does not say cannot be checked against
+anything), `primary[]` and `afterAllocation[]` (each `{costCenter, total}`),
+`grandTotal` (strings).
 
 ```json
 // clearing total 4000 is preserved, sender VW ends at 0
 { "primary": [ { "costCenter": "VW", "total": "1000.00" } ],
   "afterAllocation": [ { "costCenter": "VW", "total": "0.00" } ], "grandTotal": "4000.00" }
 ```
+
+### overheadRates — overhead rates (Zuschlagssätze)
+
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). Output: `runId`, `status`, `version`,
+`method`, `rates[]` (each `{costCenter, label, overhead, base, rate}`) and `warnings[]`.
+
+Where the allocation sheet says what a cost centre ended up carrying, a rate says how
+that attaches to a product. The numerator is the centre after allocation; the
+denominator is declared per rate in `setAllocationScheme`:
+
+```json
+{ "rates": [
+    { "costCenter": "MAT",  "label": "Materialgemeinkosten",    "base": { "accounts": ["4000"] } },
+    { "costCenter": "FERT", "label": "Fertigungsgemeinkosten",  "base": { "accounts": ["4100"] } },
+    { "costCenter": "VW",   "label": "Verwaltungsgemeinkosten", "base": { "accounts": ["4000", "4100"], "costCenters": ["MAT", "FERT"] } }
+  ] }
+```
+
+`accounts` are summed as posted in the period (debit minus credit), `costCenters` as
+those centres stand *after* allocation, and the two add up. That one primitive covers
+the classic set without a special case: material and production overhead over their own
+direct costs, administration and sales overhead over cost of production — which is
+exactly "the direct-cost accounts plus the two production centres". Direct costs are
+read per **account** rather than through the `costCenter` dimension on purpose: they
+belong to the product, not to a department, and are normally booked without a centre.
+
+`rate` is a percentage with four decimals, rounded commercially (half-up, away from
+zero). It is **`null`** when the base came out zero — a rate over an empty base is not
+zero and not infinite but undefined, and `0.0000` would be applied to products as
+though it meant something. The centre is then named in `warnings`.
+
+Rates are computed during `runCosting` and frozen into the run, so changing the scheme
+afterwards does not change what a released run says.
+
+### productionCost — production cost (inventory valuation)
+
+`runId` (yes; unknown → `E_COSTING_RUN_UNKNOWN`). Output: `runId`, `status`,
+`version`, `total` and `components[]` (each `{id, amount, treatment, included}`).
+
+The one cost-accounting figure that reaches the balance sheet: inventory is carried at
+production cost, so which components may be counted into it is law rather than
+preference. summae splits that the way it splits everything else — **the core adds the
+components up, the pack says which ones may enter.** Each component the pack knows
+carries one of three treatments:
+
+| treatment | meaning |
+|---|---|
+| `mandatory` | must be capitalised — always counted |
+| `optional` | the preparer's choice — counted only if named in `include` |
+| `forbidden` | must not be capitalised — never counted, and electing it is refused |
+
+Components are declared in `setAllocationScheme`, with the same base primitive the
+overhead rates use:
+
+```json
+{ "productionCost": {
+    "include": ["administration"],
+    "components": [
+      { "id": "materialDirect",         "base": { "accounts": ["4000"] } },
+      { "id": "productionOverhead",     "base": { "costCenters": ["FERT"] } },
+      { "id": "administration",         "base": { "costCenters": ["VW"] } }
+    ] } }
+```
+
+Three refusals, each replacing a silent answer: a component the pack does not declare
+is `E_PACK_INCOHERENT` (counting or dropping it unnoticed would move the balance sheet
+either way); electing a `forbidden` one is `E_INPUT_INVALID` rather than a quiet
+exclusion; and asking for the figure without configuring components is refused rather
+than answered `0.00`. The projection returns **every** configured component, including
+the excluded ones, with its treatment — a valuation that shows only its own total
+cannot be checked against the rule it claims to follow.
+
+The same books therefore value differently under different packs: the `de` and `us`
+packs agree on full absorption of production cost and disagree about general
+administration, and that single row of pack data is the whole difference.
+
+What this does **not** do is divide by a quantity. Per-unit production cost needs
+produced quantities, and summae carries none — goods movements and production orders
+are your application's data. summae answers what the components add up to and why.
 
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
@@ -1140,12 +1605,30 @@ select a window here. Accrual taxation
 counts by posting/service date; cash taxation follows the open-item settlements
 (`settledAt`, partial payments pro rata). Output: `keys` (each `reportingKey` →
 `{base, tax}`; `base` officially rounded down to full euros, `tax` to the cent),
-`payload` (Money: Σ output tax − Σ input tax).
+`payload` (Money: Σ output tax − Σ input tax) and `gapWarnings[]`.
+
+⚠ **`gapWarnings` is the field to read before filing.** The return is built from
+tax-*coded* postings — the tax tag carries the reporting key. A posting made by
+hand onto a tax account (`subtype` `tax_in`/`tax_out`) has no such tag, so it
+balances, satisfies every invariant, shows correct figures on the accounts and
+in the trial balance, and contributes **nothing** to the return. Every such line
+in the window is listed here with `reason`
+(`tax_account_without_tax_code`), `sequenceNumber`, `entryDate`, `account`,
+`side` and `money`, in journal order.
+
+It is reported, never blocked: a correction posting legitimately touches a tax
+account, and refusing it would stop the repair along with the mistake. An empty
+list is the statement "nothing in this period bypassed the tax codes". Which
+accounts count comes from the chart, so a jurisdiction without input-tax
+deduction has no `tax_in` account and never sees the warning.
 
 ```json
 // params { "year": 2026, "quarter": 2, "asOf": "2026-07-01" }
 { "keys": { "81": { "base": "1000.00", "tax": "190.00" }, "66": { "tax": "19.00" } },
-  "payload": { "amount": "171.00", "currency": "EUR" } }
+  "payload": { "amount": "171.00", "currency": "EUR" },
+  "gapWarnings": [ { "reason": "tax_account_without_tax_code", "sequenceNumber": 7,
+                     "entryDate": "2026-04-12", "account": "1576", "side": "debit",
+                     "money": { "amount": "14.25", "currency": "EUR" } } ] }
 ```
 
 ### incomeStatement — income statement (GuV)
@@ -1225,7 +1708,7 @@ tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.6"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.7"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
@@ -1284,6 +1767,43 @@ verified against current DATEV documentation.
 ```
 
 ---
+
+### systemDescription — technical system description
+
+No parameters. Output: `formatVersion`, `tenant` (`id`, `name`,
+`baseCurrency`), `pack` (the manifest identity the tenant was composed from, or
+`null` for an inline rule bundle), `journal` (append-only, ordering, lifecycle,
+correction rule, the three dates), `invariants[]`, `auditTrail`,
+`capabilities` and `notProvided[]`.
+
+This is the **Verfahrensdokumentation** building block a library can supply
+(GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and
+processes and no library can write them. The technical one is different: what
+the engine enforces, which operations exist, how the journal behaves and what
+the stored format looks like are facts about the software — and stating them by
+hand means stating them wrong within a release. So this projection reports them
+from the same constants the engine runs on.
+
+Each entry in `invariants[]` names the mechanism that makes it true
+(`enforcedBy`), so the claim can be checked rather than believed.
+`capabilities.operations` / `.projections` are the **published API surface**:
+what the dispatcher routes and this list names are held equal by a contract test
+in both languages, in both directions — a capability the software has but does
+not publish is a description that lies by omission, and a published name that
+routes nowhere is a promise it cannot keep. If your application validates its
+calls against summae's surface, this is the list to validate against.
+
+`notProvided[]` states the limits in the same breath — most importantly that the
+actor in the audit trail is recorded **as supplied by the caller** and never
+verified. Binding it to an authenticated identity is your application's job.
+
+```json
+// params {}
+{ "formatVersion": "0.7", "pack": { "id": "de", "version": "2026.4" },
+  "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
+                    "enforcedBy": "No delete or update path exists on the journal repository." } ],
+  "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
+```
 
 ## 8. Value objects
 

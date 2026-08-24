@@ -1,0 +1,25 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-inventory-costing",
+  "kind": "productionCost",
+  "version": "2026.1",
+  "name": "Inventory costing United States (ASC 330 — full absorption costing; period charges excluded)",
+  "contributes": [
+    "productionCost"
+  ],
+  "dependsOn": [],
+  "data": {
+    "treatments": [
+      { "component": "materialDirect", "treatment": "mandatory", "note": "direct materials, ASC 330-10-30-1" },
+      { "component": "productionDirect", "treatment": "mandatory", "note": "direct labor, ASC 330-10-30-1" },
+      { "component": "specialProduction", "treatment": "mandatory", "note": "other directly attributable production costs" },
+      { "component": "materialOverhead", "treatment": "mandatory", "note": "production overhead on materials — full absorption, ASC 330-10-30-1" },
+      { "component": "productionOverhead", "treatment": "mandatory", "note": "variable and fixed production overhead; fixed overhead allocated on normal capacity, ASC 330-10-30-3" },
+      { "component": "productionDepreciation", "treatment": "mandatory", "note": "depreciation of production facilities, part of production overhead" },
+      { "component": "idleCapacity", "treatment": "forbidden", "note": "abnormal idle facility expense is a current-period charge, ASC 330-10-30-7" },
+      { "component": "administration", "treatment": "forbidden", "note": "general and administrative expenses are period charges, ASC 330-10-30-8 — this is where US GAAP differs from § 255 Abs. 2 HGB, which leaves it to the preparer" },
+      { "component": "research", "treatment": "forbidden", "note": "research and development is expensed as incurred, ASC 730-10-25-1" },
+      { "component": "distribution", "treatment": "forbidden", "note": "selling expenses are period charges, ASC 330-10-30-8" }
+    ]
+  }
+}

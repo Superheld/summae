@@ -31,11 +31,21 @@ final readonly class DatabaseAssetRepository implements AssetRepository
         ]);
     }
 
+    /**
+     * The payload is written too, not only the state.
+     *
+     * It used not to be, and that was safe exactly as long as nothing in the payload could change —
+     * master data does not, so `add` wrote it once and `save` only touched the history. An unplanned
+     * write-down broke that: it rewrites the depreciation SCHEDULE, which lives in the payload, and a
+     * database-backed tenant kept booking the old plan while the in-memory one booked the new. Same
+     * input, two different sets of books, and only the run against a real adapter could see it.
+     */
     public function save(Asset $asset): void
     {
         $this->table()
             ->where('tenant_id', $this->tenantId->value)
             ->where('id', $asset->id->value)->update([
+            'payload' => Hydrator::encode($this->payload($asset)),
             'state' => Hydrator::encode($this->state($asset)),
         ]);
     }
@@ -72,6 +82,14 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             // part of the asset register an auditor reads. Losing it here would silently move a
             // pooled asset's plan back to its acquisition month after a restart.
             'depreciationStart' => $asset->depreciationStart?->iso,
+            // Also mechanics, and also silently destructive if lost: after an unplanned write-down the
+            // schedule IS the plan, and a restart that forgot this would go back to re-deriving the
+            // plan from the acquisition cost — the very figure the write-down said is no longer valid.
+            'scheduleRevised' => $asset->scheduleWasRevised(),
+            'specialDepreciationBudget' => $asset->specialDepreciationBudget?->jsonSerialize(),
+            'specialDepreciationWindowEnd' => $asset->specialDepreciationWindowEnd,
+            'totalUnits' => $asset->totalUnits,
+            'reportedUnits' => $asset->reportedUnits(),
         ];
     }
 
@@ -114,6 +132,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
                 'date' => Hydrator::date($booking['date'] ?? null) ?? throw new \RuntimeException('depreciation date missing'),
                 'amount' => Hydrator::money($bookingMoney),
                 'entryId' => Uuid::fromString(is_string($booking['entryId'] ?? null) ? $booking['entryId'] : ''),
+                'kind' => is_string($booking['kind'] ?? null) ? $booking['kind'] : 'planned',
             ];
         }
 
@@ -140,7 +159,22 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             self::dimensions($data['dimensions'] ?? null),
             Hydrator::date($data['depreciationStart'] ?? null),
             is_string($data['depreciationMethod'] ?? null) ? $data['depreciationMethod'] : null,
+            ($data['scheduleRevised'] ?? false) === true,
+            self::optionalMoney($data['specialDepreciationBudget'] ?? null),
+            is_int($data['specialDepreciationWindowEnd'] ?? null) ? $data['specialDepreciationWindowEnd'] : null,
+            is_int($data['totalUnits'] ?? null) ? $data['totalUnits'] : null,
+            is_int($data['reportedUnits'] ?? null) ? $data['reportedUnits'] : 0,
         );
+    }
+
+    private static function optionalMoney(mixed $raw): ?Money
+    {
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $raw */
+        return Hydrator::money($raw);
     }
 
     /** @return list<array{type: string, code: string}> */

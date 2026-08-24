@@ -135,6 +135,20 @@ silently becomes "wrong" retroactively. Contradiction between spec/fixture/model
 guess, do not bend the fixture**, but document it in the `SPEC-FINDINGS.md` of the respective
 implementation and continue building with the next most plausible behavior.
 
+**Retiring a fixture is the one exception, and it is narrow.** Append-only stops a fixture from
+being *edited*; it does not claim a fixture can never have pinned the wrong thing. The three
+`*-pack-resolves` fixtures pinned the version and the account count of a **shipped pack** — so the
+`de` pack could neither gain an account nor publish a version without the suite going red, which is
+the opposite of what a contract is for. Such a fixture is **superseded**, never edited and never
+deleted: the file stays byte-identical, a successor pins the behaviour that was actually meant, and
+`testing/testsuite/superseded.json` records which is which and why. The runner skips what is listed
+there, and `SupersededFixturesTest`/`superseded-fixtures.test.ts` check the register in both
+languages — an entry must name a real fixture and a real successor that really runs. **The test is
+whether the expectation was ever a contract at all**, not whether it is inconvenient: a fixture that
+pins *behaviour* is never retired, it is argued with. Product data (a pack's version, the size of
+its chart) belongs to the product; mechanism (that a pinned version keeps resolving what it always
+resolved) belongs in a fixture that owns its own data, like `xx-6-pack-version-pinning`.
+
 **One mirror remains:** `pack-library/` is still authored outside and comes in via `make sync`
 (`bin/sync-pack-library.sh`, `rsync --delete` — whatever is here and not in the source gets
 deleted). Do not edit it here.
@@ -216,13 +230,18 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    the workspace, the pack library, and the documented parameter names. **Ship a new pack ⇒ add a
    scenario** (a guard test fails otherwise). Documentation that stops being true must turn a build
    red, not rot on the page. **Where every kind of test lives and which one to write: `testing/README.md`.**
-5. **The projection parameter contract is data, not code.** `testing/testsuite/schema/api-parameters.json`
-   declares every accepted parameter with its type; the dispatcher validates against it *before*
-   routing. An undeclared parameter is `E_INPUT_INVALID`, never silently ignored; a declared one of
-   the wrong type is rejected, never coerced; an absent one keeps its documented default. The core
-   reads no files, so each language carries the table as a constant — and a test per language asserts
-   the constant equals that file, which is what makes drift impossible. **Adding a parameter means
-   editing `testing/testsuite/schema/api-parameters.json` first**, not the constant.
+5. **The parameter contract is data, not code — for projections *and* operations.**
+   `testing/testsuite/schema/api-parameters.json` declares every accepted parameter and every
+   accepted operation input with its type; the dispatcher validates against it *before* routing. An
+   undeclared key is `E_INPUT_INVALID`, never silently ignored; a declared one of the wrong type is
+   rejected, never coerced; an absent one keeps its documented default. The core reads no files, so
+   each language carries both tables as constants — and a test per language asserts the constants
+   equal that file, which is what makes drift impossible. **Adding a parameter means editing
+   `testing/testsuite/schema/api-parameters.json` first**, not the constant. The `operations` block
+   arrived late (2026-08-24, reported from outside as F-9) and the gap it left is the lesson: for a
+   year the *reads* were declared and the *writes* were not, so a mistyped projection parameter
+   failed loudly while a mistyped operation input was dropped and the default stood — on the side
+   that writes to the books. Requiredness stays with the operation, whose error code says more.
 6. **An error code lives in two places at once.** A new code needs its row in
    `testing/testsuite/fehlerkatalog.md` **and** an append to `ExitCodes.php` + `exit-codes.ts` (order identical,
    never reordered). `ExitCodesTest`/`exit-codes.test.ts` compare the two as sets in both

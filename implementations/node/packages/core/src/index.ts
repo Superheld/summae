@@ -65,6 +65,7 @@ export type {
   VoucherRepository,
   OpenItemRepository,
   AssetRepository,
+  CostingRunRepository,
   AuditTrail,
 } from './port.js';
 export {
@@ -84,19 +85,27 @@ export { AssetService } from './policies/expansion/assets/asset-service.js';
 
 // Costing
 export { CostingRun } from './policies/expansion/costing/costing-run.js';
-export { CostingService } from './policies/expansion/costing/costing-service.js';
+export {
+  CostingService,
+  type OverheadRate,
+  type ProductionCostResult,
+  type RateWarning,
+} from './policies/expansion/costing/costing-service.js';
 
 // Partner
 export { Partner } from './partner/partner.js';
 export { PartnerService } from './partner/partner-service.js';
 export type { PartnerRepository } from './port.js';
-export { InMemoryPartnerRepository } from './in-memory.js';
+export { InMemoryPartnerRepository, InMemoryCostingRunRepository } from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 
 // Projektionen
 export { TrialBalanceProjection } from './policies/projection/trial-balance.js';
 export { OpenItemsProjection } from './policies/projection/open-items.js';
 export { AccountSheetProjection } from './policies/projection/account-sheet.js';
+export { AccountsProjection } from './policies/projection/accounts.js';
+export { FiscalYearsProjection } from './policies/projection/fiscal-years.js';
+export { JournalProjection } from './policies/projection/journal.js';
 export { AuditLogProjection } from './policies/projection/audit-log.js';
 export { VatReturnProjection } from './policies/projection/vat-return.js';
 export { IncomeStatementProjection } from './policies/projection/income-statement.js';
@@ -126,9 +135,11 @@ export {
   validateProjectionParams,
   type ParameterSpec,
 } from './composition/projection-parameters.js';
+export { OPERATION_PARAMETERS, validateOperationInput } from './composition/operation-parameters.js';
 export { PostVoucherService } from './composition/post-voucher-service.js';
 export { TenantFactory } from './composition/tenant-factory.js';
 export {
+  findManifest,
   resolvePack,
   ruleModulesFromResolved,
   type ResolvedPack,

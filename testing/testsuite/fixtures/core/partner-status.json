@@ -1,0 +1,273 @@
+{
+  "fixture": "partner-status",
+  "description": "F-CORE-034: a partner can be marked as no longer in use, and taken back. There is no `deletePartner` and there should not be — the books keep what they referenced, and an id that open items point at must not vanish — but a partner nobody trades with any more has to be sayable somewhere, or every embedding application invents its own inactive-list beside the ledger, which is the state that made this a finding. It is deliberately a STATE, NOT A CONTROL: an inactive partner refuses nothing. Its open items still settle, its vouchers still read, and a posting that names it is not rejected. Whether a picker still offers it is the application's workflow — summae's own scope rule puts 'the user must…' on that side and 'the data must…' on this one. That is also the difference to `lockAccount`, which does refuse postings; the two words are different on purpose. Both directions are audited with the status diff, which is what the law asks of master data: not that a change be impossible, but that it be traceable. The status is part of the partner record and therefore of the data format — it arrived with 0.7.",
+  "covers": [
+    "F-CORE-034",
+    "F-CORE-022"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Partnerstatus GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Altkunde GmbH",
+        "kind": "customer",
+        "accountNumbers": [
+          "1400"
+        ]
+      },
+      "expect": {
+        "comment": "A partner starts active — no caller has to say so, and a record written before the status existed reads the same way.",
+        "result": {
+          "id": "$P1",
+          "name": "Altkunde GmbH",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "AR-500",
+          "voucherDate": "2026-03-02",
+          "partnerId": "$P1",
+          "kind": "invoice_out"
+        },
+        "entryDate": "2026-03-02",
+        "text": "Letzte Rechnung",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            },
+            "openItem": {
+              "kind": "receivable"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          }
+        }
+      }
+    },
+    {
+      "op": "deactivatePartner",
+      "input": {
+        "partnerId": "$P1",
+        "actor": "bruce"
+      },
+      "expect": {
+        "result": {
+          "id": "$P1",
+          "status": "inactive"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "AR-501",
+          "voucherDate": "2026-04-02",
+          "partnerId": "$P1",
+          "kind": "invoice_out"
+        },
+        "entryDate": "2026-04-02",
+        "text": "Doch noch eine Rechnung",
+        "lines": [
+          {
+            "account": "1400",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            },
+            "openItem": {
+              "kind": "receivable"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comment": "The point of the whole design: an inactive partner refuses nothing. Booking against one is not an error, because whether it SHOULD happen is a question about a workflow and not about the data.",
+        "result": {
+          "entry": {
+            "sequenceNumber": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "reactivatePartner",
+      "input": {
+        "partnerId": "$P1"
+      },
+      "expect": {
+        "result": {
+          "id": "$P1",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "op": "reactivatePartner",
+      "input": {
+        "partnerId": "$P1"
+      },
+      "expect": {
+        "comment": "Idempotent, and silently so: a second reactivation changes nothing and therefore writes no audit record — a trail full of non-events is a trail nobody reads.",
+        "result": {
+          "id": "$P1",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "op": "deactivatePartner",
+      "input": {
+        "partnerId": "01900000-0000-7000-8000-00000000ffff"
+      },
+      "expect": {
+        "error": "E_PARTNER_UNKNOWN",
+        "comment": "Same refusal as updatePartner: a partner that does not exist cannot be deactivated into existence."
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "openItems",
+      "params": {
+        "kind": "receivable"
+      },
+      "expect": {
+        "comment": "Both items stand, both name the partner. Deactivating changed nothing about the receivables — which is exactly why it is not a control.",
+        "items": [
+          {
+            "voucherNumber": "AR-500",
+            "partnerId": "$P1",
+            "partnerName": "Altkunde GmbH",
+            "remaining": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "voucherNumber": "AR-501",
+            "partnerId": "$P1",
+            "partnerName": "Altkunde GmbH",
+            "remaining": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": {},
+      "expect": {
+        "comment": "Both directions with their status diff and the actor as supplied. The second reactivation left nothing behind.",
+        "records": [
+          {
+            "objectType": "partner",
+            "action": "created"
+          },
+          {
+            "objectType": "voucher",
+            "action": "created"
+          },
+          {
+            "objectType": "journalEntry",
+            "action": "created"
+          },
+          {
+            "objectType": "partner",
+            "action": "deactivated",
+            "actor": "bruce",
+            "changes": {
+              "status": {
+                "from": "active",
+                "to": "inactive"
+              }
+            }
+          },
+          {
+            "objectType": "voucher",
+            "action": "created"
+          },
+          {
+            "objectType": "journalEntry",
+            "action": "created"
+          },
+          {
+            "objectType": "partner",
+            "action": "reactivated",
+            "actor": "system",
+            "changes": {
+              "status": {
+                "from": "inactive",
+                "to": "active"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

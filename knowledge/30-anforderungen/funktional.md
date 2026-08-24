@@ -11,7 +11,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-003 | Jede Buchung MUSS genau einen Beleg (`voucher`) referenzieren; progressive und retrograde Prüfung MUSS über die Referenzkette möglich sein. | alle |
 | F-CORE-004 | Perioden MÜSSEN schließbar sein (nur in Reihenfolge); Buchungen in geschlossene Perioden werden abgewiesen. | 07 |
 | F-CORE-005 | Kontenrahmen MÜSSEN als versionierte Daten importierbar sein; Kontenpläne sind mandantenspezifisch ableitbar. | 13 |
-| F-CORE-006 | Buchungspositionen MÜSSEN frei definierbare Dimensionen tragen können; Kostenstelle/Kostenträger/Produkt werden als Standardtypen mitgeliefert. | 12 |
+| F-CORE-006 | Buchungspositionen MÜSSEN frei definierbare Dimensionen tragen können. **Präzisiert 2026-08-24:** Typen und Werte sind *Mandanten*-Stammdaten (`defineDimensionType`/`defineDimensionValue`) — eine Jurisdiktion hat keine Meinung darüber, wie eine Firma ihre Kostenstellen nennt; das Pack liefert nur `dimensionRules` (welche Konten ohne welche Dimension nicht bebucht werden dürfen). Der Typcode `costCenter` ist Kern-Vokabular (Primärkosten-Einlass der KLR), nicht Pack-Daten. „Standardtypen mitgeliefert" beschrieb einen später verworfenen Entwurf. | 12 |
 | F-CORE-007 | Eigene Konten MÜSSEN jederzeit anlegbar sein (innerhalb der Kontenplan-Systematik). | 13 |
 | F-CORE-008 | Die EÜR MUSS als Projektion über zahlungswirksame Buchungen erzeugbar sein (Regeln R1–R6, bewiesen). | 08 |
 | F-CORE-009 | Zahlungen MÜSSEN offene Posten referenzieren (auch Teilausgleich, proportionale Kategorie-Aufteilung). | 04 |
@@ -33,6 +33,13 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-025 | Geschäftsjahre MÜSSEN per createFiscalYear anlegbar sein (lückenlos, überschneidungsfrei). | — |
 | F-CORE-026 | trialBalance-Zeilen MÜSSEN openingBalance, debitTotal, creditTotal und balance führen (SuSa-Praxis). | — |
 | F-CORE-027 | Eine Projektion unfinalizedEntries (älter als X Tage) MUSS die Festschreibe-Frist überwachbar machen. | — |
+| F-CORE-028 | Eine Projektion accounts MUSS den Kontenplan schlank lesbar machen (Nummer, Name, Typ, subtype, status) — ohne Salden, Bewegungen oder Hashes; subtype bestimmt die Rolle eines Kontos, status ist die Leseseite von lockAccount. | — |
+| F-CORE-029 | Eine Projektion fiscalYears MUSS Geschäftsjahre samt Perioden mit Beginn, Ende und Status liefern (Leseseite von closePeriod/reopenPeriod/closeFiscalYear); ohne Beginn/Ende ist keine Periodenliste ohne Erfindung möglich. | — |
+| F-CORE-030 | openItems MUSS neben partnerId auch partnerName führen (aktueller Name aus den Stammdaten) — eine Mahnung ohne Empfänger ist keine Mahnung. | 21 |
+| F-CORE-031 | Eine Projektion journal MUSS das Journal gefenstert (fiscalYear + fromDate/toDate) und seitenweise (offset/limit) liefern — vollständig je Buchung (alle Zeilen, Kontonummer UND -name), ohne Hashes. Blättern zählt BUCHUNGEN, nicht Zeilen; `count` nennt die Gesamtzahl im Fenster vor dem Blättern. | 14 |
+| F-CORE-032 | Partner-Stammdaten MÜSSEN korrekt anlegbar UND korrigierbar sein: `name` ist Pflicht (leer/whitespace ⇒ `E_INPUT_INVALID`), `kind` nur `customer`/`supplier`/`both`, `accountNumbers`/`address` per updatePartner änderbar (ersetzend), `paymentTermsDays: null` löscht den Zahlungsterm wie `vatId: null` die USt-IdNr. Kein deletePartner — die Bücher behalten, worauf sie verweisen. | 21 |
+| F-CORE-033 | Zu `lockAccount` MUSS es `unlockAccount` geben (`locked` → `active`), beide mit Audit-Eintrag (`locked`/`unlocked` + Status-Diff). Die Unumkehrbarkeit einer Kontosperre ist **kein** Rechtserfordernis — geschützt wird die Buchung, bei Stammdaten verlangt die GoBD nur die Protokollierung; deshalb Substrat und nicht Pack. | — |
+| F-CORE-034 | Ein Partner MUSS als „nicht mehr in Gebrauch" markierbar und wieder aktivierbar sein (`deactivatePartner`/`reactivatePartner`, `status` am Datensatz, beide Richtungen im Audit-Trail). **Zustand, keine Kontrolle:** ein inaktiver Partner weist nichts ab — ob ein Picker ihn noch anbietet, ist App-Workflow. Ersetzt kein `deletePartner`: die Bücher behalten, worauf sie verweisen. | 21 |
 
 ## F-TAX — Steuern
 
@@ -50,6 +57,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-TAX-010 | Unentgeltliche Wertabgaben MÜSSEN als Buchungsmuster mit USt abbildbar sein (VA-wirksam; EÜR-wirksam ohne Zahlungsfluss, Regel R7). | 20 |
 | F-TAX-011 | Die Steuerregelversion MUSS nach dem Leistungsdatum gewählt werden (§ 27 UStG); VA-Zuordnung bei Soll-Versteuerung folgt dem Leistungsdatum. | — |
 | F-TAX-012 | Eine Projektion ecSalesList MUSS ig. Umsätze je USt-IdNr. und Zeitraum liefern (ZM-Grundlage; Übermittlung App-Sache). | 21 |
+| F-TAX-013 | `vatReturn` MUSS in `gapWarnings[]` melden, wenn eine Buchung ein Steuerkonto (`tax_in`/`tax_out`) ohne Steuerschlüssel berührt — solche Beträge gehen in keine Kennzahl ein. Melden, nicht verhindern (Korrekturbuchungen dürfen das). | — |
 
 ## F-AST — Anlagen
 
@@ -67,7 +75,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 
 | ID | Anforderung | SF |
 |---|---|---|
-| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. | 12 |
+| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. **Präzisiert 2026-08-24:** „versioniert" heißt persistent — Läufe liegen hinter einem eigenen Port (`CostingRunRepository`), die nächste Version kommt aus dem Bestand, nicht aus einem Zähler im Prozess. | 12 |
 | F-KLR-002 | Die Abgrenzungsrechnung MUSS regelbasiert übernehmen/ausschließen/ersetzen/hinzufügen und eine beidseitige Abstimmbrücke liefern. | 12 |
 | F-KLR-003 | Umlagen MÜSSEN Anbau-, Stufenleiter- und Gleichungsverfahren unterstützen; Verrechnungssumme bleibt erhalten, Hilfskostenstellen enden bei 0. | 12 |
 | F-KLR-004 | BAB und Kalkulationssätze MÜSSEN als Projektion eines released Laufs abrufbar sein. | 12 |
@@ -86,6 +94,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-IO-007 | Das Package MUSS eine technische Systembeschreibung generieren können (Baustein der Verfahrensdokumentation, GoBD Rz. 151 ff.). | — |
 | F-IO-008 | DATEV-Buchungsstapel SOLLEN importierbar sein (Rückweg vom Steuerberater); Formatdetails bei JOB-011 verifizieren. | — |
 | F-IO-009 | US-GL-Export nach AICPA Audit Data Standard (General Ledger) — das US-Gegenstück zu F-IO-001 (GoBD-Z3 ist deutsch); MUSS journals/trialBalance/accounts erzeugen (signierte Beträge: Soll +, Haben −). | 32 |
+| F-IO-010 | Auch **Operationen** MÜSSEN ihre Eingaben deklarieren (`api-parameters.json`, Block `operations`); der Dispatcher prüft vor dem Routing: unbekannter Schlüssel ⇒ `E_INPUT_INVALID`, falscher Typ wird abgewiesen statt konvertiert, abwesend behält den dokumentierten Standard. Pflichtfelder bleiben bei der Operation (dort ist der Fehlercode genauer). | — |
 
 ## Abdeckungsprüfung SF → F
 

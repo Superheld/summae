@@ -2,8 +2,8 @@
   "formatVersion": "0.6",
   "id": "de-ust",
   "kind": "tax",
-  "version": "2026.2",
-  "name": "Umsatzsteuer Deutschland (Regelsatz 19 %, ermäßigt 7 %, §13b, ig. Lieferung, Wertabgabe)",
+  "version": "2026.4",
+  "name": "Umsatzsteuer Deutschland (Regelsatz 19 %, ermäßigt 7 %, §13b, ig. Lieferung, ig. Erwerb, Ausfuhr, Wertabgabe)",
   "contributes": [
     "taxCodes"
   ],
@@ -110,6 +110,48 @@
             "mechanism": "standard",
             "taxAccount": "3100",
             "reportingKey": "81"
+          }
+        ]
+      },
+      {
+        "code": "IGE19",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "19.00",
+            "mechanism": "reverse_charge",
+            "taxAccount": "3100",
+            "reportingKey": "89",
+            "inputTaxAccount": "1500",
+            "inputReportingKey": "61"
+          }
+        ]
+      },
+      {
+        "code": "IGE7",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "7.00",
+            "mechanism": "reverse_charge",
+            "taxAccount": "3110",
+            "reportingKey": "93",
+            "inputTaxAccount": "1510",
+            "inputReportingKey": "61"
+          }
+        ]
+      },
+      {
+        "code": "AUSFUHR",
+        "versions": [
+          {
+            "validFrom": "2024-01-01",
+            "validTo": null,
+            "rate": "0.00",
+            "mechanism": "exempt",
+            "reportingKey": "43"
           }
         ]
       }

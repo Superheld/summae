@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  API_OPERATIONS,
   Currency,
   DeterministicIdGenerator,
   FixedClock,
@@ -35,6 +36,10 @@ function freshOps(): TenantOperations {
   // `acquireAsset` fails on the missing useful life instead of on the thing under test.
   tenant.assetService.setRuleModule({
     usefulLife: [{ assetClass: 'machinery', months: 60 }],
+    // The two allowances the asset operations need before they can be audited at all: an elected
+    // special depreciation needs a declared one to draw on, and output-based depreciation needs
+    // the method to be offered.
+    specialDepreciation: [{ validFrom: '2024-01-01', validTo: null, rate: '40.00', years: 5 }],
     assetAccounts: {
       acquisitionCounterAccount: '1200',
       depreciationExpenseAccount: '4830',
@@ -72,6 +77,23 @@ function postOne(ops: TenantOperations, voucherId: string, date = '2026-01-20'):
   return String(result.id);
 }
 
+/** The asset most of the asset cases need — one place, so a changed input shape moves once. */
+function acquire(ops: TenantOperations, voucherId: string, extra: Record<string, unknown> = {}): string {
+  ops.execute('createAccount', { number: '0400', name: 'Maschinen', type: 'asset' });
+  ops.execute('createAccount', { number: '4830', name: 'AfA', type: 'expense' });
+  const asset = ops.execute('acquireAsset', {
+    name: 'Maschine',
+    assetClass: 'machinery',
+    assetAccount: '0400',
+    acquisitionCost: { amount: '5000.00', currency: 'EUR' },
+    acquiredOn: '2026-01-15',
+    usefulLifeMonths: 60,
+    voucherId,
+    ...extra,
+  }) as Record<string, unknown>;
+  return String(asset.id);
+}
+
 type Case = {
   readonly op: string;
   readonly objectType: string;
@@ -94,6 +116,31 @@ const AUDITED: readonly Case[] = [
     run: (ops) => {
       seed(ops);
       ops.execute('lockAccount', { number: '4930' });
+    },
+  },
+  {
+    op: 'unlockAccount',
+    objectType: 'account',
+    action: 'unlocked',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('lockAccount', { number: '4930' });
+      ops.execute('unlockAccount', { number: '4930' });
+    },
+  },
+  {
+    op: 'defineDimensionType',
+    objectType: 'dimensionType',
+    action: 'created',
+    run: (ops) => void ops.execute('defineDimensionType', { code: 'costCenter' }),
+  },
+  {
+    op: 'defineDimensionValue',
+    objectType: 'dimensionValue',
+    action: 'created',
+    run: (ops) => {
+      ops.execute('defineDimensionType', { code: 'costCenter' });
+      ops.execute('defineDimensionValue', { type: 'costCenter', code: 'K100' });
     },
   },
   {
@@ -209,7 +256,7 @@ const AUDITED: readonly Case[] = [
     op: 'createPartner',
     objectType: 'partner',
     action: 'created',
-    run: (ops) => void ops.execute('createPartner', { number: 'D-1000', name: 'Kunde AG', role: 'customer' }),
+    run: (ops) => void ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }),
   },
   {
     op: 'updatePartner',
@@ -217,11 +264,29 @@ const AUDITED: readonly Case[] = [
     action: 'updated',
     run: (ops) => {
       const partner = ops.execute('createPartner', {
-        number: 'D-1000',
         name: 'Kunde AG',
-        role: 'customer',
+        kind: 'customer',
       }) as Record<string, unknown>;
       ops.execute('updatePartner', { partnerId: String(partner.id), name: 'Kunde SE' });
+    },
+  },
+  {
+    op: 'deactivatePartner',
+    objectType: 'partner',
+    action: 'deactivated',
+    run: (ops) => {
+      const partner = ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }) as Record<string, unknown>;
+      ops.execute('deactivatePartner', { partnerId: String(partner.id) });
+    },
+  },
+  {
+    op: 'reactivatePartner',
+    objectType: 'partner',
+    action: 'reactivated',
+    run: (ops) => {
+      const partner = ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }) as Record<string, unknown>;
+      ops.execute('deactivatePartner', { partnerId: String(partner.id) });
+      ops.execute('reactivatePartner', { partnerId: String(partner.id) });
     },
   },
   // --- vouchers, settlements, assets, costing ------------------------------
@@ -306,7 +371,7 @@ const AUDITED: readonly Case[] = [
         assetAccount: '0400',
         acquisitionCost: { amount: '5000.00', currency: 'EUR' },
         acquiredOn: '2026-01-15',
-        usefulLifeYears: 5,
+        usefulLifeMonths: 60,
         voucherId,
       });
     },
@@ -325,10 +390,54 @@ const AUDITED: readonly Case[] = [
         assetAccount: '0400',
         acquisitionCost: { amount: '5000.00', currency: 'EUR' },
         acquiredOn: '2026-01-15',
-        usefulLifeYears: 5,
+        usefulLifeMonths: 60,
         voucherId,
       }) as Record<string, unknown>;
       ops.execute('disposeAsset', { assetId: String(asset.id), disposedOn: '2026-06-30', voucherId });
+    },
+  },
+  {
+    op: 'writeDownAsset',
+    objectType: 'asset',
+    action: 'writtenDown',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      const asset = acquire(ops, voucherId);
+      ops.execute('writeDownAsset', {
+        assetId: asset,
+        amount: { amount: '1000.00', currency: 'EUR' },
+        date: '2026-06-30',
+        reason: 'Wasserschaden',
+        voucherId,
+      });
+    },
+  },
+  {
+    op: 'bookSpecialDepreciation',
+    objectType: 'asset',
+    action: 'specialDepreciationBooked',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      const asset = acquire(ops, voucherId, { specialDepreciation: true });
+      ops.execute('bookSpecialDepreciation', {
+        assetId: asset,
+        fiscalYear: 2026,
+        amount: { amount: '500.00', currency: 'EUR' },
+        voucherId,
+      });
+    },
+  },
+  {
+    op: 'reportAssetUsage',
+    objectType: 'asset',
+    action: 'usageReported',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      const asset = acquire(ops, voucherId, {
+        totalUnits: 100000,
+        depreciationMethod: 'units_of_production',
+      });
+      ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
     },
   },
   {
@@ -411,13 +520,11 @@ describe('audit-trail completeness contract', () => {
     // pure computation, no journal effect (see the dispatcher). Nothing to log.
     const READ_ONLY = new Set(['expandTax', 'allocate']);
     const declared = new Set(AUDITED.map((c) => c.op));
-    const mutating = [
-      'expandTax', 'setTaxProfile', 'postVoucher', 'createVoucher', 'post', 'correct',
-      'finalize', 'reverse', 'settle', 'closePeriod', 'reopenPeriod', 'closeFiscalYear',
-      'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
-      'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
-      'releaseCosting', 'lockAccount', 'importChartOfAccounts', 'importMapping',
-    ].filter((op) => !READ_ONLY.has(op));
+    // Taken from the PUBLISHED surface rather than from a list of its own. A hand-kept copy is a
+    // third place to forget an operation, and it had already fallen behind by seven names: the
+    // ones the dispatcher routed without publishing (F-14) were mutating, unlisted here, and
+    // therefore exempt from the completeness check without anyone deciding that.
+    const mutating = [...API_OPERATIONS].filter((op) => !READ_ONLY.has(op));
 
     const uncovered = mutating.filter((op) => !declared.has(op));
     expect(

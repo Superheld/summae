@@ -117,7 +117,7 @@ summae init --name "Mustermann Consulting" --pack de --first-fiscal-year 2026 --
 {"initialized":true,"tenant":"Mustermann Consulting","baseCurrency":"EUR","created":{"accounts":41,"fiscalYears":1}}
 ```
 
-That single call resolved the `de` pack, created 41 accounts and the fiscal
+That single call resolved the `de` pack, created 48 accounts and the fiscal
 year 2026 with its twelve monthly periods. Two files now exist:
 
 | File | Content |
@@ -459,7 +459,7 @@ plus a field catalogue describing every column — that is what makes the export
 self-describing for an auditor:
 
 ```json
-{"manifest":{"formatVersion":"0.6","tenantId":"…","tenantName":"Mustermann Consulting","baseCurrency":"EUR",
+{"manifest":{"formatVersion":"0.7","tenantId":"…","tenantName":"Mustermann Consulting","baseCurrency":"EUR",
   "exportedAt":"…","hashAlgorithm":"sha256","streams":["journal","accounts","vouchers","auditLog"],
   "contentHashes":{"journal":"ad3bb48f…","accounts":"17d2706c…","vouchers":"55234373…","auditLog":"c9a321c2…"}},
  "fieldCatalogIncluded":true,"fieldCatalog":{"journal":[{"name":"id","type":"uuid","meaning":"Eindeutige Buchungs-ID"}, …]}}

@@ -1,0 +1,59 @@
+{
+  "comment": "Fixtures that a later fixture replaced. Append-only means a fixture file is never edited and never deleted — but it does not mean a fixture can never be wrong about what it pins. A fixture that pinned product data (the version of a shipped pack, the size of its chart of accounts) welded the product to the contract: the pack could not be corrected without the suite going red, which is the opposite of what the contract is for. Such a fixture is retired here instead of edited: the file stays byte-identical and readable, the successor pins the behaviour that was actually meant, and this list says which is which. The runner skips what is listed here. A fixture that is merely inconvenient does not belong on this list — only one whose expectation was never a contract in the first place.",
+  "superseded": [
+    {
+      "fixture": "de-pack-resolves",
+      "supersededBy": "de-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Pinned `de` at version 2026.2 and its chart at 41 accounts, once via a versioned resolvePack and once via a createTenant that asks for no version at all — so the fixture asserted `the current de pack is 2026.2 and has 41 accounts`. That froze the shipped pack: no account could be added and no version could be published. The successor pins what was meant — the pack resolves, a tenant is built from it, a standard VAT sale posts to the DE numbers — and leaves the product data to the product."
+    },
+    {
+      "fixture": "us-pack-resolves",
+      "supersededBy": "us-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Same weld as de-pack-resolves: `us` frozen at 2026.2 with 35 accounts."
+    },
+    {
+      "fixture": "default-pack-resolves",
+      "supersededBy": "default-pack-resolves-current",
+      "on": "2026-08-23",
+      "reason": "Same weld as de-pack-resolves: `default` frozen at 2026.1 with its account count. Untouched so far only because nothing has needed to change in the neutral pack yet."
+    },
+    {
+      "fixture": "de-jahresgang",
+      "supersededBy": "de-jahresgang-current",
+      "on": "2026-08-24",
+      "reason": "Pinned `accountCount: 41` on the shipped `de` pack while testing something else entirely (a full year through the German pack). The same weld as de-pack-resolves, one fixture further on: the chart could not gain an account without this going red. It went red the moment the pack gained the operating-expense accounts an embedding app asked for. The successor drives exactly the same year and pins everything about it except the size of the product's catalogue."
+    },
+    {
+      "fixture": "de-wertpapierdepot",
+      "supersededBy": "de-wertpapierdepot-current",
+      "on": "2026-08-24",
+      "reason": "Same weld as de-jahresgang: `accountCount: 41` pinned in passing by a fixture about securities held as current assets."
+    },
+    {
+      "fixture": "de-euer-mapping-gap",
+      "supersededBy": "de-euer-mapping-gap-current",
+      "on": "2026-08-24",
+      "reason": "A rarer case, and the register is the right place to say why it is not an edited expectation. The fixture pins a MECHANISM that still holds: an account a user adds after the fact, which the mapping does not know, is reported in `gapWarnings` instead of being filed silently under its own name. What it rested on was product data — it used account 6050 because the shipped DE chart happened to have nothing there. When the pack gained its operating-expense accounts (6030–6090, so the chart could finally be extended safely) and de-euer moved to ranges, 6050 became a mapped account and the fixture asserted the opposite of what the pack does. The successor pins the same mechanism on 6200, which lies outside every position of every DE mapping by design. The mechanism was never wrong; the example was borrowed from the product."
+    },
+    {
+      "fixture": "journal-export-z3",
+      "supersededBy": "journal-export-z3-current",
+      "on": "2026-08-24",
+      "reason": "Pinned `formatVersion: \"0.6\"` in its expectation, so the DATA FORMAT could not be versioned without this fixture going red — the same weld a shipped pack's version was retired for, one layer down. The contract is that an export states the CURRENT format version, and that is pinned where it belongs: `format-version.test.ts` / `FormatVersionTest` compare the constant against the schema's own `$id`, in both languages. The number itself is the product's. It moved to 0.7 on 2026-08-24, when the partner record gained a `status`. The successor drives the same Z3 export and pins the same streams, hashes and field catalogue."
+    },
+    {
+      "fixture": "parameter-effect",
+      "supersededBy": "parameter-effect-current",
+      "on": "2026-08-24",
+      "reason": "Pinned `formatVersion: \"0.6\"` in its expectation, so the DATA FORMAT could not be versioned without this fixture going red — the same weld a shipped pack's version was retired for, one layer down. The contract is that an export states the CURRENT format version, and that is pinned where it belongs: `format-version.test.ts` / `FormatVersionTest` compare the constant against the schema's own `$id`, in both languages. The number itself is the product's. It moved to 0.7 on 2026-08-24, when the partner record gained a `status`. Here it was purely incidental: the fixture is about projection parameters having an effect, and it happened to assert an export manifest on the way past."
+    },
+    {
+      "fixture": "system-description",
+      "supersededBy": "system-description-current",
+      "on": "2026-08-24",
+      "reason": "Pinned `formatVersion: \"0.6\"` in its expectation, so the DATA FORMAT could not be versioned without this fixture going red — the same weld a shipped pack's version was retired for, one layer down. The contract is that an export states the CURRENT format version, and that is pinned where it belongs: `format-version.test.ts` / `FormatVersionTest` compare the constant against the schema's own `$id`, in both languages. The number itself is the product's. It moved to 0.7 on 2026-08-24, when the partner record gained a `status`. The rest of this fixture keeps being carried forward as the software grows — the capability lists and the audited events are what it exists to pin, and a description that does not mention a capability the software has lies by omission."
+    }
+  ]
+}

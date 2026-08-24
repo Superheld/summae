@@ -214,6 +214,7 @@ final class Workspace
         );
 
         $tenant->assetService->setRuleModule($ruleModules);
+        $tenant->costing->setRuleModule($ruleModules);
 
         return $tenant;
     }

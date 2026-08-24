@@ -2,6 +2,7 @@ import type {
   AccountRepository,
   AssetRepository,
   AuditTrail,
+  CostingRunRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -9,6 +10,7 @@ import type {
   VoucherRepository,
 } from './port.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
+import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';
@@ -181,6 +183,30 @@ export class InMemoryPartnerRepository implements PartnerRepository {
     return [...this.byIdMap.values()].sort((a, b) => {
       const byName = a.name() < b.name() ? -1 : a.name() > b.name() ? 1 : 0;
       return byName !== 0 ? byName : a.id.value < b.id.value ? -1 : a.id.value > b.id.value ? 1 : 0;
+    });
+  }
+}
+
+/** Costing runs, in memory — the fake behind `CostingRunRepository`. */
+export class InMemoryCostingRunRepository implements CostingRunRepository {
+  private readonly byIdMap = new Map<string, CostingRun>();
+
+  add(run: CostingRun): void {
+    this.byIdMap.set(run.id.value, run);
+  }
+
+  save(_run: CostingRun): void {}
+
+  byId(id: Uuid): CostingRun | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): CostingRun[] {
+    return [...this.byIdMap.values()].sort((a, b) => {
+      const byYear = a.period.fiscalYear - b.period.fiscalYear;
+      if (byYear !== 0) return byYear;
+      const byPeriod = a.period.period - b.period.period;
+      return byPeriod !== 0 ? byPeriod : a.version - b.version;
     });
   }
 }

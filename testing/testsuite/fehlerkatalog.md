@@ -128,6 +128,7 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | `E_COSTING_RUN_RELEASED` | Änderungsversuch an released Lauf | allocation-run |
 | `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/SPEC-006) | costing-run-unknown |
 | `E_COSTING_CYCLE` | Stufenleiter mit Zyklus | edge-errors |
+| `E_COSTING_UNSOLVABLE` | Gleichungsverfahren: Kostenstellen reichen alles im Kreis weiter, keine behält etwas — das Gleichungssystem hat keine Lösung | allocation-method-refused |
 
 ## E_MAPPING
 

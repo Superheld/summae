@@ -1,0 +1,67 @@
+{
+  "fixture": "overhead-rate-rounding",
+  "description": "Where an overhead rate lands when it falls exactly on half, in both directions. 1.00 of overhead over a base of 3,200.00 is 0.03125 % — five decimals, and the fourth-decimal rounding sits precisely on the boundary. Commercial half-up, away from zero, gives 0.0313; banker's rounding would give 0.0312, because 2 is even. The whole core rounds the first way and this pins that the rate does too, which is not automatic: a rate is not money, it does not go through Money, and it is computed by dividing exact fractions. The mirror case is the reason for the second cost centre: a centre carrying a credit (a correction, a credit note) has negative overhead, and -0.03125 % must become -0.0313 and not -0.0312 — away from zero, not towards positive infinity, which is where a naive floor-plus-a-half would put it.",
+  "covers": ["F-KLR-004", "NF-1"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Fertigungsmaterial", "type": "expense" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "AUF", "name": "Aufschlagstelle" },
+      { "typeCode": "costCenter", "code": "GUT", "name": "Gutschriftstelle" }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Kosten Januar",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "3200.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "1.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "AUF" } ] },
+          { "account": "4120", "side": "credit", "money": { "amount": "1.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "GUT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "3200.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "rates": [
+          { "costCenter": "AUF", "label": "positiv", "base": { "accounts": ["4000"] } },
+          { "costCenter": "GUT", "label": "negativ", "base": { "accounts": ["4000"] } }
+        ]
+      },
+      "expect": { "result": { "valid": true, "method": "step_ladder", "rateCount": 2 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "overheadRates",
+      "params": { "runId": "$R1" },
+      "expect": {
+        "comment": "0,03125 % — kaufmännisch aufgerundet, in beide Richtungen vom Nullpunkt weg",
+        "rates": [
+          { "costCenter": "AUF", "overhead": "1.00", "base": "3200.00", "rate": "0.0313" },
+          { "costCenter": "GUT", "overhead": "-1.00", "base": "3200.00", "rate": "-0.0313" }
+        ],
+        "warnings": []
+      }
+    }
+  ]
+}

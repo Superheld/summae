@@ -91,6 +91,8 @@ final class AssetService
         $choice = is_string($input['gwgChoice'] ?? null) ? $input['gwgChoice'] : 'auto';
         $dimensions = self::parseDimensions($input['dimensions'] ?? null);
 
+        $special = ($input['specialDepreciation'] ?? false) === true;
+        $totalUnits = self::parseTotalUnits($input['totalUnits'] ?? null);
         $route = $this->resolveRoute($choice, $cost, $acquiredOn);
         $explicitLife = self::parseUsefulLifeMonths($input['usefulLifeMonths'] ?? null);
         $method = self::parseMethod($input['depreciationMethod'] ?? null);
@@ -102,6 +104,16 @@ final class AssetService
                 'E_INPUT_INVALID',
                 sprintf('acquireAsset: "depreciationMethod" applies to a capitalised asset, not to route "%s"', $route->value),
                 ['depreciationMethod' => $method, 'route' => $route->value],
+            );
+        }
+
+        // Same again: an additional allowance is a share of a capitalised asset's cost, and there is
+        // nothing for it to attach to on a route that expenses the whole cost at once.
+        if ($special && $route !== AssetRoute::Capitalize) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                sprintf('acquireAsset: "specialDepreciation" applies to a capitalised asset, not to route "%s"', $route->value),
+                ['route' => $route->value],
             );
         }
 
@@ -125,9 +137,17 @@ final class AssetService
             // however complete the table is — and without this parameter an asset class missing from
             // the pack was simply unusable.
             $usefulLifeMonths = $explicitLife ?? $this->usefulLifeMonths($assetClass);
-            $schedule = $method === 'declining_balance'
-                ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn)
-                : $cost->allocateEvenly($usefulLifeMonths);
+
+            if ($method === 'units_of_production') {
+                // No schedule, on purpose. Output-based depreciation cannot know at acquisition what
+                // any future period will take — the number comes from outside the books — so there is
+                // nothing to plan and the yearly run has nothing to do for this asset.
+                $schedule = [];
+            } else {
+                $schedule = $method === 'declining_balance'
+                    ? $this->decliningBalanceSchedule($cost, $usefulLifeMonths, $acquiredOn, $assetClass)
+                    : $cost->allocateEvenly($usefulLifeMonths);
+            }
         } elseif ($route === AssetRoute::Pool) {
             // Pool period comes from the pack (SPEC-004): a fixed five years used to sit here, which is
             // one jurisdiction's rule, so every other jurisdiction with a pooled de-minimis regime
@@ -144,6 +164,26 @@ final class AssetService
             }
         }
 
+        if ($method === 'units_of_production' && $totalUnits === null) {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "units_of_production" needs "totalUnits" — the expected output is what replaces the schedule',
+                ['depreciationMethod' => $method],
+            );
+        }
+
+        if ($totalUnits !== null && $method !== 'units_of_production') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'acquireAsset: "totalUnits" applies to "units_of_production", and would have no effect otherwise',
+                ['depreciationMethod' => $method],
+            );
+        }
+
+        [$specialBudget, $specialWindowEnd] = $special
+            ? $this->specialDepreciationTerms($cost, $acquiredOn, $assetClass)
+            : [null, null];
+
         $asset = new Asset(
             $this->ids->next(),
             $name,
@@ -158,6 +198,9 @@ final class AssetService
             $dimensions,
             $this->planStartFor($route, $acquiredOn),
             $method,
+            $specialBudget,
+            $specialWindowEnd,
+            $totalUnits,
         );
 
         $this->assets->add($asset);
@@ -214,9 +257,6 @@ final class AssetService
             ? Uuid::fromString($input['voucherId'])
             : $asset->voucherId;
 
-        // A pooled asset is not written off when it leaves (F-AST-006, see runDepreciation): the
-        // pool keeps running its term, so there is no carrying amount of its own to clear. Only
-        // the proceeds are booked, as before.
         // Where the pack keeps a disposed item in the pool (F-AST-006, see runDepreciation), the
         // pool keeps running its term and there is no carrying amount of its own to clear — only
         // the proceeds are booked. Where the pack takes it out, it is written off like any other.
@@ -224,7 +264,17 @@ final class AssetService
         if (!$staysPooled) {
             $this->catchUpDepreciation($asset, $disposedOn, $voucherId);
         }
-        $carrying = $staysPooled ? Money::zero($this->baseCurrency) : $asset->bookValueAt($disposedOn);
+        // What is written off is what stands on the account, not what an as-of query says stood
+        // there on the disposal date (IMPL-026). The two are not the same: a yearly run books the
+        // whole year in one entry dated 31 December, so a disposal on 30 September read the
+        // carrying amount, saw that entry as later than itself, ignored it, and wrote off the full
+        // acquisition cost — of which the run had already written off a part. The asset account was
+        // left at a credit balance that nothing clears, while the entry balanced and every
+        // invariant held. Every other reader of the accumulated depreciation in this service
+        // already asks the whole ledger; the disposal was the only as-of query, and it is the one
+        // place an as-of query cannot be right, because what leaves the account must equal what
+        // stands on it (F-AST-004).
+        $carrying = $staysPooled ? Money::zero($this->baseCurrency) : $asset->bookValueAt(null);
         $lines = $this->disposalLines($asset, $carrying, $proceeds, $bankAccount, $proceedsAccount);
 
         if ($lines !== []) {
@@ -237,6 +287,426 @@ final class AssetService
         ]);
 
         return $asset->jsonSerialize();
+    }
+
+    /**
+     * Reports what the asset has produced, and writes off what that use consumed.
+     *
+     * Where a jurisdiction allows it, an asset that wears by use rather than by time may be
+     * depreciated by output — kilometres, operating hours, copies. There is nothing to plan: the
+     * number comes from goods movements, meter readings, job cards, none of which are in the books.
+     * So the caller reports the meter and the core does the arithmetic.
+     *
+     * The arithmetic is cumulative on purpose. Each report splits the acquisition cost between what
+     * the asset has now given and what it has not, and books the difference against what is already
+     * written off. Computing each period on its own would let rounding drift, and the last report
+     * would leave a stray cent behind on an asset that is fully used up. This way the final report,
+     * the one that reaches the total output, lands on the cost exactly.
+     *
+     * More output than expected is not an error — a lorry can outlive its estimate — but there is no
+     * more cost to write off, so the booking is capped at the book value and the answer says so.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function reportAssetUsage(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        if ($asset->totalUnits === null) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s is not depreciated by output — "units_of_production" has to be chosen on acquisition',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $units = self::parseTotalUnits($input['units'] ?? null);
+        if ($units === null) {
+            throw new DomainError('E_INPUT_INVALID', 'reportAssetUsage: "units" is required', [
+                'assetId' => $asset->id->value,
+            ]);
+        }
+
+        $fiscalYear = is_int($input['fiscalYear'] ?? null) ? $input['fiscalYear'] : 0;
+        $bookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+
+        if ($bookValue->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s is already fully depreciated — further output has nothing left to write off',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $cumulative = $asset->reportedUnits() + $units;
+        $capped = $cumulative > $asset->totalUnits;
+        $effective = $capped ? $asset->totalUnits : $cumulative;
+
+        $target = $effective === $asset->totalUnits
+            ? $asset->acquisitionCost
+            : $asset->acquisitionCost->allocate($effective, $asset->totalUnits - $effective)[0];
+
+        $written = $asset->accumulatedDepreciationAt(null);
+        $amount = $target->subtract($written);
+
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'reported output for asset %s writes off nothing — %d of %d units are already accounted for',
+                $asset->id->value,
+                $asset->reportedUnits(),
+                $asset->totalUnits,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $date = CalendarDate::of(sprintf('%04d-12-31', $fiscalYear));
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->usageVoucher($asset, $fiscalYear);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Output depreciation %s %d (%d units)', $asset->name, $fiscalYear, $units),
+            $this->withDimensions($asset, [
+                ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $before = $asset->reportedUnits();
+        $asset->recordUsage($date, $amount, $entry, $effective);
+        $this->assets->save($asset);
+
+        $this->trace($input, 'asset', $asset->id, 'usageReported', [
+            'reportedUnits' => ['from' => (string) $before, 'to' => (string) $effective],
+            'bookValue' => [
+                'from' => $bookValue->amountAsString(),
+                'to' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+            ],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'reportedUnits' => $effective,
+            'totalUnits' => $asset->totalUnits,
+            'capped' => $capped,
+            'bookValue' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+        ];
+    }
+
+    private function usageVoucher(Asset $asset, int $fiscalYear): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('LAFA-%d-%s', $fiscalYear, substr($asset->id->value, -6)),
+            CalendarDate::of(sprintf('%04d-12-31', $fiscalYear)),
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
+    /**
+     * Books part of an additional allowance (see `Asset::$specialDepreciationBudget`).
+     *
+     * Two things make this an operation rather than a plan. The amount is the taxpayer's to choose —
+     * a jurisdiction that grants "up to 40 % over five years" grants exactly that, and any split is
+     * as valid as any other — and the entitlement itself is a question about the business (a profit
+     * limit, a share of business use) that summae has no way to check and does not pretend to. So the
+     * caller says how much and when, and the core enforces only what it can know: not more than the
+     * budget, not outside the window, not on an asset that has none.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function bookSpecialDepreciation(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        $remaining = $asset->specialDepreciationRemaining();
+        if ($remaining === null || $asset->specialDepreciationWindowEnd === null) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'asset %s carries no special depreciation — it has to be elected on acquisition',
+                $asset->id->value,
+            ), ['assetId' => $asset->id->value]);
+        }
+
+        $fiscalYear = is_int($input['fiscalYear'] ?? null) ? $input['fiscalYear'] : 0;
+        $firstYear = $this->planMonthYear($asset, 1);
+
+        if ($fiscalYear < $firstYear || $fiscalYear > $asset->specialDepreciationWindowEnd) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'special depreciation for asset %s is available in %d through %d, not in %d',
+                $asset->id->value,
+                $firstYear,
+                $asset->specialDepreciationWindowEnd,
+                $fiscalYear,
+            ), ['fiscalYear' => $fiscalYear]);
+        }
+
+        $amount = $this->parseMoney($input['amount'] ?? null);
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', 'bookSpecialDepreciation: "amount" must be greater than zero', [
+                'amount' => $amount->amountAsString(),
+            ]);
+        }
+
+        if ($amount->compareTo($remaining) > 0) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'special depreciation of %s exceeds the remaining allowance of %s',
+                $amount->amountAsString(),
+                $remaining->amountAsString(),
+            ), ['amount' => $amount->amountAsString(), 'remaining' => $remaining->amountAsString()]);
+        }
+
+        $date = CalendarDate::of(sprintf('%04d-12-31', $fiscalYear));
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->specialDepreciationVoucher($asset, $fiscalYear);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Special depreciation %s %d', $asset->name, $fiscalYear),
+            $this->withDimensions($asset, [
+                ['account' => $this->depreciationExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $asset->recordSpecialDepreciation($date, $amount, $entry);
+        $this->assets->save($asset);
+
+        $left = $asset->specialDepreciationRemaining();
+
+        $this->trace($input, 'asset', $asset->id, 'specialDepreciationBooked', [
+            'remainingAllowance' => ['from' => $remaining->amountAsString(), 'to' => $left?->amountAsString()],
+            'fiscalYear' => ['from' => null, 'to' => (string) $fiscalYear],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'remainingAllowance' => $left?->amountAsString(),
+            'bookValue' => $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null))->amountAsString(),
+        ];
+    }
+
+    private function specialDepreciationVoucher(Asset $asset, int $fiscalYear): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('SAFA-%d-%s', $fiscalYear, substr($asset->id->value, -6)),
+            CalendarDate::of(sprintf('%04d-12-31', $fiscalYear)),
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
+    /**
+     * Rate and window of the additional allowance, from the pack. Refused rather than defaulted, like
+     * every other pack question here: a core that invents "40 % over five years" has one
+     * jurisdiction's tax policy in the substrate.
+     *
+     * @return array{0: Money, 1: int}
+     */
+    private function specialDepreciationTerms(Money $cost, CalendarDate $acquiredOn, string $assetClass): array
+    {
+        foreach (is_array($this->ruleModule['specialDepreciation'] ?? null) ? $this->ruleModule['specialDepreciation'] : [] as $raw) {
+            if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
+                continue;
+            }
+
+            $validFrom = CalendarDate::of($raw['validFrom']);
+            $validTo = is_string($raw['validTo'] ?? null) ? CalendarDate::of($raw['validTo']) : null;
+
+            if ($acquiredOn->isBefore($validFrom) || ($validTo !== null && $acquiredOn->isAfter($validTo))) {
+                continue;
+            }
+
+            $rate = is_string($raw['rate'] ?? null) ? $raw['rate'] : null;
+            $years = is_int($raw['years'] ?? null) ? $raw['years'] : null;
+
+            if ($rate === null || $years === null || $years < 1) {
+                continue;
+            }
+
+            $budget = $cost->allocate($rate, (string) round(100 - (float) $rate, 4))[0];
+
+            return [$budget, $acquiredOn->year() + $years - 1];
+        }
+
+        throw new DomainError('E_PACK_INCOHERENT', sprintf(
+            'special depreciation was elected, but the pack declares no allowance in force on %s',
+            $acquiredOn->iso,
+        ), ['field' => 'specialDepreciation', 'acquiredOn' => $acquiredOn->iso, 'assetClass' => $assetClass]);
+    }
+
+    /**
+     * An unplanned write-down — the value fell, and not because time passed.
+     *
+     * The planned schedule answers wear and tear; it has nothing to say about a machine damaged in
+     * March or a building whose neighbourhood lost its factory. Where the loss is expected to last,
+     * writing the asset down is not an option a preparer takes but an obligation, and until now the
+     * only ways to express it were disposing of the asset (wrong — it still exists) or posting by
+     * hand past the asset register (wrong — the register then disagrees with the ledger about what
+     * the asset is worth).
+     *
+     * A reason is required. An unplanned write-down that does not say why is not auditable, and
+     * "why" is the whole difference between an impairment and a mistake.
+     *
+     * The remaining plan is rewritten: what is left after the write-down is spread over the plan
+     * months still open. Leaving the plan alone would depreciate past zero; stopping the plan would
+     * finish the asset early. Carrying the reduced value over the remaining life is what a lasting
+     * impairment means.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function writeDownAsset(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        $reason = is_string($input['reason'] ?? null) ? trim($input['reason']) : '';
+        if ($reason === '') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'writeDownAsset: "reason" is required — an unplanned write-down that does not say why is not auditable',
+                ['assetId' => $asset->id->value],
+            );
+        }
+
+        $amount = $this->parseMoney($input['amount'] ?? null);
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', 'writeDownAsset: "amount" must be greater than zero', [
+                'amount' => $amount->amountAsString(),
+            ]);
+        }
+
+        $bookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+        if ($amount->compareTo($bookValue) > 0) {
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'writeDownAsset: %s exceeds the book value of %s — an asset cannot be written below zero',
+                $amount->amountAsString(),
+                $bookValue->amountAsString(),
+            ), ['amount' => $amount->amountAsString(), 'bookValue' => $bookValue->amountAsString()]);
+        }
+
+        $date = CalendarDate::of(is_string($input['date'] ?? null) ? $input['date'] : '');
+
+        $openPlanMonths = [];
+        for ($planMonth = 1; $planMonth <= count($asset->monthlySchedule); $planMonth++) {
+            if (!$asset->isMonthBooked($planMonth)) {
+                $openPlanMonths[] = $planMonth;
+            }
+        }
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->writeDownVoucher($asset, $date);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Write-down %s: %s', $asset->name, $reason),
+            $this->withDimensions($asset, [
+                ['account' => $this->impairmentExpenseAccount(), 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $asset->assetAccount->value, 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $asset->recordWriteDown($date, $amount, $entry, $openPlanMonths);
+        $this->assets->save($asset);
+
+        $newBookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+
+        $this->trace($input, 'asset', $asset->id, 'writtenDown', [
+            'bookValue' => ['from' => $bookValue->amountAsString(), 'to' => $newBookValue->amountAsString()],
+            'reason' => ['from' => null, 'to' => $reason],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'bookValue' => $newBookValue->amountAsString(),
+            'remainingPlanMonths' => count($openPlanMonths),
+        ];
+    }
+
+    private function rebaseAfterSpecialWindow(Asset $asset, int $fiscalYear): void
+    {
+        if (
+            $asset->specialDepreciationWindowEnd === null
+            || $fiscalYear <= $asset->specialDepreciationWindowEnd
+            || $asset->scheduleWasRevised()
+            || !$asset->hasSpecialDepreciation()
+        ) {
+            return;
+        }
+
+        $openPlanMonths = [];
+        for ($planMonth = 1; $planMonth <= count($asset->monthlySchedule); $planMonth++) {
+            if (!$asset->isMonthBooked($planMonth)) {
+                $openPlanMonths[] = $planMonth;
+            }
+        }
+
+        $asset->rebaseRemainingPlan($openPlanMonths);
+        $this->assets->save($asset);
+    }
+
+    private function writeDownVoucher(Asset $asset, CalendarDate $date): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('AFAA-%s-%s', str_replace('-', '', $date->iso), substr($asset->id->value, -6)),
+            $date,
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
+    private function requireVoucherId(string $voucherId): Uuid
+    {
+        $voucher = $this->vouchers->byId(Uuid::fromString($voucherId));
+
+        if ($voucher === null) {
+            throw new DomainError('E_VOUCHER_UNKNOWN', sprintf(
+                'voucher %s does not exist',
+                $voucherId,
+            ), ['voucherId' => $voucherId]);
+        }
+
+        return $voucher->id;
+    }
+
+    /**
+     * Where an unplanned write-down is booked. A pack that separates it from ordinary depreciation
+     * says so; one that does not gets the depreciation account, which is what it had before this
+     * operation existed and is not wrong, only less informative.
+     */
+    private function impairmentExpenseAccount(): string
+    {
+        $block = is_array($this->ruleModule['assetAccounts'] ?? null) ? $this->ruleModule['assetAccounts'] : [];
+        $value = $block['impairmentExpenseAccount'] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : $this->depreciationExpenseAccount();
     }
 
     /**
@@ -268,6 +738,11 @@ final class AssetService
             if ($asset->isDisposed() && !$this->staysInPool($asset)) {
                 continue;
             }
+
+            // The window closed, and part of the cost left the plan while it was open. What is left
+            // has to last the remaining life — otherwise the plan keeps asking for the original
+            // yearly amount and runs the book value below zero. Once, and only once, per asset.
+            $this->rebaseAfterSpecialWindow($asset, $fiscalYear);
 
             [$months, $amount] = $period === null
                 ? $this->yearTarget($asset, $fiscalYear)
@@ -685,16 +1160,45 @@ final class AssetService
      * The depreciation method the caller asked for. Straight line when absent — the method every
      * jurisdiction allows and the only one this core knew until 2026-08-23.
      */
+    /**
+     * Expected total output. A whole number, at least one — JSON has no int/float split, so 100000.0
+     * is the same value as 100000, but 100000.5 is a caller's mistake and not half a kilometre.
+     */
+    private static function parseTotalUnits(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value)) {
+            $units = $value;
+        } elseif (is_float($value) && $value === floor($value)) {
+            $units = (int) $value;
+        } else {
+            throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be a whole number', [
+                'totalUnits' => DomainError::rejectedValue($value),
+            ]);
+        }
+
+        if ($units < 1) {
+            throw new DomainError('E_INPUT_INVALID', 'acquireAsset: "totalUnits" must be at least 1', [
+                'totalUnits' => $units,
+            ]);
+        }
+
+        return $units;
+    }
+
     private static function parseMethod(mixed $value): string
     {
         if ($value === null) {
             return 'straight_line';
         }
 
-        if ($value !== 'straight_line' && $value !== 'declining_balance') {
+        if ($value !== 'straight_line' && $value !== 'declining_balance' && $value !== 'units_of_production') {
             throw new DomainError(
                 'E_INPUT_INVALID',
-                'acquireAsset: "depreciationMethod" must be "straight_line" or "declining_balance"',
+                'acquireAsset: "depreciationMethod" must be "straight_line", "declining_balance" or "units_of_production"',
                 ['depreciationMethod' => DomainError::rejectedValue($value)],
             );
         }
@@ -721,9 +1225,9 @@ final class AssetService
      *
      * @return list<Money>
      */
-    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn): array
+    private function decliningBalanceSchedule(Money $cost, int $usefulLifeMonths, CalendarDate $acquiredOn, string $assetClass): array
     {
-        $rule = $this->decliningBalanceRule($acquiredOn);
+        $rule = $this->decliningBalanceRule($acquiredOn, $assetClass);
         $years = intdiv($usefulLifeMonths + 11, 12);
 
         // min(factor x straight-line rate, cap) — expressed on the cost, not per year, because the
@@ -757,15 +1261,27 @@ final class AssetService
     }
 
     /**
-     * The declining-balance rule in force on the acquisition date. Refused rather than defaulted,
-     * like every other pack question here: a core that invents a rate has one jurisdiction's tax
-     * policy in the substrate, and these rates are the most short-lived numbers in the whole pack —
-     * Germany's current one applies to a window of two and a half years.
+     * The declining-balance rule in force on the acquisition date, for this kind of asset. Refused
+     * rather than defaulted, like every other pack question here: a core that invents a rate has one
+     * jurisdiction's tax policy in the substrate, and these rates are the most short-lived numbers in
+     * the whole pack — Germany's current one applies to a window of two and a half years.
+     *
+     * Two entries can be in force at once, because a jurisdiction may run one declining-balance
+     * regime for movables and another for buildings over overlapping windows — Germany does exactly
+     * that. So an entry may name the asset classes it covers, and **a class-specific entry wins over
+     * a general one no matter which comes first in the file.** Order-independence is the point: a
+     * rule that changed meaning when someone appended a line above it would be a trap, and the
+     * general entry is the one a pack author is most likely to add later.
+     *
+     * An entry without `assetClasses` covers every class, which is what a pack written before this
+     * distinction existed says — those keep computing what they always did.
      *
      * @return array{factor: int, maxRate: string}
      */
-    private function decliningBalanceRule(CalendarDate $acquiredOn): array
+    private function decliningBalanceRule(CalendarDate $acquiredOn, string $assetClass): array
     {
+        $general = null;
+
         foreach (is_array($this->ruleModule['decliningBalance'] ?? null) ? $this->ruleModule['decliningBalance'] : [] as $raw) {
             if (!is_array($raw) || !is_string($raw['validFrom'] ?? null)) {
                 continue;
@@ -785,13 +1301,30 @@ final class AssetService
                 continue;
             }
 
-            return ['factor' => $factor, 'maxRate' => $maxRate];
+            $classes = is_array($raw['assetClasses'] ?? null) ? $raw['assetClasses'] : null;
+
+            if ($classes === null) {
+                $general ??= ['factor' => $factor, 'maxRate' => $maxRate];
+                continue;
+            }
+
+            if (in_array($assetClass, $classes, true)) {
+                return ['factor' => $factor, 'maxRate' => $maxRate];
+            }
+        }
+
+        if ($general !== null) {
+            return $general;
         }
 
         throw new DomainError(
             'E_PACK_INCOHERENT',
-            sprintf('declining-balance depreciation was asked for, but the pack declares no rule in force on %s', $acquiredOn->iso),
-            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso],
+            sprintf(
+                'declining-balance depreciation was asked for, but the pack declares no rule in force on %s for asset class "%s"',
+                $acquiredOn->iso,
+                $assetClass,
+            ),
+            ['field' => 'decliningBalance', 'acquiredOn' => $acquiredOn->iso, 'assetClass' => $assetClass],
         );
     }
 

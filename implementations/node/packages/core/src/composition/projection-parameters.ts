@@ -76,6 +76,20 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   },
   // Takes no parameters: the description is a property of the software, not of a query.
   systemDescription: {},
+  // Takes no parameters either, and the reason is the same shape: the chart is what it is. A
+  // filter would only save the caller a `filter()` while making "which accounts exist" a question
+  // with more than one answer.
+  accounts: {},
+  journal: {
+    fiscalYear: { type: 'integer', required: true },
+    fromDate: { type: 'date' },
+    toDate: { type: 'date' },
+    offset: { type: 'integer' },
+    limit: { type: 'integer' },
+  },
+  fiscalYears: {
+    fiscalYear: { type: 'integer' },
+  },
   cashJournal: {
     fiscalYear: { type: 'integer', required: true },
   },
@@ -97,6 +111,12 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
     runId: { type: 'string', required: true },
     fiscalYear: { type: 'integer' },
     period: { type: 'integer' },
+  },
+  overheadRates: {
+    runId: { type: 'string', required: true },
+  },
+  productionCost: {
+    runId: { type: 'string', required: true },
   },
 };
 

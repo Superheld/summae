@@ -65,7 +65,11 @@ export class JournalExportProjection {
       vouchers: this.vouchers.all().map((voucher) => withoutNulls(voucher.toJSON())),
     };
     if (this.partners.all().length > 0) {
-      streams.partners = this.partners.all().map((partner) => partner.toJSON());
+      // Nulls stripped like the accounts and vouchers above, and for a reason that was latent
+      // rather than cosmetic (IMPL-027): the format declares `vatId` as a string and `address` as
+      // an object, so a partner without either exported a `null` the schema refuses. Nothing
+      // noticed because no schema test had ever exported a partner. One now does.
+      streams.partners = this.partners.all().map((partner) => withoutNulls(partner.toJSON()));
     }
     streams.auditLog = this.audit.all().map((record) => record.toJSON());
 

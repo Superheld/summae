@@ -1,0 +1,106 @@
+{
+  "fixture": "default-pack-resolves-current",
+  "description": "Successor to `default-pack-resolves`: the same loader proof without freezing the neutral chart of accounts. The shipped `default` pack is NOT handed in inline but loaded from `pack-library/` by the loader, without asking for a version. Pinned is what makes the neutral frame neutral and has to stay: no taxCodes and no mappings (no jurisdiction), the neutral policy, `accrual` — and that accounts really did come off the disk, proven by posting on them. The predecessor listed all 32 accounts in its expectation, and the runner compares lists exactly, so the chart could never grow.",
+  "covers": [
+    "F-PACK-010",
+    "SF-27"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": "default"
+      },
+      "expect": {
+        "result": {
+          "id": "default",
+          "taxCodes": [],
+          "mappings": [],
+          "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero",
+            "taxRoundingGranularity": "perVoucher",
+            "currencyScale": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Neutral Starter",
+        "baseCurrency": "EUR",
+        "pack": "default",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "default"
+          },
+          "taxationMethod": "accrual"
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "BAR-001",
+          "voucherDate": "2026-02-10"
+        },
+        "entryDate": "2026-02-10",
+        "text": "Barverkauf ohne Steuer",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4000",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1,
+            "status": "entered"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "500.00"
+          },
+          {
+            "account": "4000",
+            "balance": "-500.00"
+          }
+        ]
+      }
+    }
+  ]
+}

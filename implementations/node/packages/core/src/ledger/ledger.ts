@@ -86,10 +86,13 @@ export class Ledger {
     clock: Clock,
     private readonly ids: IdGenerator,
     private readonly taxCodes: TaxCodeRegistry = TaxCodeRegistry.empty(),
+    // Only needed so that dimension declarations — which have no id of their own — can name their
+    // tenant in the audit trail, like the other per-tenant configuration does.
+    tenantId: Uuid | null = null,
   ) {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
-    this.chart = new ChartAdminService(accounts, ids, this.auditWriter);
+    this.chart = new ChartAdminService(accounts, ids, this.auditWriter, dimensions, tenantId);
     this.periods = new FiscalPeriodService(fiscalYears, journal, ids, this.auditWriter);
   }
 
@@ -364,8 +367,20 @@ export class Ledger {
     return this.chart.createAccount(input);
   }
 
+  defineDimensionType(input: Record<string, unknown>): Record<string, unknown> {
+    return this.chart.defineDimensionType(input);
+  }
+
+  defineDimensionValue(input: Record<string, unknown>): Record<string, unknown> {
+    return this.chart.defineDimensionValue(input);
+  }
+
   lockAccount(input: Record<string, unknown>): Account {
     return this.chart.lockAccount(input);
+  }
+
+  unlockAccount(input: Record<string, unknown>): Account {
+    return this.chart.unlockAccount(input);
   }
 
   importChartOfAccounts(input: Record<string, unknown>): number {

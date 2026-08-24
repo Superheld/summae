@@ -1,0 +1,118 @@
+{
+  "fixture": "special-depreciation",
+  "description": "An additional allowance running alongside the plan — and the re-basing that has to follow it. Some jurisdictions let a business deduct an extra share of an asset's cost within its first few years, freely distributed over them. It is not a depreciation method: while the window is open the ordinary plan carries on untouched on the ORIGINAL basis, which is exactly why it cannot be expressed as a different schedule. It is a budget — this much may still be taken, until this year — and the amount and timing are the taxpayer's to choose, so it is an operation rather than a plan. Here 84,000.00 over 84 months takes 12,000.00 a year; the allowance is 40 % = 33,600.00 over 2026–2030, of which only 12,000.00 is used, 8,000.00 in 2026 and 4,000.00 in 2027, showing both that the split is free and that the budget need not be exhausted. What matters is 2031: the window has closed, 72,000.00 is gone and 12,000.00 is left with two years of life to cover. If the plan simply carried on it would ask for 12,000.00 a year and drive the book value below zero, so the core re-bases once — the same spreading a write-down does, deliberately the same code, because two spreadings that drifted apart would be two answers to one question — and 2031 and 2032 take 6,000.00 each. Whether the business is ENTITLED to the allowance (a profit limit, a share of business use) is a question about the business that a bookkeeping library cannot answer and does not pretend to; the core enforces only what it can know: not more than the budget, not outside the window, not on an asset that has none.",
+  "covers": ["F-AST-002"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "0320", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "4830", "name": "AfA", "type": "expense" },
+      { "number": "4855", "name": "GWG-Sofortabschreibung", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      { "year": 2028, "start": "2028-01-01", "end": "2028-12-31" },
+      { "year": 2029, "start": "2029-01-01", "end": "2029-12-31" },
+      { "year": 2030, "start": "2030-01-01", "end": "2030-12-31" },
+      { "year": 2031, "start": "2031-01-01", "end": "2031-12-31" },
+      { "year": 2032, "start": "2032-01-01", "end": "2032-12-31" }
+    ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-MASCH", "voucherDate": "2026-01-01" } ],
+    "ruleModule": {
+      "gwgThresholds": [
+        { "validFrom": "2018-01-01", "validTo": null, "immediateMax": "800.00", "poolMin": "250.01",
+          "poolMax": "1000.00", "poolYears": 5, "poolReducedOnDisposal": false, "poolProRataInFirstYear": false }
+      ],
+      "usefulLife": [ { "assetClass": "machine", "months": 84 } ],
+      "specialDepreciation": [
+        { "validFrom": "2024-01-01", "validTo": null, "rate": "40.00", "years": 5 }
+      ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "gwgExpenseAccount": "4855"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Fertigungsmaschine", "assetClass": "machine", "assetAccount": "0320",
+        "acquisitionCost": { "amount": "84000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "gwgChoice": "capitalize",
+        "specialDepreciation": true
+      },
+      "expect": { "result": { "route": "capitalize", "usefulLifeMonths": 84, "id": "$A1" } }
+    },
+    {
+      "op": "runDepreciation", "input": { "fiscalYear": 2026 },
+      "expect": { "result": { "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "assetId": "$A1", "fiscalYear": 2026, "amount": { "amount": "40000.00", "currency": "EUR" } },
+      "expect": {
+        "comment": "Budget ist 40 % von 84.000,00 = 33.600,00 — mehr geht nicht",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "assetId": "$A1", "fiscalYear": 2026, "amount": { "amount": "8000.00", "currency": "EUR" } },
+      "expect": { "result": { "amount": "8000.00", "remainingAllowance": "25600.00", "bookValue": "64000.00" } }
+    },
+    {
+      "op": "runDepreciation", "input": { "fiscalYear": 2027 },
+      "expect": {
+        "comment": "Planmäßig unverändert auf der ursprünglichen Bemessungsgrundlage — das ist der Sinn von \"daneben\"",
+        "result": { "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } }
+      }
+    },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "assetId": "$A1", "fiscalYear": 2027, "amount": { "amount": "4000.00", "currency": "EUR" } },
+      "expect": { "result": { "amount": "4000.00", "remainingAllowance": "21600.00", "bookValue": "48000.00" } }
+    },
+    { "op": "runDepreciation", "input": { "fiscalYear": 2028 }, "expect": { "result": { "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } } } },
+    { "op": "runDepreciation", "input": { "fiscalYear": 2029 }, "expect": { "result": { "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } } } },
+    { "op": "runDepreciation", "input": { "fiscalYear": 2030 }, "expect": { "result": { "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } } } },
+    {
+      "op": "bookSpecialDepreciation",
+      "input": { "assetId": "$A1", "fiscalYear": 2031, "amount": { "amount": "1000.00", "currency": "EUR" } },
+      "expect": {
+        "comment": "Zeitfenster 2026–2030, danach ist das Wahlrecht verbraucht — nicht still ignoriert",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "runDepreciation", "input": { "fiscalYear": 2031 },
+      "expect": {
+        "comment": "Restwert 12.000,00 auf 24 Restmonate = 500,00 je Monat; ohne Neuverteilung wollte der Plan 12.000,00",
+        "result": { "totalDepreciation": { "amount": "6000.00", "currency": "EUR" } }
+      }
+    },
+    {
+      "op": "runDepreciation", "input": { "fiscalYear": 2032 },
+      "expect": {
+        "comment": "Summe 60.000 planmäßig + 12.000 Sonder + 12.000 nach Neuverteilung = 84.000,00",
+        "result": { "totalDepreciation": { "amount": "6000.00", "currency": "EUR" } }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2032, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "0320", "balance": "0.00" },
+          { "account": "1200", "balance": "-84000.00" },
+          { "account": "4830", "balance": "6000.00" }
+        ]
+      }
+    }
+  ]
+}

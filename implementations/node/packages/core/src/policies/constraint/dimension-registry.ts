@@ -27,8 +27,8 @@ export interface DimensionRuleData {
  */
 export class DimensionRegistry {
   private constructor(
-    private readonly types: ReadonlySet<string>,
-    private readonly values: ReadonlySet<string>,
+    private readonly types: Set<string>,
+    private readonly values: Set<string>,
     private readonly rules: readonly DimensionRule[],
   ) {}
 
@@ -49,6 +49,51 @@ export class DimensionRegistry {
       required: r.requiredDimension,
     }));
     return new DimensionRegistry(types, values, rules);
+  }
+
+  /**
+   * Declares a dimension type (a cost centre axis, a project axis, …).
+   *
+   * Dimension types and values are the tenant's own master data, like accounts — not the pack's,
+   * because "Materialstelle" is a fact about one company and not about German law. They were
+   * declarable only through the in-memory construction path, which meant a tenant built FROM A PACK
+   * had an empty registry and every posting carrying a cost centre was rejected: cost accounting was
+   * unreachable on `de`, `us` and `default` alike, and nothing in the packs said so.
+   */
+  defineType(code: string): void {
+    if (code === '') {
+      throw new DomainError('E_DIMENSION_INVALID', 'A dimension type needs a code', { type: code });
+    }
+
+    if (this.types.has(code)) {
+      throw new DomainError('E_DIMENSION_INVALID', `Dimension type "${code}" is already defined`, { type: code });
+    }
+
+    this.types.add(code);
+  }
+
+  /**
+   * Declares a value of an existing type. Refused for an unknown type rather than creating it on the
+   * way: a typo in the type would otherwise open a second, near-identical axis in silence.
+   */
+  defineValue(typeCode: string, code: string): void {
+    if (!this.types.has(typeCode)) {
+      throw new DomainError('E_DIMENSION_INVALID', `Unknown dimension type "${typeCode}"`, { type: typeCode });
+    }
+
+    if (code === '') {
+      throw new DomainError('E_DIMENSION_INVALID', 'A dimension value needs a code', { type: typeCode });
+    }
+
+    if (this.values.has(`${typeCode}:${code}`)) {
+      throw new DomainError(
+        'E_DIMENSION_INVALID',
+        `Dimension value "${code}" of type "${typeCode}" is already defined`,
+        { type: typeCode, code },
+      );
+    }
+
+    this.values.add(`${typeCode}:${code}`);
   }
 
   validateLine(account: AccountNumber, dimensions: DimensionValue[]): void {
