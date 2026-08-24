@@ -220,8 +220,12 @@ is the whole call, because the tenant's name, currency and configuration come ba
 from its own row. The schema must be installed beforehand (`installSchema`).
 
 `listTenants(db)` (PHP: `DatabaseTenantRecordRepository::listTenants($connection)`)
-answers which tenants a store holds. It is not a projection: a projection is computed
-*on* a tenant, and this question has none to run on.
+answers which tenants a store holds, so you can look one up instead of keeping a
+second list beside the books. It is not a projection — a projection is computed *on* a
+tenant, and this question has none to run on — and it is **not a tenant register**: it
+reads the rows summae wrote and nothing else. Registering, naming, selecting and setting
+up tenants stays the embedding application's, along with anything a person chooses
+between. What changed is only that the books can now be asked what they contain.
 
 ### CLI workspace (PHP and Node)
 
