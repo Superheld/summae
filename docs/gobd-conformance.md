@@ -54,7 +54,7 @@ The genuinely German parts are few, and they are where the ⚠️ rows cluster.
 | Obligation | Status | Proof |
 |---|---|---|
 | Progressive check: voucher → posting → report | ✅ | `F-CORE-003`, fixtures `core/post-and-invariants`, `core/voucher-unknown` — every posting references exactly one voucher; `voucherId` is not nullable and an unknown one is `E_VOUCHER_UNKNOWN` |
-| Retrograde check: report → posting → voucher | ✅ | Every report is a projection recomputed from the journal (`F-CORE-015`, 10 fixtures incl. both packs). No stored balance exists to diverge from the journal. |
+| Retrograde check: report → posting → voucher | ✅ | Every report is a projection recomputed from the journal (`F-CORE-015`, fixtures across both packs). No stored balance exists to diverge from the journal. |
 | Reports are reproducible at a later date | ✅ | `F-CORE-016`, fixtures `projections/deviating-fiscal-year`, `pack/de-pack/de-jahresgang-current`. Byte-identical double run is part of every conformance run (`--strict`). |
 | A knowledgeable third party can follow the system | ➖ | This is the *Verfahrensdokumentation*, and it is an organizational document about your installation, your processes, your controls. summae can supply the technical building block — see ⚠️ F-IO-007 below — but never the document. |
 
@@ -72,7 +72,7 @@ The genuinely German parts are few, and they are where the ⚠️ rows cluster.
 | Obligation | Status | Proof |
 |---|---|---|
 | Amounts are exact, rounding is specified | ✅ | `NF-2.1`; `Money` on `brick/math` / `big.js`, commercial half-up away from zero, `allocate` by largest remainder. Never a float. |
-| Same input → same result, in every language | ✅ | The top quality policy. 110 fixtures as a shared oracle + `make cross` (65 green in both directions) with both engines on one data set. |
+| Same input → same result, in every language | ✅ | The top quality policy: the conformance suite as a shared oracle + `make cross` with both engines on one data set, in both directions. Counts are deliberately not repeated here — they drift faster than anyone updates them, and `pnpm fixtures` / `make cross` say what they are. |
 | VAT is computed per the applicable rules at the reference date | ✅ | `F-TAX-*`, tax codes versioned with `validFrom` in the pack; `NF-5.1`. |
 | The shipped `de` pack covers every VAT case a German business meets | ⚠️ **no, and the distinction matters** | The *engine* carries four mechanisms (standard, reverse charge, intra-community supply, exempt). The shipped pack carries seven codes and is what is incomplete: intra-community **acquisition** and exempt export have no code, though both are expressible with an existing mechanism and pack data alone. Missing as *mechanisms*: § 15a input-tax adjustment, § 14c, OSS. Detail and the reason the acquisition code was not added on the spot — no separate reporting key exists for its tax amount, and a wrongly configured code produces silently wrong returns — in the project backlog, P8. |
 | **The postings represent what actually happened** | ➖ | Correct *accounts* for a real transaction is a bookkeeping judgement. summae enforces form, not truth. |

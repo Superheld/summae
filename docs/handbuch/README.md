@@ -1002,10 +1002,12 @@ Errors: `E_ENTRY_TOO_FEW_LINES`, `E_TAXCODE_UNKNOWN`,
 
 #### setTaxProfile
 
-Sets/changes the small-business status as of a cutoff date. ⚠ In the code
-`setProfile()` evaluates only the `smallBusiness` block;
-`taxationMethod`/`vatPeriod` come from the tenant configuration (yet are still
-included in the output).
+Sets/changes the small-business status as of a cutoff date — **and only that.**
+`taxationMethod` and `vatPeriod` are set when the tenant is created and are not
+changeable through this operation; they appear in the output because the output is the
+whole profile, not a diff. Both are stored with the tenant, so what you read back is what
+the engine runs on (`systemDescription.taxProfile` reports the same thing without
+changing anything).
 
 `smallBusiness` (yes): `{ validFrom (yes), value (bool, default false) }`.
 Output: the serialized `TaxProfile` (`taxationMethod`, `vatPeriod`,
