@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Ledger;
 
 use Summae\Core\DomainError;
+use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\Account;
@@ -29,6 +30,8 @@ final readonly class ChartAdminService
         // A dimension has no id of its own, so the audit record names the tenant — the same shape the
         // tax profile and the allocation scheme use for configuration that exists once per tenant.
         private ?Uuid $tenantId = null,
+        /** Where a declared type or value is kept, so it outlives this object (SPEC-015). */
+        private ?TenantConfigStore $configStore = null,
     ) {
     }
 
@@ -51,6 +54,7 @@ final readonly class ChartAdminService
                 'code' => ['from' => null, 'to' => $code],
             ]);
         }
+        $this->persistDimensions();
 
         return ['code' => $code];
     }
@@ -76,8 +80,23 @@ final readonly class ChartAdminService
                 'code' => ['from' => null, 'to' => $code],
             ]);
         }
+        $this->persistDimensions();
 
         return ['type' => $typeCode, 'code' => $code];
+    }
+
+    /**
+     * The registry is stored whole rather than as a delta: it is a small set, and a whole-value
+     * write cannot drift from the object it describes the way an append log can.
+     */
+    private function persistDimensions(): void
+    {
+        if ($this->configStore === null || $this->dimensions === null) {
+            return;
+        }
+
+        $data = $this->dimensions->toData();
+        $this->configStore->rememberDimensions($data['types'], $data['values']);
     }
 
     private function requireDimensions(): DimensionRegistry

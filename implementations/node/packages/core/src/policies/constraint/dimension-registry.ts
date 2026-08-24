@@ -52,6 +52,41 @@ export class DimensionRegistry {
   }
 
   /**
+   * The same rules with different master data (SPEC-015).
+   *
+   * Reopening a tenant means combining two sources that are not the same kind of thing: the types
+   * and values are the tenant's, and come back from its record; the rules — which accounts may not
+   * be posted without a dimension — are the pack's, and come back from the pack. This is what keeps
+   * them apart without asking the adapter to know the difference.
+   */
+  withMasterData(
+    dimensionTypes: DimensionTypeData[],
+    dimensionValues: DimensionValueData[],
+  ): DimensionRegistry {
+    return new DimensionRegistry(
+      new Set(dimensionTypes.map((type) => type.code)),
+      new Set(dimensionValues.map((value) => `${value.typeCode}:${value.code}`)),
+      this.rules,
+    );
+  }
+
+  /**
+   * The registry as the data it was built from (SPEC-015) — `fromData(toData(r))` is `r`.
+   *
+   * Sorted, because this is what gets stored: two runs that declared the same types in a different
+   * order must produce the same stored bytes, or the cross-test would compare a set against an
+   * ordering accident. Rules are not included: which accounts require a dimension is the pack's
+   * answer, not the tenant's, and it comes back from the pack on every open.
+   */
+  toData(): { types: Array<{ code: string }>; values: Array<{ typeCode: string; code: string }> } {
+    const values = [...this.values].sort().map((entry) => {
+      const separator = entry.indexOf(':');
+      return { typeCode: entry.slice(0, separator), code: entry.slice(separator + 1) };
+    });
+    return { types: [...this.types].sort().map((code) => ({ code })), values };
+  }
+
+  /**
    * Declares a dimension type (a cost centre axis, a project axis, …).
    *
    * Dimension types and values are the tenant's own master data, like accounts — not the pack's,

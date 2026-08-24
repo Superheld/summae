@@ -7,6 +7,8 @@ import type {
   JournalRepository,
   OpenItemRepository,
   PartnerRepository,
+  TenantRecordData,
+  TenantRecordRepository,
   VoucherRepository,
 } from './port.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
@@ -184,6 +186,26 @@ export class InMemoryPartnerRepository implements PartnerRepository {
       const byName = a.name() < b.name() ? -1 : a.name() > b.name() ? 1 : 0;
       return byName !== 0 ? byName : a.id.value < b.id.value ? -1 : a.id.value > b.id.value ? 1 : 0;
     });
+  }
+}
+
+/**
+ * The tenant record, in memory — the fake behind `TenantRecordRepository`.
+ *
+ * It stores a copy rather than the object it was handed, so a caller that keeps mutating its own
+ * record cannot change what "has been saved" retroactively. That matters here more than in the
+ * other fakes: this is the repository whose whole point is that a change outlives the object that
+ * made it, and a fake that shares the reference would prove nothing.
+ */
+export class InMemoryTenantRecordRepository implements TenantRecordRepository {
+  private stored: TenantRecordData | null = null;
+
+  load(): TenantRecordData | null {
+    return this.stored === null ? null : (JSON.parse(JSON.stringify(this.stored)) as TenantRecordData);
+  }
+
+  save(record: TenantRecordData): void {
+    this.stored = JSON.parse(JSON.stringify(record)) as TenantRecordData;
   }
 }
 

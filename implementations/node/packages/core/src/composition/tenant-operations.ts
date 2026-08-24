@@ -99,6 +99,7 @@ export class TenantOperations {
           this.tenant.mappings,
           this.tenant.id,
           new AuditWriter(this.tenant.audit, this.tenant.clock, this.tenant.ids),
+          this.tenant.configStore,
         ).import(input);
       case 'createPartner':
         return serialize(this.tenant.partnerService.create(input));

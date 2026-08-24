@@ -12,6 +12,37 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### Tenant configuration is persisted (SPEC-015) — **breaking for direct factory callers**
+
+Five operations changed configuration that no store kept: `setTaxProfile`,
+`defineDimensionType`, `defineDimensionValue`, `setAllocationScheme` and `importMapping` returned
+success, wrote a durable audit record, and lost the change with the process. Our own CLI shipped
+with four of the five silently ineffective — it carried a hand-rolled write-back for
+`importMapping` alone.
+
+- **New table `summae_tenants`**, in both languages: the tenant's identity (id, name, base
+  currency, pack provenance) plus its configuration. Added by the idempotent installer, so an
+  existing workspace gains it without being recreated.
+- **The stored record wins; what a caller passes is a seed** — written on the first open of a
+  tenant with no row, ignored afterwards. An embedding no longer has to pass its cost centres in
+  *and* declare them through `defineDimensionType`, which used to answer `E_DIMENSION_INVALID` for
+  a code it was declaring for the first time.
+- **`listTenants`** (Node: `@superheld/summae-knex`; PHP:
+  `DatabaseTenantRecordRepository::listTenants`) answers which tenants a store holds, so an
+  unknown `tenantId` is distinguishable from a new one. Not a projection — a projection is computed
+  *on* a tenant, and this question has none to run on.
+- **Breaking:** `DatabaseTenantFactory.build` takes `(db, clock, ids, options)` in Node; `name` and
+  `baseCurrency` moved into `options` and are optional. In PHP they became optional leading
+  parameters, so existing calls keep working.
+- A stored allocation scheme is replayed **on first use**, not while the tenant is built: it may
+  name production-cost treatments only the pack answers, and the pack arrives after construction.
+- New guard `testing/scenarios/regression/tenant-configuration.json` — one CLI invocation per step,
+  which is the only way this class of defect is visible at all. No fixture could ever have caught
+  it: they build one tenant in one process, where an in-memory registry and a stored one are
+  indistinguishable.
+- Handbook: a new section states what summae stores and what the embedding stores.
+
+
 ## 0.11.0 — 2026-08-24
 
 **The release an embedding application wrote.** Every item below started as a finding in the

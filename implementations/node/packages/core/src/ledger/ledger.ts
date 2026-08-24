@@ -31,6 +31,7 @@ import { type OpenItemKind, type Side } from '../substrate/types.js';
 import type { Voucher } from '../records/voucher.js';
 import { AuditWriter } from './audit-writer.js';
 import { ChartAdminService } from './chart-admin-service.js';
+import type { TenantConfigStore } from '../composition/tenant-config-store.js';
 import { FiscalPeriodService } from './fiscal-period-service.js';
 import { SettlementService } from './settlement-service.js';
 import { parseEntryDate, requireEntry } from './lookups.js';
@@ -89,10 +90,12 @@ export class Ledger {
     // Only needed so that dimension declarations — which have no id of their own — can name their
     // tenant in the audit trail, like the other per-tenant configuration does.
     tenantId: Uuid | null = null,
+    /** Passed straight through to the chart service, which is where dimensions are declared. */
+    configStore: TenantConfigStore | null = null,
   ) {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
-    this.chart = new ChartAdminService(accounts, ids, this.auditWriter, dimensions, tenantId);
+    this.chart = new ChartAdminService(accounts, ids, this.auditWriter, dimensions, tenantId, configStore);
     this.periods = new FiscalPeriodService(fiscalYears, journal, ids, this.auditWriter);
   }
 

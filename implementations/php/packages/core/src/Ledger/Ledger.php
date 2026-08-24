@@ -33,6 +33,7 @@ use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Substrate\Side;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
+use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
@@ -80,10 +81,12 @@ final readonly class Ledger
         // Only needed so that dimension declarations — which have no id of their own — can name
         // their tenant in the audit trail, like the other per-tenant configuration does.
         ?Uuid $tenantId = null,
+        /** Passed straight through to the chart service, which is where dimensions are declared. */
+        ?TenantConfigStore $configStore = null,
     ) {
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
-        $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter, $dimensions, $tenantId);
+        $this->chart = new ChartAdminService($accounts, $ids, $this->auditWriter, $dimensions, $tenantId, $configStore);
         $this->periods = new FiscalPeriodService($fiscalYears, $journal, $ids, $this->auditWriter);
     }
 

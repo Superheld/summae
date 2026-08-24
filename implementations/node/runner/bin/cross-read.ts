@@ -78,8 +78,10 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.en
     }
     const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
     const { tenantName, currency } = tenantConfig(name);
-    const tenant = DatabaseTenantFactory.build(db, tenantName, Currency.of(currency), clock, new DeterministicIdGenerator(clock), {
+    const tenant = DatabaseTenantFactory.build(db, clock, new DeterministicIdGenerator(clock), {
       tenantId: Uuid.fromString(tenantId),
+      name: tenantName,
+      baseCurrency: Currency.of(currency),
     });
     const actual = canonicalJson(new TenantOperations(tenant).project('journalExport', { format: 'gobd-z3' }));
     const expected = readFileSync(join(dir, `${name}.expected.json`), 'utf8');

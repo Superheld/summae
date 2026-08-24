@@ -43,16 +43,11 @@ final class OpCommand extends Command
             $payload = $this->payload($input);
             $workspace = Workspace::in($directory);
             $tenant = $workspace->tenant();
+            // Configuration persists itself now, the same way the ledger always has (SPEC-015).
+            // This used to carry a write-back for `importMapping` alone — the one of the five
+            // configuration operations whose disappearance somebody had noticed. The other four
+            // returned success and changed nothing that outlived the process.
             $result = (new TenantOperations($tenant))->execute($operation, $payload);
-
-            // The ledger persists itself through the database adapter; a mapping does not — it
-            // lives in a registry rebuilt from summae.json on every call, so the import has to be
-            // written back or it is forgotten the moment this process ends (R-4).
-            if ($operation === 'importMapping' && is_array($payload['mapping'] ?? null)) {
-                /** @var array<string, mixed> $mapping */
-                $mapping = $payload['mapping'];
-                $workspace->rememberMapping($mapping);
-            }
         } catch (\Throwable $e) {
             return ErrorOutput::report($output, $e);
         }

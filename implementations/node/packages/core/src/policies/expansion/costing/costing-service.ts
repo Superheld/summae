@@ -4,6 +4,7 @@ import type { AccountRepository,
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
+import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 import type { IdGenerator } from '../../../substrate/id-generator.js';
 import { Money } from '../../../substrate/money.js';
 import { PeriodRef } from '../../../substrate/period-ref.js';
@@ -119,6 +120,8 @@ export class CostingService {
    * freezing rule against the same run, and two rules for one moment is how they drift apart.
    */
   private rateDefinitions: RateDefinition[] = [];
+  /** A stored scheme waiting for its first use — see `restoreAllocationScheme`. */
+  private pendingScheme: Record<string, unknown> | null = null;
   constructor(
     private readonly baseCurrency: Currency,
     private readonly accounts: AccountRepository,
@@ -139,6 +142,8 @@ export class CostingService {
     // audit record names the tenant as its object (F-CORE-014 "Profile").
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
+    /** Where the scheme is kept, so it outlives this object (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   /** The resolved pack bundle (`productionCost` is read here). */
@@ -146,9 +151,58 @@ export class CostingService {
     this.ruleModule = ruleModule;
   }
 
+  /**
+   * Hands back a stored scheme when a tenant is opened (SPEC-015).
+   *
+   * **Deferred on purpose.** A scheme can reference production-cost treatments, which only the pack
+   * answers — and the pack arrives through `setRuleModule`, *after* the factory has built the
+   * tenant. Applying it here would make opening the books fail on a scheme that was perfectly valid
+   * when it was set, which is the wrong moment to find out and the wrong thing to block: reading a
+   * journal does not need an allocation scheme.
+   *
+   * So it is applied on first use — `setAllocationScheme` and `run` are the only entry points that
+   * read it. A stored scheme that the *current* pack no longer accepts then fails when somebody runs
+   * a costing, with the error the operation itself would have given.
+   */
+  restoreAllocationScheme(input: Record<string, unknown>): void {
+    this.pendingScheme = input;
+  }
+
+  /** Applies what `restoreAllocationScheme` handed back, once, at the moment it is first needed. */
+  private applyPendingScheme(): void {
+    if (this.pendingScheme === null) return;
+    const pending = this.pendingScheme;
+    this.pendingScheme = null;
+    this.applyAllocationScheme(pending);
+  }
+
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
+    this.applyPendingScheme();
     const previousStepCount = this.schemeSteps.length;
     const previousRateCount = this.rateDefinitions.length;
+    const result = this.applyAllocationScheme(input);
+
+    if (this.audit !== null && this.tenantId !== null) {
+      this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
+        method: { from: null, to: result.method },
+        stepCount: { from: previousStepCount, to: result.stepCount },
+        rateCount: { from: previousRateCount, to: result.rateCount },
+      });
+    }
+    // The raw input, not the parsed fields: it is exactly what this method accepts, so reloading it
+    // on the next open runs the same validation again rather than a second, drifting reader.
+    this.configStore?.rememberAllocationScheme(input);
+
+    return result;
+  }
+
+  private applyAllocationScheme(input: Record<string, unknown>): {
+    valid: boolean;
+    method: string;
+    stepCount: number;
+    rateCount: number;
+    productionCostComponents: number;
+  } {
     const method = typeof input.method === 'string' ? input.method : 'step_ladder';
 
     if (!METHODS.includes(method)) {
@@ -206,14 +260,6 @@ export class CostingService {
     this.rateDefinitions = rates;
     this.productionCostConfig = productionCost;
 
-    if (this.audit !== null && this.tenantId !== null) {
-      this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
-        method: { from: null, to: method },
-        stepCount: { from: previousStepCount, to: steps.length },
-        rateCount: { from: previousRateCount, to: rates.length },
-      });
-    }
-
     return {
       valid: true,
       method,
@@ -224,6 +270,7 @@ export class CostingService {
   }
 
   run(input: Record<string, unknown>): CostingRun {
+    this.applyPendingScheme();
     const fiscalYear = typeof input.fiscalYear === 'number' ? input.fiscalYear : 0;
     const period = typeof input.period === 'number' ? input.period : 0;
     const periodRef = new PeriodRef(fiscalYear, period);

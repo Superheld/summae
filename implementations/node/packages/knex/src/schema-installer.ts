@@ -115,6 +115,29 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
     },
   },
   {
+    /**
+     * The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
+     *
+     * `tenant_id` is a column on every other table and used to point at nothing: a tenant existed
+     * only in whatever the embedding remembered, so a wrong id opened an empty ledger that was
+     * indistinguishable from a new one. It also carries the configuration — tax profile, dimension
+     * master data, allocation scheme, imported mappings — which five operations changed and no
+     * store kept.
+     *
+     * Name and currency are columns because they are what a tenant is *listed* by; the
+     * configuration is a JSON document because it is only ever read whole.
+     */
+    name: 'tenants',
+    define: (t) => {
+      t.uuid('id').primary();
+      t.string('name');
+      t.string('base_currency', 3);
+      t.string('pack_id').nullable();
+      t.string('pack_version').nullable();
+      t.json('config');
+    },
+  },
+  {
     name: 'audit_log',
     define: (t) => {
       t.bigIncrements('seq');

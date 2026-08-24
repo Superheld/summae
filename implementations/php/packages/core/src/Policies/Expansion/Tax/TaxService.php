@@ -6,6 +6,7 @@ namespace Summae\Core\Policies\Expansion\Tax;
 
 use Brick\Math\BigDecimal;
 use Summae\Core\DomainError;
+use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\CalendarDate;
@@ -37,6 +38,8 @@ final readonly class TaxService
         // audit record names the tenant as the object it belongs to (F-CORE-014 "Steuerschlüssel").
         private ?Uuid $tenantId = null,
         private ?AuditWriter $audit = null,
+        /** Where a profile change is kept, so it outlives this object (SPEC-015). */
+        private ?TenantConfigStore $configStore = null,
     ) {
     }
 
@@ -256,6 +259,8 @@ final readonly class TaxService
                 'validFrom' => ['from' => null, 'to' => $validFrom->iso],
             ]);
         }
+        // Only here, after the retroactivity guard has let the change through.
+        $this->configStore?->rememberTaxProfile($this->profile->jsonSerialize());
 
         return $this->profile;
     }

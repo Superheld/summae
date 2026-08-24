@@ -184,9 +184,13 @@ $ops    = new TenantOperations($tenant);
 ```
 
 `DatabaseTenantFactory::build(...)` takes the same parameters as `inMemory`,
-plus one additional trailing parameter `tenantId` (`?Uuid`, default: freshly
-generated) — this lets you resume an existing tenant ID. Prerequisite:
-`php artisan migrate` has been run (see § 4).
+plus `tenantId` (`?Uuid`, default: freshly generated) — this lets you resume an
+existing tenant ID. Prerequisite: `php artisan migrate` has been run (see § 4).
+
+`name` and `baseCurrency` are **optional** here: a tenant that already exists is
+described by its own row, and `build(tenantId: $id)` is the whole call. What you
+pass on an open that finds an existing tenant is ignored — see
+[what is stored and what you store](#what-summae-stores-and-what-you-store).
 
 ### Knex adapter (Node, persistent)
 
@@ -198,10 +202,11 @@ const db = new SyncDb('./accounting.sqlite');   // file-backed; `new SyncDb()` �
 installSchema(db);                              // creates the summae_* tables (once)
 
 const clock  = new SystemClock();
-const tenant = DatabaseTenantFactory.build(
-  db, 'Example Ltd', Currency.of('USD'), clock, new UuidV7IdGenerator(clock),
-  { /* options: taxCodes, mappings, taxProfile, dimensions, tenantId */ },
-);
+const tenant = DatabaseTenantFactory.build(db, clock, new UuidV7IdGenerator(clock), {
+  name: 'Example Ltd',          // seed: used when this tenant is created, ignored afterwards
+  baseCurrency: Currency.of('USD'),
+  // taxCodes, mappings, taxProfile, dimensions, packIdentity, tenantId
+});
 const ops = new TenantOperations(tenant);
 ```
 
@@ -210,7 +215,13 @@ only against **DB-backed ports** — the direct counterpart to PHP's Laravel ada
 writing the **same `summae_*` schema** (the SF-15 cross-test proves byte-identical
 `journalExport` across the PHP↔Node boundary on a shared database). `better-sqlite3`
 is the SQLite driver; `pg` covers Postgres. The optional `options.tenantId` resumes
-an existing tenant. The schema must be installed beforehand (`installSchema`).
+an existing tenant; for one that already exists, `build(db, clock, ids, { tenantId })`
+is the whole call, because the tenant's name, currency and configuration come back
+from its own row. The schema must be installed beforehand (`installSchema`).
+
+`listTenants(db)` (PHP: `DatabaseTenantRecordRepository::listTenants($connection)`)
+answers which tenants a store holds. It is not a projection: a projection is computed
+*on* a tenant, and this question has none to run on.
 
 ### CLI workspace (PHP and Node)
 
@@ -236,6 +247,63 @@ policy in *one* step — the chart of accounts thus comes as a **pack choice**,
 not as an inline-maintained `rules.json`. `rules.json` (§ 5) remains the route
 for your own/deviating rules. Every subsequent call loads the tenant from the
 workspace, executes, and the SQLite file persists.
+
+### What summae stores, and what you store
+
+The first question every embedding runs into, and the one that used to have no written
+answer. Short version: **summae stores the books and the tenant; you store the pack.**
+
+**What summae persists** — ten `summae_*` tables, identical in both languages (the SF-15
+cross-test proves a database written by one is read identically by the other):
+
+| table | holds |
+|---|---|
+| `summae_tenants` | the tenant itself: id, name, base currency, which pack it was composed from, and its configuration (see below) |
+| `summae_accounts` | the chart of accounts, seeded from the pack and yours to adapt afterwards |
+| `summae_fiscal_years` | fiscal years and their period states |
+| `summae_vouchers` · `summae_journal_entries` | the Belegfunktion and the journal |
+| `summae_open_items` | receivables/payables with their settlements |
+| `summae_partners` · `summae_assets` | master data |
+| `summae_costing_runs` | costing runs, versioned per period |
+| `summae_audit_log` | the trail |
+
+**What the tenant's configuration covers.** Four things live in `summae_tenants.config`,
+and they are exactly what the four configuration operations change:
+
+| | changed by | seeded from |
+|---|---|---|
+| tax profile | `setTaxProfile` | the pack's `profile.defaults`, or what you pass at creation |
+| dimension types and values | `defineDimensionType` / `defineDimensionValue` | nothing — cost centres are yours, not a jurisdiction's |
+| allocation scheme and rates | `setAllocationScheme` | nothing |
+| imported mappings | `importMapping` | the pack's mappings are the base; imports layer on top |
+
+**What you keep.** One thing, and it is not small: **the resolved pack** (or your own
+rule bundle) — the chart template, tax codes, mapping definitions, depreciation rules,
+`packPolicy`. It is versioned product data that you pin and ship, so summae takes it on
+every open and never stores a copy: two answers to "which rules is this tenant on" is
+one answer too many. `summae_tenants` records *which* pack and version a tenant was
+created from, as provenance for `systemDescription` — not as a substitute for having it.
+
+You also choose the `tenantId` (or let the IdGenerator name one) and remember it, the way
+you remember any primary key.
+
+**The seed rule.** Name, currency, tax profile and dimension master data may be passed at
+construction. They are written on the **first** open of a tenant that has no row yet, and
+**ignored on every open after that** — the stored row is the truth. Passing them again is
+harmless; leaving them out once the tenant exists is the intended shape. The reason is
+worth stating plainly: if your configuration file and summae's table both claimed to hold
+the truth, the two would drift the first time an operation changed one of them.
+
+A practical consequence, if you are moving an embedding onto this: you no longer have to
+list your cost centres in your own configuration *and* declare them through
+`defineDimensionType`. Do one or the other. (Doing both used to be the only way to make
+cost accounting work, and it answered `E_DIMENSION_INVALID` for a code you were declaring
+for the first time.)
+
+**What summae does not store, by design:** voucher files and documents (referenced, never
+held), user identities (`actor` is recorded as you supply it, never verified), and any
+retention or deletion schedule. Those are the embedding application's — the full boundary
+is in `systemDescription`'s `notProvided`.
 
 ---
 
@@ -815,6 +883,8 @@ Dimension master data — the axes a posting line may carry (`costCenter`, `proj
 Output: `{ "type", "code" }`. Errors: `E_DIMENSION_INVALID` — unknown type, empty
 code, or a type/value already defined.
 
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+
 ```json
 { "code": "costCenter" }
 { "type": "costCenter", "code": "MAT" }
@@ -921,6 +991,8 @@ Output: the serialized `TaxProfile` (`taxationMethod`, `vatPeriod`,
 `E_PROFILE_RETROACTIVE_CONFLICT` (no `validFrom`, or postings already finalized
 as of the cutoff date).
 
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+
 ```json
 { "smallBusiness": { "validFrom": "2026-07-01", "value": false } }
 // → smallBusiness: [ {"validFrom":"2026-01-01","value":true}, {"validFrom":"2026-07-01","value":false} ]
@@ -935,6 +1007,8 @@ are warnings. Input under `mapping`: `id` (yes), `kind` (yes), `version` (no),
 
 Output: `{ "imported": true, "id", "kind", "gapWarnings": [ { "account", "assignedTo": "_unassigned" } ] }`.
 Error: `E_MAPPING_OVERLAP` (account in more than one position).
+
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
 
 #### createPartner
 
@@ -1217,6 +1291,11 @@ Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` y
 `{ "valid", "method", "stepCount" }`. Errors: `E_INPUT_INVALID` (a method summae does
 not perform — it is refused, never approximated), `E_COSTING_CYCLE`; missing `sender`
 → `InvalidValue` ⚠.
+
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+A stored scheme is replayed on the next open **when it is first used** (by `setAllocationScheme` or
+`runCosting`), not while the tenant is built: it may name production-cost treatments only the pack
+answers, and opening the books must not fail on a scheme reading a journal does not need.
 
 ```json
 { "method": "step_ladder", "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] } ] }
