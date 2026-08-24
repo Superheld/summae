@@ -12,6 +12,22 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+## 0.11.0 — 2026-08-24
+
+**The release an embedding application wrote.** Every item below started as a finding in the
+`FINDINGS.md` of an app that builds screens on summae — fifteen of them, worked through in one
+pass. That is the return on dogfooding, and it is also a verdict on our own tests: the worst of
+the fifteen (**F-15**, below) left a credit balance standing on an asset account while every
+invariant held, twelve asset fixtures stayed green, and nobody here had run a yearly depreciation
+before a mid-year disposal.
+
+Four more defects came out of the work that nobody had reported at all. summae's own audit-trail
+test had been passing `usefulLifeYears` and `role: 'customer'` for months — neither key exists;
+`systemDescription` under-reported what the audit trail records; the partner stream could not
+validate against its own schema; and the cross-test compared against stale artifacts. Each of them
+was invisible for the same reason: a contract surface without a guard of its own. Most of what this
+release adds is that guard.
+
 ### ⚠ What breaks
 
 - **The data format is 0.7.** The partner record gained `status` (`active`/`inactive`), so the
