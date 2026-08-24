@@ -193,6 +193,7 @@ final readonly class DatabaseTenantFactory
             $openItems,
             $partners,
             $assets,
+            $costingRuns,
             $audit,
             $ledger,
             $tax,

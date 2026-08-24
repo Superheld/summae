@@ -1,0 +1,34 @@
+{
+  "fixture": "system-description-tax-profile",
+  "description": "F-TAX-003: the tax profile the engine is running on is readable. `setTaxProfile` changed it and nothing reported it, so an embedding could display only what it had written itself — the same value by construction in that one embedding, which is a property of the caller and not a guarantee. It belongs in `systemDescription` rather than in a projection of its own: that is the projection which already describes the tenant, and a Verfahrensdokumentation has to state which taxation method the books were kept under. Additive. Reported by an embedding application as the second half of its F-16.",
+  "covers": ["F-TAX-003", "F-IO-007"],
+  "setup": {
+    "tenant": { "name": "Profil GmbH", "baseCurrency": "EUR" },
+    "accounts": [ { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" } ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxProfile": { "taxationMethod": "cash", "vatPeriod": "yearly", "smallBusiness": false }
+  },
+  "steps": [
+    {
+      "comment": "A mid-year election, so the reported profile is one the engine holds and not the one the setup passed.",
+      "op": "setTaxProfile",
+      "input": { "smallBusiness": { "validFrom": "2026-07-01", "value": true } },
+      "expect": { "result": { "taxationMethod": "cash", "vatPeriod": "yearly" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "systemDescription",
+      "params": {},
+      "expect": {
+        "comment": "Der Mandant wird beschrieben — und dazu gehört, unter welcher Versteuerungsart die Bücher geführt wurden.",
+        "taxProfile": {
+          "taxationMethod": "cash",
+          "vatPeriod": "yearly",
+          "smallBusiness": [ { "validFrom": "2026-07-01", "value": true } ]
+        }
+      }
+    }
+  ]
+}

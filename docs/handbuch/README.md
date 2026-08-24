@@ -1600,7 +1600,38 @@ is today, and a renamed customer must not be dunned under its old name.
 // params { "asOf": "2026-12-31" }
 { "assets": [ { "name": "Laptop", "acquisitionCost": { "amount": "3000.00", "currency": "EUR" },
   "accumulatedDepreciation": { "amount": "500.00", "currency": "EUR" },
-  "bookValue": { "amount": "2500.00", "currency": "EUR" } } ] }
+  "bookValue": { "amount": "2500.00", "currency": "EUR" },
+  "specialDepreciation": { "elected": false, "allowance": null, "remaining": null } } ] }
+```
+
+Every row carries **`specialDepreciation`** — `elected` (did this asset take the additional
+allowance), `allowance` (the budget it was granted) and `remaining` (what is left of it). Read it
+before offering the allowance on a row: `bookSpecialDepreciation` answers with `remainingAllowance`
+*after* it has run, which is too late to decide whether the control belongs on that row at all.
+
+### costingRuns — which costing runs exist
+
+`fiscalYear` (no), `period` (no) — both filters optional, because the answer to *which runs
+exist* has to be reachable without already knowing one. Output: `runs[]`, each
+`{runId, fiscalYear, period, version, status, method}`, ordered by period and then version —
+the order the repository already keeps and the order a period's history reads in.
+
+This is where a `runId` comes from. `costAllocationSheet`, `overheadRates` and `productionCost`
+all require one, and until this projection existed the only way to hold a valid id was to have
+kept the one `runCosting` returned — so an embedding ended up keeping its own table of run ids
+beside the books, which is a second register of library state and drifts the first time a run is
+created some other way.
+
+Deliberately thin: it reports what a run *is*, never what it computed. The three projections
+above are where a run's figures live, and a total repeated here would be a second answer to a
+question that already has one.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "runs": [
+    { "runId": "…", "fiscalYear": 2026, "period": 3, "version": 1, "status": "released", "method": "step_ladder" },
+    { "runId": "…", "fiscalYear": 2026, "period": 3, "version": 2, "status": "draft",    "method": "step_ladder" }
+  ] }
 ```
 
 ### costAllocationSheet — cost allocation sheet (BAB)
@@ -1792,12 +1823,20 @@ keeps assets == liabilities + equity when a mapping is incomplete.
 applies). Cash effectiveness via money accounts, the 10-day rule, VAT
 income-effective, asset payments not deductible. A deviating fiscal year →
 `E_CASHBASIS_DEVIATING_FISCAL_YEAR`. Output: `income[]`/`expenses[]` (each
-`{category, amount}`, sorted by category).
+`{category, amount}`, sorted by category), `totalIncome`, `totalExpenses` and
+**`surplus`** — the figure the statement exists to produce.
 
 ```json
 // params { "year": 2025, "asOf": "2026-06-07" }
-{ "income": [], "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ] }
+{ "income": [ { "category": "Betriebseinnahmen", "amount": "5000.00" } ],
+  "expenses": [ { "category": "Raumkosten", "amount": "1200.00" } ],
+  "totalIncome": "5000.00", "totalExpenses": "1200.00", "surplus": "3800.00" }
 ```
+
+> **Do not compute the surplus yourself.** It is here for the same reason
+> `incomeStatement` publishes `netIncome` and `balanceSheet` both totals: subtracting one of a
+> projection's fields from another is exactly the arithmetic this library asks embeddings not to do,
+> and until 2026-08-24 the third statement of that family was the one that made it necessary.
 
 ### ecSalesList — EC sales list (zusammenfassende meldung, ZM)
 
@@ -1879,9 +1918,15 @@ verified against current DATEV documentation.
 
 No parameters. Output: `formatVersion`, `tenant` (`id`, `name`,
 `baseCurrency`), `pack` (the manifest identity the tenant was composed from, or
-`null` for an inline rule bundle), `journal` (append-only, ordering, lifecycle,
-correction rule, the three dates), `invariants[]`, `auditTrail`,
-`capabilities` and `notProvided[]`.
+`null` for an inline rule bundle), `taxProfile` (the profile the engine is actually
+running on — taxation method, filing period, the small-business segments),
+`journal` (append-only, ordering, lifecycle, correction rule, the three dates),
+`invariants[]`, `auditTrail`, `capabilities` and `notProvided[]`.
+
+`taxProfile` is here because a Verfahrensdokumentation has to state which taxation method the
+books were kept under — and because until 2026-08-24 nothing published it, so an application could
+display only what it had written itself. Those are the same value by construction *in one
+embedding*, which is a property of that caller and not a guarantee.
 
 This is the **Verfahrensdokumentation** building block a library can supply
 (GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and

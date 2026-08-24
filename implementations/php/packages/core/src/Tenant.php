@@ -24,6 +24,7 @@ use Summae\Core\Ledger\Ledger;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\CostingRunRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Partner\PartnerService;
@@ -59,6 +60,8 @@ final readonly class Tenant
         public OpenItemRepository $openItems,
         public PartnerRepository $partners,
         public AssetRepository $assets,
+        /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
+        public CostingRunRepository $costingRuns,
         public AuditTrail $audit,
         public Ledger $ledger,
         public TaxService $tax,
@@ -176,6 +179,7 @@ final readonly class Tenant
             $openItems,
             $partners,
             $assets2,
+            $costingRuns,
             $audit,
             $ledger,
             $tax,

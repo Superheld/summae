@@ -157,8 +157,12 @@ de-euer-mapping-gap-current
 de-aufwandskonten-erweiterbar
 journal-export-z3-current
 parameter-effect-current
-system-description-current
+system-description-invariants
 partner-status
 voucher-net-line-dimensions
 partner-account-link-validated
 tax-profile-input-validation
+de-euer-surplus
+asset-register-special-depreciation
+system-description-tax-profile
+costing-runs-list

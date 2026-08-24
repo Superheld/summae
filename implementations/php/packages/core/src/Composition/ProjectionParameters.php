@@ -116,6 +116,10 @@ final class ProjectionParameters
             'fiscalYear' => ['type' => 'integer'],
             'period' => ['type' => 'integer'],
         ],
+        'costingRuns' => [
+            'fiscalYear' => ['type' => 'integer'],
+            'period' => ['type' => 'integer'],
+        ],
         'overheadRates' => [
             'runId' => ['type' => 'string', 'required' => true],
         ],

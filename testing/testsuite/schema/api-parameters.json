@@ -436,6 +436,15 @@
         "$comment": "Must agree with the run named by runId — see fiscalYear."
       }
     },
+    "costingRuns": {
+      "fiscalYear": {
+        "type": "integer",
+        "$comment": "Both filters are optional: the answer to \"which runs exist\" must be reachable without already knowing one."
+      },
+      "period": {
+        "type": "integer"
+      }
+    },
     "overheadRates": {
       "runId": {
         "type": "string",

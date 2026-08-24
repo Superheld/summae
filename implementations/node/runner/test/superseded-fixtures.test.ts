@@ -60,11 +60,29 @@ describe('superseded fixtures register', () => {
   /**
    * A successor that nobody runs would leave the retired fixture's ground uncovered — the point of
    * retiring one is that something else took over its job, not that the job went away.
+   *
+   * Followed through chains, because retirement happens more than once to the same ground:
+   * `system-description` → `-current` → `-invariants`. Only the last link has to run; demanding it
+   * of a middle one would force a retired fixture back into the suite, which is the opposite of
+   * what retiring it meant. A cycle is reported rather than followed forever.
    */
   it('has every successor in expected-green.txt', () => {
-    const missing = [...register]
-      .filter(([, successor]) => !green.has(successor))
-      .map(([fixture, successor]) => `successor "${successor}" of "${fixture}" is not in expected-green.txt`);
+    const missing: string[] = [];
+    for (const [fixture] of register) {
+      const seen = new Set<string>([fixture]);
+      let successor = register.get(fixture)!;
+      while (register.has(successor) && !seen.has(successor)) {
+        seen.add(successor);
+        successor = register.get(successor)!;
+      }
+      if (seen.has(successor)) {
+        missing.push(`supersession chain from "${fixture}" is circular at "${successor}"`);
+        continue;
+      }
+      if (!green.has(successor)) {
+        missing.push(`successor "${successor}" of "${fixture}" is not in expected-green.txt`);
+      }
+    }
     expect(missing).toEqual([]);
   });
 

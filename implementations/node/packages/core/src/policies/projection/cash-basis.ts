@@ -132,9 +132,24 @@ export class CashBasisProjection {
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
       .map((account) => ({ account, assignedTo: gapAccounts.get(account)! }));
 
+    // The result the statement exists to produce (F-IO-003).
+    //
+    // It used to publish every figure it is built from and not the figure itself, and the caller
+    // could not fill the gap: subtracting one bucket from the other is arithmetic across a
+    // projection's own fields, which this library tells embeddings not to do. Meanwhile
+    // `incomeStatement` hands out `netIncome` and `balanceSheet` both totals — three statements of
+    // one family, and the third published neither. All of it is a sum over lines already held here.
+    const incomeRows = this.serializeBucket(income);
+    const expenseRows = this.serializeBucket(expenses);
+    const totalIncome = this.total(incomeRows);
+    const totalExpenses = this.total(expenseRows);
+
     return {
-      income: this.serializeBucket(income),
-      expenses: this.serializeBucket(expenses),
+      income: incomeRows,
+      expenses: expenseRows,
+      totalIncome: totalIncome.amountAsString(),
+      totalExpenses: totalExpenses.amountAsString(),
+      surplus: totalIncome.subtract(totalExpenses).amountAsString(),
       gapWarnings,
     };
   }
@@ -235,6 +250,13 @@ export class CashBasisProjection {
       gapAccounts.set(account.number.value, account.name);
     }
     return account.name;
+  }
+
+  /** Summed from the serialized rows, not from the map: what is reported and what is totalled agree. */
+  private total(rows: Array<{ category: string; amount: string }>): Money {
+    let sum = Money.zero(this.baseCurrency);
+    for (const row of rows) sum = sum.add(Money.of(row.amount, this.baseCurrency));
+    return sum;
   }
 
   private serializeBucket(bucket: Map<string, Money>): Array<{ category: string; amount: string }> {

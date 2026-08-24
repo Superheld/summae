@@ -58,7 +58,7 @@ final readonly class SystemDescriptionProjection
     /** @var list<string> */
     public const API_PROJECTIONS = [
         'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
-        'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList',
+        'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
         'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
         'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn'
     ];
@@ -179,6 +179,18 @@ final readonly class SystemDescriptionProjection
          * @var array{id: string, version: string}|null
          */
         private ?array $packIdentity = null,
+        /**
+         * The tax profile the engine is actually running on (F-TAX-003).
+         *
+         * Nothing reported it, so an embedding could display only what it had written itself — the
+         * same value by construction *in that embedding*, which is a property of one caller and not
+         * a guarantee. It belongs here rather than in a projection of its own: this is the
+         * projection that already describes the tenant, and a Verfahrensdokumentation has to state
+         * which taxation method the books were kept under.
+         *
+         * @var array<string, mixed>|null
+         */
+        private ?array $taxProfile = null,
     ) {
     }
 
@@ -199,6 +211,7 @@ final readonly class SystemDescriptionProjection
                 'baseCurrency' => $this->baseCurrency->code,
             ],
             'pack' => $this->packIdentity,
+            'taxProfile' => $this->taxProfile,
             'journal' => [
                 'appendOnly' => true,
                 'ordering' => 'sequenceNumber',

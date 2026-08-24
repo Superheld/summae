@@ -50,6 +50,12 @@
       "reason": "Pinned `formatVersion: \"0.6\"` in its expectation, so the DATA FORMAT could not be versioned without this fixture going red — the same weld a shipped pack's version was retired for, one layer down. The contract is that an export states the CURRENT format version, and that is pinned where it belongs: `format-version.test.ts` / `FormatVersionTest` compare the constant against the schema's own `$id`, in both languages. The number itself is the product's. It moved to 0.7 on 2026-08-24, when the partner record gained a `status`. Here it was purely incidental: the fixture is about projection parameters having an effect, and it happened to assert an export manifest on the way past."
     },
     {
+      "fixture": "system-description-current",
+      "supersededBy": "system-description-invariants",
+      "on": "2026-08-24",
+      "reason": "Its predecessor was retired for pinning a format version, and the note said the capability lists were 'what it exists to pin'. One capability later that turned out to be the same weld one layer up: the expectation read `summae has exactly these 34 operations and these 22 projections`, so adding a projection made it red — and a library that cannot gain a capability without a fixture generation has the contract pointing the wrong way. The completeness IS a contract and it is guarded where it belongs: `tenant-operations-contract.test.ts` / `TenantOperationsContractTest` hold the published list against the dispatcher's own routing table in BOTH directions, in both languages, so routed-but-unpublished fails as loudly as published-but-unrouted. A hand-copied list in a fixture can only repeat that, at a price per capability. The successor pins everything the description must be right about — invariants with their enforcement, audited events, the journal description, the deliberate boundary — and leaves the length of the catalogue to the product. Retired on the same reading as the pack fixtures: the expectation was never a contract, the mechanism behind it still is."
+    },
+    {
       "fixture": "system-description",
       "supersededBy": "system-description-current",
       "on": "2026-08-24",

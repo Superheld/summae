@@ -23,6 +23,16 @@ export class AssetRegisterProjection {
       row.accumulatedDepreciation = asset.accumulatedDepreciationAt(asOf).toJSON();
       row.bookValue = asset.bookValueAt(asOf).toJSON();
       if (asset.route === 'capitalize') row.depreciationSchedule = asset.scheduleSummary();
+      // The additional allowance, from the register rather than only from a booking's answer
+      // (F-AST-005). `bookSpecialDepreciation` reports what is left AFTER it ran; before it ran,
+      // nothing said whether the asset had elected the allowance at all — so a screen had to offer
+      // the form on every capitalised row and let the engine refuse the ones that had not.
+      const remaining = asset.specialDepreciationRemaining();
+      row.specialDepreciation = {
+        elected: asset.specialDepreciationBudget !== null,
+        allowance: asset.specialDepreciationBudget?.toJSON() ?? null,
+        remaining: remaining?.toJSON() ?? null,
+      };
       rows.push(row);
     }
     return { assets: rows };
