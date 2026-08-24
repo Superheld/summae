@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
+import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 import { DomainError } from '../../../domain-error.js';
 import type { JournalRepository } from '../../../port.js';
 import { CalendarDate } from '../../../substrate/calendar-date.js';
@@ -65,6 +66,8 @@ export class TaxService {
     // audit record names the tenant as the object it belongs to (F-CORE-014 "Steuerschlüssel").
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
+    /** Where a profile change is kept, so it outlives this object (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   profile(): TaxProfile {
@@ -234,6 +237,8 @@ export class TaxService {
         validFrom: { from: null, to: validFrom.iso },
       });
     }
+    // Only here, after the retroactivity guard has let the change through.
+    this.configStore?.rememberTaxProfile(this.profileValue.toJSON());
     return this.profileValue;
   }
 

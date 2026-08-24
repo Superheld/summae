@@ -9,5 +9,7 @@ export {
   DatabaseJournalRepository,
   DatabaseOpenItemRepository,
   DatabasePartnerRepository,
+  DatabaseTenantRecordRepository,
   DatabaseVoucherRepository,
+  listTenants,
 } from './repositories.js';

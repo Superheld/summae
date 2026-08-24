@@ -13,6 +13,7 @@ import {
 } from '@superheld/summae-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DatabaseTenantFactory } from '../src/database-tenant-factory.js';
+import { DatabaseTenantRecordRepository, listTenants } from '../src/repositories.js';
 import { installSchema } from '../src/schema-installer.js';
 import { SyncDb } from '../src/sync-db.js';
 
@@ -40,8 +41,10 @@ function tenantOn(tenantId: string, name = 'Adapter GmbH'): Tenant {
   const clock = FixedClock.at('2026-06-07T12:00:00+02:00');
   // Real UUIDv7 rather than the deterministic generator: two tenants share one database here, and
   // the deterministic generator would hand both of them the same primary keys.
-  return DatabaseTenantFactory.build(db, name, Currency.of('EUR'), clock, new UuidV7IdGenerator(clock), {
+  return DatabaseTenantFactory.build(db, clock, new UuidV7IdGenerator(clock), {
     tenantId: Uuid.fromString(tenantId),
+    name,
+    baseCurrency: Currency.of('EUR'),
   });
 }
 
@@ -335,5 +338,87 @@ describe('tenant scoping', () => {
     );
 
     expect(tenantOn(TENANT_A, 'A').assets.byId(id)?.dimensions).toEqual([]);
+  });
+});
+
+/**
+ * SPEC-015: the configuration five operations change now outlives the object that changed it.
+ *
+ * These are the tests the finding says could not exist. A fixture builds one tenant in one process,
+ * where a registry held in memory and a registry read from a table behave identically — so the
+ * whole class of defect was invisible to 154 green fixtures. Here the tenant is deliberately thrown
+ * away and reopened, which is the only way to ask the question at all.
+ */
+describe('tenant configuration survives the process (SPEC-015)', () => {
+  const TENANT_C = '0195f000-0000-7000-8000-00000000cccc';
+
+  it('keeps a dimension type, so the posting that uses it is accepted after a reopen', () => {
+    new TenantOperations(tenantOn(TENANT_C, 'Config GmbH')).execute('defineDimensionType', {
+      code: 'costCenter',
+    });
+    new TenantOperations(tenantOn(TENANT_C)).execute('defineDimensionValue', {
+      type: 'costCenter',
+      code: 'FERTIGUNG',
+    });
+
+    // The second call above is already the proof: declaring a VALUE of `costCenter` from a fresh
+    // tenant object can only work if the TYPE declared in the first one is still known. Before this,
+    // it answered E_DIMENSION_INVALID for a type the caller had just created.
+    //
+    // A third, independent open confirms it from the other side: redeclaring the type is refused as
+    // a duplicate, which an empty registry would have accepted.
+    expect(() =>
+      new TenantOperations(tenantOn(TENANT_C)).execute('defineDimensionType', { code: 'costCenter' }),
+    ).toThrow(/E_DIMENSION_INVALID|already/i);
+
+    expect(new DatabaseTenantRecordRepository(db, Uuid.fromString(TENANT_C)).load()?.config).toMatchObject({
+      dimensionTypes: [{ code: 'costCenter' }],
+      dimensionValues: [{ typeCode: 'costCenter', code: 'FERTIGUNG' }],
+    });
+  });
+
+  it('keeps a tax profile change', () => {
+    new TenantOperations(tenantOn(TENANT_C, 'Config GmbH')).execute('setTaxProfile', {
+      smallBusiness: { validFrom: '2026-01-01', value: true },
+    });
+
+    expect(tenantOn(TENANT_C).tax.profile().smallBusinessAt(CalendarDate.of('2026-06-01'))).toBe(true);
+  });
+
+  it('keeps an allocation scheme, and replays it without auditing a change nobody made', () => {
+    const first = tenantOn(TENANT_C, 'Config GmbH');
+    new TenantOperations(first).execute('setAllocationScheme', {
+      method: 'step_ladder',
+      steps: [{ sender: 'HILFS', receivers: [{ costCenter: 'FERTIGUNG', share: '1' }] }],
+    });
+    const auditedOnce = first.audit.all().filter((r) => r.objectType === 'allocationScheme').length;
+
+    const reopened = tenantOn(TENANT_C);
+    expect(reopened.audit.all().filter((r) => r.objectType === 'allocationScheme')).toHaveLength(auditedOnce);
+
+    // That the scheme reached the live object, and not merely the table: the audit record of the
+    // NEXT change reports what it replaced, and `stepCount.from` can only be 1 if the reopened
+    // service was actually carrying the stored step.
+    new TenantOperations(reopened).execute('setAllocationScheme', { method: 'step_ladder', steps: [] });
+    const change = reopened.audit
+      .all()
+      .filter((record) => record.objectType === 'allocationScheme')
+      .at(-1);
+    expect(change?.changes.stepCount).toEqual({ from: 1, to: 0 });
+  });
+
+  it('names its tenant, so an id that belongs to no books is distinguishable from a new one', () => {
+    tenantOn(TENANT_C, 'Config GmbH');
+
+    expect(listTenants(db).map((row) => row.name)).toContain('Config GmbH');
+    expect(new DatabaseTenantRecordRepository(db, Uuid.fromString(TENANT_B)).load()).toBeNull();
+  });
+
+  it('lets the stored record win over what a later open passes in', () => {
+    tenantOn(TENANT_C, 'The name it was created with');
+
+    // The seed rule: a second open passing a different name changes nothing. Two sources of truth
+    // that drift is the state this finding came out of.
+    expect(tenantOn(TENANT_C, 'A different name later').name).toBe('The name it was created with');
   });
 });

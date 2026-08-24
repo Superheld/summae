@@ -4,6 +4,7 @@ import type { AccountRepository,
 import type { Currency } from '../../../substrate/currency.js';
 import { InvalidValue } from '../../../substrate/errors.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
+import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 import type { IdGenerator } from '../../../substrate/id-generator.js';
 import { Money } from '../../../substrate/money.js';
 import { PeriodRef } from '../../../substrate/period-ref.js';
@@ -139,6 +140,8 @@ export class CostingService {
     // audit record names the tenant as its object (F-CORE-014 "Profile").
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
+    /** Where the scheme is kept, so it outlives this object (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   /** The resolved pack bundle (`productionCost` is read here). */
@@ -146,9 +149,44 @@ export class CostingService {
     this.ruleModule = ruleModule;
   }
 
+  /**
+   * Replays a stored scheme when a tenant is opened (SPEC-015).
+   *
+   * Same parsing and the same refusals as `setAllocationScheme` — deliberately, so a scheme that
+   * was accepted once is validated again by the one reader rather than trusted because it is
+   * stored. What it does NOT do is audit or store: reopening a tenant is not a change, and a replay
+   * that recorded `allocationScheme/changed` would fill the trail with events nobody caused.
+   */
+  restoreAllocationScheme(input: Record<string, unknown>): void {
+    this.applyAllocationScheme(input);
+  }
+
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
     const previousStepCount = this.schemeSteps.length;
     const previousRateCount = this.rateDefinitions.length;
+    const result = this.applyAllocationScheme(input);
+
+    if (this.audit !== null && this.tenantId !== null) {
+      this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
+        method: { from: null, to: result.method },
+        stepCount: { from: previousStepCount, to: result.stepCount },
+        rateCount: { from: previousRateCount, to: result.rateCount },
+      });
+    }
+    // The raw input, not the parsed fields: it is exactly what this method accepts, so reloading it
+    // on the next open runs the same validation again rather than a second, drifting reader.
+    this.configStore?.rememberAllocationScheme(input);
+
+    return result;
+  }
+
+  private applyAllocationScheme(input: Record<string, unknown>): {
+    valid: boolean;
+    method: string;
+    stepCount: number;
+    rateCount: number;
+    productionCostComponents: number;
+  } {
     const method = typeof input.method === 'string' ? input.method : 'step_ladder';
 
     if (!METHODS.includes(method)) {
@@ -205,14 +243,6 @@ export class CostingService {
     this.method = method;
     this.rateDefinitions = rates;
     this.productionCostConfig = productionCost;
-
-    if (this.audit !== null && this.tenantId !== null) {
-      this.audit.record(this.audit.actorOf(input), 'allocationScheme', this.tenantId, 'changed', {
-        method: { from: null, to: method },
-        stepCount: { from: previousStepCount, to: steps.length },
-        rateCount: { from: previousRateCount, to: rates.length },
-      });
-    }
 
     return {
       valid: true,

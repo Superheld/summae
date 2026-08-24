@@ -14,7 +14,9 @@ export class DatabaseSubjectFactory implements SubjectFactory {
     return new CoreSubject((name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings) => {
       const db = new SyncDb(':memory:');
       installSchema(db);
-      return DatabaseTenantFactory.build(db, name, baseCurrency, clock, ids, {
+      return DatabaseTenantFactory.build(db, clock, ids, {
+        name,
+        baseCurrency,
         dimensions,
         taxCodes,
         taxProfile,

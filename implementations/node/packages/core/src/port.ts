@@ -93,6 +93,51 @@ export interface CostingRunRepository {
   all(): CostingRun[];
 }
 
+/**
+ * What a tenant *is*, apart from its books (SPEC-015).
+ *
+ * Everything else in this file persists a record the books are made of. This one persists the
+ * tenant itself — its identity and the configuration it was set up with — and it exists because
+ * that configuration had no owner at all: the tax profile, the dimension registry, the allocation
+ * scheme and the imported mappings were constructor arguments rebuilt from whatever the caller
+ * passed on every open. Five operations changed them, wrote a durable audit record about it, and
+ * lost the change with the process.
+ *
+ * The chart of accounts settles the question of whether this is the library's business: it is
+ * seeded from the pack, stored per tenant, changed by operations and read back by a projection,
+ * and nobody ever argued it belonged to the embedding. A cost centre is master data the same way
+ * an account is.
+ *
+ * Scoped to one tenant like every other repository here, so `load` needs no argument. Listing the
+ * tenants in a store is deliberately NOT part of this port: a repository here answers for the
+ * tenant it was built for, and "which tenants exist" is a question about the store, which the
+ * adapter answers (`listTenants`).
+ */
+export interface TenantRecordRepository {
+  load(): TenantRecordData | null;
+  save(record: TenantRecordData): void;
+}
+
+/**
+ * The stored form. Deliberately raw data rather than the built objects: what goes in is exactly
+ * what `TaxProfile.fromData`, `DimensionRegistry.fromData`, `setAllocationScheme` and
+ * `importMapping` accept, so the round trip is symmetric by construction and no second serializer
+ * can drift from the first one.
+ */
+export interface TenantRecordData {
+  id: string;
+  name: string;
+  baseCurrency: string;
+  packIdentity: { id: string; version: string } | null;
+  config: {
+    taxProfile: Record<string, unknown> | null;
+    dimensionTypes: Array<{ code: string }>;
+    dimensionValues: Array<{ typeCode: string; code: string }>;
+    allocationScheme: Record<string, unknown> | null;
+    mappings: Record<string, unknown>[];
+  };
+}
+
 export interface PartnerRepository {
   add(partner: Partner): void;
   save(partner: Partner): void;
