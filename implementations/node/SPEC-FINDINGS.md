@@ -53,7 +53,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | IMPL-026 a yearly run before a mid-year disposal left the asset account below zero | **RESOLVED 2026-08-24** — the disposal read the carrying amount as of the disposal date and ignored a run booked on 31 December. Now read from the whole ledger. Found by the embedding app (its F-15). Write-up on the PHP side |
 | IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — `accountIds` declared but never written, `accountNumbers` written but never declared, and partners exported with nulls that the schema refuses. No schema test had exported a partner; one does now. Write-up on the PHP side |
 | IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `.cross-dbs/` was never cleared, so a retired fixture's old oracle kept being compared. Write-up on the PHP side |
-| SPEC-015 tenant configuration has no owner | **OPEN 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings are constructor arguments rebuilt on every open; the five operations that change them audit durably and persist nothing. Our own CLI ships with four of the five silently ineffective (only `importMapping` has a write-back). No test can see it: fixtures are single-process, and no scenario touches these operations |
+| SPEC-015 tenant configuration has no owner | **RESOLVED 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings were constructor arguments rebuilt on every open, so the five operations that change them audited durably and persisted nothing; our own CLI shipped with four of the five silently ineffective. Now a `summae_tenants` table, the stored record winning over the passed seed, and the CLI's hand-rolled `importMapping` write-back deleted. No fixture could ever have seen it (single-process); guarded now by `regression/tenant-configuration.json` — one CLI invocation per step — plus both adapter suites: seven tests go red without the fix |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **IMPL-015**, which turned out to matter here too: giving the persistence adapters their own
@@ -855,3 +855,48 @@ Not (3): `defineDimensionType` is how a tenant gets a cost centre, and cost acco
 centres is not a capability. Between (1) and (2), (1) is the one that matches what the chart of
 accounts has done since 0.2.0, and (2) requires arguing why the chart is different — which it is
 not.
+
+**Resolved 2026-08-24: answer (1), the configuration is persisted.** A `summae_tenants` table now
+holds the tenant itself — id, name, base currency, pack provenance, and the four configurations as
+one JSON document. The port is `TenantRecordRepository` (in-memory + knex + laravel), the writer is
+`TenantConfigStore`, and each of the five operations calls it *after* it has succeeded, so a
+rejected operation stores nothing.
+
+**The stored record wins; what a caller passes is a seed.** It is written on the first open of a
+tenant with no row and ignored afterwards. The alternative — arguments win when given — is the
+state this finding came out of: two claims on the truth that drift the first time an operation
+changes one. The rule lives in the core (`openTenantConfiguration`), not in the adapters, so the
+two languages cannot answer it differently. It also dissolves the trap the embedding app reported:
+passing your cost centres in *and* declaring them was the only way to make cost accounting work,
+and it answered `E_DIMENSION_INVALID` for a code you were declaring for the first time. Now either
+one works.
+
+The pack stays the embedding's, passed on every open and never stored: it is versioned product data
+the caller pins, and a copy beside the books would make two answers out of "which rules is this
+tenant on". `packIdentity` is recorded as provenance, not as a substitute.
+
+**Two things came out of the fix that were not in the finding:**
+
+- **The replay had to be deferred.** Applying a stored allocation scheme while building the tenant
+  runs *before* the caller sets the pack, so a scheme naming production-cost treatments made opening
+  the books fail on something that was valid when it was set. `restoreAllocationScheme` now hands
+  the scheme back and `setAllocationScheme`/`run` — the only entry points that read one — apply it
+  on first use. Reading a journal needs no allocation scheme, and a stored scheme the *current* pack
+  no longer accepts should fail when somebody runs a costing, with that operation's own error. The
+  cross-test found this, not a unit test.
+- **`listTenants`** answers which tenants a store holds (`packages/knex/src/repositories.ts`,
+  `DatabaseTenantRecordRepository::listTenants`). It is deliberately **not** a projection — a
+  projection is computed *on* a tenant and this question has none to run on — which is also the
+  answer to the app's F-21: the register is the adapter's, not the dispatcher's, and an unknown
+  `tenantId` is now distinguishable from a new one because a tenant with no row does not exist.
+
+**The gate gap is closed with it.** `testing/scenarios/regression/tenant-configuration.json` drives
+the five operations through the CLI, each step its own invocation, so every configuration change has
+to survive a rebuild of the tenant to pass. Both languages read that file. Plus the adapter suites
+(`packages/knex/test/adapter.test.ts`, `packages/laravel/tests/TenantConfigPersistenceTest.php`).
+Verified by removing the fix: **seven scenario/adapter tests go red**, including two CLI tests that
+were only green because of the hand-rolled `rememberMapping` write-back — which is now gone from
+both CLIs.
+
+`testing/scenarios/README.md` records the general lesson: a scenario is the only place in this test
+landscape where "does this survive the process" can be asked at all.

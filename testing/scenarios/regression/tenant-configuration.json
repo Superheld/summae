@@ -1,0 +1,123 @@
+{
+  "id": "tenant-configuration",
+  "description": "SPEC-015: the five operations that change tenant configuration used to change a live object and nothing else — they returned success, wrote a durable audit record, and were forgotten the moment the process ended. Only `importMapping` had a write-back, hand-rolled in the CLI; the other four shipped broken. Every step here runs as its own CLI invocation, which builds the tenant from the database again, so a configuration change that does not survive fails the step that uses it. This is the only place in the whole test landscape where the question can be asked at all: fixtures build one tenant in one process, where an in-memory registry and a stored one are indistinguishable.",
+  "init": { "pack": "de", "currency": "EUR", "firstFiscalYear": 2026 },
+  "expect": { "initialized": true, "created.fiscalYears": 1 },
+  "steps": [
+    {
+      "name": "declare a cost centre axis — before SPEC-015 this returned {code} and stored nothing",
+      "op": "defineDimensionType",
+      "input": { "code": "costCenter" },
+      "expect": { "code": "costCenter" }
+    },
+    {
+      "name": "a separate invocation declares a VALUE of that axis — it can only resolve the type if the previous call outlived its process (this answered E_DIMENSION_INVALID)",
+      "op": "defineDimensionValue",
+      "input": { "type": "costCenter", "code": "FERTIGUNG" },
+      "expect": { "type": "costCenter", "code": "FERTIGUNG" }
+    },
+    {
+      "name": "redeclaring the type is refused as a duplicate — an empty registry would have accepted it",
+      "op": "defineDimensionType",
+      "input": { "code": "costCenter" },
+      "expectError": "E_DIMENSION_INVALID"
+    },
+    {
+      "name": "a voucher for the expense posting",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-100", "voucherDate": "2026-04-01" } },
+      "capture": { "expenseVoucher": "id" },
+      "expect": { "voucherNumber": "ER-100" }
+    },
+    {
+      "name": "posting a cost onto the cost centre — the declaration two invocations ago has to still be there",
+      "op": "post",
+      "input": {
+        "voucherId": "$expenseVoucher",
+        "entryDate": "2026-04-01",
+        "text": "Energie Fertigung",
+        "lines": [
+          {
+            "account": "6040",
+            "side": "debit",
+            "money": { "amount": "400.00", "currency": "EUR" },
+            "dimensions": [{ "type": "costCenter", "code": "FERTIGUNG" }]
+          },
+          { "account": "1200", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "lines[0].dimensions[0].code": "FERTIGUNG" }
+    },
+    {
+      "name": "an undeclared cost centre is still refused — persistence must not turn the registry into a rubber stamp",
+      "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "ER-101", "voucherDate": "2026-04-02" } },
+      "capture": { "secondVoucher": "id" },
+      "expect": { "voucherNumber": "ER-101" }
+    },
+    {
+      "name": "…here",
+      "op": "post",
+      "input": {
+        "voucherId": "$secondVoucher",
+        "entryDate": "2026-04-02",
+        "text": "unknown centre",
+        "lines": [
+          {
+            "account": "6040",
+            "side": "debit",
+            "money": { "amount": "10.00", "currency": "EUR" },
+            "dimensions": [{ "type": "costCenter", "code": "VERTRIEB" }]
+          },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expectError": "E_DIMENSION_INVALID"
+    },
+    {
+      "name": "an allocation scheme — stored, and replayed on the next open rather than at build time",
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [],
+        "rates": [
+          { "costCenter": "FERTIGUNG", "label": "Fertigungszuschlag", "accounts": ["5000"] }
+        ]
+      },
+      "expect": { "valid": true, "stepCount": 0, "rateCount": 1 }
+    },
+    {
+      "name": "a costing run in a LATER invocation finds the scheme — the rate is computed from a scheme this process never set",
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 4 },
+      "capture": { "run": "runId" },
+      "expect": { "status": "draft", "version": 1 }
+    },
+    {
+      "name": "and the rate it froze names the cost centre from the stored scheme",
+      "report": "overheadRates",
+      "params": { "runId": "$run" },
+      "expect": { "rates[0].costCenter": "FERTIGUNG" }
+    },
+    {
+      "name": "the tax profile: § 19 from mid-year, stored",
+      "op": "setTaxProfile",
+      "input": { "smallBusiness": { "validFrom": "2026-05-01", "value": true } },
+      "expect": { "smallBusiness[0].validFrom": "2026-05-01", "smallBusiness[0].value": true }
+    },
+    {
+      "name": "a later invoice in a separate invocation derives NO tax line — the profile change is what makes that true, and it used to be gone by now",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-900", "voucherDate": "2026-06-01" },
+        "entryDate": "2026-06-01",
+        "text": "after the small-business election",
+        "taxCode": "USt19",
+        "direction": "output",
+        "netLines": [{ "account": "4000", "money": { "amount": "100.00", "currency": "EUR" } }],
+        "counterAccount": "1400"
+      },
+      "expect": { "grossTotal.amount": "100.00", "taxLines": [] }
+    }
+  ]
+}
