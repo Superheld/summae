@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Expansion\Tax;
 
+use Summae\Core\DomainError;
 use Summae\Core\Substrate\CalendarDate;
 
 /**
@@ -23,13 +24,37 @@ final class TaxProfile implements \JsonSerializable
     ) {
     }
 
+    /** @var list<string> */
+    private const array METHODS = ['accrual', 'cash'];
+
+    /** @var list<string> */
+    private const array PERIODS = ['monthly', 'quarterly', 'yearly'];
+
     /**
+     * The two documented sets, refused rather than approximated (F-TAX-003).
+     *
+     * `taxationMethod` used to be `=== 'cash' ? 'cash' : 'accrual'` and `vatPeriod`
+     * `=== 'monthly' ? 'monthly' : 'quarterly'`, so a typo, a `null` or an array all arrived as a
+     * valid-looking profile that books differently, and nothing said so. This is not a value object
+     * built from a trusted internal source: `fromData` is fed from an embedding's configuration
+     * file, which is exactly where a typo lives — and the value it decides is whether VAT falls due
+     * on invoice or on payment.
+     *
+     * **The two sets are not the same kind of thing, and only one of them is safely here.**
+     * `taxationMethod` is substrate mechanism: accrual and cash are the two ways this engine can
+     * time a tax liability, and it implements both. `vatPeriod` is a *label* — it records which
+     * window a tenant files in and selects nothing (`vatReturn` takes its own window). Which filing
+     * windows exist is a question jurisdictions answer differently, so a closed list of them in the
+     * substrate is a claim the substrate has no business making. `yearly` is added here because the
+     * previous list was wrong in a way that lost data silently, not because the list is now right.
+     * Open, with the reasoning: SPEC-016.
+     *
      * @param array<mixed> $data {taxationMethod?, smallBusiness?: bool|list, vatPeriod?}
      */
     public static function fromData(array $data): self
     {
-        $method = ($data['taxationMethod'] ?? null) === 'cash' ? 'cash' : 'accrual';
-        $vatPeriod = ($data['vatPeriod'] ?? null) === 'monthly' ? 'monthly' : 'quarterly';
+        $method = self::oneOf($data, 'taxationMethod', self::METHODS, 'accrual');
+        $vatPeriod = self::oneOf($data, 'vatPeriod', self::PERIODS, 'quarterly');
 
         $segments = [];
         $smallBusiness = $data['smallBusiness'] ?? false;
@@ -52,6 +77,30 @@ final class TaxProfile implements \JsonSerializable
         }
 
         return new self($method, self::sorted($segments), $vatPeriod);
+    }
+
+    /**
+     * Absent keeps the documented default; anything else must be one of the documented values.
+     *
+     * @param array<mixed> $data
+     * @param list<string> $allowed
+     */
+    private static function oneOf(array $data, string $field, array $allowed, string $fallback): string
+    {
+        if (!array_key_exists($field, $data)) {
+            return $fallback;
+        }
+
+        $value = $data[$field];
+        if (is_string($value) && in_array($value, $allowed, true)) {
+            return $value;
+        }
+
+        throw new DomainError(
+            'E_INPUT_INVALID',
+            sprintf('taxProfile.%s must be one of "%s"', $field, implode('", "', $allowed)),
+            [$field => is_string($value) ? $value : ($value === null ? null : get_debug_type($value))],
+        );
     }
 
     public static function default(): self

@@ -203,7 +203,7 @@ export class Tenant {
       auditWriter,
       configStore,
     );
-    const partnerService = new PartnerService(partners, audit, clock, ids);
+    const partnerService = new PartnerService(partners, audit, clock, ids, accounts);
 
     return new Tenant(
       tenantId,

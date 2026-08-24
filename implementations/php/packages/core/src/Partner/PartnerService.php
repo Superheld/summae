@@ -7,6 +7,8 @@ namespace Summae\Core\Partner;
 use Summae\Core\DomainError;
 use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\AccountRepository;
+use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Port\PartnerRepository;
 use Summae\Core\Substrate\Clock;
 use Summae\Core\Substrate\Exception\InvalidValue;
@@ -24,7 +26,47 @@ final readonly class PartnerService
         private AuditTrail $audit,
         private Clock $clock,
         private IdGenerator $ids,
+        /**
+         * The chart, so an account link can be checked against it (F-CORE-032).
+         *
+         * Not optional: a service built without it would validate nothing and say nothing, which is
+         * the state this check was added to end.
+         */
+        private AccountRepository $accounts,
     ) {
+    }
+
+    /**
+     * A partner may only be linked to accounts the books actually carry.
+     *
+     * Without this a partner could be linked to 9999 in a chart that stops at 3110: the operation
+     * succeeded, the link was stored as a list of strings on the aggregate, and nothing ever
+     * reported it. That is master data wrong for every reader of the books, not only for the screen
+     * that entered it — the same argument that pulled `name` and `kind` in here rather than leaving
+     * them to the embedding. The account link was made updatable in that pass and its check was not.
+     *
+     * Whole-list semantics are untouched: an empty list still clears the link.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function validateAccountNumbers(array $input): void
+    {
+        if (!is_array($input['accountNumbers'] ?? null)) {
+            return;
+        }
+
+        foreach ($input['accountNumbers'] as $value) {
+            if (!is_string($value)) {
+                continue;
+            }
+            if ($this->accounts->byNumber(AccountNumber::of($value)) === null) {
+                throw new DomainError(
+                    'E_ACCOUNT_UNKNOWN',
+                    sprintf('Account %s does not exist in this chart', $value),
+                    ['account' => $value],
+                );
+            }
+        }
     }
 
     /** @param array<string, mixed> $input */
@@ -62,6 +104,7 @@ final readonly class PartnerService
     public function create(array $input): Partner
     {
         $this->validateMasterData($input, true);
+        $this->validateAccountNumbers($input);
 
         /** @var list<string> $accountNumbers */
         $accountNumbers = array_values(array_filter(
@@ -94,6 +137,7 @@ final readonly class PartnerService
         $partner = $this->require($input['partnerId'] ?? null);
         // Absent leaves the name alone; present and empty is the same mistake as creating without one.
         $this->validateMasterData($input, false);
+        $this->validateAccountNumbers($input);
         $changes = $partner->update($input);
 
         if ($changes !== []) {

@@ -220,8 +220,12 @@ is the whole call, because the tenant's name, currency and configuration come ba
 from its own row. The schema must be installed beforehand (`installSchema`).
 
 `listTenants(db)` (PHP: `DatabaseTenantRecordRepository::listTenants($connection)`)
-answers which tenants a store holds. It is not a projection: a projection is computed
-*on* a tenant, and this question has none to run on.
+answers which tenants a store holds, so you can look one up instead of keeping a
+second list beside the books. It is not a projection — a projection is computed *on* a
+tenant, and this question has none to run on — and it is **not a tenant register**: it
+reads the rows summae wrote and nothing else. Registering, naming, selecting and setting
+up tenants stays the embedding application's, along with anything a person chooses
+between. What changed is only that the books can now be asked what they contain.
 
 ### CLI workspace (PHP and Node)
 
@@ -563,9 +567,15 @@ Directly as `setup.tenant.taxProfile` or as `profile.defaults`.
 
 | Field | Type | Default | Meaning |
 |------|-----|---------|-----------|
-| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation (anything ≠ `"cash"` ⇒ accrual) |
-| `vatPeriod` | `"monthly"` \| `"quarterly"` | `quarterly` | VAT-return period |
+| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation; **any other value is `E_INPUT_INVALID`** |
+| `vatPeriod` | `"monthly"` \| `"quarterly"` \| `"yearly"` | `quarterly` | which window the tenant files in — **descriptive only**, it selects no window in `vatReturn`; any other value is `E_INPUT_INVALID` |
 | `smallBusiness` | bool \| list | `false` | small-business scheme; as bool or as a segment list `[{validFrom, value}]` for a mid-year switch |
+
+> **Absent is a default; a wrong value is a mistake.** Both fields used to fall back silently —
+> anything that was not `"cash"` became accrual and anything that was not `"monthly"` became
+> quarterly. A typo in a configuration file therefore decided whether VAT falls due on invoice or on
+> payment, and a tenant that wrote `"yearly"` filed quarterly, with no error and no warning. Leaving
+> a field out still gives you the documented default.
 
 ### `dimensionTypes[]` / `dimensionValues[]` / `dimensionRules[]`
 
@@ -725,12 +735,24 @@ and tax lines are produced automatically.
 | `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
-| `netLines` | array of `{account, money}` | no | net lines |
+| `netLines` | array of `{account, money, taxCode?, dimensions?}` | no | net lines; `dimensions` carries onto the resulting net line, not onto the tax line |
 | `counterAccount` | string | yes | gross contra-account (bank/receivable) |
 | `entryDate` | string | no | default = `voucher.voucherDate` |
 
 Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
+
+> **Dimensions belong to the net line, never to the tax line.** A net line's
+> `dimensions` (`[{ "type": "costCenter", "code": "FERTIGUNG" }]`) are carried through the tax
+> expansion onto the posting line for that account. The derived tax line and the gross
+> contra-account get none: input tax belongs to the tax account and a payable to the creditor —
+> neither belongs to a department, and splitting them across cost centres would invent an
+> allocation nobody asked for. The values are validated by the ledger as always, so an undeclared
+> cost centre is `E_DIMENSION_INVALID` here exactly as it is on `post`.
+>
+> This is what makes an operating expense with input tax usable in cost accounting — the ordinary
+> way a cost reaches a cost centre. Until 2026-08-24 the expansion dropped it: the posting
+> succeeded, the figures were right, and the entry reached the journal with `dimensions: []`.
 
 > **A tax code is required in practice.** `taxCode` is formally optional, but a
 > net line without one — and without a pack default — is rejected with
@@ -957,7 +979,7 @@ lines including tax lines, tax tags, and the gross total (the precursor to
 | `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
 | `direction` | string | no | `output` (default, credit) or `input` (debit) |
 | `taxCode` | string | no | default key for positions without their own |
-| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`) |
+| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions`) |
 
 Calculation: tax **per voucher and per rate** (net total per key, rounded
 half-up once — not per position); groups sorted by tax account (codepoints).
@@ -1017,6 +1039,12 @@ Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
 `customer`/`supplier`/`both`, anything else is `E_INPUT_INVALID`), `vatId` (no),
 `paymentTermsDays` (no), `accountNumbers[]` (no), `address` (no). Output:
 serialized partner with a generated `id`. Writes an audit entry.
+
+⚠ **`accountNumbers` are checked against the chart** on `createPartner` and `updatePartner` alike:
+a number the books do not carry is `E_ACCOUNT_UNKNOWN`. A partner linked to an account that does not
+exist is master data wrong for every reader of the books, not only for the screen that entered it.
+The whole-list semantics are unchanged — a valid list replaces the previous one, an empty list
+clears the link.
 
 ⚠ **A nameless partner is refused**, and so is a whitespace-only one. `name`
 used to default to `""`, which produced a partner indistinguishable from the

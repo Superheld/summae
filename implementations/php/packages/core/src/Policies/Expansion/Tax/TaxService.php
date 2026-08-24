@@ -84,7 +84,17 @@ final readonly class TaxService
             throw new DomainError('E_ENTRY_TOO_FEW_LINES', 'expandTax without net lines');
         }
 
-        /** @var list<array{account: string, money: Money, code: string}> $netLines */
+        /**
+         * `dimensions` is carried through untouched, never interpreted here (F-CORE-006).
+         *
+         * The expansion used to rebuild each input line as account/money/code, so everything else
+         * on it — `dimensions` above all — was gone before the line reached the ledger. The posting
+         * succeeded, the figures were right, and the cost centre had disappeared. Validating the
+         * values is the ledger's job (they are a constraint, not an expansion), so this is a
+         * passthrough: an unknown cost centre is still refused, now that the line arrives whole.
+         *
+         * @var list<array{account: string, money: Money, code: string, dimensions: list<mixed>}> $netLines
+         */
         $netLines = [];
         foreach ($rawLines as $rawLine) {
             if (!is_array($rawLine)) {
@@ -100,6 +110,7 @@ final readonly class TaxService
                 'account' => is_string($rawLine['account'] ?? null) ? $rawLine['account'] : '',
                 'money' => $this->parseMoney($rawLine['money'] ?? null),
                 'code' => $code,
+                'dimensions' => is_array($rawLine['dimensions'] ?? null) ? array_values($rawLine['dimensions']) : [],
             ];
         }
 
@@ -131,6 +142,7 @@ final readonly class TaxService
                     'side' => $direction === 'output' ? 'credit' : 'debit',
                     'money' => $line['money']->jsonSerialize(),
                     'taxTag' => null,
+                    'dimensions' => $line['dimensions'],
                 ], $netLines),
                 'taxLines' => [],
                 'grossTotal' => $netTotal->jsonSerialize(),
@@ -166,6 +178,7 @@ final readonly class TaxService
                     'side' => $sideFor,
                     'money' => $line['money']->jsonSerialize(),
                     'taxTag' => $tag,
+                    'dimensions' => $line['dimensions'],
                 ];
             }
 
@@ -220,6 +233,7 @@ final readonly class TaxService
                 'side' => $direction === 'output' ? 'credit' : 'debit',
                 'money' => $line['money']->jsonSerialize(),
                 'taxTag' => $baseTags[$line['code']] ?? null,
+                'dimensions' => $line['dimensions'],
             ], $netLines),
             'taxLines' => $this->withoutZeroTaxLines($taxLines),
             'grossTotal' => $grossTotal->jsonSerialize(),
