@@ -40,7 +40,21 @@ Die Abschnitte unten sind nach **Bounded Context** gegliedert (Ledger, Tax, Asse
 
 ## Projektionen (lesend, deterministisch, `asOf`-fähig)
 
-`trialBalance` (SuSa) · `accountSheet` (Kontoblatt) · `balanceSheet` · `incomeStatement` · `cashBasisReport` (EÜR, Regeln R1–R7) · `vatReturn` (USt-VA-Kennzahlen) · `openItems` (OP-Liste) · `assetRegister` (Anlageverzeichnis) · `auditLog` (Änderungshistorie) · `journalExport` (GoBD Z3) · `datevExport` (Buchungsstapel)
+`accounts` (Kontenrahmen) · `accountSheet` (Kontoblatt) · `assetRegister` (Anlageverzeichnis) ·
+`auditDataExport` (AICPA ADS) · `auditLog` (Änderungshistorie) · `balanceSheet` (Bilanz) ·
+`cashBasisReport` (EÜR, Regeln R1–R7) · `cashJournal` (Kassenbuch) · `costAllocationSheet` (BAB) ·
+`costingRuns` (welche Abrechnungsläufe es gibt) · `datevExport` (Buchungsstapel) ·
+`ecSalesList` (Zusammenfassende Meldung) · `fiscalYears` (Geschäftsjahre und Periodenstatus) ·
+`incomeStatement` (GuV) · `journal` (gefenstertes Journal) · `journalExport` (GoBD Z3) ·
+`openItems` (OP-Liste) · `overheadRates` (Kalkulationssätze) · `productionCost` (Herstellungskosten) ·
+`systemDescription` (technische Systembeschreibung) · `trialBalance` (SuSa) ·
+`unfinalizedEntries` (noch nicht festgeschriebene Buchungen) · `vatReturn` (USt-VA-Kennzahlen)
+
+> Diese Liste ist **die vollständige**, und sie muss es bleiben: `systemDescription` veröffentlicht
+> dieselbe Aufzählung als `capabilities.projections`, und ein Contract-Test hält sie gegen die
+> Routing-Tabelle des Dispatchers — in beide Richtungen, in beiden Sprachen. Eine Projektion, die
+> hier fehlt und dort existiert, ist derselbe Defekt wie eine, die hier steht und nirgends
+> geroutet ist.
 
 Alle: Zeitraum/Stichtag + Optionen rein → strukturierte Daten raus. Kein Zustand, keine Seiteneffekte; gleiche Eingabe → byte-identisches Ergebnis (nach Kanonisierung) in allen Implementierungen.
 
@@ -207,7 +221,15 @@ im Manifest.
 
 ## Costing
 
-`setReconciliationRules` · `setAllocationScheme` · `runCosting(period)` → Version (draft) · `releaseCosting(runId)` · Projektionen: `costAllocationSheet` (BAB), `reconciliationBridge` (Abstimmbrücke), `costObjectReport`
+`setAllocationScheme` · `runCosting(period)` → Version (draft) · `releaseCosting(runId)` ·
+Projektionen: `costingRuns` (welche Läufe es gibt — der Weg zu einer `runId`), `costAllocationSheet`
+(BAB), `overheadRates` (Zuschlagssätze), `productionCost` (Herstellungskosten § 255 Abs. 2 HGB).
+
+> **Noch nicht gebaut, hier als Zielzustand:** `setReconciliationRules` und die Projektionen
+> `reconciliationBridge` (Abstimmbrücke, F-KLR-002) und `costObjectReport`. Sie standen bis
+> 2026-08-24 ohne Kennzeichnung in dieser Zeile, während die drei tatsächlich gebauten Projektionen
+> fehlten — eine Spec, die vorhandene Fähigkeiten verschweigt und abwesende nennt, ist in beide
+> Richtungen unbrauchbar.
 
 ## Anwendungsschicht-Komposition (Teil der Spec!)
 

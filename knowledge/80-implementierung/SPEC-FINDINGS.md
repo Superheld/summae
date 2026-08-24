@@ -1,4 +1,23 @@
-# SPEC-FINDINGS
+# SPEC-FINDINGS (historisch — Wissensbasis-Seite, erste Runde)
+
+> ## ⚠ Diese Nummern sind **nicht** die aus `implementations/<sprache>/SPEC-FINDINGS.md`
+>
+> Es gibt zwei Register mit denselben Präfixen und **verschiedenen Inhalten**. Hier ist SPEC-010
+> „Fixture `vat-return-cash-basis-rounding` widerspricht der Euro-Floor-Regel"; dort ist SPEC-010
+> „`EXEMPT` kann nicht gebucht werden". Wer eine Nummer nachschlägt, muss also wissen, in welchem
+> Register er steht — genau der Zustand, den die ID-Konvention im Wurzel-`CLAUDE.md`
+> („Namensräume trennen sich am Präfix") verhindern soll. Aufgefallen 2026-08-24.
+>
+> **Dieses Register ist geschlossen und historisch.** Es dokumentiert die Findings der ersten Runde
+> (Spec-Stand v0.2 bis v0.5), als die Wissensbasis noch außerhalb dieses Repos lag und Befunde
+> dorthin zurückflossen. **Nichts wird hier mehr angehängt.** Der aktive Ort ist
+> `implementations/php/SPEC-FINDINGS.md` bzw. `implementations/node/SPEC-FINDINGS.md`; die
+> sprachübergreifenden Einträge stehen in beiden.
+>
+> Umbenannt wurde bewusst nichts: die Nummern sind in Commits, Entscheidungslogs und Spec-Updates
+> zitiert, und eine nachträgliche Umnummerierung würde diese Verweise still falsch machen — dieselbe
+> Begründung, aus der das `CHANGELOG` seine alten Präfixe behält.
+
 
 Befunde aus der Implementierung: Stellen, an denen Spec (v0.2), Fixtures und Modell
 sich widersprechen oder etwas fehlt. Regel aus dem Briefing: **nicht raten, nicht
