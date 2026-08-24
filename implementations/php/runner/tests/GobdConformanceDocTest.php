@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Runner\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Summae\Runner\FixtureLoader;
 
 /**
  * Gate for `docs/gobd-conformance.md`.
@@ -149,6 +150,29 @@ final class GobdConformanceDocTest extends TestCase
         ));
 
         self::assertSame([], $missing, 'the conformance document points at fixtures that do not exist — a ✅ nobody can reproduce');
+    }
+
+    /**
+     * A cited fixture must still RUN, not merely still exist.
+     *
+     * Retiring a fixture leaves the file in place, byte-identical, by design — which is exactly why
+     * existence was the wrong question. Four rows of this document went on citing retired fixtures
+     * for a day without anything noticing: three of them lost their evidence when the data format
+     * moved to 0.7, one when the capability list stopped being pinned. A ✅ whose proof no longer
+     * runs is the failure mode this whole document exists to prevent, one level up.
+     */
+    public function testNoCitedFixtureIsRetired(): void
+    {
+        $retired = FixtureLoader::superseded(self::repoRoot() . '/testing/testsuite/superseded.json');
+        $stale = [];
+        foreach (self::citedFixtures(self::doc()) as $path) {
+            $name = basename($path);
+            if (isset($retired[$name])) {
+                $stale[] = sprintf('%s is retired (superseded by %s)', $path, $retired[$name]);
+            }
+        }
+
+        self::assertSame([], $stale, 'the conformance document cites a fixture the runner no longer runs');
     }
 
     public function testEveryCitedRequirementIsCoveredOrDeclaredAnException(): void

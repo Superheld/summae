@@ -55,6 +55,7 @@ Re-verified against the code on 2026-08-15. PHP counterparts and the older `F-�
 | IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `.cross-dbs/` was never cleared, so a retired fixture's old oracle kept being compared. Write-up on the PHP side |
 | SPEC-015 tenant configuration has no owner | **RESOLVED 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings were constructor arguments rebuilt on every open, so the five operations that change them audited durably and persisted nothing; our own CLI shipped with four of the five silently ineffective. Now a `summae_tenants` table, the stored record winning over the passed seed, and the CLI's hand-rolled `importMapping` write-back deleted. No fixture could ever have seen it (single-process); guarded now by `regression/tenant-configuration.json` — one CLI invocation per step — plus both adapter suites: seven tests go red without the fix |
 | SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | **OPEN 2026-08-24** — refusing an unknown `vatPeriod` needs a list, and `[monthly, quarterly, yearly]` is one the substrate has no business making (Ireland files bi-monthly). Deliberate for now: the field is descriptive, it selects no window and decides no figure, and the previous list was a worse claim. The right shape is a pack declaration, which is a decision, not a refactor. `taxationMethod` beside it is NOT this finding — accrual/cash is substrate mechanism |
+| SPEC-017 the parameter contract reaches keys, not element structures | **OPEN 2026-08-24** — `netLines` is declared `array` and nothing looks inside the elements, so `dimension` instead of `dimensions` books correctly and drops the cost centre. Same on every array input (`lines`, `allocations`, `steps`, `weights`). Not a regression — the outer layer got strict enough that the inner one stands out. Closing it is a choice between element declarations in the contract file, JSON Schema, or per-parser strictness; the first is the obvious continuation and deserves a decision, not a side effect |
 
 Four findings closed on 2026-08-16, all written up on the PHP side —
 including **IMPL-015**, which turned out to matter here too: giving the persistence adapters their own
@@ -942,3 +943,50 @@ worth writing down, because the next reader will see one enum and assume the oth
 time `vatPeriod` stops being descriptive — if a projection ever selects its window from the profile,
 the list starts deciding figures and the argument above expires. Until then the constants stay, with
 this note as the reason they are not defended.
+
+## SPEC-017: the parameter contract reaches keys, not element structures
+
+**Found 2026-08-24, while carrying the net lines' dimensions through the tax expansion (F-CORE-006).**
+
+`api-parameters.json` declares every accepted parameter and every accepted operation input with its
+type, and the dispatcher validates against it *before* routing — an undeclared key is
+`E_INPUT_INVALID`, a declared one of the wrong type is rejected, an absent one keeps its default.
+That closed the accepted-and-ignored class for inputs, and it is what F-9 was about.
+
+It reaches one level deep. `netLines` is declared as `array`, and nothing looks inside the
+elements. So:
+
+```json
+{ "netLines": [ { "account": "6040", "money": {…}, "dimension": [ … ] } ] }
+```
+
+is accepted, books correctly, and drops the cost centre — because the key is `dimension` and the
+engine reads `dimensions`. No error, no warning, and the posting looks right. That is exactly the
+shape of the defect the same fixture just closed, one level further in: the element was dropped
+because nothing carried it, and now it is dropped because nothing checks the key that carries it.
+
+The same gap exists on every array-typed input: `lines` on `post`, `allocations` on `settle`,
+`steps`/`rates` on `setAllocationScheme`, `weights` on `allocate`, `smallBusiness` segments on
+`setTaxProfile`. Some of those have their own parsing that fails loudly on a missing *required*
+field — `post` refuses a line without an account — but an *optional* one is silently absent in all
+of them.
+
+**Why it is not closed here:** element schemas are a different mechanism from a key table, not a
+bigger one. Three shapes are defensible and they are not equivalent:
+
+1. **Element declarations in `api-parameters.json`** — `netLines: { type: 'array', element: {…} }`,
+   validated by the same dispatcher pass. Consistent with what exists, and it means writing the
+   element shape of every array input in the file plus a second traversal in both languages.
+2. **JSON Schema for inputs**, reusing `format.schema.json`'s machinery. Expressive, and it puts a
+   second validation language in front of the dispatcher.
+3. **Per-parser strictness** — each parser rejects keys it does not know, where it already reads the
+   element. Cheapest, and the rule then lives in a dozen places instead of one file, which is
+   precisely what the parameter contract was created to end.
+
+(1) is the obvious continuation, and it should be a decision rather than a side effect of the next
+fix that trips over it. Nothing here is a regression: this gap has existed since the contract was
+written, and the contract made the *outer* layer strict enough that the inner one now stands out.
+
+**What raises the priority:** the fix that found this made `dimensions` meaningful on a net line, so
+there is now an optional element key whose silent absence changes what cost accounting reports.
+Before it, the elements carried nothing optional worth losing.

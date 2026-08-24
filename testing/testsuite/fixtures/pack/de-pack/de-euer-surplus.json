@@ -1,58 +1,149 @@
 {
   "fixture": "de-euer-surplus",
-  "description": "F-IO-003: the Einnahmen-Überschuss-Rechnung publishes its result. `cashBasisReport` returned `income`, `expenses` and `gapWarnings` — every figure the statement is built from and not the one figure it exists to produce. The embedding could not compute it either: subtracting one bucket from the other is arithmetic across a projection's own fields, which its first design principle forbids, so a closing screen for a tenant on the cash basis listed both sides and showed no result while the tenant beside it, filing a balance sheet, got `netIncome` handed to it. The asymmetry is the finding: `incomeStatement` publishes `netIncome`, `balanceSheet` publishes both totals, and the third statement of the same family published neither — all three are sums over lines the projection already holds. Additive, so no existing expectation moves. Reported by an embedding application as its F-20.",
-  "covers": ["F-IO-003"],
+  "description": "F-CORE-008: the Einnahmen-Überschuss-Rechnung publishes its result. `cashBasisReport` returned `income`, `expenses` and `gapWarnings` — every figure the statement is built from and not the one figure it exists to produce. The embedding could not compute it either: subtracting one bucket from the other is arithmetic across a projection's own fields, which its first design principle forbids, so a closing screen for a tenant on the cash basis listed both sides and showed no result while the tenant beside it, filing a balance sheet, got `netIncome` handed to it. The asymmetry is the finding: `incomeStatement` publishes `netIncome`, `balanceSheet` publishes both totals, and the third statement of the same family published neither — all three are sums over lines the projection already holds. Additive, so no existing expectation moves. Reported by an embedding application as its F-20.",
+  "covers": [
+    "F-CORE-008"
+  ],
   "setup": {},
   "steps": [
     {
       "op": "createTenant",
-      "input": { "name": "Überschuss GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
-      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+      "input": {
+        "name": "Überschuss GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
     },
     {
       "op": "postVoucher",
       "input": {
         "tenant": "$T1",
-        "voucher": { "voucherNumber": "AR-1", "voucherDate": "2026-03-20" },
-        "entryDate": "2026-03-20", "text": "Einnahme",
+        "voucher": {
+          "voucherNumber": "AR-1",
+          "voucherDate": "2026-03-20"
+        },
+        "entryDate": "2026-03-20",
+        "text": "Einnahme",
         "lines": [
-          { "account": "1200", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
-          { "account": "4040", "side": "credit", "money": { "amount": "5000.00", "currency": "EUR" } }
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "5000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4040",
+            "side": "credit",
+            "money": {
+              "amount": "5000.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
-      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          }
+        }
+      }
     },
     {
       "op": "postVoucher",
       "input": {
         "tenant": "$T1",
-        "voucher": { "voucherNumber": "ER-1", "voucherDate": "2026-04-02" },
-        "entryDate": "2026-04-02", "text": "Raumkosten",
+        "voucher": {
+          "voucherNumber": "ER-1",
+          "voucherDate": "2026-04-02"
+        },
+        "entryDate": "2026-04-02",
+        "text": "Raumkosten",
         "lines": [
-          { "account": "6030", "side": "debit", "money": { "amount": "1200.00", "currency": "EUR" } },
-          { "account": "1200", "side": "credit", "money": { "amount": "1200.00", "currency": "EUR" } }
+          {
+            "account": "6030",
+            "side": "debit",
+            "money": {
+              "amount": "1200.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "1200.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
-      "expect": { "result": { "entry": { "sequenceNumber": 2 } } }
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 2
+          }
+        }
+      }
     },
     {
       "op": "postVoucher",
       "input": {
         "tenant": "$T1",
-        "voucher": { "voucherNumber": "ER-2", "voucherDate": "2026-05-11" },
-        "entryDate": "2026-05-11", "text": "Bewirtung, nicht abziehbarer Anteil",
+        "voucher": {
+          "voucherNumber": "ER-2",
+          "voucherDate": "2026-05-11"
+        },
+        "entryDate": "2026-05-11",
+        "text": "Bewirtung, nicht abziehbarer Anteil",
         "lines": [
-          { "account": "6020", "side": "debit", "money": { "amount": "300.00", "currency": "EUR" } },
-          { "account": "1200", "side": "credit", "money": { "amount": "300.00", "currency": "EUR" } }
+          {
+            "account": "6020",
+            "side": "debit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
-      "expect": { "result": { "entry": { "sequenceNumber": 3 } } }
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 3
+          }
+        }
+      }
     }
   ],
   "projections": [
     {
       "name": "cashBasisReport",
-      "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "params": {
+        "tenant": "$T1",
+        "year": 2026,
+        "asOf": "2026-12-31",
+        "mapping": "de-euer"
+      },
       "expect": {
         "comment": "5000.00 − (1200.00 + 300.00) = 3500.00. Die Summen stehen daneben, damit ein Leser den Überschuss nachrechnen kann, ohne die Zeilen zu addieren.",
         "totalIncome": "5000.00",
