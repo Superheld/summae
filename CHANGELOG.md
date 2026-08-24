@@ -12,6 +12,134 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+## 0.12.0 — 2026-08-25
+
+**The second package an embedding application wrote** — and the round where our own tests were
+found to have a blind spot they could not have covered. Eight of the nine entries on the app's
+list are closed; the ninth is answered in the manual rather than in code, because a tenant
+register is the embedding's and saying so is the deliverable.
+
+Two of the defects were ours to find and had shipped: `postVoucher` dropped the cost centre of
+every taxed line, and the CLI carried four configuration operations that reported success and
+changed nothing that outlived the process. Neither could fail a fixture — a fixture builds one
+tenant in one process, where an in-memory registry and a stored one are indistinguishable, and a
+posting that loses a dimension still balances. That is a category gap, not a coverage one, and
+closing it is why this release adds a scenario guard and two adapter suites rather than only
+fixtures.
+
+**Breaking:** `DatabaseTenantFactory.build` in Node takes `(db, clock, ids, options)`; `name` and
+`baseCurrency` moved into `options` and became optional. In PHP they became optional leading
+parameters, so existing calls keep working.
+
+
+### The read side publishes what the write side owns
+
+Four gaps of one shape, closed in one pass: state the library held and did not report, so an
+embedding either could not build the screen or had to keep its own copy beside the books.
+
+- **`costingRuns` — a new projection.** `costAllocationSheet`, `overheadRates` and `productionCost`
+  all require a `runId` and nothing said where one comes from, so the only way to hold a valid id
+  was to have kept the one `runCosting` returned. Reports what a run *is* (`runId`, `fiscalYear`,
+  `period`, `version`, `status`, `method`), filterable by year and period, never what it computed.
+  Reported as F-24.
+- **`assetRegister` rows carry `specialDepreciation`** — `elected`, `allowance`, `remaining`. A
+  screen can now tell which assets took the additional allowance instead of offering the form on
+  every row and letting the engine refuse the rest. Reported as F-25.
+- **`cashBasisReport` publishes `surplus`**, with `totalIncome`/`totalExpenses` beside it. The EÜR
+  returned every figure it is built from and not the one it exists to produce, while
+  `incomeStatement` hands out `netIncome` and `balanceSheet` both totals. Reported as F-20.
+- **`systemDescription` reports the tax profile** the engine is running on. Second half of F-16.
+
+All four are additive fields or a new name, so no existing expectation moves.
+
+**One fixture was retired on the way** (`testing/testsuite/superseded.json`):
+`system-description-current` pinned the full capability list, so summae could not gain a projection
+without it going red — the same weld a shipped pack's version and account count were retired for,
+one layer up. Completeness is guarded where it belongs, by the contract test that holds the
+published list against the dispatcher's own routing table in both directions. The successor
+`system-description-invariants` pins everything the description must be right about and leaves the
+length of the catalogue to the product. The supersession guard now follows chains, since this is
+the second retirement of the same ground.
+
+
+### Two inputs that were accepted and quietly reinterpreted are now refused
+
+Same class, one pass: a value the library could not make sense of used to become a plausible
+default instead of an error.
+
+**`TaxProfile` no longer coerces (F-TAX-003).** `taxationMethod` was `=== 'cash' ? 'cash' :
+'accrual'` and `vatPeriod` was `=== 'monthly' ? 'monthly' : 'quarterly'`, so a typo, a `null` or an
+object all arrived as a valid-looking profile that books differently. A misspelt taxation method
+decided whether VAT falls due on invoice or on payment, silently. Both are now checked against
+their documented values (`E_INPUT_INVALID`); an absent field still gives the documented default.
+`vatPeriod` gains **`yearly`** — a caller who wrote it got quarterly. The field stays descriptive:
+it names the window a tenant files in and selects none (`vatReturn` takes its own).
+Reported as F-19 by an embedding application. The closed list of filing periods is itself a
+jurisdictional claim in the substrate — deliberate for now, reasoned in **SPEC-016**.
+
+**A partner's `accountNumbers` are checked against the chart (F-CORE-032).** A partner could be
+linked to account 9999 in books whose chart stops at 3110: the operation succeeded, the link was
+stored, and nothing ever reported it. Now `E_ACCOUNT_UNKNOWN` on `createPartner` and
+`updatePartner` alike. Whole-list semantics unchanged — an empty list still clears the link. This
+takes a refusal out of the embedding that had to write it in its own route with the chart already
+in hand (its F-17), the same way `name` and `kind` moved here.
+
+New fixtures `tax/tax-profile-input-validation` and `core/partner-account-link-validated`, red
+before the change in both languages.
+
+
+### `postVoucher` keeps the dimensions of its net lines (F-CORE-006)
+
+The tax expansion rebuilt every input line as account/money/code, so anything else on it —
+`dimensions` above all — was gone before the line reached the ledger. The posting succeeded, the
+figures were right, the entry reached the journal with `dimensions: []`, and the cost centre had
+disappeared with no error and no warning.
+
+The case it broke is the ordinary one: **an operating expense with input tax is exactly how a cost
+lands on a cost centre.** Only an untaxed posting — rent, wages, a bank charge — kept its
+attribution, so cost accounting worked on the minority of postings. Reported by an embedding
+application as its F-23.
+
+- A net line's `dimensions` are carried onto the resulting posting line. The **derived tax line and
+  the gross contra-account get none** — input tax belongs to the tax account and a payable to the
+  creditor, not to a department.
+- Passthrough, not interpretation: the ledger validates the values as it always has, so an
+  undeclared cost centre is still `E_DIMENSION_INVALID` — now that the line arrives whole.
+- Fixture `tax/voucher-net-line-dimensions` in both languages, covering all three: dimensions kept,
+  absent dimensions not invented, unknown value refused.
+
+
+### Tenant configuration is persisted (SPEC-015) — **breaking for direct factory callers**
+
+Five operations changed configuration that no store kept: `setTaxProfile`,
+`defineDimensionType`, `defineDimensionValue`, `setAllocationScheme` and `importMapping` returned
+success, wrote a durable audit record, and lost the change with the process. Our own CLI shipped
+with four of the five silently ineffective — it carried a hand-rolled write-back for
+`importMapping` alone.
+
+- **New table `summae_tenants`**, in both languages: the tenant's identity (id, name, base
+  currency, pack provenance) plus its configuration. Added by the idempotent installer, so an
+  existing workspace gains it without being recreated.
+- **The stored record wins; what a caller passes is a seed** — written on the first open of a
+  tenant with no row, ignored afterwards. An embedding no longer has to pass its cost centres in
+  *and* declare them through `defineDimensionType`, which used to answer `E_DIMENSION_INVALID` for
+  a code it was declaring for the first time.
+- **`listTenants`** (Node: `@superheld/summae-knex`; PHP:
+  `DatabaseTenantRecordRepository::listTenants`) answers which tenants a store holds, so an
+  unknown `tenantId` is distinguishable from a new one. Not a projection — a projection is computed
+  *on* a tenant, and this question has none to run on.
+- **Breaking:** `DatabaseTenantFactory.build` takes `(db, clock, ids, options)` in Node; `name` and
+  `baseCurrency` moved into `options` and are optional. In PHP they became optional leading
+  parameters, so existing calls keep working.
+- A stored allocation scheme is replayed **on first use**, not while the tenant is built: it may
+  name production-cost treatments only the pack answers, and the pack arrives after construction.
+- New guard `testing/scenarios/regression/tenant-configuration.json` — one CLI invocation per step,
+  which is the only way this class of defect is visible at all. No fixture could ever have caught
+  it: they build one tenant in one process, where an in-memory registry and a stored one are
+  indistinguishable.
+- Handbook: a new section states what summae stores and what the embedding stores.
+
+
 ## 0.11.0 — 2026-08-24
 
 **The release an embedding application wrote.** Every item below started as a finding in the

@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
+import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 import { DomainError } from '../../../domain-error.js';
 import type { JournalRepository } from '../../../port.js';
 import { CalendarDate } from '../../../substrate/calendar-date.js';
@@ -23,6 +24,16 @@ interface NetLine {
   account: string;
   money: Money;
   code: string;
+  /**
+   * Carried through untouched, never interpreted here (F-CORE-006).
+   *
+   * The expansion used to rebuild each input line as `{account, money, code}`, so everything else
+   * on it — `dimensions` above all — was gone before the line reached the ledger. The posting
+   * succeeded, the figures were right, and the cost centre had disappeared. Validating the values
+   * is the ledger's job (they are a constraint, not an expansion), so this is a passthrough: an
+   * unknown cost centre is still refused, now that the line arrives whole.
+   */
+  dimensions: unknown[];
 }
 
 /**
@@ -65,6 +76,8 @@ export class TaxService {
     // audit record names the tenant as the object it belongs to (F-CORE-014 "Steuerschlüssel").
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
+    /** Where a profile change is kept, so it outlives this object (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   profile(): TaxProfile {
@@ -107,7 +120,12 @@ export class TaxService {
       if (code === null) {
         throw new DomainError('E_TAXCODE_UNKNOWN', 'line without tax code (no default set)');
       }
-      return { account: asString(rawLine.account) ?? '', money: this.parseMoney(rawLine.money), code };
+      return {
+        account: asString(rawLine.account) ?? '',
+        money: this.parseMoney(rawLine.money),
+        code,
+        dimensions: Array.isArray(rawLine.dimensions) ? rawLine.dimensions : [],
+      };
     });
 
     // Reference check fully before computation (order-independent).
@@ -132,6 +150,7 @@ export class TaxService {
           side: sideFor,
           money: line.money.toJSON(),
           taxTag: null,
+          dimensions: line.dimensions,
         })),
         taxLines: [],
         grossTotal: netTotal.toJSON(),
@@ -160,6 +179,7 @@ export class TaxService {
           side: sideFor,
           money: line.money.toJSON(),
           taxTag: lineTags[index] ?? null,
+          dimensions: line.dimensions,
         })),
         taxLines: withoutZeroTaxLines(taxLines, this.baseCurrency),
         grossTotal: grossTotal.toJSON(),
@@ -203,6 +223,7 @@ export class TaxService {
         side: sideFor,
         money: line.money.toJSON(),
         taxTag: baseTags.get(line.code) ?? null,
+        dimensions: line.dimensions,
       })),
       taxLines: withoutZeroTaxLines(taxLines, this.baseCurrency),
       grossTotal: grossTotal.toJSON(),
@@ -234,6 +255,8 @@ export class TaxService {
         validFrom: { from: null, to: validFrom.iso },
       });
     }
+    // Only here, after the retroactivity guard has let the change through.
+    this.configStore?.rememberTaxProfile(this.profileValue.toJSON());
     return this.profileValue;
   }
 

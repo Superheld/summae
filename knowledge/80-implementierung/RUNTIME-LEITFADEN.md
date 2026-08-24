@@ -2,7 +2,7 @@
 
 > **Ein Dokument, kein Vorwissen nötig.** Dies ist der vollständige Einstieg für einen Coding-Agenten, der eine **weitere Sprach-Runtime** von Summae baut — egal ob Python, Rust, Go oder etwas anderes. Es backt alle Spec-Stände bis **v0.6** ein — du musst die historischen Delta-Notizen (`archiv/SPEC-UPDATE-v0.3…v0.6.md`) **nicht** lesen; sie waren Zwischenstände der PHP-Entwicklung und sind in der konsolidierten Spezifikation aufgegangen.
 >
-> Es gibt bereits **zwei fertige, konforme Referenzen**: die **PHP/Laravel-Referenz** (`ABSCHLUSSBERICHT.md`) und die **Node/TypeScript-Runtime** — beide Goldstandard, der Cross-Test zwischen ihnen ist bidirektional grün. Deine Implementierung ist fertig, wenn sie denselben Vertrag erfüllt und denselben Datenbestand wie diese beiden lesen/fortschreiben kann (Cross-Kompatibilität).
+> Es gibt bereits **zwei fertige, konforme Referenzen**: die **PHP/Laravel-Referenz** (`archiv/ABSCHLUSSBERICHT.md`) und die **Node/TypeScript-Runtime** — beide Goldstandard, der Cross-Test zwischen ihnen ist bidirektional grün. Deine Implementierung ist fertig, wenn sie denselben Vertrag erfüllt und denselben Datenbestand wie diese beiden lesen/fortschreiben kann (Cross-Kompatibilität).
 >
 > Stand: 2026-06-20.
 
@@ -21,15 +21,15 @@ Architektonisch (benannt seit v0.6): **Substrat** (jurisdiktionsfreie Buchungs-A
 ## Der Vertrag (nicht verhandelbar)
 
 1. **`testing/testsuite/`** ist der Kompatibilitätsvertrag: **45 JSON-Fixtures** + Runner-Kontrakt (`testing/testsuite/README.md`). Fertig = alle Fixtures grün **und** kompletter Doppellauf byte-identisch. **Fixtures werden niemals editiert**, um sie passend zu machen — eine falsch erscheinende Fixture ist ein Befund (siehe Eskalation).
-2. **`50-spezifikation/`** ist normativ, Stand **v0.5/0.6**:
-   - `datenformat.md` (v0.5) — Published Language, JSON/JSONL, String-Dezimal, UUIDv7
-   - `api.md` (v0.5) — Operationen, Eingaben, Invarianten, **Prüfreihenfolge der Fehler**
-   - `determinismus.md` (v0.5) — Rundung, Sortierung, Zeit (Pflichtlektüre, s. u.)
-   - `fehlerkatalog.md` (v0.5) — **34 Codes**, jeder mit Fixture
-   - `schema/format.schema.json` — `$id` bleibt 0.4 (v0.5-Felder sind additiv)
+2. **`50-spezifikation/`** ist normativ. Versionsnummern stehen bewusst nicht mehr hier — sie sind mehrfach gewandert (Datenformat 0.4 → 0.7), und eine veraltete Zahl in einem Onboarding-Dokument kostet mehr als eine fehlende:
+   - `datenformat.md` — Published Language, JSON/JSONL, String-Dezimal, UUIDv7
+   - `api.md` — Operationen, Projektionen, Eingaben, Invarianten, **Prüfreihenfolge der Fehler**
+   - `determinismus.md` — Rundung, Sortierung, Zeit (Pflichtlektüre, s. u.)
+   - `testing/testsuite/fehlerkatalog.md` — jeder Code mit Fixture; die Zahl sagt `ExitCodesTest`/`exit-codes.test.ts`, die Katalog und Exit-Codes als Mengen vergleichen
+   - `testing/testsuite/schema/format.schema.json` — die aktuelle Formatversion steht in seiner `$id`, und `format-version.test.ts`/`FormatVersionTest` halten die Konstante beider Sprachen dagegen
 3. **`20-glossar/glossar.md`** liefert alle Namen (EN-Spalte = API-/Klassen-/Feldnamen). Keine eigenen Namen erfinden; idiomatische Casing-Anpassung je Sprache ist erlaubt, Semantik und Namen sind bindend.
 
-**Aktueller Konformitätsstand (Messlatte):** 45/45 Fixtures grün · 34/34 Fehlercodes · 26/26 Standardfälle (**SF-15** seit der Node-Runtime + bidirektionalem Cross-Test erfüllt) · 5/5 Determinismus-Pflichtfälle. Quelle: `testing/testsuite/abdeckung.md`.
+**Konformitätsstand:** vollständig grün in beiden Referenzen, inklusive **SF-15** (bidirektionaler Cross-Test). Die Zahlen stehen absichtlich nicht hier — sie driften schneller, als sie jemand nachzieht (`testing/testsuite/abdeckung.md` sagt dasselbe über sich selbst). Gemessen wird mit `make check`, `pnpm test`, `pnpm fixtures --strict` und `make cross`.
 
 ## Leseliste (in dieser Reihenfolge, ~30–40 Min.)
 
@@ -37,7 +37,7 @@ Architektonisch (benannt seit v0.6): **Substrat** (jurisdiktionsfreie Buchungs-A
 2. `50-spezifikation/api.md` und `datenformat.md`
 3. `50-spezifikation/determinismus.md` — hier stehen die häufigsten Cross-Runtime-Fehler
 4. `40-domaenenmodell/ledger-modell.md` — Aggregate, Invarianten, Events
-5. **`80-implementierung/ABSCHLUSSBERICHT.md`, Abschnitt „Adapter-Annahmen"** — die 7 Punkte unten; nehmen dir die teuren Entscheidungen ab
+5. **`80-implementierung/archiv/ABSCHLUSSBERICHT.md` (im Archiv, bewusst nicht nachgezogen — für die Adapter-Annahmen trotzdem die beste Quelle), Abschnitt „Adapter-Annahmen"** — die 7 Punkte unten; nehmen dir die teuren Entscheidungen ab
 6. Bei Bedarf je Thema: `tax-modell.md`, `assets-modell.md`, `costing-modell.md`, `euer-projektions-beweis.md` (Regeln R1–R6; der Wegwerf-Prototyp `60-prototyp/archiv/euer_projektion.py` führt sie einmalig vor — die Regeln leben produktiv in beiden Referenzen)
 7. Hintergrund nur bei Unklarheit: `10-fachwissen/`, `00-projekt/entscheidungen.md`
 
@@ -111,9 +111,9 @@ SF-15 ist der Standardfall, der zwei Runtimes braucht. Akzeptanz: **Ein von eine
 
 ## Eskalation (wichtig)
 
-Spec-Lücke/Widerspruch beim Bauen → **nicht raten, nicht Fixture biegen.** In `80-implementierung/SPEC-FINDINGS.md` im Format `F-0xx` anhängen (Was / Wo / Gewähltes Verhalten / Vorschlag) und mit dem nächstplausiblen Verhalten weiterbauen. Die Wissensbasis arbeitet Findings als nächste Spec-Version ein und löst eine Retrofit-Welle für **alle** Runtimes aus (so geschehen mit SPEC-001…SPEC-009 aus PHP). **Node-typische Findings sind v. a. bei Rundung/Zahlentypen erwartbar** — genau dort härtest du den Determinismus-Anhang.
+Spec-Lücke/Widerspruch beim Bauen → **nicht raten, nicht Fixture biegen.** In `implementations/<deine-sprache>/SPEC-FINDINGS.md` anhängen — als `SPEC-nnn` (Widerspruch in Spec/Fixture/Modell) oder `IMPL-nnn` (Implementierungsdefekt), mit Statuszeile in der Tabelle oben (Was / Wo / Gewähltes Verhalten / Vorschlag). Das Präfix `F-0xx` gibt es seit 2026-08-23 nicht mehr; es saß im Namensraum der Anforderungen. `80-implementierung/SPEC-FINDINGS.md` ist das **geschlossene historische** Register der ersten Runde und hat eigene, kollidierende Nummern — dort nichts mehr anhängen und mit dem nächstplausiblen Verhalten weiterbauen. Die Wissensbasis arbeitet Findings als nächste Spec-Version ein und löst eine Retrofit-Welle für **alle** Runtimes aus (so geschehen mit SPEC-001…SPEC-009 aus PHP). **Node-typische Findings sind v. a. bei Rundung/Zahlentypen erwartbar** — genau dort härtest du den Determinismus-Anhang.
 
-> Historie nur zur Einordnung: SPEC-001…SPEC-009 sind in der Spec aufgelöst (Zusammenfassung im `ABSCHLUSSBERICHT.md`), SPEC-010/SPEC-011 aus der Fixture-Verifikation 2026-06-14 ebenfalls, und SPEC-C01 (kanonisches Zeitstempel-Format, RFC 3339/UTC/`Z`) aus dem Node-Cross-Test 2026-06-20. Du baust gegen die **konsolidierte** Spec — die Findings-Datei ist dein Eskalationskanal nach vorn, kein Pflicht-Lesestoff rückwärts.
+> Historie nur zur Einordnung: SPEC-001…SPEC-009 sind in der Spec aufgelöst (Zusammenfassung im `archiv/ABSCHLUSSBERICHT.md`), SPEC-010/SPEC-011 aus der Fixture-Verifikation 2026-06-14 ebenfalls, und SPEC-C01 (kanonisches Zeitstempel-Format, RFC 3339/UTC/`Z`) aus dem Node-Cross-Test 2026-06-20. Du baust gegen die **konsolidierte** Spec — die Findings-Datei ist dein Eskalationskanal nach vorn, kein Pflicht-Lesestoff rückwärts.
 
 ## Weitere Runtimes (Python, Rust, Go, …)
 

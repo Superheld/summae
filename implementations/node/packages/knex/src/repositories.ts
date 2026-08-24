@@ -22,6 +22,8 @@ import {
   OpenItem,
   type OpenItemKind,
   type OpenItemRepository,
+  type TenantRecordData,
+  type TenantRecordRepository,
   Money,
   type OverheadRate,
   Partner,
@@ -741,4 +743,81 @@ export class DatabaseAuditTrail implements AuditTrail {
   private table() {
     return this.db.table(`${TABLE_PREFIX}audit_log`);
   }
+}
+
+/**
+ * The tenant record (SPEC-015): identity plus the configuration five operations change.
+ *
+ * Scoped to one tenant like every repository here, so `load` needs no argument — the id it was
+ * built with is the one it answers for. A `null` means "no such tenant in this store", which is the
+ * distinction that did not exist before: an unknown id used to open an empty ledger that looked
+ * exactly like a new one.
+ */
+export class DatabaseTenantRecordRepository implements TenantRecordRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+  ) {}
+
+  load(): TenantRecordData | null {
+    const row = this.db.first(this.table().where('id', this.tenantId.value));
+    if (row === null) return null;
+    const config = H.decode(row.config);
+    return {
+      id: String(row.id),
+      name: typeof row.name === 'string' ? row.name : '',
+      baseCurrency: typeof row.base_currency === 'string' ? row.base_currency : '',
+      packIdentity:
+        typeof row.pack_id === 'string' && typeof row.pack_version === 'string'
+          ? { id: row.pack_id, version: row.pack_version }
+          : null,
+      config: {
+        taxProfile: H.isRecord(config.taxProfile) ? config.taxProfile : null,
+        dimensionTypes: Array.isArray(config.dimensionTypes)
+          ? (config.dimensionTypes.filter(H.isRecord) as Array<{ code: string }>)
+          : [],
+        dimensionValues: Array.isArray(config.dimensionValues)
+          ? (config.dimensionValues.filter(H.isRecord) as Array<{ typeCode: string; code: string }>)
+          : [],
+        allocationScheme: H.isRecord(config.allocationScheme) ? config.allocationScheme : null,
+        mappings: Array.isArray(config.mappings) ? config.mappings.filter(H.isRecord) : [],
+      },
+    };
+  }
+
+  save(record: TenantRecordData): void {
+    const columns = {
+      name: record.name,
+      base_currency: record.baseCurrency,
+      pack_id: record.packIdentity === null ? null : record.packIdentity.id,
+      pack_version: record.packIdentity === null ? null : record.packIdentity.version,
+      config: H.encode(record.config),
+    };
+    const exists = this.db.first(this.table().where('id', record.id)) !== null;
+    if (exists) {
+      this.db.run(this.table().where('id', record.id).update(columns));
+      return;
+    }
+    this.db.run(this.table().insert({ id: record.id, ...columns }));
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}tenants`);
+  }
+}
+
+/**
+ * Which tenants a store holds — the question no port answers, because a repository here speaks for
+ * one tenant and this one is about the store.
+ *
+ * It is deliberately not a projection: a projection is computed on a tenant, and this has none to
+ * run on. An embedding that manages several tenants needs it all the same, and until now had to
+ * keep its own register beside the books and hope the two agreed.
+ */
+export function listTenants(db: SyncDb): Array<{ id: string; name: string; baseCurrency: string }> {
+  return db.all(db.table(`${TABLE_PREFIX}tenants`).orderBy('name').orderBy('id')).map((row) => ({
+    id: String(row.id),
+    name: typeof row.name === 'string' ? row.name : '',
+    baseCurrency: typeof row.base_currency === 'string' ? row.base_currency : '',
+  }));
 }

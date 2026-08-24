@@ -182,13 +182,43 @@ final readonly class CashBasisProjection
             $gapWarnings[] = ['account' => $account, 'assignedTo' => $gapAccounts[$account]];
         }
 
+        // The result the statement exists to produce (F-IO-003).
+        //
+        // It used to publish every figure it is built from and not the figure itself, and the caller
+        // could not fill the gap: subtracting one bucket from the other is arithmetic across a
+        // projection's own fields, which this library tells embeddings not to do. Meanwhile
+        // incomeStatement hands out netIncome and balanceSheet both totals — three statements of one
+        // family, and the third published neither. All of it is a sum over lines already held here.
+        $incomeRows = $this->serializeBucket($income);
+        $expenseRows = $this->serializeBucket($expenses);
+        $totalIncome = $this->total($incomeRows);
+        $totalExpenses = $this->total($expenseRows);
+
         return [
-            'income' => $this->serializeBucket($income),
-            'expenses' => $this->serializeBucket($expenses),
+            'income' => $incomeRows,
+            'expenses' => $expenseRows,
+            'totalIncome' => $totalIncome->amountAsString(),
+            'totalExpenses' => $totalExpenses->amountAsString(),
+            'surplus' => $totalIncome->subtract($totalExpenses)->amountAsString(),
             'gapWarnings' => $gapWarnings,
         ];
     }
 
+
+    /**
+     * Summed from the serialized rows, not from the map: what is reported and what is totalled agree.
+     *
+     * @param list<array{category: string, amount: string}> $rows
+     */
+    private function total(array $rows): Money
+    {
+        $sum = Money::zero($this->baseCurrency);
+        foreach ($rows as $row) {
+            $sum = $sum->add(Money::of($row['amount'], $this->baseCurrency));
+        }
+
+        return $sum;
+    }
 
     /**
      * @param array<string, Money> $bucket

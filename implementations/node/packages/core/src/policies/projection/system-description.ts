@@ -49,7 +49,7 @@ export const API_OPERATIONS = [
 
 export const API_PROJECTIONS = [
   'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
-  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'datevExport', 'ecSalesList',
+  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
   'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
   'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn',
 ] as const;
@@ -159,6 +159,16 @@ export class SystemDescriptionProjection {
     private readonly baseCurrency: Currency,
     /** Null when the tenant was composed from an inline bundle: there is no manifest to name. */
     private readonly packIdentity: { id: string; version: string } | null = null,
+    /**
+     * The tax profile the engine is actually running on (F-TAX-003).
+     *
+     * Nothing reported it, so an embedding could display only what it had written itself — the same
+     * value by construction *in that embedding*, which is a property of one caller and not a
+     * guarantee. It belongs here rather than in a projection of its own: this is the projection that
+     * already describes the tenant, and a Verfahrensdokumentation has to state which taxation method
+     * the books were kept under.
+     */
+    private readonly taxProfile: Record<string, unknown> | null = null,
   ) {}
 
   compute(_params: Record<string, unknown>): Record<string, unknown> {
@@ -170,6 +180,7 @@ export class SystemDescriptionProjection {
         baseCurrency: this.baseCurrency.code,
       },
       pack: this.packIdentity === null ? null : { ...this.packIdentity },
+      taxProfile: this.taxProfile === null ? null : { ...this.taxProfile },
       journal: {
         appendOnly: true,
         ordering: 'sequenceNumber',

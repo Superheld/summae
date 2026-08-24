@@ -88,33 +88,6 @@ export class Workspace {
     }
   }
 
-  /**
-   * Write an imported mapping into the workspace file.
-   *
-   * Mappings live in a registry that is rebuilt from `summae.json` on every invocation, so an
-   * import that only touched the registry was gone the moment the process ended: `imported: true`
-   * followed by a report that behaved as though nothing had been imported. Called only after the
-   * import succeeded, so a rejected mapping is never stored.
-   */
-  rememberMapping(mapping: Record<string, unknown>): void {
-    const config = JSON.parse(readFileSync(this.configPath(), 'utf8')) as Record<string, unknown>;
-    const rules = isRecord(config.rules) ? config.rules : {};
-    const ruleModules = isRecord(rules.ruleModules) ? rules.ruleModules : {};
-    const mappings = Array.isArray(ruleModules.mappings) ? [...ruleModules.mappings] : [];
-
-    // Replace by id rather than append: importing the same id twice must update it, not leave two
-    // mappings behind that the next load would read as overlapping.
-    const id = typeof mapping.id === 'string' ? mapping.id : null;
-    const index = mappings.findIndex((m) => isRecord(m) && m.id === id);
-    if (index === -1) mappings.push(mapping);
-    else mappings[index] = mapping;
-
-    ruleModules.mappings = mappings;
-    rules.ruleModules = ruleModules;
-    config.rules = rules;
-    writeFileSync(this.configPath(), `${JSON.stringify(config, null, 2)}\n`);
-  }
-
   tenant(): Tenant {
     if (!this.exists()) {
       throw new Error(`No workspace in ${this.directory} — run \`summae init\` first`);
@@ -142,20 +115,18 @@ export class Workspace {
 
     const clock = new SystemClock();
 
-    const tenant = DatabaseTenantFactory.build(
-      new SyncDb(this.dbPath()),
+    // Seed values (name, currency, profile, dimension master data) are written on the first open
+    // and ignored afterwards — the workspace file stops being a second source of truth for them
+    // (SPEC-015). The pack side is passed on every open, because that is what a pack is.
+    const tenant = DatabaseTenantFactory.build(new SyncDb(this.dbPath()), clock, new UuidV7IdGenerator(clock), {
+      tenantId: parseTenantId(tenantId),
       name,
-      Currency.of(baseCurrency),
-      clock,
-      new UuidV7IdGenerator(clock),
-      {
-        dimensions: DimensionRegistry.fromData(dimensionTypes, dimensionValues, dimensionRules),
-        taxCodes: TaxCodeRegistry.fromData(recordList(rules.taxCodes)),
-        taxProfile: TaxProfile.fromData(isRecord(rules.taxProfile) ? rules.taxProfile : {}),
-        mappings: MappingRegistry.fromRuleModules(Array.isArray(ruleModules.mappings) ? ruleModules.mappings : []),
-        tenantId: parseTenantId(tenantId),
-      },
-    );
+      baseCurrency: Currency.of(baseCurrency),
+      taxProfile: TaxProfile.fromData(isRecord(rules.taxProfile) ? rules.taxProfile : {}),
+      dimensions: DimensionRegistry.fromData(dimensionTypes, dimensionValues, dimensionRules),
+      taxCodes: TaxCodeRegistry.fromData(recordList(rules.taxCodes)),
+      mappings: MappingRegistry.fromRuleModules(Array.isArray(ruleModules.mappings) ? ruleModules.mappings : []),
+    });
     tenant.assetService.setRuleModule(ruleModules);
     tenant.costing.setRuleModule(ruleModules);
     return tenant;

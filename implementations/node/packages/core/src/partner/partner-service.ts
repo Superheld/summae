@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { AuditRecord, type AuditChanges } from '../records/audit-record.js';
-import type { AuditTrail, PartnerRepository } from '../port.js';
+import type { AccountRepository, AuditTrail, PartnerRepository } from '../port.js';
+import { AccountNumber } from '../substrate/account-number.js';
 import type { Clock } from '../substrate/clock.js';
 import { InvalidValue } from '../substrate/errors.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
@@ -19,7 +20,37 @@ export class PartnerService {
     private readonly audit: AuditTrail,
     private readonly clock: Clock,
     private readonly ids: IdGenerator,
+    /**
+     * The chart, so an account link can be checked against it (F-CORE-032).
+     *
+     * Not optional: a service built without it would validate nothing and say nothing, which is the
+     * state this check was added to end.
+     */
+    private readonly accounts: AccountRepository,
   ) {}
+
+  /**
+   * A partner may only be linked to accounts the books actually carry.
+   *
+   * Without this a partner could be linked to 9999 in a chart that stops at 3110: the operation
+   * succeeded, the link was stored as a list of strings on the aggregate, and nothing ever reported
+   * it. That is master data wrong for every reader of the books, not only for the screen that
+   * entered it — the same argument that pulled `name` and `kind` in here rather than leaving them
+   * to the embedding. The account link was made updatable in that pass and its check was not.
+   *
+   * Whole-list semantics are untouched: an empty list still clears the link.
+   */
+  private validateAccountNumbers(input: Record<string, unknown>): void {
+    if (!Array.isArray(input.accountNumbers)) return;
+    for (const value of input.accountNumbers) {
+      if (typeof value !== 'string') continue;
+      if (this.accounts.byNumber(AccountNumber.of(value)) === null) {
+        throw new DomainError('E_ACCOUNT_UNKNOWN', `Account ${value} does not exist in this chart`, {
+          account: value,
+        });
+      }
+    }
+  }
 
   /**
    * A partner needs a name, and the kinds are the three the manual names (F-CORE-032).
@@ -47,6 +78,7 @@ export class PartnerService {
 
   create(input: Record<string, unknown>): Partner {
     this.validateMasterData(input, true);
+    this.validateAccountNumbers(input);
     const accountNumbers = (Array.isArray(input.accountNumbers) ? input.accountNumbers : []).filter(
       (value): value is string => typeof value === 'string',
     );
@@ -74,6 +106,7 @@ export class PartnerService {
     const partner = this.require(input.partnerId);
     // Absent leaves the name alone; present and empty is the same mistake as creating without one.
     this.validateMasterData(input, false);
+    this.validateAccountNumbers(input);
     const changes = partner.update(input);
     if (Object.keys(changes).length > 0) {
       this.partners.save(partner);

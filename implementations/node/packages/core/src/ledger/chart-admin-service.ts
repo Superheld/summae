@@ -7,6 +7,7 @@ import { isAccountType } from '../substrate/types.js';
 import type { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import type { Uuid } from '../substrate/uuid.js';
 import type { AuditWriter } from './audit-writer.js';
+import type { TenantConfigStore } from '../composition/tenant-config-store.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -30,6 +31,8 @@ export class ChartAdminService {
     // A dimension has no id of its own, so the audit record names the tenant — the same shape the tax
     // profile and the allocation scheme use for configuration that exists once per tenant.
     private readonly tenantId: Uuid | null = null,
+    /** Where a declared type or value is kept, so it outlives this object (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   /** Declares a dimension type. Master data, like an account: `costCenter`, `project`, `segment`. */
@@ -42,6 +45,7 @@ export class ChartAdminService {
     if (this.tenantId !== null) {
       this.audit.record(actor, 'dimensionType', this.tenantId, 'created', { code: { from: null, to: code } });
     }
+    this.persistDimensions();
 
     return { code };
   }
@@ -61,7 +65,19 @@ export class ChartAdminService {
       });
     }
 
+    this.persistDimensions();
+
     return { type: typeCode, code };
+  }
+
+  /**
+   * The registry is stored whole rather than as a delta: it is a small set, and a whole-value write
+   * cannot drift from the object it describes the way an append log can.
+   */
+  private persistDimensions(): void {
+    if (this.configStore === null || this.dimensions === null) return;
+    const data = this.dimensions.toData();
+    this.configStore.rememberDimensions(data.types, data.values);
   }
 
   private requireDimensions(): DimensionRegistry {

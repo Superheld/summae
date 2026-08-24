@@ -1,0 +1,48 @@
+{
+  "fixture": "partner-account-link-validated",
+  "description": "F-CORE-032, the check that did not come with the field: a partner could be linked to account 9999 in books whose chart stops at 8400. The operation succeeded, the link was stored as a list of strings on the aggregate, and nothing ever reported it — master data wrong for every reader of the books, not only for the screen that entered it. That is the same argument that pulled `name` and `kind` into the library in the first place; the account link was made updatable in that pass and its validation was not. An embedding refused it in its own route with the chart already in hand (its F-17), which is the wrong place for exactly the reason the earlier three were. Replacing semantics are unchanged: a valid list replaces the previous one whole, and an empty list clears it.",
+  "covers": ["F-CORE-032"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "1410", "name": "Forderungen EU", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": []
+  },
+  "steps": [
+    {
+      "comment": "An account the chart carries links as before.",
+      "op": "createPartner",
+      "input": { "name": "Muster GmbH", "kind": "customer", "accountNumbers": ["1400"] },
+      "expect": { "result": { "id": "$P1", "accountNumbers": ["1400"] } }
+    },
+    {
+      "comment": "One it does not carry is refused at creation — 9999 was accepted and stored.",
+      "op": "createPartner",
+      "input": { "name": "Falschverlinkt GmbH", "kind": "customer", "accountNumbers": ["9999"] },
+      "expect": { "error": "E_ACCOUNT_UNKNOWN" }
+    },
+    {
+      "comment": "And on update, where the list replaces the previous one whole.",
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "accountNumbers": ["1410", "9999"] },
+      "expect": { "error": "E_ACCOUNT_UNKNOWN" }
+    },
+    {
+      "comment": "The refusal changes nothing: the partner still carries what it carried.",
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "accountNumbers": ["1410"] },
+      "expect": { "result": { "id": "$P1", "accountNumbers": ["1410"] } }
+    },
+    {
+      "comment": "An empty list still clears the link — refusing the unknown must not forbid the known-empty.",
+      "op": "updatePartner",
+      "input": { "partnerId": "$P1", "accountNumbers": [] },
+      "expect": { "result": { "id": "$P1", "accountNumbers": [] } }
+    }
+  ]
+}

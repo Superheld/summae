@@ -9,11 +9,17 @@ import {
   InMemoryOpenItemRepository,
   InMemoryCostingRunRepository,
   InMemoryPartnerRepository,
+  InMemoryTenantRecordRepository,
   InMemoryVoucherRepository,
 } from '../in-memory.js';
 import { PartnerService } from '../partner/partner-service.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { AuditWriter } from '../ledger/audit-writer.js';
+import {
+  emptyTenantConfig,
+  openTenantConfiguration,
+  type TenantConfigStore,
+} from './tenant-config-store.js';
 import { Ledger } from '../ledger/ledger.js';
 import { MappingRegistry } from '../policies/projection/mapping/mapping-registry.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
@@ -52,6 +58,8 @@ export class Tenant {
     readonly openItems: OpenItemRepository,
     readonly assets: AssetRepository,
     readonly partners: PartnerRepository,
+    /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
+    readonly costingRuns: CostingRunRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
@@ -67,6 +75,8 @@ export class Tenant {
      * say what the books were kept under (F-IO-007).
      */
     readonly packIdentity: { id: string; version: string } | null = null,
+    /** Where configuration changes are kept; null when this tenant has no record (SPEC-015). */
+    readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   static inMemory(
@@ -82,8 +92,20 @@ export class Tenant {
     packIdentity: { id: string; version: string } | null = null,
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
+    const tenantId = idGen.next(); // tenant ID = first generated ID (determinism)
+    // An in-memory tenant gets a record too, so the four configuration operations behave the same
+    // way here as they do behind a database. It buys nothing within one process — which is exactly
+    // why the defect could hide from every fixture — but one code path is worth more than the
+    // saving, and a core test can now prove the round trip without an adapter.
+    const { store } = openTenantConfiguration(new InMemoryTenantRecordRepository(), {
+      id: tenantId.value,
+      name,
+      baseCurrency: baseCurrency.code,
+      packIdentity,
+      config: emptyTenantConfig(),
+    });
     return Tenant.fromPorts(
-      idGen.next(), // tenant ID = first generated ID (determinism)
+      tenantId,
       name,
       baseCurrency,
       {
@@ -105,6 +127,7 @@ export class Tenant {
       mappings,
       taxRoundingGranularity,
       packIdentity,
+      store,
     );
   }
 
@@ -137,6 +160,12 @@ export class Tenant {
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
     packIdentity: { id: string; version: string } | null = null,
+    /**
+     * Where configuration changes are kept (SPEC-015). Null leaves the four configuration
+     * operations effective for this object only — which is what every tenant did before the
+     * record existed, and what an adapter without the table still does.
+     */
+    configStore: TenantConfigStore | null = null,
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
     const ledger = new Ledger(
@@ -152,12 +181,31 @@ export class Tenant {
       ids,
       taxCodes,
       tenantId,
+      configStore,
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
-    const tax = new TaxService(baseCurrency, taxCodes, taxProfile, journal, taxRoundingGranularity, tenantId, auditWriter);
+    const tax = new TaxService(
+      baseCurrency,
+      taxCodes,
+      taxProfile,
+      journal,
+      taxRoundingGranularity,
+      tenantId,
+      auditWriter,
+      configStore,
+    );
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids, tenantId, auditWriter);
-    const costing = new CostingService(baseCurrency, accounts, journal, costingRuns, ids, tenantId, auditWriter);
-    const partnerService = new PartnerService(partners, audit, clock, ids);
+    const costing = new CostingService(
+      baseCurrency,
+      accounts,
+      journal,
+      costingRuns,
+      ids,
+      tenantId,
+      auditWriter,
+      configStore,
+    );
+    const partnerService = new PartnerService(partners, audit, clock, ids, accounts);
 
     return new Tenant(
       tenantId,
@@ -170,6 +218,7 @@ export class Tenant {
       openItems,
       assets,
       partners,
+      costingRuns,
       audit,
       ledger,
       tax,
@@ -180,6 +229,7 @@ export class Tenant {
       clock,
       ids,
       packIdentity,
+      configStore,
     );
   }
 }

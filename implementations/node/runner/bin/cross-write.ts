@@ -32,7 +32,7 @@ for (const fixture of loadFixtures()) {
   const subject = new CoreSubject((name, baseCurrency, clock, ids, dimensions, taxCodes, taxProfile, mappings) => {
     const db = new SyncDb(dbPath);
     installSchema(db);
-    return DatabaseTenantFactory.build(db, name, baseCurrency, clock, ids, { dimensions, taxCodes, taxProfile, mappings });
+    return DatabaseTenantFactory.build(db, clock, ids, { name, baseCurrency, dimensions, taxCodes, taxProfile, mappings });
   });
 
   new FixtureRunner().run(fixture, subject);

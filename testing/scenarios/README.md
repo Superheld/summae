@@ -30,6 +30,14 @@ otherwise — a pack without one is an untested offer.
 user types: the CLI surface, argument handling, the workspace files, pack-library loading,
 and the documented parameter names. Both are needed; neither replaces the other.
 
+**And one thing only these can ask: does a change survive the process?** Every step here is its own
+CLI invocation, which rebuilds the tenant from the workspace; a fixture builds one tenant in one
+process, where state held in memory and state read from a table behave identically. That is not a
+coverage gap in the fixtures, it is a category one — and it hid a real defect for a long time
+(SPEC-015: four of the five operations that change tenant configuration stored nothing and said
+they had succeeded). `regression/tenant-configuration.json` is the guard that came out of it. When
+an operation changes something a later call has to see, the scenario is where that gets proven.
+
 Full picture of where tests live: [`../README.md`](../README.md).
 
 ## Format

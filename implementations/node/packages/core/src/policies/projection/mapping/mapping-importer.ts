@@ -6,6 +6,7 @@ import type { AccountRepository } from '../../../port.js';
 import { isBalanceCarrying } from '../../../substrate/types.js';
 import { leafMatches, Mapping } from './mapping.js';
 import type { MappingRegistry } from './mapping-registry.js';
+import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -24,6 +25,8 @@ export class MappingImporter {
     // its own, so the audit record names the tenant and puts the kind into the diff.
     private readonly tenantId: Uuid | null = null,
     private readonly audit: AuditWriter | null = null,
+    /** Where the import is kept, so it survives the process that made it (SPEC-015). */
+    private readonly configStore: TenantConfigStore | null = null,
   ) {}
 
   import(input: Record<string, unknown>): Record<string, unknown> {
@@ -49,6 +52,8 @@ export class MappingImporter {
     }
 
     this.registry.add(mapping);
+    // After the registry, never before: a rejected mapping (overlap above) must store nothing.
+    this.configStore?.rememberMapping(data);
 
     if (this.audit !== null && this.tenantId !== null) {
       this.audit.record(this.audit.actorOf(input), 'mapping', this.tenantId, 'imported', {

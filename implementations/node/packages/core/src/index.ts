@@ -45,6 +45,11 @@ export { FiscalYear, type PeriodDefinition } from './substrate/fiscal-year.js';
 export { AuditRecord, type AuditChanges } from './records/audit-record.js';
 export { UnfinalizedEntriesProjection } from './policies/projection/unfinalized-entries.js';
 export { SystemDescriptionProjection, API_OPERATIONS, API_PROJECTIONS } from './policies/projection/system-description.js';
+export {
+  TenantConfigStore,
+  emptyTenantConfig,
+  openTenantConfiguration,
+} from './composition/tenant-config-store.js';
 export { CashJournalProjection } from './policies/projection/cash-journal.js';
 export { OpenItem } from './records/open-item.js';
 export { Settlement } from './policies/expansion/settlement.js';
@@ -66,6 +71,8 @@ export type {
   OpenItemRepository,
   AssetRepository,
   CostingRunRepository,
+  TenantRecordRepository,
+  TenantRecordData,
   AuditTrail,
 } from './port.js';
 export {
@@ -75,6 +82,7 @@ export {
   InMemoryVoucherRepository,
   InMemoryOpenItemRepository,
   InMemoryAssetRepository,
+  InMemoryTenantRecordRepository,
   InMemoryAuditTrail,
 } from './in-memory.js';
 

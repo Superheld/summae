@@ -8,12 +8,15 @@ use Summae\Core\Policies\Expansion\Assets\AssetService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
+use Summae\Core\Composition\TenantConfigStore;
+use Summae\Core\Composition\TenantRecord;
 use Summae\Core\InMemory\InMemoryAuditTrail;
 use Summae\Core\InMemory\InMemoryFiscalYearRepository;
 use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryCostingRunRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
+use Summae\Core\InMemory\InMemoryTenantRecordRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
@@ -21,6 +24,7 @@ use Summae\Core\Ledger\Ledger;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
+use Summae\Core\Port\CostingRunRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Partner\PartnerService;
@@ -56,6 +60,8 @@ final readonly class Tenant
         public OpenItemRepository $openItems,
         public PartnerRepository $partners,
         public AssetRepository $assets,
+        /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
+        public CostingRunRepository $costingRuns,
         public AuditTrail $audit,
         public Ledger $ledger,
         public TaxService $tax,
@@ -73,6 +79,8 @@ final readonly class Tenant
          * @var array{id: string, version: string}|null
          */
         public ?array $packIdentity = null,
+        /** Where configuration changes are kept; null when this tenant has no record (SPEC-015). */
+        public ?TenantConfigStore $configStore = null,
     ) {
     }
 
@@ -112,6 +120,15 @@ final readonly class Tenant
         $tenantId = $ids->next();
         $auditWriter = new AuditWriter($audit, $clock, $ids);
 
+        // An in-memory tenant gets a record too, so the four configuration operations behave the
+        // same way here as they do behind a database. It buys nothing within one process — which is
+        // exactly why the defect could hide from every fixture — but one code path is worth more
+        // than the saving, and a core test can now prove the round trip without an adapter.
+        $configStore = TenantConfigStore::open(
+            new InMemoryTenantRecordRepository(),
+            new TenantRecord($tenantId->value, $name, $baseCurrency->code, $packIdentity, TenantRecord::emptyConfig()),
+        );
+
         $ledger = new Ledger(
             $baseCurrency,
             $accounts,
@@ -125,12 +142,31 @@ final readonly class Tenant
             $ids,
             $taxCodes,
             $tenantId,
+            $configStore,
         );
 
-        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);
-        $partnerService = new PartnerService($partners, $audit, $clock, $ids);
+        $tax = new TaxService(
+            $baseCurrency,
+            $taxCodes,
+            $taxProfile,
+            $journal,
+            $taxRoundingGranularity,
+            $tenantId,
+            $auditWriter,
+            $configStore,
+        );
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
-        $costing = new CostingService($baseCurrency, $accounts, $journal, $costingRuns, $ids, $tenantId, $auditWriter);
+        $costing = new CostingService(
+            $baseCurrency,
+            $accounts,
+            $journal,
+            $costingRuns,
+            $ids,
+            $tenantId,
+            $auditWriter,
+            $configStore,
+        );
 
         return new self(
             $tenantId,
@@ -143,6 +179,7 @@ final readonly class Tenant
             $openItems,
             $partners,
             $assets2,
+            $costingRuns,
             $audit,
             $ledger,
             $tax,
@@ -153,6 +190,7 @@ final readonly class Tenant
             $clock,
             $ids,
             $packIdentity,
+            $configStore,
         );
     }
 }

@@ -62,6 +62,67 @@ final class DimensionRegistry
     }
 
     /**
+     * The registry as the data it was built from (SPEC-015) — `fromData(toData(r))` is `r`.
+     *
+     * Sorted, because this is what gets stored: two runs that declared the same types in a
+     * different order must produce the same stored bytes, or the cross-test would compare a set
+     * against an ordering accident. Rules are not included: which accounts require a dimension is
+     * the pack's answer, not the tenant's, and it comes back from the pack on every open.
+     *
+     * @return array{types: list<array{code: string}>, values: list<array{typeCode: string, code: string}>}
+     */
+    public function toData(): array
+    {
+        $types = array_keys($this->types);
+        sort($types, SORT_STRING);
+
+        $values = array_keys($this->values);
+        sort($values, SORT_STRING);
+
+        return [
+            'types' => array_map(static fn (string $code): array => ['code' => $code], $types),
+            'values' => array_map(
+                static function (string $entry): array {
+                    $separator = strpos($entry, ':');
+                    $separator = $separator === false ? 0 : $separator;
+
+                    return [
+                        'typeCode' => substr($entry, 0, $separator),
+                        'code' => substr($entry, $separator + 1),
+                    ];
+                },
+                $values,
+            ),
+        ];
+    }
+
+    /**
+     * The same rules with different master data (SPEC-015).
+     *
+     * Reopening a tenant means combining two sources that are not the same kind of thing: the types
+     * and values are the tenant's, and come back from its record; the rules — which accounts may not
+     * be posted without a dimension — are the pack's, and come back from the pack. This is what
+     * keeps them apart without asking the adapter to know the difference.
+     *
+     * @param list<array{code: string}> $dimensionTypes
+     * @param list<array{typeCode: string, code: string}> $dimensionValues
+     */
+    public function withMasterData(array $dimensionTypes, array $dimensionValues): self
+    {
+        $types = [];
+        foreach ($dimensionTypes as $type) {
+            $types[$type['code']] = true;
+        }
+
+        $values = [];
+        foreach ($dimensionValues as $value) {
+            $values[$value['typeCode'] . ':' . $value['code']] = true;
+        }
+
+        return new self($types, $values, $this->rules);
+    }
+
+    /**
      * Declares a dimension type (a cost centre axis, a project axis, …).
      *
      * Dimension types and values are the tenant's own master data, like accounts — not the pack's,

@@ -184,9 +184,13 @@ $ops    = new TenantOperations($tenant);
 ```
 
 `DatabaseTenantFactory::build(...)` takes the same parameters as `inMemory`,
-plus one additional trailing parameter `tenantId` (`?Uuid`, default: freshly
-generated) — this lets you resume an existing tenant ID. Prerequisite:
-`php artisan migrate` has been run (see § 4).
+plus `tenantId` (`?Uuid`, default: freshly generated) — this lets you resume an
+existing tenant ID. Prerequisite: `php artisan migrate` has been run (see § 4).
+
+`name` and `baseCurrency` are **optional** here: a tenant that already exists is
+described by its own row, and `build(tenantId: $id)` is the whole call. What you
+pass on an open that finds an existing tenant is ignored — see
+[what is stored and what you store](#what-summae-stores-and-what-you-store).
 
 ### Knex adapter (Node, persistent)
 
@@ -198,10 +202,11 @@ const db = new SyncDb('./accounting.sqlite');   // file-backed; `new SyncDb()` �
 installSchema(db);                              // creates the summae_* tables (once)
 
 const clock  = new SystemClock();
-const tenant = DatabaseTenantFactory.build(
-  db, 'Example Ltd', Currency.of('USD'), clock, new UuidV7IdGenerator(clock),
-  { /* options: taxCodes, mappings, taxProfile, dimensions, tenantId */ },
-);
+const tenant = DatabaseTenantFactory.build(db, clock, new UuidV7IdGenerator(clock), {
+  name: 'Example Ltd',          // seed: used when this tenant is created, ignored afterwards
+  baseCurrency: Currency.of('USD'),
+  // taxCodes, mappings, taxProfile, dimensions, packIdentity, tenantId
+});
 const ops = new TenantOperations(tenant);
 ```
 
@@ -210,7 +215,17 @@ only against **DB-backed ports** — the direct counterpart to PHP's Laravel ada
 writing the **same `summae_*` schema** (the SF-15 cross-test proves byte-identical
 `journalExport` across the PHP↔Node boundary on a shared database). `better-sqlite3`
 is the SQLite driver; `pg` covers Postgres. The optional `options.tenantId` resumes
-an existing tenant. The schema must be installed beforehand (`installSchema`).
+an existing tenant; for one that already exists, `build(db, clock, ids, { tenantId })`
+is the whole call, because the tenant's name, currency and configuration come back
+from its own row. The schema must be installed beforehand (`installSchema`).
+
+`listTenants(db)` (PHP: `DatabaseTenantRecordRepository::listTenants($connection)`)
+answers which tenants a store holds, so you can look one up instead of keeping a
+second list beside the books. It is not a projection — a projection is computed *on* a
+tenant, and this question has none to run on — and it is **not a tenant register**: it
+reads the rows summae wrote and nothing else. Registering, naming, selecting and setting
+up tenants stays the embedding application's, along with anything a person chooses
+between. What changed is only that the books can now be asked what they contain.
 
 ### CLI workspace (PHP and Node)
 
@@ -236,6 +251,63 @@ policy in *one* step — the chart of accounts thus comes as a **pack choice**,
 not as an inline-maintained `rules.json`. `rules.json` (§ 5) remains the route
 for your own/deviating rules. Every subsequent call loads the tenant from the
 workspace, executes, and the SQLite file persists.
+
+### What summae stores, and what you store
+
+The first question every embedding runs into, and the one that used to have no written
+answer. Short version: **summae stores the books and the tenant; you store the pack.**
+
+**What summae persists** — ten `summae_*` tables, identical in both languages (the SF-15
+cross-test proves a database written by one is read identically by the other):
+
+| table | holds |
+|---|---|
+| `summae_tenants` | the tenant itself: id, name, base currency, which pack it was composed from, and its configuration (see below) |
+| `summae_accounts` | the chart of accounts, seeded from the pack and yours to adapt afterwards |
+| `summae_fiscal_years` | fiscal years and their period states |
+| `summae_vouchers` · `summae_journal_entries` | the Belegfunktion and the journal |
+| `summae_open_items` | receivables/payables with their settlements |
+| `summae_partners` · `summae_assets` | master data |
+| `summae_costing_runs` | costing runs, versioned per period |
+| `summae_audit_log` | the trail |
+
+**What the tenant's configuration covers.** Four things live in `summae_tenants.config`,
+and they are exactly what the four configuration operations change:
+
+| | changed by | seeded from |
+|---|---|---|
+| tax profile | `setTaxProfile` | the pack's `profile.defaults`, or what you pass at creation |
+| dimension types and values | `defineDimensionType` / `defineDimensionValue` | nothing — cost centres are yours, not a jurisdiction's |
+| allocation scheme and rates | `setAllocationScheme` | nothing |
+| imported mappings | `importMapping` | the pack's mappings are the base; imports layer on top |
+
+**What you keep.** One thing, and it is not small: **the resolved pack** (or your own
+rule bundle) — the chart template, tax codes, mapping definitions, depreciation rules,
+`packPolicy`. It is versioned product data that you pin and ship, so summae takes it on
+every open and never stores a copy: two answers to "which rules is this tenant on" is
+one answer too many. `summae_tenants` records *which* pack and version a tenant was
+created from, as provenance for `systemDescription` — not as a substitute for having it.
+
+You also choose the `tenantId` (or let the IdGenerator name one) and remember it, the way
+you remember any primary key.
+
+**The seed rule.** Name, currency, tax profile and dimension master data may be passed at
+construction. They are written on the **first** open of a tenant that has no row yet, and
+**ignored on every open after that** — the stored row is the truth. Passing them again is
+harmless; leaving them out once the tenant exists is the intended shape. The reason is
+worth stating plainly: if your configuration file and summae's table both claimed to hold
+the truth, the two would drift the first time an operation changed one of them.
+
+A practical consequence, if you are moving an embedding onto this: you no longer have to
+list your cost centres in your own configuration *and* declare them through
+`defineDimensionType`. Do one or the other. (Doing both used to be the only way to make
+cost accounting work, and it answered `E_DIMENSION_INVALID` for a code you were declaring
+for the first time.)
+
+**What summae does not store, by design:** voucher files and documents (referenced, never
+held), user identities (`actor` is recorded as you supply it, never verified), and any
+retention or deletion schedule. Those are the embedding application's — the full boundary
+is in `systemDescription`'s `notProvided`.
 
 ---
 
@@ -495,9 +567,15 @@ Directly as `setup.tenant.taxProfile` or as `profile.defaults`.
 
 | Field | Type | Default | Meaning |
 |------|-----|---------|-----------|
-| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation (anything ≠ `"cash"` ⇒ accrual) |
-| `vatPeriod` | `"monthly"` \| `"quarterly"` | `quarterly` | VAT-return period |
+| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation; **any other value is `E_INPUT_INVALID`** |
+| `vatPeriod` | `"monthly"` \| `"quarterly"` \| `"yearly"` | `quarterly` | which window the tenant files in — **descriptive only**, it selects no window in `vatReturn`; any other value is `E_INPUT_INVALID` |
 | `smallBusiness` | bool \| list | `false` | small-business scheme; as bool or as a segment list `[{validFrom, value}]` for a mid-year switch |
+
+> **Absent is a default; a wrong value is a mistake.** Both fields used to fall back silently —
+> anything that was not `"cash"` became accrual and anything that was not `"monthly"` became
+> quarterly. A typo in a configuration file therefore decided whether VAT falls due on invoice or on
+> payment, and a tenant that wrote `"yearly"` filed quarterly, with no error and no warning. Leaving
+> a field out still gives you the documented default.
 
 ### `dimensionTypes[]` / `dimensionValues[]` / `dimensionRules[]`
 
@@ -657,12 +735,24 @@ and tax lines are produced automatically.
 | `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
-| `netLines` | array of `{account, money}` | no | net lines |
+| `netLines` | array of `{account, money, taxCode?, dimensions?}` | no | net lines; `dimensions` carries onto the resulting net line, not onto the tax line |
 | `counterAccount` | string | yes | gross contra-account (bank/receivable) |
 | `entryDate` | string | no | default = `voucher.voucherDate` |
 
 Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 `taxLines[]`, `voucherId`.
+
+> **Dimensions belong to the net line, never to the tax line.** A net line's
+> `dimensions` (`[{ "type": "costCenter", "code": "FERTIGUNG" }]`) are carried through the tax
+> expansion onto the posting line for that account. The derived tax line and the gross
+> contra-account get none: input tax belongs to the tax account and a payable to the creditor —
+> neither belongs to a department, and splitting them across cost centres would invent an
+> allocation nobody asked for. The values are validated by the ledger as always, so an undeclared
+> cost centre is `E_DIMENSION_INVALID` here exactly as it is on `post`.
+>
+> This is what makes an operating expense with input tax usable in cost accounting — the ordinary
+> way a cost reaches a cost centre. Until 2026-08-24 the expansion dropped it: the posting
+> succeeded, the figures were right, and the entry reached the journal with `dimensions: []`.
 
 > **A tax code is required in practice.** `taxCode` is formally optional, but a
 > net line without one — and without a pack default — is rejected with
@@ -815,6 +905,8 @@ Dimension master data — the axes a posting line may carry (`costCenter`, `proj
 Output: `{ "type", "code" }`. Errors: `E_DIMENSION_INVALID` — unknown type, empty
 code, or a type/value already defined.
 
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+
 ```json
 { "code": "costCenter" }
 { "type": "costCenter", "code": "MAT" }
@@ -887,7 +979,7 @@ lines including tax lines, tax tags, and the gross total (the precursor to
 | `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
 | `direction` | string | no | `output` (default, credit) or `input` (debit) |
 | `taxCode` | string | no | default key for positions without their own |
-| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`) |
+| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions`) |
 
 Calculation: tax **per voucher and per rate** (net total per key, rounded
 half-up once — not per position); groups sorted by tax account (codepoints).
@@ -910,16 +1002,20 @@ Errors: `E_ENTRY_TOO_FEW_LINES`, `E_TAXCODE_UNKNOWN`,
 
 #### setTaxProfile
 
-Sets/changes the small-business status as of a cutoff date. ⚠ In the code
-`setProfile()` evaluates only the `smallBusiness` block;
-`taxationMethod`/`vatPeriod` come from the tenant configuration (yet are still
-included in the output).
+Sets/changes the small-business status as of a cutoff date — **and only that.**
+`taxationMethod` and `vatPeriod` are set when the tenant is created and are not
+changeable through this operation; they appear in the output because the output is the
+whole profile, not a diff. Both are stored with the tenant, so what you read back is what
+the engine runs on (`systemDescription.taxProfile` reports the same thing without
+changing anything).
 
 `smallBusiness` (yes): `{ validFrom (yes), value (bool, default false) }`.
 Output: the serialized `TaxProfile` (`taxationMethod`, `vatPeriod`,
 `smallBusiness[]` sorted by `validFrom`). Error:
 `E_PROFILE_RETROACTIVE_CONFLICT` (no `validFrom`, or postings already finalized
 as of the cutoff date).
+
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
 
 ```json
 { "smallBusiness": { "validFrom": "2026-07-01", "value": false } }
@@ -936,6 +1032,8 @@ are warnings. Input under `mapping`: `id` (yes), `kind` (yes), `version` (no),
 Output: `{ "imported": true, "id", "kind", "gapWarnings": [ { "account", "assignedTo": "_unassigned" } ] }`.
 Error: `E_MAPPING_OVERLAP` (account in more than one position).
 
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+
 #### createPartner
 
 Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
@@ -943,6 +1041,12 @@ Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
 `customer`/`supplier`/`both`, anything else is `E_INPUT_INVALID`), `vatId` (no),
 `paymentTermsDays` (no), `accountNumbers[]` (no), `address` (no). Output:
 serialized partner with a generated `id`. Writes an audit entry.
+
+⚠ **`accountNumbers` are checked against the chart** on `createPartner` and `updatePartner` alike:
+a number the books do not carry is `E_ACCOUNT_UNKNOWN`. A partner linked to an account that does not
+exist is master data wrong for every reader of the books, not only for the screen that entered it.
+The whole-list semantics are unchanged — a valid list replaces the previous one, an empty list
+clears the link.
 
 ⚠ **A nameless partner is refused**, and so is a whitespace-only one. `name`
 used to default to `""`, which produced a partner indistinguishable from the
@@ -1217,6 +1321,11 @@ Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` y
 `{ "valid", "method", "stepCount" }`. Errors: `E_INPUT_INVALID` (a method summae does
 not perform — it is refused, never approximated), `E_COSTING_CYCLE`; missing `sender`
 → `InvalidValue` ⚠.
+
+**Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
+A stored scheme is replayed on the next open **when it is first used** (by `setAllocationScheme` or
+`runCosting`), not while the tenant is built: it may name production-cost treatments only the pack
+answers, and opening the books must not fail on a scheme reading a journal does not need.
 
 ```json
 { "method": "step_ladder", "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "60" }, { "code": "VT", "share": "40" } ] } ] }
@@ -1493,7 +1602,38 @@ is today, and a renamed customer must not be dunned under its old name.
 // params { "asOf": "2026-12-31" }
 { "assets": [ { "name": "Laptop", "acquisitionCost": { "amount": "3000.00", "currency": "EUR" },
   "accumulatedDepreciation": { "amount": "500.00", "currency": "EUR" },
-  "bookValue": { "amount": "2500.00", "currency": "EUR" } } ] }
+  "bookValue": { "amount": "2500.00", "currency": "EUR" },
+  "specialDepreciation": { "elected": false, "allowance": null, "remaining": null } } ] }
+```
+
+Every row carries **`specialDepreciation`** — `elected` (did this asset take the additional
+allowance), `allowance` (the budget it was granted) and `remaining` (what is left of it). Read it
+before offering the allowance on a row: `bookSpecialDepreciation` answers with `remainingAllowance`
+*after* it has run, which is too late to decide whether the control belongs on that row at all.
+
+### costingRuns — which costing runs exist
+
+`fiscalYear` (no), `period` (no) — both filters optional, because the answer to *which runs
+exist* has to be reachable without already knowing one. Output: `runs[]`, each
+`{runId, fiscalYear, period, version, status, method}`, ordered by period and then version —
+the order the repository already keeps and the order a period's history reads in.
+
+This is where a `runId` comes from. `costAllocationSheet`, `overheadRates` and `productionCost`
+all require one, and until this projection existed the only way to hold a valid id was to have
+kept the one `runCosting` returned — so an embedding ended up keeping its own table of run ids
+beside the books, which is a second register of library state and drifts the first time a run is
+created some other way.
+
+Deliberately thin: it reports what a run *is*, never what it computed. The three projections
+above are where a run's figures live, and a total repeated here would be a second answer to a
+question that already has one.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "runs": [
+    { "runId": "…", "fiscalYear": 2026, "period": 3, "version": 1, "status": "released", "method": "step_ladder" },
+    { "runId": "…", "fiscalYear": 2026, "period": 3, "version": 2, "status": "draft",    "method": "step_ladder" }
+  ] }
 ```
 
 ### costAllocationSheet — cost allocation sheet (BAB)
@@ -1685,12 +1825,20 @@ keeps assets == liabilities + equity when a mapping is incomplete.
 applies). Cash effectiveness via money accounts, the 10-day rule, VAT
 income-effective, asset payments not deductible. A deviating fiscal year →
 `E_CASHBASIS_DEVIATING_FISCAL_YEAR`. Output: `income[]`/`expenses[]` (each
-`{category, amount}`, sorted by category).
+`{category, amount}`, sorted by category), `totalIncome`, `totalExpenses` and
+**`surplus`** — the figure the statement exists to produce.
 
 ```json
 // params { "year": 2025, "asOf": "2026-06-07" }
-{ "income": [], "expenses": [ { "category": "USt-Zahlung an FA", "amount": "190.00" } ] }
+{ "income": [ { "category": "Betriebseinnahmen", "amount": "5000.00" } ],
+  "expenses": [ { "category": "Raumkosten", "amount": "1200.00" } ],
+  "totalIncome": "5000.00", "totalExpenses": "1200.00", "surplus": "3800.00" }
 ```
+
+> **Do not compute the surplus yourself.** It is here for the same reason
+> `incomeStatement` publishes `netIncome` and `balanceSheet` both totals: subtracting one of a
+> projection's fields from another is exactly the arithmetic this library asks embeddings not to do,
+> and until 2026-08-24 the third statement of that family was the one that made it necessary.
 
 ### ecSalesList — EC sales list (zusammenfassende meldung, ZM)
 
@@ -1772,9 +1920,15 @@ verified against current DATEV documentation.
 
 No parameters. Output: `formatVersion`, `tenant` (`id`, `name`,
 `baseCurrency`), `pack` (the manifest identity the tenant was composed from, or
-`null` for an inline rule bundle), `journal` (append-only, ordering, lifecycle,
-correction rule, the three dates), `invariants[]`, `auditTrail`,
-`capabilities` and `notProvided[]`.
+`null` for an inline rule bundle), `taxProfile` (the profile the engine is actually
+running on — taxation method, filing period, the small-business segments),
+`journal` (append-only, ordering, lifecycle, correction rule, the three dates),
+`invariants[]`, `auditTrail`, `capabilities` and `notProvided[]`.
+
+`taxProfile` is here because a Verfahrensdokumentation has to state which taxation method the
+books were kept under — and because until 2026-08-24 nothing published it, so an application could
+display only what it had written itself. Those are the same value by construction *in one
+embedding*, which is a property of that caller and not a guarantee.
 
 This is the **Verfahrensdokumentation** building block a library can supply
 (GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and
