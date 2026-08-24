@@ -152,7 +152,7 @@ final readonly class Tenant
             $auditWriter,
             $configStore,
         );
-        $partnerService = new PartnerService($partners, $audit, $clock, $ids);
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
         $costing = new CostingService(
             $baseCurrency,

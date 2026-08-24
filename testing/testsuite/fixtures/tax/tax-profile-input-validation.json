@@ -1,0 +1,73 @@
+{
+  "fixture": "tax-profile-input-validation",
+  "description": "F-TAX-003: `TaxProfile.fromData` coerced where every neighbour refuses. `taxationMethod` was `data.taxationMethod === 'cash' ? 'cash' : 'accrual'` and `vatPeriod` was `=== 'monthly' ? 'monthly' : 'quarterly'`, so a typo, a null or an object all arrived as a valid-looking profile that books differently, and nothing reported it. Same shape as the `direction` default that booked an incoming invoice fully inverted (IMPL-013) and as the operation input that was dropped rather than rejected (F-9) — except this one decides whether VAT falls due on invoice or on payment, which is the difference between two correct-looking sets of books. It is ordinary caller input, not a value object built from a trusted internal source: `fromData` is fed from an embedding's configuration file, which is exactly where a typo lives. `yearly` comes with it as a third filing period, because § 18 Abs. 2 UStG lets a small enough business file once a year and a caller who wrote it silently got quarterly. The period is descriptive — it records which window a tenant files in and does not select one in `vatReturn`. Reported by an embedding application as its F-19.",
+  "covers": ["F-TAX-003"],
+  "setup": {
+    "ruleModules": {
+      "profiles": [
+        {
+          "id": "yearly-filer", "name": "Jahreszahler (§ 18 Abs. 2 UStG)", "version": "2026.1",
+          "chartOfAccounts": "coa-mini", "taxCodes": [], "mappings": [],
+          "defaults": { "taxationMethod": "cash", "smallBusiness": false, "vatPeriod": "yearly" }
+        },
+        {
+          "id": "typo-method", "name": "Profil mit vertippter Versteuerungsart", "version": "2026.1",
+          "chartOfAccounts": "coa-mini", "taxCodes": [], "mappings": [],
+          "defaults": { "taxationMethod": "kasse", "smallBusiness": false, "vatPeriod": "quarterly" }
+        },
+        {
+          "id": "typo-period", "name": "Profil mit vertippter Meldeperiode", "version": "2026.1",
+          "chartOfAccounts": "coa-mini", "taxCodes": [], "mappings": [],
+          "defaults": { "taxationMethod": "accrual", "smallBusiness": false, "vatPeriod": "monthy" }
+        },
+        {
+          "id": "null-method", "name": "Profil mit null als Versteuerungsart", "version": "2026.1",
+          "chartOfAccounts": "coa-mini", "taxCodes": [], "mappings": [],
+          "defaults": { "taxationMethod": null, "smallBusiness": false, "vatPeriod": "monthly" }
+        }
+      ],
+      "chartsOfAccounts": [
+        {
+          "id": "coa-mini",
+          "accounts": [
+            { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "8400", "name": "Erlöse", "type": "revenue" }
+          ]
+        }
+      ],
+      "taxCodes": []
+    }
+  },
+  "steps": [
+    {
+      "comment": "Yearly filing is a real thing to want — and a caller who wrote it used to get quarterly, with no error and no warning.",
+      "op": "createTenant",
+      "input": { "name": "Jahreszahler GmbH", "baseCurrency": "EUR", "profile": "yearly-filer", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "taxationMethod": "cash" } }
+    },
+    {
+      "comment": "setTaxProfile returns the serialized profile, which is where the stored period becomes visible.",
+      "op": "setTaxProfile",
+      "input": { "tenant": "$T1", "smallBusiness": { "validFrom": "2026-01-01", "value": false } },
+      "expect": { "result": { "taxationMethod": "cash", "vatPeriod": "yearly" } }
+    },
+    {
+      "comment": "\"kasse\" is not \"cash\". It used to fall through to accrual — the tenant then taxed on invoice while its configuration said on payment.",
+      "op": "createTenant",
+      "input": { "name": "Vertipper GmbH", "baseCurrency": "EUR", "profile": "typo-method", "firstFiscalYear": 2026 },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "A missing letter in the filing period was quarterly, silently.",
+      "op": "createTenant",
+      "input": { "name": "Vertipper II GmbH", "baseCurrency": "EUR", "profile": "typo-period", "firstFiscalYear": 2026 },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "An explicit null is a caller mistake too — absent is a default, null is a statement.",
+      "op": "createTenant",
+      "input": { "name": "Null GmbH", "baseCurrency": "EUR", "profile": "null-method", "firstFiscalYear": 2026 },
+      "expect": { "error": "E_INPUT_INVALID" }
+    }
+  ]
+}

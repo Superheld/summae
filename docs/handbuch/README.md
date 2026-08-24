@@ -563,9 +563,15 @@ Directly as `setup.tenant.taxProfile` or as `profile.defaults`.
 
 | Field | Type | Default | Meaning |
 |------|-----|---------|-----------|
-| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation (anything ≠ `"cash"` ⇒ accrual) |
-| `vatPeriod` | `"monthly"` \| `"quarterly"` | `quarterly` | VAT-return period |
+| `taxationMethod` | `"cash"` \| `"accrual"` | `accrual` | cash vs. accrual taxation; **any other value is `E_INPUT_INVALID`** |
+| `vatPeriod` | `"monthly"` \| `"quarterly"` \| `"yearly"` | `quarterly` | which window the tenant files in — **descriptive only**, it selects no window in `vatReturn`; any other value is `E_INPUT_INVALID` |
 | `smallBusiness` | bool \| list | `false` | small-business scheme; as bool or as a segment list `[{validFrom, value}]` for a mid-year switch |
+
+> **Absent is a default; a wrong value is a mistake.** Both fields used to fall back silently —
+> anything that was not `"cash"` became accrual and anything that was not `"monthly"` became
+> quarterly. A typo in a configuration file therefore decided whether VAT falls due on invoice or on
+> payment, and a tenant that wrote `"yearly"` filed quarterly, with no error and no warning. Leaving
+> a field out still gives you the documented default.
 
 ### `dimensionTypes[]` / `dimensionValues[]` / `dimensionRules[]`
 
@@ -1029,6 +1035,12 @@ Lean partner master data (open items per partner, VAT ID, EC sales list, DATEV).
 `customer`/`supplier`/`both`, anything else is `E_INPUT_INVALID`), `vatId` (no),
 `paymentTermsDays` (no), `accountNumbers[]` (no), `address` (no). Output:
 serialized partner with a generated `id`. Writes an audit entry.
+
+⚠ **`accountNumbers` are checked against the chart** on `createPartner` and `updatePartner` alike:
+a number the books do not carry is `E_ACCOUNT_UNKNOWN`. A partner linked to an account that does not
+exist is master data wrong for every reader of the books, not only for the screen that entered it.
+The whole-list semantics are unchanged — a valid list replaces the previous one, an empty list
+clears the link.
 
 ⚠ **A nameless partner is refused**, and so is a whitespace-only one. `name`
 used to default to `""`, which produced a partner indistinguishable from the

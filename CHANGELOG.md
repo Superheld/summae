@@ -12,6 +12,32 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### Two inputs that were accepted and quietly reinterpreted are now refused
+
+Same class, one pass: a value the library could not make sense of used to become a plausible
+default instead of an error.
+
+**`TaxProfile` no longer coerces (F-TAX-003).** `taxationMethod` was `=== 'cash' ? 'cash' :
+'accrual'` and `vatPeriod` was `=== 'monthly' ? 'monthly' : 'quarterly'`, so a typo, a `null` or an
+object all arrived as a valid-looking profile that books differently. A misspelt taxation method
+decided whether VAT falls due on invoice or on payment, silently. Both are now checked against
+their documented values (`E_INPUT_INVALID`); an absent field still gives the documented default.
+`vatPeriod` gains **`yearly`** — a caller who wrote it got quarterly. The field stays descriptive:
+it names the window a tenant files in and selects none (`vatReturn` takes its own).
+Reported as F-19 by an embedding application. The closed list of filing periods is itself a
+jurisdictional claim in the substrate — deliberate for now, reasoned in **SPEC-016**.
+
+**A partner's `accountNumbers` are checked against the chart (F-CORE-032).** A partner could be
+linked to account 9999 in books whose chart stops at 3110: the operation succeeded, the link was
+stored, and nothing ever reported it. Now `E_ACCOUNT_UNKNOWN` on `createPartner` and
+`updatePartner` alike. Whole-list semantics unchanged — an empty list still clears the link. This
+takes a refusal out of the embedding that had to write it in its own route with the chart already
+in hand (its F-17), the same way `name` and `kind` moved here.
+
+New fixtures `tax/tax-profile-input-validation` and `core/partner-account-link-validated`, red
+before the change in both languages.
+
+
 ### `postVoucher` keeps the dimensions of its net lines (F-CORE-006)
 
 The tax expansion rebuilt every input line as account/money/code, so anything else on it —

@@ -78,6 +78,7 @@ a short file.
 | IMPL-027 the partner stream could not validate against its own schema | **RESOLVED 2026-08-24** — two halves of one gap: the format declared `accountIds` (uuids) while the engine writes `accountNumbers` (strings), and `journalExport` exported partners without stripping nulls, unlike accounts and vouchers, so a partner with no `vatId` wrote a `null` where the schema demands a string. Latent because no schema test had ever exported a partner; one does now in both languages, with the leanest partner there is. Found while adding `status` for the format 0.7 bump |
 | IMPL-028 the cross-test compared against stale artifacts | **RESOLVED 2026-08-24** — `cross-export` wrote into `.cross-dbs/` without clearing it, so a fixture that stopped being exported left its database and its oracle behind and the read side kept comparing against them. Surfaced when the format moved to 0.7: three retired fixtures' old oracles said 0.6 and failed the cross test on a run that no longer happens. The export starts from an empty directory now |
 | SPEC-015 tenant configuration has no owner | **RESOLVED 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings were constructor arguments rebuilt on every open, so the five operations that change them audited durably and persisted nothing; our own CLI shipped with four of the five silently ineffective. Now a `summae_tenants` table, the stored record winning over the passed seed, and the CLI's hand-rolled `importMapping` write-back deleted. No fixture could ever have seen it (single-process); guarded now by `regression/tenant-configuration.json` — one CLI invocation per step — plus both adapter suites: seven tests go red without the fix |
+| SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | **OPEN 2026-08-24** — refusing an unknown `vatPeriod` needs a list, and `[monthly, quarterly, yearly]` is one the substrate has no business making (Ireland files bi-monthly). Deliberate for now: the field is descriptive, it selects no window and decides no figure, and the previous list was a worse claim. The right shape is a pack declaration, which is a decision, not a refactor. `taxationMethod` beside it is NOT this finding — accrual/cash is substrate mechanism |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -1025,3 +1026,44 @@ both CLIs.
 
 `testing/scenarios/README.md` records the general lesson: a scenario is the only place in this test
 landscape where "does this survive the process" can be asked at all.
+
+## SPEC-016: the set of VAT filing periods is a jurisdictional claim living in the substrate
+
+**Found 2026-08-24, while closing the `TaxProfile` coercion (F-TAX-003).**
+
+`TaxProfile.fromData` now refuses a `vatPeriod` it does not know instead of silently returning
+`quarterly`, which is the right fix for the defect that was reported. Refusing requires a list, and
+the list is `['monthly', 'quarterly', 'yearly']` — three constants in the jurisdiction-free core.
+
+**The litmus test fails.** *Would another jurisdiction answer this differently?* Yes, and not
+theoretically: Ireland files VAT bi-monthly, several jurisdictions have half-yearly windows, and
+some have none of these because they have no VAT. A closed list of filing periods in the substrate
+says "these are the filing periods there are", which is exactly the kind of statement the substrate
+is defined not to make. The guard test caught the first draft of this — the comment cited
+§ 18 Abs. 2 UStG as the reason `yearly` exists, and `no-jurisdiction-text.test.ts` refused it. The
+statute came out of the comment; the assumption it justified stayed in the code.
+
+**Why it was still done this way, deliberately:**
+
+- The field is a **label**. `vatPeriod` records which window a tenant files in and selects nothing —
+  `vatReturn` takes `year` + optional `quarter`/`month` and computes from those. So a wrong value
+  produces a wrong *statement about* the tenant, never a wrong figure. The blast radius of the
+  substrate being wrong here is one descriptive field.
+- The previous list was **also** a jurisdictional claim, and a worse one: it omitted a period that
+  exists and lost the caller's value silently. Replacing a wrong closed list with a less wrong
+  closed list is an improvement even if closed lists are the real problem.
+- The right shape — the pack declares which filing periods it recognises, e.g. in `packPolicy` —
+  touches the pack format, `format.schema.json`, all three shipped packs and every tenant built from
+  an inline bundle. That is a change with a decision in it, not a refactor, and it does not belong
+  inside a fix for a coercion bug.
+
+**Note the asymmetry with the field beside it.** `taxationMethod` gets the same treatment in the
+same function and is *not* this finding: accrual and cash are the two ways this engine can time a
+tax liability, and it implements both. That set is substrate mechanism — a jurisdiction picks from
+it, it does not extend it. Two fields, one line apart, on opposite sides of the boundary; that is
+worth writing down, because the next reader will see one enum and assume the other is like it.
+
+**What would decide it:** the first pack that needs a period this list does not have, or the first
+time `vatPeriod` stops being descriptive — if a projection ever selects its window from the profile,
+the list starts deciding figures and the argument above expires. Until then the constants stay, with
+this note as the reason they are not defended.
