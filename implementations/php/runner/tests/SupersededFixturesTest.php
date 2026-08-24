@@ -39,13 +39,30 @@ final class SupersededFixturesTest extends TestCase
     /**
      * A successor that nobody runs would leave the retired fixture's ground uncovered — the point
      * of retiring one is that something else took over its job, not that the job went away.
+     *
+     * Followed through chains, because retirement happens more than once to the same ground:
+     * `system-description` → `-current` → `-invariants`. Only the last link has to run; demanding it
+     * of a middle one would force a retired fixture back into the suite, which is the opposite of
+     * what retiring it meant. A cycle is reported rather than followed forever.
      */
     public function testEverySuccessorIsExpectedGreen(): void
     {
         $expected = array_flip(self::expectedGreen());
+        $register = self::register();
         $missing = [];
 
-        foreach (self::register() as $fixture => $successor) {
+        foreach (array_keys($register) as $fixture) {
+            $seen = [$fixture => true];
+            $successor = $register[$fixture];
+            while (isset($register[$successor]) && !isset($seen[$successor])) {
+                $seen[$successor] = true;
+                $successor = $register[$successor];
+            }
+
+            if (isset($seen[$successor])) {
+                $missing[] = sprintf('supersession chain from "%s" is circular at "%s"', $fixture, $successor);
+                continue;
+            }
             if (!isset($expected[$successor])) {
                 $missing[] = sprintf('successor "%s" of "%s" is not in expected-green.txt', $successor, $fixture);
             }

@@ -12,6 +12,36 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The read side publishes what the write side owns
+
+Four gaps of one shape, closed in one pass: state the library held and did not report, so an
+embedding either could not build the screen or had to keep its own copy beside the books.
+
+- **`costingRuns` — a new projection.** `costAllocationSheet`, `overheadRates` and `productionCost`
+  all require a `runId` and nothing said where one comes from, so the only way to hold a valid id
+  was to have kept the one `runCosting` returned. Reports what a run *is* (`runId`, `fiscalYear`,
+  `period`, `version`, `status`, `method`), filterable by year and period, never what it computed.
+  Reported as F-24.
+- **`assetRegister` rows carry `specialDepreciation`** — `elected`, `allowance`, `remaining`. A
+  screen can now tell which assets took the additional allowance instead of offering the form on
+  every row and letting the engine refuse the rest. Reported as F-25.
+- **`cashBasisReport` publishes `surplus`**, with `totalIncome`/`totalExpenses` beside it. The EÜR
+  returned every figure it is built from and not the one it exists to produce, while
+  `incomeStatement` hands out `netIncome` and `balanceSheet` both totals. Reported as F-20.
+- **`systemDescription` reports the tax profile** the engine is running on. Second half of F-16.
+
+All four are additive fields or a new name, so no existing expectation moves.
+
+**One fixture was retired on the way** (`testing/testsuite/superseded.json`):
+`system-description-current` pinned the full capability list, so summae could not gain a projection
+without it going red — the same weld a shipped pack's version and account count were retired for,
+one layer up. Completeness is guarded where it belongs, by the contract test that holds the
+published list against the dispatcher's own routing table in both directions. The successor
+`system-description-invariants` pins everything the description must be right about and leaves the
+length of the catalogue to the product. The supersession guard now follows chains, since this is
+the second retirement of the same ground.
+
+
 ### Two inputs that were accepted and quietly reinterpreted are now refused
 
 Same class, one pass: a value the library could not make sense of used to become a plausible

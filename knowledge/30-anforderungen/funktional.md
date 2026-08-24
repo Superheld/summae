@@ -13,7 +13,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-CORE-005 | Kontenrahmen MÜSSEN als versionierte Daten importierbar sein; Kontenpläne sind mandantenspezifisch ableitbar. | 13 |
 | F-CORE-006 | Buchungspositionen MÜSSEN frei definierbare Dimensionen tragen können. **Präzisiert 2026-08-24:** Typen und Werte sind *Mandanten*-Stammdaten (`defineDimensionType`/`defineDimensionValue`) — eine Jurisdiktion hat keine Meinung darüber, wie eine Firma ihre Kostenstellen nennt; das Pack liefert nur `dimensionRules` (welche Konten ohne welche Dimension nicht bebucht werden dürfen). Der Typcode `costCenter` ist Kern-Vokabular (Primärkosten-Einlass der KLR), nicht Pack-Daten. „Standardtypen mitgeliefert" beschrieb einen später verworfenen Entwurf. | 12 |
 | F-CORE-007 | Eigene Konten MÜSSEN jederzeit anlegbar sein (innerhalb der Kontenplan-Systematik). | 13 |
-| F-CORE-008 | Die EÜR MUSS als Projektion über zahlungswirksame Buchungen erzeugbar sein (Regeln R1–R6, bewiesen). | 08 |
+| F-CORE-008 | Die EÜR MUSS als Projektion über zahlungswirksame Buchungen erzeugbar sein (Regeln R1–R6, bewiesen). **Ergänzt 2026-08-24:** und MUSS ihr Ergebnis nennen — `surplus` samt `totalIncome`/`totalExpenses`. Vorher lieferte sie jede Zahl, aus der die Rechnung besteht, und nicht die eine, für die sie existiert; der Aufrufer durfte sie auch nicht selbst bilden, weil das Subtrahieren zweier Felder derselben Projektion genau die Arithmetik ist, die diese Bibliothek Einbettern untersagt. `incomeStatement` nennt `netIncome`, `balanceSheet` beide Summen — die dritte Rechnung derselben Familie nannte keine. | 08 |
 | F-CORE-009 | Zahlungen MÜSSEN offene Posten referenzieren (auch Teilausgleich, proportionale Kategorie-Aufteilung). | 04 |
 | F-CORE-010 | Buchungen/Belege MÜSSEN die Metadaten `recurring`, `due`, `economicYear` tragen können. | 08 |
 | F-CORE-011 | Jede Buchung MUSS eine lückenlose Journalnummer und drei Zeitangaben (Belegdatum, Buchungsdatum, Erfassungszeitpunkt) tragen. | 14 |
@@ -67,7 +67,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 | F-AST-002 | Die GWG-Weiche (Sofortabzug / Sammelposten / Aktivierung) MUSS beim Zugang nach datierten Regelmodul-Grenzen entscheiden. | 05 |
 | F-AST-003 | Der AfA-Lauf MUSS idempotent je Periode normale Journal-Buchungen erzeugen. | 05 |
 | F-AST-004 | Restbuchwert = AHK − Σ Abschreibungen MUSS als Invariante gelten; Abgänge buchen Restbuchwert und Veräußerungsergebnis aus. | — |
-| F-AST-005 | Das Anlageverzeichnis MUSS als Projektion verfügbar sein (auch bei EÜR, § 4 Abs. 3 S. 5 EStG). | 05 |
+| F-AST-005 | Das Anlageverzeichnis MUSS als Projektion verfügbar sein (auch bei EÜR, § 4 Abs. 3 S. 5 EStG). **Ergänzt 2026-08-24:** jede Zeile MUSS zusätzlich ausweisen, ob die Sonderabschreibung gewählt wurde, mit welchem Budget und wieviel davon übrig ist (`specialDepreciation: {elected, allowance, remaining}`). `bookSpecialDepreciation` antwortet mit dem Rest *nach* der Buchung — zu spät für die Frage, ob eine Zeile die Buchung überhaupt anbieten darf. | 05 |
 | F-AST-006 | Sammelposten MÜSSEN jahrgangsbezogen starr über die **vom Pack deklarierte** Dauer (`poolYears`) aufgelöst werden; ob ein Abgang den Posten vermindert, deklariert das Pack ebenfalls (`poolReducedOnDisposal`) — Deutschland: 5 Jahre, Abgang ohne Wirkung (§ 6 Abs. 2a EStG); UK/Australien: Abgang entnimmt. | 06 |
 | F-AST-007 | AfA-Pläne MÜSSEN linear und degressiv (Regelmodul-Sätze mit Anschaffungszeitraum) inkl. automatischem Wechsel degressiv→linear unterstützen; Sonder-AfA und AK-Minderung (§ 7g) als Plan-Mechanik. | — |
 
@@ -75,7 +75,7 @@ Stand 2026-06-08: ausformuliert aus den Standardfällen SF-01–26 (`lieferumfan
 
 | ID | Anforderung | SF |
 |---|---|---|
-| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. **Präzisiert 2026-08-24:** „versioniert" heißt persistent — Läufe liegen hinter einem eigenen Port (`CostingRunRepository`), die nächste Version kommt aus dem Bestand, nicht aus einem Zähler im Prozess. | 12 |
+| F-KLR-001 | Abrechnungsläufe MÜSSEN je Periode versioniert sein (draft → released); Auswertungen lesen nur released Läufe. **Ergänzt 2026-08-24:** und MÜSSEN auflistbar sein (Projektion `costingRuns`, filterbar nach Jahr und Periode). BAB, Zuschlagssätze und Herstellungskosten verlangen alle eine `runId`, und keine Projektion sagte, woher eine kommt — wer keine aufgehoben hatte, kam an keine heran, und ein Einbetter führte notgedrungen ein zweites Register neben den Büchern. **Präzisiert 2026-08-24:** „versioniert" heißt persistent — Läufe liegen hinter einem eigenen Port (`CostingRunRepository`), die nächste Version kommt aus dem Bestand, nicht aus einem Zähler im Prozess. | 12 |
 | F-KLR-002 | Die Abgrenzungsrechnung MUSS regelbasiert übernehmen/ausschließen/ersetzen/hinzufügen und eine beidseitige Abstimmbrücke liefern. | 12 |
 | F-KLR-003 | Umlagen MÜSSEN Anbau-, Stufenleiter- und Gleichungsverfahren unterstützen; Verrechnungssumme bleibt erhalten, Hilfskostenstellen enden bei 0. | 12 |
 | F-KLR-004 | BAB und Kalkulationssätze MÜSSEN als Projektion eines released Laufs abrufbar sein. | 12 |

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { supersededFixtures } from '../src/fixture-loader.js';
 
 /**
  * Gate for `docs/gobd-conformance.md`.
@@ -91,6 +92,23 @@ describe('docs/gobd-conformance.md keeps its promises', () => {
       missing,
       'the conformance document points at fixtures that do not exist — a ✅ nobody can reproduce',
     ).toEqual([]);
+  });
+
+  /**
+   * A cited fixture must still RUN, not merely still exist.
+   *
+   * Retiring a fixture leaves the file in place, byte-identical, by design — which is exactly why
+   * existence was the wrong question. Four rows of this document went on citing retired fixtures for
+   * a day without anything noticing: three lost their evidence when the data format moved to 0.7,
+   * one when the capability list stopped being pinned. A ✅ whose proof no longer runs is the
+   * failure mode this whole document exists to prevent, one level up.
+   */
+  it('names no fixture the runner has retired', () => {
+    const retired = supersededFixtures();
+    const stale = citedFixtures(readDoc(), fixtureDirNames())
+      .filter((path) => retired.has(path.slice(path.lastIndexOf('/') + 1)))
+      .map((path) => `${path} is retired (superseded by ${retired.get(path.slice(path.lastIndexOf('/') + 1))!})`);
+    expect(stale, 'the conformance document cites a fixture the runner no longer runs').toEqual([]);
   });
 
   it('every requirement it names is covered by a fixture, or is a declared exception', () => {

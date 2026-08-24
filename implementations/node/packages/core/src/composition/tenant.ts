@@ -58,6 +58,8 @@ export class Tenant {
     readonly openItems: OpenItemRepository,
     readonly assets: AssetRepository,
     readonly partners: PartnerRepository,
+    /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
+    readonly costingRuns: CostingRunRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
@@ -216,6 +218,7 @@ export class Tenant {
       openItems,
       assets,
       partners,
+      costingRuns,
       audit,
       ledger,
       tax,

@@ -19,6 +19,7 @@ use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
 use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountsProjection;
+use Summae\Core\Policies\Projection\CostingRunsProjection;
 use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
@@ -150,9 +151,16 @@ final readonly class TenantOperations
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
-            'systemDescription' => (new SystemDescriptionProjection($tenant->id, $tenant->name, $tenant->baseCurrency, $tenant->packIdentity))->compute($params),
+            'systemDescription' => (new SystemDescriptionProjection(
+                $tenant->id,
+                $tenant->name,
+                $tenant->baseCurrency,
+                $tenant->packIdentity,
+                $tenant->tax->profile()->jsonSerialize(),
+            ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
+            'costingRuns' => (new CostingRunsProjection($tenant->costingRuns))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'overheadRates' => $tenant->costing->overheadRates($params),
             'productionCost' => $tenant->costing->productionCost($params),

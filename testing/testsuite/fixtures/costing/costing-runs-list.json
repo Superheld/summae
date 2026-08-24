@@ -1,0 +1,67 @@
+{
+  "fixture": "costing-runs-list",
+  "description": "F-KLR-001: which costing runs exist is answerable. `costAllocationSheet`, `overheadRates` and `productionCost` all require a `runId` and no projection said where one comes from — the only way to hold a valid id was to have kept the one `runCosting` returned. So an embedding kept its own table of run ids beside the books, which is a second register of library state and drifts with the first change that does not pass through the screen that writes it; the audit log was the other shortcut, and rebuilding library state from a trail is what F-13 already named as a bug in waiting. The repository has had a sorted `all()` since the runs were persisted, so this was a published-surface gap, not a design boundary. Deliberately thin: what a run IS — id, period, version, status, method — and nothing it computed, because a total repeated here would be a second answer to a question the three projections above already answer. Reported by an embedding application as its F-24.",
+  "covers": ["F-KLR-001"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-01-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [ { "typeCode": "costCenter", "code": "A", "name": "Stelle A" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "voucherId": "$V1", "entryDate": "2026-01-31", "text": "Gehalt Stelle A",
+        "lines": [
+          { "account": "4120", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "A" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "comment": "Two runs over the same period: the second is version 2, and both stay listed — a superseded draft is part of the period's history.",
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "version": 1, "status": "draft" } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "runId": "$R1", "status": "released" } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R2", "version": 2, "status": "draft" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "costingRuns",
+      "params": {},
+      "expect": {
+        "comment": "Ohne Filter: alles, was es gibt, sortiert nach Periode und dann Version — die Reihenfolge, in der die nächste Version entsteht und in der eine Periodenhistorie gelesen wird.",
+        "runs": [
+          { "runId": "$R1", "fiscalYear": 2026, "period": 1, "version": 1, "status": "released", "method": "step_ladder" },
+          { "runId": "$R2", "fiscalYear": 2026, "period": 1, "version": 2, "status": "draft", "method": "step_ladder" }
+        ]
+      }
+    },
+    {
+      "name": "costingRuns",
+      "params": { "fiscalYear": 2026, "period": 2 },
+      "expect": {
+        "comment": "Eine Periode ohne Läufe ist leer, kein Fehler — „es gibt keine\" ist eine Antwort.",
+        "runs": []
+      }
+    }
+  ]
+}

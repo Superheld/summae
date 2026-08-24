@@ -7,6 +7,7 @@ import { MappingImporter } from '../policies/projection/mapping/mapping-importer
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
+import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
 import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
 import { BalanceSheetProjection } from '../policies/projection/balance-sheet.js';
@@ -180,7 +181,15 @@ export class TenantOperations {
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
       case 'systemDescription':
-        return new SystemDescriptionProjection(tenant.id, tenant.name, tenant.baseCurrency, tenant.packIdentity).compute(params);
+        return new SystemDescriptionProjection(
+          tenant.id,
+          tenant.name,
+          tenant.baseCurrency,
+          tenant.packIdentity,
+          tenant.tax.profile().toJSON(),
+        ).compute(params);
+      case 'costingRuns':
+        return new CostingRunsProjection(tenant.costingRuns).compute(params);
       case 'cashJournal':
         return new CashJournalProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'assetRegister':

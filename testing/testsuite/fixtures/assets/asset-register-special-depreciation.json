@@ -1,0 +1,144 @@
+{
+  "fixture": "asset-register-special-depreciation",
+  "description": "F-AST-005: the fixed-asset register reports whether an asset elected the additional allowance, what the budget was, and what is left of it. `bookSpecialDepreciation` answers with `remainingAllowance` and `bookValue`, so AFTER a booking a caller can say how much of the budget is left — before one it could say nothing. The register carried route, method, useful life, the schedule, the accumulated depreciation and the book value, and not whether the allowance was elected at all. So a screen offered the form on every capitalised asset and let summae refuse the ones that had not elected it: an informative refusal, and still the wrong shape — a control only some rows can use, shown on every row, because the page could not tell them apart. Three fields, all read off state the asset already holds. Additive, so no existing expectation moves. Reported by an embedding application as its F-25.",
+  "covers": [
+    "F-AST-005"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Anlagen GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AN-1",
+          "voucherDate": "2026-01-15"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "comment": "An asset that elects the allowance.",
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1",
+        "voucherId": "$V1",
+        "name": "Fertigungsmaschine",
+        "assetClass": "machine",
+        "assetAccount": "0100",
+        "acquisitionCost": {
+          "amount": "10000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-15",
+        "gwgChoice": "capitalize",
+        "usefulLifeMonths": 60,
+        "specialDepreciation": true
+      },
+      "expect": {
+        "result": {
+          "route": "capitalize",
+          "id": "$A1"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AN-2",
+          "voucherDate": "2026-02-01"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V2"
+        }
+      }
+    },
+    {
+      "comment": "And one that does not — the row a screen must be able to tell apart from the first.",
+      "op": "acquireAsset",
+      "input": {
+        "tenant": "$T1",
+        "voucherId": "$V2",
+        "name": "Regal",
+        "assetClass": "machine",
+        "assetAccount": "0100",
+        "acquisitionCost": {
+          "amount": "2000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-02-01",
+        "gwgChoice": "capitalize",
+        "usefulLifeMonths": 120
+      },
+      "expect": {
+        "result": {
+          "route": "capitalize",
+          "id": "$A2"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "assetRegister",
+      "params": {
+        "tenant": "$T1",
+        "asOf": "2026-06-30"
+      },
+      "expect": {
+        "comment": "Vor jeder Sonderabschreibung: `elected` sagt, ob die Zeile das Formular überhaupt anbieten darf. Das Budget ist der Satz des Packs auf die Anschaffungskosten (de: 40 % von 10.000,00), `remaining` ist davon noch nichts verbraucht.",
+        "assets": [
+          {
+            "id": "$A1",
+            "name": "Fertigungsmaschine",
+            "specialDepreciation": {
+              "elected": true,
+              "allowance": {
+                "amount": "4000.00",
+                "currency": "EUR"
+              },
+              "remaining": {
+                "amount": "4000.00",
+                "currency": "EUR"
+              }
+            }
+          },
+          {
+            "id": "$A2",
+            "name": "Regal",
+            "specialDepreciation": {
+              "elected": false,
+              "allowance": null,
+              "remaining": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
