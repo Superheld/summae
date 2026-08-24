@@ -96,7 +96,10 @@ export class DatabaseTenantFactory {
     const tenant = Tenant.fromPorts(
       tenantId,
       record.name,
-      Currency.of(record.baseCurrency, (options.baseCurrency ?? Currency.of('EUR')).scale),
+      // The scale is a PACK parameter (`packPolicy.currencyScale`), so it comes from the caller on
+      // every open — not from the record, which stores the code alone. Absent means "whatever this
+      // currency's own scale is", which is not the same as EUR's.
+      Currency.of(record.baseCurrency, options.baseCurrency?.scale),
       {
         accounts: new DatabaseAccountRepository(db, tenantId),
         fiscalYears: new DatabaseFiscalYearRepository(db, tenantId),

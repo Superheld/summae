@@ -105,52 +105,6 @@ final class Workspace
         return $value;
     }
 
-    /**
-     * Write an imported mapping into the workspace file.
-     *
-     * Mappings live in a registry that is rebuilt from `summae.json` on every invocation, so an
-     * import that only touched the registry was gone the moment the process ended: `imported: true`
-     * followed by a report that behaved as though nothing had been imported. Called only after the
-     * import succeeded, so a rejected mapping is never stored.
-     *
-     * @param array<string, mixed> $mapping
-     */
-    public function rememberMapping(array $mapping): void
-    {
-        $raw = file_get_contents($this->configPath());
-        /** @var array<string, mixed> $config */
-        $config = json_decode(is_string($raw) ? $raw : '{}', true, 512, JSON_THROW_ON_ERROR);
-
-        /** @var array<string, mixed> $rules */
-        $rules = is_array($config['rules'] ?? null) ? $config['rules'] : [];
-        /** @var array<string, mixed> $ruleModules */
-        $ruleModules = is_array($rules['ruleModules'] ?? null) ? $rules['ruleModules'] : [];
-        /** @var list<mixed> $mappings */
-        $mappings = is_array($ruleModules['mappings'] ?? null) ? array_values($ruleModules['mappings']) : [];
-
-        // Replace by id rather than append: importing the same id twice must update it, not leave
-        // two mappings behind that the next load would read as overlapping.
-        $id = is_string($mapping['id'] ?? null) ? $mapping['id'] : null;
-        $replaced = false;
-        foreach ($mappings as $index => $existing) {
-            if (is_array($existing) && ($existing['id'] ?? null) === $id) {
-                $mappings[$index] = $mapping;
-                $replaced = true;
-                break;
-            }
-        }
-
-        if (!$replaced) {
-            $mappings[] = $mapping;
-        }
-
-        $ruleModules['mappings'] = $mappings;
-        $rules['ruleModules'] = $ruleModules;
-        $config['rules'] = $rules;
-
-        file_put_contents($this->configPath(), json_encode($config, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
-    }
-
     public function tenant(): Tenant
     {
         if (!$this->exists()) {
@@ -201,6 +155,9 @@ final class Workspace
             throw new DomainError('E_WORKSPACE_INVALID', 'summae.json: "tenantId" is not a UUID', ['field' => 'tenantId']);
         }
 
+        // Seed values (name, currency, profile, dimension master data) are written on the first open
+        // and ignored afterwards — the workspace file stops being a second source of truth for them
+        // (SPEC-015). The pack side is passed on every open, because that is what a pack is.
         $tenant = (new DatabaseTenantFactory($this->connection()))->build(
             $name,
             Currency::of($baseCurrency),

@@ -10,6 +10,9 @@ use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
+use Summae\Core\Composition\TenantConfigStore;
+use Summae\Core\Composition\TenantRecord;
+use Summae\Core\Policies\Projection\Mapping\Mapping;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Partner\PartnerService;
 use Summae\Core\Substrate\Clock;
@@ -30,6 +33,7 @@ use Summae\Laravel\Repository\DatabaseJournalRepository;
 use Summae\Laravel\Repository\DatabaseOpenItemRepository;
 use Summae\Laravel\Repository\DatabaseCostingRunRepository;
 use Summae\Laravel\Repository\DatabasePartnerRepository;
+use Summae\Laravel\Repository\DatabaseTenantRecordRepository;
 use Summae\Laravel\Repository\DatabaseVoucherRepository;
 
 /**
@@ -48,9 +52,10 @@ final readonly class DatabaseTenantFactory
     ) {
     }
 
+    /** @param array{id: string, version: string}|null $packIdentity */
     public function build(
-        string $name,
-        Currency $baseCurrency,
+        ?string $name = null,
+        ?Currency $baseCurrency = null,
         ?Clock $clock = null,
         ?IdGenerator $ids = null,
         ?DimensionRegistry $dimensions = null,
@@ -64,6 +69,7 @@ final readonly class DatabaseTenantFactory
         // the one thing this project promises never happens. Default unchanged, so nothing moves for
         // a caller who does not pass it.
         string $taxRoundingGranularity = 'perVoucher',
+        ?array $packIdentity = null,
     ): Tenant {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -73,6 +79,45 @@ final readonly class DatabaseTenantFactory
         $mappings ??= MappingRegistry::empty();
 
         $tenantId ??= $ids->next();
+
+        // Seed values (name, currency, profile, dimension master data) are written on the FIRST open
+        // of a tenant and ignored afterwards, because from then on the stored record is the truth
+        // (SPEC-015). Pack data — tax codes, dimension rules, pack mappings, rounding granularity —
+        // is passed on every open and never stored: a pack is versioned product data the embedding
+        // pins, and a copy of it beside the books would make two answers out of one.
+        $dimensionSeed = $dimensions->toData();
+        $configStore = TenantConfigStore::open(
+            new DatabaseTenantRecordRepository($this->connection, $tenantId),
+            new TenantRecord(
+                $tenantId->value,
+                $name ?? 'Tenant',
+                ($baseCurrency ?? Currency::of('EUR'))->code,
+                $packIdentity,
+                [
+                    'taxProfile' => $taxProfile->jsonSerialize(),
+                    'dimensionTypes' => $dimensionSeed['types'],
+                    'dimensionValues' => $dimensionSeed['values'],
+                    'allocationScheme' => null,
+                    'mappings' => [],
+                ],
+            ),
+        );
+
+        $record = $configStore->record();
+        $config = $record->config;
+
+        // The pack's rules, the tenant's master data — see DimensionRegistry::withMasterData.
+        $dimensions = $dimensions->withMasterData($config['dimensionTypes'], $config['dimensionValues']);
+
+        // Pack mappings first, then the imported ones on top: an import that replaced a pack mapping
+        // has to keep winning after a restart, or the report changes shape when the process does.
+        foreach ($config['mappings'] as $mappingData) {
+            $mappings->add(Mapping::fromData($mappingData));
+        }
+
+        $taxProfile = $config['taxProfile'] === null ? TaxProfile::default() : TaxProfile::fromData($config['taxProfile']);
+        $name = $record->name;
+        $baseCurrency = Currency::of($record->baseCurrency, $baseCurrency?->scale);
 
         $accounts = new DatabaseAccountRepository($this->connection, $tenantId);
         $fiscalYears = new DatabaseFiscalYearRepository($this->connection, $tenantId);
@@ -97,6 +142,7 @@ final readonly class DatabaseTenantFactory
             $ids,
             $taxCodes,
             $tenantId,
+            $configStore,
         );
 
         // The same writer the ledger uses. Three services take it as an OPTIONAL argument, and this
@@ -107,10 +153,34 @@ final readonly class DatabaseTenantFactory
         // matters. Adding a service here means passing these through.
         $auditWriter = new AuditWriter($audit, $clock, $ids);
 
-        $tax = new TaxService($baseCurrency, $taxCodes, $taxProfile, $journal, $taxRoundingGranularity, $tenantId, $auditWriter);
+        $tax = new TaxService(
+            $baseCurrency,
+            $taxCodes,
+            $taxProfile,
+            $journal,
+            $taxRoundingGranularity,
+            $tenantId,
+            $auditWriter,
+            $configStore,
+        );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids);
         $assetService = new AssetService($baseCurrency, $assets, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
-        $costing = new CostingService($baseCurrency, $accounts, $journal, $costingRuns, $ids, $tenantId, $auditWriter);
+        $costing = new CostingService(
+            $baseCurrency,
+            $accounts,
+            $journal,
+            $costingRuns,
+            $ids,
+            $tenantId,
+            $auditWriter,
+            $configStore,
+        );
+
+        // Replayed, not re-set: `restore…` runs the same validation without auditing a change nobody
+        // made and without writing back what it just read.
+        if ($config['allocationScheme'] !== null) {
+            $costing->restoreAllocationScheme($config['allocationScheme']);
+        }
 
         return new Tenant(
             $tenantId,
@@ -132,6 +202,8 @@ final readonly class DatabaseTenantFactory
             $mappings,
             $clock,
             $ids,
+            $record->packIdentity,
+            $configStore,
         );
     }
 }

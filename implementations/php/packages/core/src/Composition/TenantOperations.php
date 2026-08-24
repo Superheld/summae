@@ -114,6 +114,7 @@ final readonly class TenantOperations
                 $tenant->mappings,
                 $tenant->id,
                 new AuditWriter($tenant->audit, $tenant->clock, $tenant->ids),
+                $tenant->configStore,
             ))->import($input),
             default => throw new DomainError('E_NOT_IMPLEMENTED', sprintf(
                 'Operation "%s" is not defined',

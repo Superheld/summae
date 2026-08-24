@@ -120,6 +120,8 @@ export class CostingService {
    * freezing rule against the same run, and two rules for one moment is how they drift apart.
    */
   private rateDefinitions: RateDefinition[] = [];
+  /** A stored scheme waiting for its first use — see `restoreAllocationScheme`. */
+  private pendingScheme: Record<string, unknown> | null = null;
   constructor(
     private readonly baseCurrency: Currency,
     private readonly accounts: AccountRepository,
@@ -150,18 +152,32 @@ export class CostingService {
   }
 
   /**
-   * Replays a stored scheme when a tenant is opened (SPEC-015).
+   * Hands back a stored scheme when a tenant is opened (SPEC-015).
    *
-   * Same parsing and the same refusals as `setAllocationScheme` — deliberately, so a scheme that
-   * was accepted once is validated again by the one reader rather than trusted because it is
-   * stored. What it does NOT do is audit or store: reopening a tenant is not a change, and a replay
-   * that recorded `allocationScheme/changed` would fill the trail with events nobody caused.
+   * **Deferred on purpose.** A scheme can reference production-cost treatments, which only the pack
+   * answers — and the pack arrives through `setRuleModule`, *after* the factory has built the
+   * tenant. Applying it here would make opening the books fail on a scheme that was perfectly valid
+   * when it was set, which is the wrong moment to find out and the wrong thing to block: reading a
+   * journal does not need an allocation scheme.
+   *
+   * So it is applied on first use — `setAllocationScheme` and `run` are the only entry points that
+   * read it. A stored scheme that the *current* pack no longer accepts then fails when somebody runs
+   * a costing, with the error the operation itself would have given.
    */
   restoreAllocationScheme(input: Record<string, unknown>): void {
-    this.applyAllocationScheme(input);
+    this.pendingScheme = input;
+  }
+
+  /** Applies what `restoreAllocationScheme` handed back, once, at the moment it is first needed. */
+  private applyPendingScheme(): void {
+    if (this.pendingScheme === null) return;
+    const pending = this.pendingScheme;
+    this.pendingScheme = null;
+    this.applyAllocationScheme(pending);
   }
 
   setAllocationScheme(input: Record<string, unknown>): Record<string, unknown> {
+    this.applyPendingScheme();
     const previousStepCount = this.schemeSteps.length;
     const previousRateCount = this.rateDefinitions.length;
     const result = this.applyAllocationScheme(input);
@@ -254,6 +270,7 @@ export class CostingService {
   }
 
   run(input: Record<string, unknown>): CostingRun {
+    this.applyPendingScheme();
     const fiscalYear = typeof input.fiscalYear === 'number' ? input.fiscalYear : 0;
     const period = typeof input.period === 'number' ? input.period : 0;
     const periodRef = new PeriodRef(fiscalYear, period);

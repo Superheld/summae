@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection\Mapping;
 
 use Summae\Core\DomainError;
+use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\Account;
@@ -27,6 +28,8 @@ final readonly class MappingImporter
         // its own, so the audit record names the tenant and puts the kind into the diff.
         private ?Uuid $tenantId = null,
         private ?AuditWriter $audit = null,
+        /** Where the import is kept, so it survives the process that made it (SPEC-015). */
+        private ?TenantConfigStore $configStore = null,
     ) {
     }
 
@@ -37,6 +40,7 @@ final readonly class MappingImporter
      */
     public function import(array $input): array
     {
+        /** @var array<string, mixed> $data */
         $data = is_array($input['mapping'] ?? null) ? $input['mapping'] : [];
         $mapping = Mapping::fromData($data);
 
@@ -65,6 +69,8 @@ final readonly class MappingImporter
         }
 
         $this->registry->add($mapping);
+        // After the registry, never before: a rejected mapping (overlap above) must store nothing.
+        $this->configStore?->rememberMapping($data);
 
         if ($this->audit !== null && $this->tenantId !== null) {
             $this->audit->record($this->audit->actorOf($input), 'mapping', $this->tenantId, 'imported', [

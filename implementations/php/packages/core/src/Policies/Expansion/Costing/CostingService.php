@@ -7,6 +7,7 @@ namespace Summae\Core\Policies\Expansion\Costing;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Summae\Core\DomainError;
+use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\CostingRunRepository;
@@ -70,6 +71,9 @@ final class CostingService
      */
     private array $rateDefinitions = [];
 
+    /** @var array<string, mixed>|null a stored scheme waiting for its first use — see restoreAllocationScheme */
+    private ?array $pendingScheme = null;
+
     private string $method = 'step_ladder';
 
     public function __construct(
@@ -92,6 +96,8 @@ final class CostingService
         // audit record names the tenant as its object (F-CORE-014 "Profile").
         private readonly ?Uuid $tenantId = null,
         private readonly ?AuditWriter $audit = null,
+        /** Where the scheme is kept, so it outlives this object (SPEC-015). */
+        private readonly ?TenantConfigStore $configStore = null,
     ) {
     }
 
@@ -111,8 +117,64 @@ final class CostingService
      */
     public function setAllocationScheme(array $input): array
     {
+        $this->applyPendingScheme();
         $previousStepCount = count($this->schemeSteps);
         $previousRateCount = count($this->rateDefinitions);
+        $result = $this->applyAllocationScheme($input);
+
+        if ($this->audit !== null && $this->tenantId !== null) {
+            $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
+                'method' => ['from' => null, 'to' => $result['method']],
+                'stepCount' => ['from' => $previousStepCount, 'to' => $result['stepCount']],
+                'rateCount' => ['from' => $previousRateCount, 'to' => $result['rateCount']],
+            ]);
+        }
+        // The raw input, not the parsed fields: it is exactly what this method accepts, so reloading
+        // it on the next open runs the same validation again rather than a second, drifting reader.
+        $this->configStore?->rememberAllocationScheme($input);
+
+        return $result;
+    }
+
+    /**
+     * Hands back a stored scheme when a tenant is opened (SPEC-015).
+     *
+     * **Deferred on purpose.** A scheme can reference production-cost treatments, which only the
+     * pack answers — and the pack arrives through `setRuleModule`, *after* the factory has built the
+     * tenant. Applying it here would make opening the books fail on a scheme that was perfectly
+     * valid when it was set, which is the wrong moment to find out and the wrong thing to block:
+     * reading a journal does not need an allocation scheme.
+     *
+     * So it is applied on first use — `setAllocationScheme` and `run` are the only entry points that
+     * read it. A stored scheme that the *current* pack no longer accepts then fails when somebody
+     * runs a costing, with the error the operation itself would have given.
+     *
+     * @param array<string, mixed> $input
+     */
+    public function restoreAllocationScheme(array $input): void
+    {
+        $this->pendingScheme = $input;
+    }
+
+    /** Applies what `restoreAllocationScheme` handed back, once, at the moment it is first needed. */
+    private function applyPendingScheme(): void
+    {
+        if ($this->pendingScheme === null) {
+            return;
+        }
+
+        $pending = $this->pendingScheme;
+        $this->pendingScheme = null;
+        $this->applyAllocationScheme($pending);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array{valid: bool, method: string, stepCount: int, rateCount: int, productionCostComponents: int}
+     */
+    private function applyAllocationScheme(array $input): array
+    {
         $method = is_string($input['method'] ?? null) ? $input['method'] : 'step_ladder';
 
         if (!in_array($method, self::METHODS, true)) {
@@ -183,14 +245,6 @@ final class CostingService
         $this->rateDefinitions = $rates;
         $this->productionCostConfig = $productionCost;
 
-        if ($this->audit !== null && $this->tenantId !== null) {
-            $this->audit->record($this->audit->actorOf($input), 'allocationScheme', $this->tenantId, 'changed', [
-                'method' => ['from' => null, 'to' => $method],
-                'stepCount' => ['from' => $previousStepCount, 'to' => count($steps)],
-                'rateCount' => ['from' => $previousRateCount, 'to' => count($rates)],
-            ]);
-        }
-
         return [
             'valid' => true,
             'method' => $method,
@@ -205,6 +259,7 @@ final class CostingService
      */
     public function run(array $input): CostingRun
     {
+        $this->applyPendingScheme();
         $fiscalYear = is_int($input['fiscalYear'] ?? null) ? $input['fiscalYear'] : 0;
         $period = is_int($input['period'] ?? null) ? $input['period'] : 0;
         $periodRef = new PeriodRef($fiscalYear, $period);

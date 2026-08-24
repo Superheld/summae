@@ -128,13 +128,32 @@ final class SchemaInstaller
             $table->json('payload');
             $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
         });
+
+        self::ensure($schema, 'tenants', static function (Blueprint $table): void {
+            // The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
+            //
+            // `tenant_id` is a column on every other table and used to point at nothing: a tenant
+            // existed only in whatever the embedding remembered, so a wrong id opened an empty
+            // ledger that was indistinguishable from a new one. It also carries the configuration —
+            // tax profile, dimension master data, allocation scheme, imported mappings — which five
+            // operations changed and no store kept.
+            //
+            // Name and currency are columns because they are what a tenant is *listed* by; the
+            // configuration is a JSON document because it is only ever read whole.
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->string('base_currency', 3);
+            $table->string('pack_id')->nullable();
+            $table->string('pack_version')->nullable();
+            $table->json('config');
+        });
     }
 
     public static function drop(Builder $schema): void
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'costing_runs', 'audit_log',
+            'open_items', 'partners', 'assets', 'costing_runs', 'audit_log', 'tenants',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);
         }
