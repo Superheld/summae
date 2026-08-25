@@ -99,6 +99,15 @@ export class Ledger {
     this.periods = new FiscalPeriodService(fiscalYears, journal, ids, this.auditWriter);
   }
 
+  /**
+   * The dimension registry this ledger validates against — so `tenantConfiguration` can report what
+   * a posting will be measured by. Read-only access: declaring a type or a value goes through
+   * `defineDimensionType`/`defineDimensionValue`, which audit and store the change.
+   */
+  dimensionRegistry(): DimensionRegistry {
+    return this.dimensions;
+  }
+
   post(input: Record<string, unknown>): PostResult {
     const actor = this.auditWriter.actorOf(input);
 

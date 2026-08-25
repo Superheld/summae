@@ -12,6 +12,40 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The tenant's configuration is readable (F-CORE-035)
+
+0.12.0 gave the library a place to keep what a tenant is set up as — tax profile, dimension
+master data, allocation scheme, imported mappings — and reported exactly one of the four back:
+the tax profile, through `systemDescription`. The other three could be written and never read.
+
+Storing them was half the fix. The seed rule from the same release is what makes the other half
+matter: before it, an embedding passed its cost centres in on every open, so *its* copy was the
+truth by construction. Since 0.12.0 the stored record wins and what a caller passes is ignored
+from the second open on — summae's copy is the truth, the embedding's is a guess, and nothing let
+it check. A screen with a cost-centre field could learn the accepted values only by posting and
+reading `E_DIMENSION_INVALID`.
+
+- **New projection `tenantConfiguration`.** No parameters: a tenant has exactly one configuration.
+  Reports `taxProfile`, `dimensionTypes`, `dimensionValues`, `dimensionRules`, `allocationScheme`
+  (raw, exactly as `setAllocationScheme` accepts it) and `mappings`.
+- **It reports what is in force, not what is stored**, and the two places those differ are the
+  point. `dimensionRules` — which accounts may not be posted without which dimension — are the
+  pack's and stand in no record at all, so nothing could tell a form which field it must not leave
+  empty. `mappings` lists the pack's alongside the imported ones; mirroring the record would
+  answer "none" for a `de` tenant whose `balanceSheet`, `incomeStatement` and `cashBasisReport` all
+  work.
+- **Mapping identity only** (`id`, `kind`, `version`), never the positions. Those are the pack's,
+  which the embedding pins and ships, and summae keeps no copy of it on purpose: two answers to
+  "which rules is this tenant on" is one answer too many.
+- **Identity is not repeated** — id, name, base currency and pack are `systemDescription`'s blocks
+  and it already reports all four.
+- A stored allocation scheme is reported **unapplied** when it has not been used yet. It may name
+  production-cost treatments only the current pack answers, which is why `restoreAllocationScheme`
+  defers applying it to first use; a projection is the wrong place to fail on that.
+- New fixture `core/tenant-configuration`, red before the change in both languages, and the
+  `tenant-configuration` regression scenario gained a final CLI invocation that reads the whole
+  configuration back — the cross-process case no fixture can reach.
+
 ## 0.12.0 — 2026-08-25
 
 **The second package an embedding application wrote** — and the round where our own tests were

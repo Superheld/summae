@@ -24,6 +24,7 @@ use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
+use Summae\Core\Policies\Projection\TenantConfigurationProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
 use Summae\Core\Policies\Projection\UnfinalizedEntriesProjection;
 use Summae\Core\Policies\Projection\VatReturnProjection;
@@ -157,6 +158,12 @@ final readonly class TenantOperations
                 $tenant->baseCurrency,
                 $tenant->packIdentity,
                 $tenant->tax->profile()->jsonSerialize(),
+            ))->compute($params),
+            'tenantConfiguration' => (new TenantConfigurationProjection(
+                $tenant->tax->profile()->jsonSerialize(),
+                $tenant->ledger->dimensionRegistry(),
+                $tenant->costing->allocationScheme(),
+                $tenant->mappings,
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),

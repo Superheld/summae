@@ -166,3 +166,4 @@ de-euer-surplus
 asset-register-special-depreciation
 system-description-tax-profile
 costing-runs-list
+tenant-configuration

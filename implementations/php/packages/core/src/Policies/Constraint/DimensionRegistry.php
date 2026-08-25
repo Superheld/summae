@@ -97,6 +97,28 @@ final class DimensionRegistry
     }
 
     /**
+     * The mandatory-dimension rules in force, in the shape they arrived in.
+     *
+     * Not part of `toData()` on purpose — that method answers what gets *stored*, and the rules are
+     * the pack's, not the tenant's. This one answers what is *in force*, which is a different
+     * question with a different reader: an embedding that offers a cost-centre field has to know on
+     * which accounts leaving it empty will be refused, and until `tenantConfiguration` existed the
+     * only way to find out was to post and read the error.
+     *
+     * @return list<array{accountRange: array{from: string, to: string}, requiredDimension: string}>
+     */
+    public function rulesData(): array
+    {
+        return array_map(
+            static fn (array $rule): array => [
+                'accountRange' => ['from' => $rule['from'], 'to' => $rule['to']],
+                'requiredDimension' => $rule['required'],
+            ],
+            $this->rules,
+        );
+    }
+
+    /**
      * The same rules with different master data (SPEC-015).
      *
      * Reopening a tenant means combining two sources that are not the same kind of thing: the types

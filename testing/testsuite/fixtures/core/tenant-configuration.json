@@ -1,0 +1,100 @@
+{
+  "fixture": "tenant-configuration",
+  "description": "F-CORE-035: what a tenant is configured as is readable. Since SPEC-015 the library stores four things about a tenant's setup — tax profile, dimension master data, allocation scheme, imported mappings — and reported exactly one of them back (the tax profile, through `systemDescription`). The other three could be written and never read. The seed rule from the same release is what makes that worse than an ordinary gap: before it, an embedding passed its cost centres in on every open and its own copy was the truth by construction; now the stored record wins from the second open on, so summae's copy is the truth and the embedding's is a guess it cannot check. A screen with a cost-centre field could learn the accepted values only by posting and reading `E_DIMENSION_INVALID`. The projection reports what is IN FORCE, not what is stored, and the two places they differ are the point: `dimensionRules` come from the pack and stand in no record at all, and `mappings` lists the pack's alongside the imported ones — mirroring the record would answer \"none\" for a tenant whose balanceSheet, incomeStatement and cashBasisReport all work. Mapping identity only, never the positions: those are the pack's, which the embedding holds and summae deliberately keeps no copy of.",
+  "covers": ["F-CORE-035"],
+  "setup": {
+    "tenant": { "name": "Konfig GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "6000", "name": "Raumkosten", "type": "expense" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxProfile": { "taxationMethod": "cash", "vatPeriod": "quarterly", "smallBusiness": false },
+    "ruleModules": {
+      "dimensionRules": [
+        { "accountRange": { "from": "6000", "to": "6999" }, "requiredDimension": "costCenter" }
+      ],
+      "mappings": [
+        {
+          "id": "fixture-guv", "kind": "income-statement", "version": "2",
+          "positions": [
+            { "key": "1", "label": "Erlöse", "accounts": [ { "from": "8000", "to": "8999" } ] },
+            { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "accounts": [ { "from": "6000", "to": "6999" } ] }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "comment": "The tenant's own master data. Declared through the OPERATION rather than in the setup, because that is the case which used to be stored and unreadable.",
+      "op": "defineDimensionType",
+      "input": { "code": "costCenter" },
+      "expect": { "result": { "code": "costCenter" } }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": { "type": "costCenter", "code": "VERW" },
+      "expect": { "result": { "type": "costCenter", "code": "VERW" } }
+    },
+    {
+      "comment": "Declared second, reported first: the master data comes back sorted by code, not in the order it was declared.",
+      "op": "defineDimensionValue",
+      "input": { "type": "costCenter", "code": "FERT" },
+      "expect": { "result": { "type": "costCenter", "code": "FERT" } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "method": "step_ladder",
+        "steps": [ { "sender": "VERW", "receivers": [ { "code": "FERT", "share": "1" } ] } ]
+      },
+      "expect": { "result": { "valid": true, "method": "step_ladder", "stepCount": 1 } }
+    },
+    {
+      "comment": "An import on top of the pack's mapping. Both have to show up below — the record holds only this one, so a projection mirroring the record would hide the pack's.",
+      "op": "importMapping",
+      "input": {
+        "mapping": {
+          "id": "eigene-bilanz", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A", "label": "Umlaufvermögen", "accounts": [ { "from": "1200", "to": "1299" } ] }
+          ]
+        }
+      },
+      "expect": { "result": { "imported": true } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "tenantConfiguration",
+      "params": {},
+      "expect": {
+        "comment": "Die vier gespeicherten Dinge plus das, was aus dem Pack gilt — die Frage „als was ist dieser Mandant eingerichtet\", die vorher nur zum Steuerprofil beantwortet war. `smallBusiness: []` ist die Serialisierung von „nie erklärt\": das Profil führt Segmente mit Gültigkeitsbeginn, und ein `false` im Setup erklärt keines.",
+        "taxProfile": {
+          "taxationMethod": "cash",
+          "vatPeriod": "quarterly",
+          "smallBusiness": []
+        },
+        "dimensionTypes": [ { "code": "costCenter" } ],
+        "dimensionValues": [
+          { "typeCode": "costCenter", "code": "FERT" },
+          { "typeCode": "costCenter", "code": "VERW" }
+        ],
+        "dimensionRules": [
+          { "accountRange": { "from": "6000", "to": "6999" }, "requiredDimension": "costCenter" }
+        ],
+        "allocationScheme": {
+          "method": "step_ladder",
+          "steps": [ { "sender": "VERW", "receivers": [ { "code": "FERT", "share": "1" } ] } ]
+        },
+        "mappings": [
+          { "id": "eigene-bilanz", "kind": "balance-sheet", "version": "1" },
+          { "id": "fixture-guv", "kind": "income-statement", "version": "2" }
+        ]
+      }
+    }
+  ]
+}

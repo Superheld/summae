@@ -281,6 +281,11 @@ and they are exactly what the four configuration operations change:
 | allocation scheme and rates | `setAllocationScheme` | nothing |
 | imported mappings | `importMapping` | the pack's mappings are the base; imports layer on top |
 
+**Reading it back.** All of it, plus the pack's mandatory-dimension rules, comes out of the
+[`tenantConfiguration`](#tenantconfiguration--what-this-tenant-is-set-up-as) projection. You do
+not have to keep a second copy of what you configured — and since the stored record wins, you
+should not: a copy that cannot be compared is a copy that drifts.
+
 **What you keep.** One thing, and it is not small: **the resolved pack** (or your own
 rule bundle) — the chart template, tax codes, mapping definitions, depreciation rules,
 `packPolicy`. It is versioned product data that you pin and ship, so summae takes it on
@@ -1957,6 +1962,57 @@ verified. Binding it to an authenticated identity is your application's job.
   "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
                     "enforcedBy": "No delete or update path exists on the journal repository." } ],
   "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
+```
+
+### tenantConfiguration — what this tenant is set up as
+
+No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
+`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
+(raw, exactly as `setAllocationScheme` accepts it, or `null`) and `mappings[]`
+(`{id, kind, version}` each).
+
+This is the read side of [what summae stores](#what-summae-stores-and-what-you-store). Four
+things live in `summae_tenants.config`, five operations change them, and until 0.13.0 exactly
+one of the four was reported back — the tax profile, through `systemDescription`. The other
+three could be written and never read.
+
+**Why that mattered more than an ordinary gap.** Before the configuration was persisted, your
+application passed its cost centres in on every open, so your copy was the truth by construction.
+Since 0.12.0 the stored record wins and what you pass is a seed that is ignored from the second
+open on: summae's copy is the truth and yours is a guess — and nothing let you check it. A screen
+with a cost-centre field could learn the accepted values only by posting and reading
+`E_DIMENSION_INVALID`.
+
+**It reports what is in force, not what is stored**, and the two places those differ are the
+point:
+
+- **`dimensionRules[]` are the pack's** — which accounts may not be posted without which
+  dimension. They stand in no record at all (they come back from the pack on every open), and you
+  cannot derive them from the pack file without reimplementing the resolver. This is how a form
+  knows which field it must not leave empty.
+- **`mappings[]` lists the pack's mappings and the imported ones together.** The record holds only
+  the imports, so a projection mirroring it would answer "none" for a `de` tenant whose
+  `balanceSheet`, `incomeStatement` and `cashBasisReport` all work. These are the names those
+  three projections accept as `mapping`.
+
+**Identity is not repeated here** — id, name, base currency and pack are `systemDescription`'s
+`tenant` and `pack` blocks, which report all four. This projection answers the other question.
+
+**Mapping identity only, never the positions.** The definitions are your pack's, and summae keeps
+no copy of it on purpose: two answers to "which rules is this tenant on" is one answer too many.
+
+```json
+// params {}
+{ "taxProfile": { "taxationMethod": "accrual", "vatPeriod": "quarterly", "smallBusiness": [] },
+  "dimensionTypes":  [ { "code": "costCenter" } ],
+  "dimensionValues": [ { "typeCode": "costCenter", "code": "FERT" },
+                       { "typeCode": "costCenter", "code": "VERW" } ],
+  "dimensionRules":  [ { "accountRange": { "from": "6000", "to": "6999" },
+                         "requiredDimension": "costCenter" } ],
+  "allocationScheme": { "method": "step_ladder",
+                        "steps": [ { "sender": "VERW", "receivers": [ { "code": "FERT", "share": "1" } ] } ] },
+  "mappings": [ { "id": "de-bilanz", "kind": "balance-sheet",   "version": "2026.4" },
+                { "id": "de-guv",    "kind": "income-statement", "version": "2026.4" } ] }
 ```
 
 ## 8. Value objects
