@@ -12,6 +12,34 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The audit trail is queried, not materialised (SPEC-018) — **breaking for custom `AuditTrail` adapters**
+
+`auditLog`'s filters and the author map behind `journal.actor` both ran *after* `AuditTrail::all()`,
+so a question about one posting still read ten years of history. The port gains
+**`find(criteria)`** — `objectType`, `objectId`, `objectIds`, `actor`, `action`, `from`/`to`,
+`offset`/`limit`, returning the page and the count *before* paging — and the database adapters push
+it into SQL.
+
+**No column, no migration.** The four fields live inside the JSON payload and are read there
+(`json_extract` on SQLite, `->>` on Postgres). Promoting them to columns is easy; *filling* them for
+rows that already exist is a data migration, and neither language has a runner — an unfilled column
+would make the filter miss exactly the history an audit is about. Extraction costs the index and
+keeps correctness; an expression index is what remains, and it is now separable.
+
+`EntryAuthors` asks for the ids on the page, so a journal view of forty postings reads forty
+records. That was the half 0.13.0's first pass missed: it moved the embedding's walk into the
+library without making it smaller.
+
+**Two implementations of one rule, held together by a test.** SQL in the adapters, `AuditFilter` /
+`applyAuditCriteria` in memory; `AuditQueryEquivalenceTest` and its Node twin drive every declared
+filter — alone, combined, and at the paging edges — through both and compare. The empty id set is in
+there deliberately: "these entries" with none of them is not "all of them", which is what a naive
+`IN ()` answers.
+
+**Breaking** only for code that implements the `AuditTrail` port itself: it needs a `find`. Every
+projection, every fixture and both shipped adapters are unchanged in behaviour — 168 fixtures green
+against the in-memory core, against SQLite and against Postgres, and the cross-test unmoved.
+
 ### The documentation gate reaches the vocabulary (SPEC-019)
 
 The manual gate proved every published operation and projection had a section. Nothing proved a

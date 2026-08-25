@@ -16,20 +16,17 @@ import type { AuditTrail } from '../../port.js';
  * second place for the same fact, and the entry is append-only — an author written there could
  * never be corrected while the trail's record of who acted is what an audit actually asks for.
  *
- * **What this does not fix.** Building the map still reads the whole trail, because the audit port
- * answers `all()` and the store keeps `objectType`/`action` inside a JSON payload rather than in
- * columns a query could filter on. The walk moved from the embedding into the library, where it
- * belongs and where one map serves the whole projection; it did not become a database query. Making
- * it one needs indexed columns on `summae_audit_log`, and the idempotent installer can add tables
- * but not columns — recorded as the next step rather than pretended away.
+ * **It asks for the entries it needs, not for the trail** (SPEC-018). The map is built from a `find`
+ * over the ids on the page, so a journal view of forty postings reads forty records rather than ten
+ * years of history. It used to read `all()`, which moved the embedding's walk into the library
+ * without making it smaller.
  */
-export function entryAuthors(audit: AuditTrail): Map<string, string> {
+export function entryAuthors(audit: AuditTrail, entryIds: readonly string[]): Map<string, string> {
   const byEntry = new Map<string, string>();
+  if (entryIds.length === 0) return byEntry;
 
-  for (const record of audit.all()) {
-    if (record.objectType !== 'journalEntry' || record.action !== 'created') continue;
-    byEntry.set(record.objectId.value, record.actor);
-  }
+  const found = audit.find({ objectType: 'journalEntry', action: 'created', objectIds: entryIds });
+  for (const record of found.records) byEntry.set(record.objectId.value, record.actor);
 
   return byEntry;
 }

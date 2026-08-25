@@ -1,6 +1,7 @@
 import type {
   AccountRepository,
   AssetRepository,
+  AuditCriteria,
   AuditTrail,
   CostingRunRepository,
   FiscalYearRepository,
@@ -11,6 +12,7 @@ import type {
   TenantRecordRepository,
   VoucherRepository,
 } from './port.js';
+import { applyAuditCriteria } from './records/audit-filter.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { Partner } from './partner/partner.js';
@@ -165,6 +167,10 @@ export class InMemoryAuditTrail implements AuditTrail {
 
   all(): AuditRecord[] {
     return [...this.records];
+  }
+
+  find(criteria: AuditCriteria): { records: AuditRecord[]; count: number } {
+    return applyAuditCriteria(this.records, criteria);
   }
 }
 

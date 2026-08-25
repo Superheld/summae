@@ -6,7 +6,6 @@ namespace Summae\Core\Policies\Projection;
 
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Records\AuditRecord;
-use Summae\Core\Substrate\CalendarDate;
 
 /**
  * Change history as a projection (F-CORE-014, F-CORE-036; GoBD Rz. 107 ff.).
@@ -41,70 +40,28 @@ final readonly class AuditLogProjection
      */
     public function compute(array $params): array
     {
-        $from = is_string($params['from'] ?? null) ? CalendarDate::of($params['from']) : null;
-        $to = is_string($params['to'] ?? null) ? CalendarDate::of($params['to']) : null;
-        $objectType = is_string($params['objectType'] ?? null) ? $params['objectType'] : null;
-        $objectId = is_string($params['objectId'] ?? null) ? $params['objectId'] : null;
-        $actor = is_string($params['actor'] ?? null) ? $params['actor'] : null;
-        $action = is_string($params['action'] ?? null) ? $params['action'] : null;
-        $offset = max(0, Parameters::integerOr($params['offset'] ?? null, 0));
-        $limit = Parameters::integerOrNull($params['limit'] ?? null);
-
-        $matching = [];
-
-        foreach ($this->audit->all() as $record) {
-            if (!$this->matches($record, $from, $to, $objectType, $objectId, $actor, $action)) {
-                continue;
-            }
-
-            $matching[] = $record->jsonSerialize();
-        }
-
-        // A limit that is absent means "everything from the offset on" — a projection that invented
-        // a default page size would silently truncate a caller that never asked for pages.
-        $page = $limit === null || $limit < 0
-            ? array_slice($matching, $offset)
-            : array_slice($matching, $offset, $limit);
+        // The criteria travel to the store, which is the only place that can decline to read a row
+        // (SPEC-018). An in-memory trail filters the same criteria with the same rule; a database
+        // one pushes them into SQL. Same answer, different amount of reading.
+        $result = $this->audit->find([
+            'from' => is_string($params['from'] ?? null) ? $params['from'] : null,
+            'to' => is_string($params['to'] ?? null) ? $params['to'] : null,
+            'objectType' => is_string($params['objectType'] ?? null) ? $params['objectType'] : null,
+            'objectId' => is_string($params['objectId'] ?? null) ? $params['objectId'] : null,
+            'actor' => is_string($params['actor'] ?? null) ? $params['actor'] : null,
+            'action' => is_string($params['action'] ?? null) ? $params['action'] : null,
+            'offset' => max(0, Parameters::integerOr($params['offset'] ?? null, 0)),
+            'limit' => Parameters::integerOrNull($params['limit'] ?? null),
+        ]);
 
         return [
-            'count' => count($matching),
-            'offset' => $offset,
-            'limit' => $limit,
-            'records' => $page,
+            'count' => $result['count'],
+            'offset' => max(0, Parameters::integerOr($params['offset'] ?? null, 0)),
+            'limit' => Parameters::integerOrNull($params['limit'] ?? null),
+            'records' => array_map(
+                static fn (AuditRecord $record): array => $record->jsonSerialize(),
+                $result['records'],
+            ),
         ];
-    }
-
-    private function matches(
-        AuditRecord $record,
-        ?CalendarDate $from,
-        ?CalendarDate $to,
-        ?string $objectType,
-        ?string $objectId,
-        ?string $actor,
-        ?string $action,
-    ): bool {
-        $date = CalendarDate::of($record->at->format('Y-m-d'));
-
-        if ($from !== null && $date->isBefore($from)) {
-            return false;
-        }
-
-        if ($to !== null && $date->isAfter($to)) {
-            return false;
-        }
-
-        if ($objectType !== null && $record->objectType !== $objectType) {
-            return false;
-        }
-
-        if ($objectId !== null && $record->objectId->value !== $objectId) {
-            return false;
-        }
-
-        if ($actor !== null && $record->actor !== $actor) {
-            return false;
-        }
-
-        return !($action !== null && $record->action !== $action);
     }
 }

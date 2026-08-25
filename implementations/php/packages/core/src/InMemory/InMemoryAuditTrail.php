@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\InMemory;
 
+use Summae\Core\Records\AuditFilter;
 use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 
@@ -20,5 +21,10 @@ final class InMemoryAuditTrail implements AuditTrail
     public function all(): array
     {
         return $this->records;
+    }
+
+    public function find(array $criteria): array
+    {
+        return AuditFilter::apply($this->records, $criteria);
     }
 }

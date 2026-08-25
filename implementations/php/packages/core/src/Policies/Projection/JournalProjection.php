@@ -81,7 +81,10 @@ final readonly class JournalProjection
             ? array_slice($matching, $offset)
             : array_slice($matching, $offset, $limit);
 
-        $authors = EntryAuthors::from($this->audit);
+        $authors = EntryAuthors::forEntries(
+            $this->audit,
+            array_map(static fn (JournalEntry $entry): string => $entry->id->value, $page),
+        );
 
         return [
             'fiscalYear' => $fiscalYear,

@@ -65,8 +65,6 @@ final readonly class UnfinalizedEntriesProjection
             ? $this->journal->all()
             : $this->journal->forFiscalYear($fiscalYear);
 
-        $authors = EntryAuthors::from($this->audit);
-
         $entries = [];
         $oldestAgeInDays = 0;
 
@@ -87,15 +85,28 @@ final readonly class UnfinalizedEntriesProjection
                 'recordedAt' => Timestamp::canonical($entry->recordedAt),
                 'fiscalYear' => $entry->periodRef->fiscalYear,
                 'period' => $entry->periodRef->period,
+                'entryIdForAuthor' => $entry->id->value,
                 'ageInDays' => $ageInDays,
                 'text' => $entry->text(),
-                'actor' => $authors[$entry->id->value] ?? null,
             ];
 
             if ($ageInDays > $oldestAgeInDays) {
                 $oldestAgeInDays = $ageInDays;
             }
         }
+
+        // The authors of exactly these postings, not of the whole trail (SPEC-018).
+        $authors = EntryAuthors::forEntries(
+            $this->audit,
+            array_map(static fn (array $row): string => (string) $row['entryIdForAuthor'], $entries),
+        );
+        $entries = array_map(static function (array $row) use ($authors): array {
+            $id = (string) $row['entryIdForAuthor'];
+            unset($row['entryIdForAuthor']);
+            $row['actor'] = $authors[$id] ?? null;
+
+            return $row;
+        }, $entries);
 
         // Journal order (sequenceNumber) is the order the entries arrive in; keeping it makes
         // the result deterministic without a second sort key.

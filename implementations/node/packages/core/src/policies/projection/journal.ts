@@ -58,7 +58,10 @@ export class JournalProjection {
     // A limit that is absent means "everything from the offset on" — a projection that invented a
     // default page size would silently truncate a caller that never asked for pages.
     const page = limit === null || limit < 0 ? matching.slice(offset) : matching.slice(offset, offset + limit);
-    const authors = entryAuthors(this.audit);
+    const authors = entryAuthors(
+      this.audit,
+      page.map((entry) => entry.id.value),
+    );
 
     return {
       fiscalYear,
