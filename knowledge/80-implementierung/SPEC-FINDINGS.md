@@ -1,6 +1,6 @@
 # SPEC-FINDINGS (historisch — Wissensbasis-Seite, erste Runde)
 
-> ## ⚠ Diese Nummern sind **nicht** die aus `implementations/<sprache>/SPEC-FINDINGS.md`
+> ## ⚠ Diese Nummern sind **nicht** die aus dem Register in der Repo-Wurzel (`SPEC-FINDINGS.md`)
 >
 > Es gibt zwei Register mit denselben Präfixen und **verschiedenen Inhalten**. Hier ist SPEC-010
 > „Fixture `vat-return-cash-basis-rounding` widerspricht der Euro-Floor-Regel"; dort ist SPEC-010
@@ -11,7 +11,7 @@
 > **Dieses Register ist geschlossen und historisch.** Es dokumentiert die Findings der ersten Runde
 > (Spec-Stand v0.2 bis v0.5), als die Wissensbasis noch außerhalb dieses Repos lag und Befunde
 > dorthin zurückflossen. **Nichts wird hier mehr angehängt.** Der aktive Ort ist
-> `implementations/php/SPEC-FINDINGS.md` bzw. `implementations/node/SPEC-FINDINGS.md`; die
+> das Register in der Repo-Wurzel, `SPEC-FINDINGS.md`; die
 > sprachübergreifenden Einträge stehen in beiden.
 >
 > Umbenannt wurde bewusst nichts: die Nummern sind in Commits, Entscheidungslogs und Spec-Updates
@@ -258,5 +258,5 @@ Format je Befund:
 > **Status 2026-06-20:** SPEC-C01 aus der Node-M4-Cross-Test-Arbeit. Erstes
 > Finding der **Cross-Achse** (Format-Parität zweier Runtimes), nicht der Rechen-
 > Achse. Damit ist diese Datei die Obermenge — die lokale Kopie im Code-Repo
-> (`summae/implementations/php/SPEC-FINDINGS.md`) bleibt der dortige Eskalationspunkt,
+> (`summae/SPEC-FINDINGS.md`) bleibt der dortige Eskalationspunkt,
 > muss aber keine exklusiven Findings mehr halten.
