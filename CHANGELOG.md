@@ -39,12 +39,19 @@ Two findings from this release are recorded there:
 `docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
 with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
-The register is also **ordered by what is undecided**: the four open findings first, the status
-index below them, the resolved reasoning after that. Resolved entries are kept rather than pruned,
-and the file now says why in one place — 112 comments in the source cite these IDs, the root
-`CLAUDE.md` uses `IMPL-025` as its worked example of the jurisdiction litmus test, and
-`NoJurisdictionTextTest` explains itself with it. A resolved entry is what "see IMPL-025" resolves
-to; delete it and the comment points at nothing.
+The register is also **split by state**: `SPEC-FINDINGS.md` holds the four open findings and
+nothing else — 198 lines, short enough to read whole — while `SPEC-FINDINGS-RESOLVED.md` holds the
+21 decided ones in full, with the status table over both. The reason is what happens when somebody
+is told "we have open findings": reading the register should not mean carrying 1,600 lines of
+settled history into the work. Closing a finding means moving its block across, which is the whole
+bookkeeping — unlike the old split by *language*, a split by state cannot duplicate, because a state
+changes once.
+
+Resolved entries are kept rather than pruned, and the resolved file says why: 112 comments in the
+source cite these IDs, the root `CLAUDE.md` uses `IMPL-025` as its worked example of the
+jurisdiction litmus test, and `NoJurisdictionTextTest` explains itself with it. A resolved entry is
+what "see IMPL-025" resolves to; delete it and the comment points at nothing. Keeping the text is
+not the same as keeping it in the reader's way.
 
 ### Four findings from the embedding application (F-TAX-014, F-CORE-037, F-IO-011)
 

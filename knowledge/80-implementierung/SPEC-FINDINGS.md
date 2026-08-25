@@ -11,7 +11,7 @@
 > **Dieses Register ist geschlossen und historisch.** Es dokumentiert die Findings der ersten Runde
 > (Spec-Stand v0.2 bis v0.5), als die Wissensbasis noch außerhalb dieses Repos lag und Befunde
 > dorthin zurückflossen. **Nichts wird hier mehr angehängt.** Der aktive Ort ist
-> das Register in der Repo-Wurzel, `SPEC-FINDINGS.md`; die
+> das Register in der Repo-Wurzel (`SPEC-FINDINGS.md` offen, `SPEC-FINDINGS-RESOLVED.md` entschieden); die
 > sprachübergreifenden Einträge stehen in beiden.
 >
 > Umbenannt wurde bewusst nichts: die Nummern sind in Commits, Entscheidungslogs und Spec-Updates

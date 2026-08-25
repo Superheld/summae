@@ -85,8 +85,8 @@ never point back.
 **The rule that did survive: fixtures are append-only.** A behaviour change is a *new* fixture,
 never a quiet edit to an existing one — that discipline was never about the mirror, and losing
 `rsync --delete` does not loosen it. Contradiction between spec, fixture and model → do not
-guess and do not bend the fixture; record it in the repo-root `SPEC-FINDINGS.md` (one register for
-both implementations) and
+guess and do not bend the fixture; record it in the repo-root `SPEC-FINDINGS.md` (the open register;
+decided ones move to `SPEC-FINDINGS-RESOLVED.md`) and
 build on with the next most plausible behaviour.
 
 **And the one exception, added 2026-08-23: a fixture can be superseded, never edited.** Append-only
