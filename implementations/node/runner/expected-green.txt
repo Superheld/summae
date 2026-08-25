@@ -166,3 +166,11 @@ de-euer-surplus
 asset-register-special-depreciation
 system-description-tax-profile
 costing-runs-list
+tenant-configuration
+audit-trail-creations
+audit-log-filtered
+ec-sales-list-gap-warnings
+entry-author
+consideration-reduction
+input-structure-contract
+xx-7-pack-declares-filing-periods

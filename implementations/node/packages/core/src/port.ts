@@ -63,10 +63,41 @@ export interface OpenItemRepository {
 }
 
 /** The audit trail is part of the format (datenformat.md v0.3): append-only. */
+/**
+ * Criteria for `AuditTrail.find` — AND-combined, an absent one filters nothing.
+ *
+ * `objectIds` is the set a page of postings needs; `from`/`to` are inclusive calendar dates on the
+ * recording moment; an absent or negative `limit` means everything from the offset on, exactly as
+ * on `journal`.
+ */
+export interface AuditCriteria {
+  readonly objectType?: string | null;
+  readonly objectId?: string | null;
+  readonly objectIds?: readonly string[] | null;
+  readonly actor?: string | null;
+  readonly action?: string | null;
+  readonly from?: string | null;
+  readonly to?: string | null;
+  readonly offset?: number | null;
+  readonly limit?: number | null;
+}
+
 export interface AuditTrail {
   append(record: AuditRecord): void;
   /** in capture order */
   all(): AuditRecord[];
+  /**
+   * The part of the trail a question is about (SPEC-018).
+   *
+   * `all()` is honest and, past a certain size, the wrong tool: a trail is the fastest-growing table
+   * in the system, and answering "what happened to this posting" by materialising ten years of
+   * history to discard almost all of it makes the cost of a screen scale with the age of the books.
+   * So the criteria travel to the store, which is the only place that can decline to read a row.
+   *
+   * `count` is the number of matches **before** paging, so a page header needs no second call.
+   * Order stays capture order, which is the trail's own total order.
+   */
+  find(criteria: AuditCriteria): { records: AuditRecord[]; count: number };
 }
 
 export interface AssetRepository {

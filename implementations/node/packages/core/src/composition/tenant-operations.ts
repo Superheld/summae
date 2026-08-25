@@ -9,6 +9,7 @@ import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
+import { TenantConfigurationProjection } from '../policies/projection/tenant-configuration.js';
 import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
 import { BalanceSheetProjection } from '../policies/projection/balance-sheet.js';
 import { CashBasisProjection } from '../policies/projection/cash-basis.js';
@@ -171,7 +172,7 @@ export class TenantOperations {
       case 'accounts':
         return new AccountsProjection(tenant.accounts).compute(params);
       case 'journal':
-        return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers).compute(params);
+        return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers, tenant.audit).compute(params);
       case 'fiscalYears':
         return new FiscalYearsProjection(tenant.fiscalYears).compute(params);
       case 'accountSheet':
@@ -179,7 +180,7 @@ export class TenantOperations {
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
       case 'unfinalizedEntries':
-        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
+        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,
@@ -187,6 +188,13 @@ export class TenantOperations {
           tenant.baseCurrency,
           tenant.packIdentity,
           tenant.tax.profile().toJSON(),
+        ).compute(params);
+      case 'tenantConfiguration':
+        return new TenantConfigurationProjection(
+          tenant.tax.profile().toJSON(),
+          tenant.ledger.dimensionRegistry(),
+          tenant.costing.allocationScheme(),
+          tenant.mappings,
         ).compute(params);
       case 'costingRuns':
         return new CostingRunsProjection(tenant.costingRuns).compute(params);

@@ -91,6 +91,41 @@ final readonly class Ledger
     }
 
     /**
+     * The dimension registry this ledger validates against — so `tenantConfiguration` can report
+     * what a posting will be measured by. Read-only access: declaring a type or a value goes
+     * through `defineDimensionType`/`defineDimensionValue`, which audit and store the change.
+     */
+    public function dimensionRegistry(): DimensionRegistry
+    {
+        return $this->dimensions;
+    }
+
+    /**
+     * What a posting's creation records (F-CORE-014).
+     *
+     * A creation is a change from nothing, written as `from: null` rather than as an empty diff —
+     * the idiom vouchers, fiscal years and dimensions already used, and which postings did not, so
+     * the published invariant held for some records and not for others.
+     *
+     * **The lines are deliberately not copied here.** A finalized entry cannot change and an
+     * entered one records its own change under `corrected`, so the journal already holds what the
+     * entry is; duplicating the lines would double the largest table in the system and create a
+     * second answer to what the posting says. What the trail adds is the frame a reader cannot
+     * reconstruct from a deleted-nothing: when it was booked, against which voucher, under which
+     * text.
+     *
+     * @return array<string, array{from: mixed, to: mixed}>
+     */
+    private static function entryCreationDiff(JournalEntry $entry): array
+    {
+        return [
+            'entryDate' => ['from' => null, 'to' => $entry->entryDate->iso],
+            'voucherId' => ['from' => null, 'to' => $entry->voucherId->value],
+            'text' => ['from' => null, 'to' => $entry->text()],
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $input
      */
     public function post(array $input): PostResult
@@ -139,7 +174,7 @@ final readonly class Ledger
         );
 
         $this->journal->append($entry);
-        $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'created');
+        $this->auditWriter->record($actor, 'journalEntry', $entry->id, 'created', self::entryCreationDiff($entry));
 
         return new PostResult($entry, $this->createOpenItems($entry));
     }
@@ -404,7 +439,7 @@ final readonly class Ledger
         $this->journal->append($reversal);
         $this->journal->save($original);
 
-        $this->auditWriter->record($actor, 'journalEntry', $reversal->id, 'created');
+        $this->auditWriter->record($actor, 'journalEntry', $reversal->id, 'created', self::entryCreationDiff($reversal));
         $this->auditWriter->record($actor, 'journalEntry', $original->id, 'reversed', [
             'reversedBy' => ['from' => null, 'to' => $reversal->id->value],
         ]);

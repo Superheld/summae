@@ -8,9 +8,315 @@ versioning per SemVer (0.x: minor may break).
 > `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
 > unchanged. These notes keep the IDs they were published with, because a released note
 > should describe what was released. The mapping lives at the top of
-> [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
+> [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
-## Unreleased
+## 0.13.0 — 2026-08-25
+
+**What the library says about itself — and the guards that keep it honest.** The release began as
+an embedding application's list and ended with the findings register empty: every open `SPEC-`
+entry is decided. Two threads run through it. One is the **read side**: state summae held and did
+not report — a tenant's whole configuration, who recorded a posting, an intra-community supply it
+could not file. The other is the **contracts** that keep a published surface from lying: the input
+contract now reaches *into* structures, the manual gate reaches the *vocabulary* and not just the
+names, the audit trail is queried instead of materialised, and which VAT filing windows exist is
+the pack's answer rather than the core's.
+
+Three of those guards found defects the moment they were switched on — three silent inputs, 46
+undocumented keys, and a capability an embedding had written off as impossible because one field
+was published and never explained. That is the argument for guards, made by the guards.
+
+### ⚠ What breaks
+
+- **An undeclared key *inside* a structure is now `E_INPUT_INVALID`.** `netLines`, `lines`,
+  `allocations`, `steps`, `rates` and the `voucher` object declare what is inside them, and
+  `dimension` instead of `dimensions` on a posting line is refused rather than accepted-and-dropped.
+  Same call the outer level made in 0.11.0: the ignoring was the defect. Errors name the path.
+- **The `AuditTrail` port gains `find(criteria)`.** Only code that implements the port itself is
+  affected — both shipped adapters and every projection are unchanged in behaviour.
+- **`DatabaseTenantFactory` rehydrates a stored tax profile with `TaxProfile::restore`** instead of
+  `fromData`. Relevant only to a caller that built one by hand.
+
+**The data format stays at 0.7**, deliberately: no record gained a field and no export changed
+shape. `packPolicy.vatPeriods` is pack *input*, whose modules declare their own version, and the
+exported streams are byte-identical to 0.12.0 — the cross-test compares 107 of them.
+
+### The tenant's configuration is readable (F-CORE-035)
+
+0.12.0 gave the library a place to keep what a tenant is set up as — tax profile, dimension
+master data, allocation scheme, imported mappings — and reported exactly one of the four back:
+the tax profile, through `systemDescription`. The other three could be written and never read.
+
+Storing them was half the fix. The seed rule from the same release is what makes the other half
+matter: before it, an embedding passed its cost centres in on every open, so *its* copy was the
+truth by construction. Since 0.12.0 the stored record wins and what a caller passes is ignored
+from the second open on — summae's copy is the truth, the embedding's is a guess, and nothing let
+it check. A screen with a cost-centre field could learn the accepted values only by posting and
+reading `E_DIMENSION_INVALID`.
+
+- **New projection `tenantConfiguration`.** No parameters: a tenant has exactly one configuration.
+  Reports `taxProfile`, `dimensionTypes`, `dimensionValues`, `dimensionRules`, `allocationScheme`
+  (raw, exactly as `setAllocationScheme` accepts it) and `mappings`.
+- **It reports what is in force, not what is stored**, and the two places those differ are the
+  point. `dimensionRules` — which accounts may not be posted without which dimension — are the
+  pack's and stand in no record at all, so nothing could tell a form which field it must not leave
+  empty. `mappings` lists the pack's alongside the imported ones; mirroring the record would
+  answer "none" for a `de` tenant whose `balanceSheet`, `incomeStatement` and `cashBasisReport` all
+  work.
+- **Mapping identity only** (`id`, `kind`, `version`), never the positions. Those are the pack's,
+  which the embedding pins and ships, and summae keeps no copy of it on purpose: two answers to
+  "which rules is this tenant on" is one answer too many.
+- **Identity is not repeated** — id, name, base currency and pack are `systemDescription`'s blocks
+  and it already reports all four.
+- A stored allocation scheme is reported **unapplied** when it has not been used yet. It may name
+  production-cost treatments only the current pack answers, which is why `restoreAllocationScheme`
+  defers applying it to first use; a projection is the wrong place to fail on that.
+- New fixture `core/tenant-configuration`, red before the change in both languages, and the
+  `tenant-configuration` regression scenario gained a final CLI invocation that reads the whole
+  configuration back — the cross-process case no fixture can reach.
+
+### The audit trail is audit-capable (F-CORE-014, F-CORE-036)
+
+Four findings of one shape, from a pass over everything that touches the trail: it was written
+well and could not be read, and two of its published claims were not held against reality by
+anything.
+
+**The completeness guard now runs against real persistence.** `AuditTrailContractTest` enumerates
+all 32 state-changing operations from the *published* API surface and runs each for real — a strong
+guard that was bound to `Tenant::inMemory` only, which is the one construction summae does not
+ship. It therefore could not see the defect class that actually occurred: `DatabaseTenantFactory`
+takes the `AuditWriter` as an **optional** argument and once left it off for three services, so the
+tax profile, the asset events and the costing runs wrote no record at all behind a database while
+every in-memory test stayed green (fixed in 0.12.0, unguarded until now). The enumeration moved to
+one place per language (`audit-cases.ts`, an overridable `buildTenant`) and is bound twice:
+`AuditTrailPersistedTest` and `packages/knex/test/audit-trail-contract.test.ts`. Wiring a new
+service without its writer is red now — and every record those bindings assert has been through a
+JSON column and come back.
+
+**`auditLog` answers the question an auditor asks.** It took `from`/`to` and nothing else, so *what
+happened to this posting*, *who touched this account* and *what did this user do* were not askable
+through the API: the caller fetched the whole trail and filtered outside. New parameters
+`objectType`, `objectId`, `actor`, `action` (AND-combined, absent filters nothing) and
+`offset`/`limit` with `count` = matches **before** paging — the same contract `journal` already
+publishes, in deliberately the same words. An absent `limit` still means everything from the offset
+on; no default page size is invented. Additive: existing callers keep the shape they had.
+
+**Creations record what was created.** The trail was inconsistent and nothing noticed: vouchers,
+fiscal years, dimension types/values and costing runs wrote `{from: null, to: …}`, while accounts,
+postings and partners wrote an empty diff — so the invariant `systemDescription` publishes ("actor,
+timestamp, object *and before/after values*") was true of most records and not of all. All three now
+record their identifying fields, and a guard asserts that **no** record carries an empty diff. The
+diff is never a copy of the object: a posting's lines stay in the append-only journal, and
+duplicating them would double the largest table in the system to create a second answer to what the
+posting says.
+
+**The published event list is guarded.** `systemDescription.auditTrail.events` is what an auditor
+reads as "this is what the trail records" — a hand-kept literal that nothing compared to reality,
+and one that had already fallen behind once (0.11.0). It is now held against the events the
+operations actually write, in both directions and in both bindings. Closing it surfaced
+`openItem/cancelled`: published, produced by `reverse` on a settled entry, and observed by no test.
+
+New fixtures `core/audit-trail-creations` and `core/audit-log-filtered`, red before the change in
+both languages. `docs/gobd-conformance.md` gains three rows and corrects a stale count.
+
+### Four findings from the embedding application (F-TAX-014, F-CORE-037, F-IO-011)
+
+The app's `FINDINGS.md` had four entries open. One closed with the tenant-configuration read side
+earlier in this release; the other three are here, and the first of them was not the wall it looked
+like.
+
+**A consideration reduction reaches the VAT return through the ordinary API** (F-TAX-014).
+`postVoucher`/`expandTax` take **`reduction: true`**: every line swaps sides — net, tax and the
+gross contra line — and the tag carries a negative base, so the reporting key the supply was
+reported under goes *down*. Same code, same rule version, same key; a reduction of a taxed supply
+belongs in that key rather than in one of its own. A flag rather than a mechanism in the closed
+repertoire, and deliberately: *whether* a cash discount, a credit note or a price reduction changes
+the taxable base is jurisdiction law and the caller's decision (§ 17 UStG under the DE pack), while
+*mirroring a taxed posting* is mechanism and identical everywhere.
+
+The case was **already reachable**, which is the part worth stating plainly: a plain `post` with a
+hand-written `taxTag` carrying a negative `baseMoney` does it, and `core/settlement-discount` has
+pinned exactly that since v0.4. The application reported it as unbuildable because nothing said so —
+`taxTag` appeared in the manual as "(object, no)", with no shape, no explanation that `vatReturn`
+counts only tagged lines, and no word about the sign convention. That is a documentation defect
+wearing a missing-feature costume. The manual now documents the field, and `reduction: true` exists
+so nobody needs it: the old path asks the caller for the tag shape, the applied rule version and the
+reporting key — library internals plus a German form number on an application's screen.
+
+**`ecSalesList` reports what it cannot report** (F-IO-011). A supply whose partner has no VAT ID
+produced no row and no warning: two postings, one with a VAT ID and one without, and the answer was
+one row and nothing else. That is the dangerous direction — without the recipient's VAT ID the
+supply is not exempt in the first place, so what dropped out was exactly the wrong case. New
+`gapWarnings[]`, same shape as `vatReturn`'s, with `partner_without_vat_id` and
+`supply_without_partner` told apart because the fix differs. The decision now happens on the
+*line* — is this tagged as an intra-community supply — before the partner is looked at; deciding it
+afterwards is what made a missing VAT ID indistinguishable from a posting that never was one.
+
+**`journal` and `unfinalizedEntries` carry `actor`** (F-CORE-037) — who recorded the posting. The
+entry has no author; the fact lives in the audit trail and nowhere else, so an application checking
+**separation of duties** ("nobody may finalize a batch containing their own postings") read the
+entire trail on every finalization and rebuilt the mapping itself: a check that scales with the age
+of the books rather than the size of the batch. The trail stays the single source — the author is
+deliberately *not* copied onto the append-only entry, where it could never be corrected. Honest
+limit: building the map still reads the whole trail, because the audit port answers `all()` and the
+store keeps `objectType`/`action` inside a JSON payload. The walk moved into the library, where one
+map serves the whole projection; it did not become a database query, and making it one needs
+indexed columns the idempotent installer cannot yet add.
+
+New fixtures `tax/consideration-reduction`, `core/ec-sales-list-gap-warnings` and
+`core/entry-author`, red before the change in both languages.
+
+### The findings register is one file (docs)
+
+`implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin
+pointers to a single [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md) at the repository root. The
+language-neutral findings had been living in both: seven `SPEC-` entries were byte-identical copies
+and **SPEC-014 had already drifted** — the PHP copy carried the decision, its reasoning and a
+related finding, the Node copy had shrunk to a summary ending in "full write-up on the PHP side".
+A copy nothing compares drifts; that is the rule this project applies to every table and every
+constant, and the file that records such failures had quietly become one. Nothing was lost in the
+merge (verified by ID and by block), and which language a finding was found in is now a sentence in
+the entry rather than a directory — most of them concern both.
+
+Two findings from this release are recorded there:
+
+- **SPEC-018 — the audit trail can only be read whole.** `auditLog`'s new filters and the author map
+  behind `journal.actor` both run *after* `AuditTrail::all()`, because `objectType`/`action` live
+  inside a JSON payload and nothing can be pushed down. The walk moved out of the embedding and into
+  the library, which was the correctness half; the cost half needs indexed columns, and SPEC-014's
+  idempotent install covers new *tables*, not new columns.
+- **SPEC-019 — the documentation gate reaches names, not meanings.** `HandbookCoversTheApiTest`
+  proves every published operation has a section; nothing proves a documented *field* says anything.
+  `taxTag` stood in the manual as "(object, no)" and an embedding concluded that a capability
+  working since v0.4 was impossible.
+
+`docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
+with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
+
+The register is also **split by state**: `SPEC-FINDINGS.md` holds the four open findings and
+nothing else — 198 lines, short enough to read whole — while `SPEC-FINDINGS-RESOLVED.md` holds the
+21 decided ones in full, with the status table over both. The reason is what happens when somebody
+is told "we have open findings": reading the register should not mean carrying 1,600 lines of
+settled history into the work. Closing a finding means moving its block across, which is the whole
+bookkeeping — unlike the old split by *language*, a split by state cannot duplicate, because a state
+changes once.
+
+Resolved entries are kept rather than pruned, and the resolved file says why: 112 comments in the
+source cite these IDs, the root `CLAUDE.md` uses `IMPL-025` as its worked example of the
+jurisdiction litmus test, and `NoJurisdictionTextTest` explains itself with it. A resolved entry is
+what "see IMPL-025" resolves to; delete it and the comment points at nothing. Keeping the text is
+not the same as keeping it in the reader's way.
+
+### The input contract reaches into structures (SPEC-017)
+
+`api-parameters.json` declared every accepted key and checked it before routing — one level deep.
+`netLines`, `lines`, `allocations`, `steps`, `rates` and the rest were declared `array` and nothing
+looked inside the elements, so:
+
+```json
+{ "netLines": [ { "account": "6040", "money": {…}, "dimension": [ … ] } ] }
+```
+
+was accepted, booked correctly, and dropped the cost centre. Same defect as the one the contract was
+built to end, one level in.
+
+- **`element` and `fields`** on any declaration, checked by the same two rules as before: an
+  undeclared key is `E_INPUT_INVALID`, a declared key of the wrong type is rejected rather than
+  coerced. Requiredness stays with the operation, whose own error says more. Errors name the path —
+  `post: unknown input "lines[0].dimension"`.
+- **Recursive, not "one level deeper".** A fixed depth is a number somebody re-decides later; a
+  recursion that stops where the *declaration* stops is a visible choice each time. `opaque` says
+  the same thing with a reason, for a structure another schema owns (`importMapping.mapping` belongs
+  to `format.schema.json`; a partner's `address` is free-form master data stored whole).
+- **A guard makes it stay closed:** an `array` or `object` declaration with neither an inner shape
+  nor an `opaque` reason fails the contract test, in both languages. Declaring today's inputs fixes
+  today; without the guard the next array added would be structural and silent again.
+
+**It found three silent inputs on its first run** — which is the argument for it, made by itself:
+`lines[].openItem`, passed by fixtures since v0.2 and read by nobody (now declared without effect,
+IMPL-029); a regression scenario declaring an overhead rate's `accounts` at rate level where the
+parser reads `base.accounts`, so the rate had no base and the scenario still passed; and
+`receivers[].costCenter` in both adapter suites where the parser reads `code`, so the receiver was
+dropped and both tests stayed green.
+
+**Breaking, deliberately:** a caller passing an undeclared key *inside* a structure now gets
+`E_INPUT_INVALID` where it used to be ignored. Same call as F-9 made for the outer level — the
+ignoring was the defect. New fixture `core/input-structure-contract`.
+
+### The documentation gate reaches the vocabulary (SPEC-019)
+
+The manual gate proved every published operation and projection had a section. Nothing proved a
+documented **field** said anything — and `taxTag` stood in the manual as "(object, no)" for a year,
+which is how an embedding concluded that a capability working since v0.4 was impossible and shipped
+a screen without a discount field.
+
+SPEC-017 closing made the fix possible: the contract now declares every input key at every depth, so
+the manual is held against **the same list the dispatcher validates**. A declared key that is not
+named in the section of the operation accepting it fails the build, in both languages. Still
+deliberately weak in the same way the name check always was — appearing in prose is not being
+explained well; it catches *declared, published, meaningless*, and leaves quality to review. One
+exemption, kept as a list: `actor`, documented once for the whole section.
+
+**It found 46 undocumented keys**, which answers whether `taxTag` was an accident: the entire
+`voucher` vocabulary on `postVoucher` (`due`, `economicYear`, `issuer`, `kind`, `recurring`,
+`serviceDate`, `servicePeriod`), every element key on `correct.lines`, the row fields of
+`importChartOfAccounts`, `acquireAsset`'s `specialDepreciation` and `totalUnits`, `setTaxProfile`'s
+`reason`, and the whole rate / production-cost vocabulary of `setAllocationScheme` — where
+`base.accounts` lives, the key a regression scenario had been getting wrong for as long as nothing
+documented it. All written now.
+
+### The audit trail is queried, not materialised (SPEC-018) — **breaking for custom `AuditTrail` adapters**
+
+`auditLog`'s filters and the author map behind `journal.actor` both ran *after* `AuditTrail::all()`,
+so a question about one posting still read ten years of history. The port gains
+**`find(criteria)`** — `objectType`, `objectId`, `objectIds`, `actor`, `action`, `from`/`to`,
+`offset`/`limit`, returning the page and the count *before* paging — and the database adapters push
+it into SQL.
+
+**No column, no migration.** The four fields live inside the JSON payload and are read there
+(`json_extract` on SQLite, `->>` on Postgres). Promoting them to columns is easy; *filling* them for
+rows that already exist is a data migration, and neither language has a runner — an unfilled column
+would make the filter miss exactly the history an audit is about. Extraction costs the index and
+keeps correctness; an expression index is what remains, and it is now separable.
+
+`EntryAuthors` asks for the ids on the page, so a journal view of forty postings reads forty
+records. That was the half 0.13.0's first pass missed: it moved the embedding's walk into the
+library without making it smaller.
+
+**Two implementations of one rule, held together by a test.** SQL in the adapters, `AuditFilter` /
+`applyAuditCriteria` in memory; `AuditQueryEquivalenceTest` and its Node twin drive every declared
+filter — alone, combined, and at the paging edges — through both and compare. The empty id set is in
+there deliberately: "these entries" with none of them is not "all of them", which is what a naive
+`IN ()` answers.
+
+**Breaking** only for code that implements the `AuditTrail` port itself: it needs a `find`. Every
+projection, every fixture and both shipped adapters are unchanged in behaviour — 168 fixtures green
+against the in-memory core, against SQLite and against Postgres, and the cross-test unmoved.
+
+### The pack declares its VAT filing windows (SPEC-016)
+
+Refusing an unknown `vatPeriod` — the right fix for the coercion defect — needed a list, and the
+list was three constants in the jurisdiction-free core: `monthly`, `quarterly`, `yearly`. That is
+the core saying *these are the filing periods there are*, and they are not. Ireland files
+bi-monthly; several jurisdictions have four-monthly or half-yearly windows; some have no VAT at all.
+
+**`packPolicy.vatPeriods`** now declares them, and **replaces** the substrate's list rather than
+extending it — a pack whose jurisdiction has no quarterly filing does not get quarterly quietly
+available. The substrate's three stay as a **default, not a definition**: they answer for a pack
+that says nothing, which is what makes the change additive. No shipped pack had to change, no
+inline bundle moves, and every tenant in the field behaves exactly as before.
+
+The fallback for an absent `vatPeriod` follows whoever owns the list — the substrate default keeps
+its documented `quarterly`, a declaring pack gets its own first window.
+
+**`TaxProfile::restore` stops re-judging stored profiles.** The database factories rebuild a stored
+profile instead of re-validating it: validation belongs at the boundary, and re-checking on the way
+*out* of our own store would mean a tenant whose pack later drops a window can no longer be opened —
+a rule change reaching backwards into books kept correctly under the old one. That hazard only
+existed once the list became changeable.
+
+Fixture `pack/conformance-xx/xx-7-pack-declares-filing-periods` (a fictional jurisdiction filing
+bi-monthly, red before the change) plus `VatPeriodsFromPackTest` / `vat-periods-from-pack.test.ts`
+for the half no fixture can express: a pack that *excludes* a window.
 
 ## 0.12.0 — 2026-08-25
 

@@ -1,0 +1,100 @@
+{
+  "fixture": "ec-sales-list-gap-warnings",
+  "description": "F-IO-011: an intra-community supply that cannot be reported is reported as unreportable. `ecSalesList` is keyed by VAT ID, and a supply whose partner has none produced no row and no warning — two postings, one with a VAT ID and one without, and the answer was one row and nothing else. That is the dangerous direction: without the recipient's VAT ID the supply is not exempt in the first place (§ 6a Abs. 1 Nr. 3 UStG), so what fell out of the report was exactly the case where something is wrong. The decision now happens on the LINE — is this tagged as an intra-community supply — before the partner is looked at; deciding it afterwards is what made a missing VAT ID indistinguishable from a posting that was never such a supply. Same shape as `vatReturn.gapWarnings`, and the same reason: the warning belongs at the figures rather than in a projection whoever files may never open. Not a refusal — whether a missing VAT ID makes the supply taxable is jurisdiction law and the embedding's call; the library's job is that the case is never invisible. Reported by an embedding application as its F-28, which had been walking `journalExport` to find these entries.",
+  "covers": ["F-IO-011", "F-TAX-012"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8125", "name": "Steuerfreie ig. Lieferungen § 4 Nr. 1b", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [],
+    "taxCodes": [
+      {
+        "code": "igL",
+        "versions": [
+          { "validFrom": "2024-01-01", "validTo": null, "rate": "0.00",
+            "mechanism": "intra_community_supply", "reportingKey": "41" }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": { "name": "Alpen Handel GmbH", "kind": "customer", "vatId": "ATU12345678" },
+      "expect": { "result": { "id": "$P1", "vatId": "ATU12345678" } }
+    },
+    {
+      "comment": "A customer whose VAT ID nobody entered — the ordinary way this happens, and the case that used to vanish.",
+      "op": "createPartner",
+      "input": { "name": "Ohne Nummer SARL", "kind": "customer" },
+      "expect": { "result": { "id": "$P2" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-AT-1", "voucherDate": "2026-03-10", "partnerId": "$P1", "kind": "invoice_out" },
+        "entryDate": "2026-03-10", "text": "ig. Lieferung Österreich",
+        "taxCode": "igL", "direction": "output",
+        "netLines": [ { "account": "8125", "money": { "amount": "1000.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-FR-1", "voucherDate": "2026-03-11", "partnerId": "$P2", "kind": "invoice_out" },
+        "entryDate": "2026-03-11", "text": "ig. Lieferung Frankreich",
+        "taxCode": "igL", "direction": "output",
+        "netLines": [ { "account": "8125", "money": { "amount": "500.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 2 } } }
+    },
+    {
+      "comment": "And the second way to be unreportable: a voucher that names no partner at all. A different fix on the caller's side, so a different reason.",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "AR-XX-1", "voucherDate": "2026-03-12", "kind": "invoice_out" },
+        "entryDate": "2026-03-12", "text": "ig. Lieferung ohne Partner",
+        "taxCode": "igL", "direction": "output",
+        "netLines": [ { "account": "8125", "money": { "amount": "250.00", "currency": "EUR" } } ],
+        "counterAccount": "1400"
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 3 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "ecSalesList",
+      "params": { "year": 2026 },
+      "expect": {
+        "comment": "Eine meldbare Lieferung, zwei nicht meldbare — und die zwei stehen jetzt da, statt zu fehlen. Reihenfolge: Journalreihenfolge, wie bei vatReturn.",
+        "rows": [
+          { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" }
+        ],
+        "gapWarnings": [
+          {
+            "reason": "partner_without_vat_id",
+            "sequenceNumber": 2,
+            "entryDate": "2026-03-11",
+            "reportingKey": "41",
+            "money": { "amount": "500.00", "currency": "EUR" },
+            "partnerId": "$P2"
+          },
+          {
+            "reason": "supply_without_partner",
+            "sequenceNumber": 3,
+            "entryDate": "2026-03-12",
+            "reportingKey": "41",
+            "money": { "amount": "250.00", "currency": "EUR" },
+            "partnerId": null
+          }
+        ]
+      }
+    }
+  ]
+}

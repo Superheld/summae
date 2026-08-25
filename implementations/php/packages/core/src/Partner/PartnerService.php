@@ -115,10 +115,13 @@ final readonly class PartnerService
         /** @var array<string, mixed> $address */
         $address = is_array($input['address'] ?? null) ? $input['address'] : [];
 
+        $name = is_string($input['name'] ?? null) ? $input['name'] : '';
+        $kind = is_string($input['kind'] ?? null) ? $input['kind'] : 'both';
+
         $partner = new Partner(
             $this->ids->next(),
-            is_string($input['name'] ?? null) ? $input['name'] : '',
-            is_string($input['kind'] ?? null) ? $input['kind'] : 'both',
+            $name,
+            $kind,
             is_string($input['vatId'] ?? null) ? $input['vatId'] : null,
             is_int($input['paymentTermsDays'] ?? null) ? $input['paymentTermsDays'] : null,
             $accountNumbers,
@@ -126,7 +129,14 @@ final readonly class PartnerService
         );
 
         $this->partners->add($partner);
-        $this->recordAudit($input, 'created', $partner->id, []);
+        // A creation is a change from nothing, written as `from: null` rather than as an empty diff
+        // — the idiom vouchers and fiscal years already used. The identifying fields only: the
+        // partner's current state is retrievable from the master data, and a trail that copies the
+        // object is a second source of truth rather than a history.
+        $this->recordAudit($input, 'created', $partner->id, [
+            'name' => ['from' => null, 'to' => $name],
+            'kind' => ['from' => null, 'to' => $kind],
+        ]);
 
         return $partner;
     }

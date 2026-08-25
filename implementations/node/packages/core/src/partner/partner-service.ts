@@ -87,10 +87,13 @@ export class PartnerService {
         ? (input.address as Record<string, unknown>)
         : {};
 
+    const name = asString(input.name) ?? '';
+    const kind = asString(input.kind) ?? 'both';
+
     const partner = new Partner(
       this.ids.next(),
-      asString(input.name) ?? '',
-      asString(input.kind) ?? 'both',
+      name,
+      kind,
       asString(input.vatId),
       typeof input.paymentTermsDays === 'number' ? input.paymentTermsDays : null,
       accountNumbers,
@@ -98,7 +101,14 @@ export class PartnerService {
     );
 
     this.partners.add(partner);
-    this.recordAudit(input, 'created', partner.id, {});
+    // A creation is a change from nothing, written as `from: null` rather than as an empty diff —
+    // the idiom vouchers and fiscal years already used. The identifying fields only: the partner's
+    // current state is retrievable from the master data, and a trail that copies the object is a
+    // second source of truth rather than a history.
+    this.recordAudit(input, 'created', partner.id, {
+      name: { from: null, to: name },
+      kind: { from: null, to: kind },
+    });
     return partner;
   }
 

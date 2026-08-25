@@ -51,7 +51,8 @@ export const API_PROJECTIONS = [
   'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
   'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
-  'productionCost', 'systemDescription', 'trialBalance', 'unfinalizedEntries', 'vatReturn',
+  'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
+  'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**
@@ -118,7 +119,14 @@ const INVARIANTS: ReadonlyArray<{ id: string; statement: string; enforcedBy: str
 ];
 
 /** What the audit trail records, so a reader can tell completeness from a sample. */
-const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readonly string[] }> = [
+/**
+ * Exported because `audit-trail-contract.test.ts` holds it against the pairs the operations
+ * *actually* write, in both directions — the same guard `capabilities` has. It used to be a
+ * hand-kept literal that nothing compared to reality, and it had already fallen behind once
+ * (0.11.0, where it under-reported what the trail records). A list published to an auditor is a
+ * claim, and a claim without a test is the thing this project calls a gate gap.
+ */
+export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readonly string[] }> = [
   { objectType: 'journalEntry', actions: ['created', 'corrected', 'finalized', 'reversed'] },
   { objectType: 'voucher', actions: ['created'] },
   { objectType: 'account', actions: ['created', 'locked', 'unlocked'] },

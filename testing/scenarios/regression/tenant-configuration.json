@@ -1,6 +1,6 @@
 {
   "id": "tenant-configuration",
-  "description": "SPEC-015: the five operations that change tenant configuration used to change a live object and nothing else — they returned success, wrote a durable audit record, and were forgotten the moment the process ended. Only `importMapping` had a write-back, hand-rolled in the CLI; the other four shipped broken. Every step here runs as its own CLI invocation, which builds the tenant from the database again, so a configuration change that does not survive fails the step that uses it. This is the only place in the whole test landscape where the question can be asked at all: fixtures build one tenant in one process, where an in-memory registry and a stored one are indistinguishable.",
+  "description": "SPEC-015: the five operations that change tenant configuration used to change a live object and nothing else — they returned success, wrote a durable audit record, and were forgotten the moment the process ended. Only `importMapping` had a write-back, hand-rolled in the CLI; the other four shipped broken. Every step here runs as its own CLI invocation, which builds the tenant from the database again, so a configuration change that does not survive fails the step that uses it. This is the only place in the whole test landscape where the question can be asked at all: fixtures build one tenant in one process, where an in-memory registry and a stored one are indistinguishable. **Extended 2026-08-25 (F-CORE-035):** the last step reads the configuration back through `tenantConfiguration`. Storing it was half the fix — an embedding that cannot ask what was stored still has to keep its own copy beside the books, and since the stored record now wins over what a caller passes, that copy is the one that can be wrong.",
   "init": { "pack": "de", "currency": "EUR", "firstFiscalYear": 2026 },
   "expect": { "initialized": true, "created.fiscalYears": 1 },
   "steps": [
@@ -81,7 +81,7 @@
         "method": "step_ladder",
         "steps": [],
         "rates": [
-          { "costCenter": "FERTIGUNG", "label": "Fertigungszuschlag", "accounts": ["5000"] }
+          { "costCenter": "FERTIGUNG", "label": "Fertigungszuschlag", "base": { "accounts": ["5000"] } }
         ]
       },
       "expect": { "valid": true, "stepCount": 0, "rateCount": 1 }
@@ -118,6 +118,20 @@
         "counterAccount": "1400"
       },
       "expect": { "grossTotal.amount": "100.00", "taxLines": [] }
+    },
+    {
+      "name": "and the whole configuration reads back in a LAST separate invocation (F-CORE-035) — the four things the record holds plus the pack's mappings, none of which this process wrote",
+      "report": "tenantConfiguration",
+      "params": {},
+      "expect": {
+        "dimensionTypes[0].code": "costCenter",
+        "dimensionValues[0].typeCode": "costCenter",
+        "dimensionValues[0].code": "FERTIGUNG",
+        "allocationScheme.method": "step_ladder",
+        "allocationScheme.rates[0].costCenter": "FERTIGUNG",
+        "taxProfile.smallBusiness[0].validFrom": "2026-05-01",
+        "mappings[0].id": "de-bilanz"
+      }
     }
   ]
 }

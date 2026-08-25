@@ -115,7 +115,10 @@ export class DatabaseTenantFactory {
       ids,
       dimensions,
       options.taxCodes,
-      config.taxProfile === null ? TaxProfile.default() : TaxProfile.fromData(config.taxProfile),
+      // `restore`, not `fromData`: these values were validated when they arrived, and re-checking
+      // them on the way out of our own store would stop a tenant opening after its pack drops a
+      // filing window — a rule change reaching backwards into books kept correctly (SPEC-016).
+      config.taxProfile === null ? TaxProfile.default() : TaxProfile.restore(config.taxProfile),
       mappings,
       options.taxRoundingGranularity,
       record.packIdentity,

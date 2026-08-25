@@ -54,7 +54,9 @@ final class TenantConfigPersistenceTest extends AdapterTestCase
     {
         $scheme = [
             'method' => 'step_ladder',
-            'steps' => [['sender' => 'HILFS', 'receivers' => [['costCenter' => 'FERTIGUNG', 'share' => '1']]]],
+            // `code`, not `costCenter`: this test carried the wrong key until SPEC-017 made the contract
+            // reach into elements, and the receiver was silently dropped while the test stayed green.
+            'steps' => [['sender' => 'HILFS', 'receivers' => [['code' => 'FERTIGUNG', 'share' => '1']]]],
         ];
         $first = $this->tenantOn(Uuid::fromString(self::TENANT_C), 'Config GmbH');
         (new TenantOperations($first))->execute('setAllocationScheme', $scheme);

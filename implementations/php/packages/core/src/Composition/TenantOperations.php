@@ -24,6 +24,7 @@ use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
+use Summae\Core\Policies\Projection\TenantConfigurationProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
 use Summae\Core\Policies\Projection\UnfinalizedEntriesProjection;
 use Summae\Core\Policies\Projection\VatReturnProjection;
@@ -140,7 +141,7 @@ final readonly class TenantOperations
 
         return match ($name) {
             'accounts' => (new AccountsProjection($tenant->accounts))->compute($params),
-            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers))
+            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers, $tenant->audit))
                 ->compute($params),
             'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
@@ -150,13 +151,19 @@ final readonly class TenantOperations
             'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
-            'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
+            'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock, $tenant->audit))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection(
                 $tenant->id,
                 $tenant->name,
                 $tenant->baseCurrency,
                 $tenant->packIdentity,
                 $tenant->tax->profile()->jsonSerialize(),
+            ))->compute($params),
+            'tenantConfiguration' => (new TenantConfigurationProjection(
+                $tenant->tax->profile()->jsonSerialize(),
+                $tenant->ledger->dimensionRegistry(),
+                $tenant->costing->allocationScheme(),
+                $tenant->mappings,
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),

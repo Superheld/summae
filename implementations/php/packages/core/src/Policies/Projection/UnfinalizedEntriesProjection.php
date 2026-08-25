@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Clock;
@@ -24,12 +25,26 @@ use Summae\Core\Substrate\Timestamp;
  *
  * The projection reports; it never blocks. Which age is too old, and what happens then, is
  * the embedding application's workflow — the library supplies the number.
+ *
+ * Each row carries `actor` (F-CORE-037): who recorded the posting. This is the projection a
+ * separation-of-duties check reads — "nobody may finalize a batch containing their own postings" —
+ * and without the author it was the one question it could not ask here, so an application read the
+ * whole audit trail per finalization and rebuilt the mapping itself. See `EntryAuthors`.
  */
 final readonly class UnfinalizedEntriesProjection
 {
     public function __construct(
         private JournalRepository $journal,
         private Clock $clock,
+        /**
+         * Where the author of a posting lives — the entry itself does not carry one.
+         *
+         * Required, not optional-with-a-default. An optional dependency is how three services in
+         * the database factory lost their audit writer and nobody noticed for a release: nothing
+         * fails to compile, nothing warns, the output is merely poorer in one setup. A caller that
+         * cannot supply the trail should fail to construct.
+         */
+        private AuditTrail $audit,
     ) {
     }
 
@@ -70,6 +85,7 @@ final readonly class UnfinalizedEntriesProjection
                 'recordedAt' => Timestamp::canonical($entry->recordedAt),
                 'fiscalYear' => $entry->periodRef->fiscalYear,
                 'period' => $entry->periodRef->period,
+                'entryIdForAuthor' => $entry->id->value,
                 'ageInDays' => $ageInDays,
                 'text' => $entry->text(),
             ];
@@ -78,6 +94,19 @@ final readonly class UnfinalizedEntriesProjection
                 $oldestAgeInDays = $ageInDays;
             }
         }
+
+        // The authors of exactly these postings, not of the whole trail (SPEC-018).
+        $authors = EntryAuthors::forEntries(
+            $this->audit,
+            array_map(static fn (array $row): string => (string) $row['entryIdForAuthor'], $entries),
+        );
+        $entries = array_map(static function (array $row) use ($authors): array {
+            $id = (string) $row['entryIdForAuthor'];
+            unset($row['entryIdForAuthor']);
+            $row['actor'] = $authors[$id] ?? null;
+
+            return $row;
+        }, $entries);
 
         // Journal order (sequenceNumber) is the order the entries arrive in; keeping it makes
         // the result deterministic without a second sort key.

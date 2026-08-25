@@ -51,7 +51,13 @@ export class TenantFactory {
     );
 
     const defaults = isRecord(profile.defaults) ? profile.defaults : {};
-    const taxProfile = TaxProfile.fromData(defaults);
+    // Which filing windows exist is the pack's answer, not the substrate's (SPEC-016). A pack that
+    // says nothing gets the substrate's default; one that says something replaces it.
+    const policy = isRecord(this.ruleModules.packPolicy) ? this.ruleModules.packPolicy : null;
+    const vatPeriods = Array.isArray(policy?.vatPeriods)
+      ? policy.vatPeriods.filter((value): value is string => typeof value === 'string')
+      : null;
+    const taxProfile = TaxProfile.fromData(defaults, vatPeriods);
 
     // packPolicy.currencyScale is a pack parameter: it sets the tenant's money scale
     // (jurisdiction-free), not the global ISO default scale.

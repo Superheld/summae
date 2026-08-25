@@ -281,6 +281,11 @@ and they are exactly what the four configuration operations change:
 | allocation scheme and rates | `setAllocationScheme` | nothing |
 | imported mappings | `importMapping` | the pack's mappings are the base; imports layer on top |
 
+**Reading it back.** All of it, plus the pack's mandatory-dimension rules, comes out of the
+[`tenantConfiguration`](#tenantconfiguration--what-this-tenant-is-set-up-as) projection. You do
+not have to keep a second copy of what you configured — and since the stored record wins, you
+should not: a copy that cannot be compared is a copy that drifts.
+
 **What you keep.** One thing, and it is not small: **the resolved pack** (or your own
 rule bundle) — the chart template, tax codes, mapping definitions, depreciation rules,
 `packPolicy`. It is versioned product data that you pin and ship, so summae takes it on
@@ -651,6 +656,14 @@ Conventions for this whole section:
 > is Money (`{"amount":"2000.00","currency":"EUR"}`), never a bare number. An
 > **absent** input keeps its documented default, and `null` counts as absent.
 >
+> **Since 0.13.0 that reaches *into* structures.** `lines`, `netLines`, `allocations`, `steps`,
+> `rates`, the `voucher` object and the rest declare what is inside them, and the same two rules
+> apply at every declared depth: `dimension` instead of `dimensions` on a posting line is
+> `E_INPUT_INVALID` naming the path (`post: unknown input "lines[0].dimension"`) rather than a
+> posting that books correctly and silently drops the cost centre. Where another schema owns a
+> structure it is passed through untouched — a mapping document belongs to the data format, and a
+> partner's `address` is free-form master data summae stores whole.
+>
 > What is *not* checked here is whether a required input is present: that stays with
 > the operation, which answers with a better code than this layer could —
 > `E_VOUCHER_UNKNOWN`, `E_ASSET_UNKNOWN`, `E_ENTRY_NO_VOUCHER` say *what* is missing.
@@ -695,7 +708,28 @@ on `subtype:"ap"` → `payable`).
 
 Posting line (`lines[]`): `account` (string, yes), `side`
 (`"debit"`/`"credit"`, yes), `money` (Money > 0, yes), `dimensions`
-(`[{type,code}]`, no), `taxTag` (object, no).
+(`[{type,code}]`, no), `taxTag` (object, no), `openItem` (object, no, **without effect**).
+
+> **`openItem` on a line does nothing**, and is declared only so that saying so is possible.
+> Whether a line opens a receivable or a payable follows from the account's `subtype` (`ar`/`ap`)
+> and the line's side — an answer that cannot disagree with the account, which is why it is not
+> steerable from the call. Fixtures have passed `openItem: {"kind": "receivable"}` since v0.2 and
+> nothing has ever read it.
+
+> **`taxTag` is what puts a line into the VAT return**, and it is worth reading before you hand-write
+> one. `vatReturn` is built from tax-*coded* postings, not from what sits on the tax accounts: a line
+> without a tag contributes nothing, however correct the account is (the same posting shows up fine
+> in the trial balance and on the account sheet, which is why
+> [`vatReturn.gapWarnings`](#vatreturn--vat-return-umsatzsteuer-voranmeldung) exists). The shape is
+> `{ "code", "appliedVersion", "reportingKey", "baseMoney" }` — the tax code, the `validFrom` of the
+> rule version applied, the key the amount is reported under, and the base the tax was computed on.
+> **`baseMoney` is signed by the tag, not by the line's side**, so a correction that reduces a
+> previously reported base carries a negative `baseMoney`.
+>
+> Normally you never write one: [`postVoucher`](#postvoucher) and [`expandTax`](#expandtax) produce
+> tags from the tax code, and [`reduction: true`](#postvoucher) produces the negative-base case. Use
+> the raw field when you are reproducing a posting that already exists — an opening balance takeover,
+> a migration — where the tags have to say what the old system said.
 
 **Check order / error codes:** 1) structure `E_ENTRY_TOO_FEW_LINES`,
 `E_ENTRY_INVALID_AMOUNT`; 2) references `E_ENTRY_NO_VOUCHER`,
@@ -733,9 +767,18 @@ and tax lines are produced automatically.
 | `voucher.voucherDate` | string (date) | yes | missing/invalid → `E_ENTRY_NO_VOUCHER` |
 | `voucher.partnerId` | string | no | must exist (`E_PARTNER_UNKNOWN`) |
 | `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
+| `voucher.kind` | string | no | what the voucher is (`invoice_out`, `invoice_in`, …) — recorded, never interpreted |
+| `voucher.serviceDate` | string (date) | no | supply date; takes precedence over the voucher date when a tax rule version is selected |
+| `voucher.servicePeriod` | object | no | a from/to window for a service spanning periods; stored whole |
+| `voucher.due` | string (date) | no | due date, carried onto the open item this posting creates |
+| `voucher.economicYear` | integer | no | the year the voucher belongs to economically, where that differs from its date |
+| `voucher.issuer` | string | no | who issued it |
+| `voucher.recurring` | boolean | no | marks a recurring voucher; recorded, never acted on |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
+| `reduction` | boolean | no | books the **mirror** of what `direction` describes and tags it so the reporting key goes *down* — a consideration reduction after the fact (see below) |
 | `netLines` | array of `{account, money, taxCode?, dimensions?}` | no | net lines; `dimensions` carries onto the resulting net line, not onto the tax line |
+| `lines` | array | no | complete posting lines instead of net lines — same shape as on [`post`](#post): `account`, `side`, `money`, `dimensions`, `taxTag` (whose keys are `code`, `appliedVersion`, `reportingKey`, `baseMoney`), `openItem` without effect |
 | `counterAccount` | string | yes | gross contra-account (bank/receivable) |
 | `entryDate` | string | no | default = `voucher.voucherDate` |
 
@@ -753,6 +796,34 @@ Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 > This is what makes an operating expense with input tax usable in cost accounting — the ordinary
 > way a cost reaches a cost centre. Until 2026-08-24 the expansion dropped it: the posting
 > succeeded, the figures were right, and the entry reached the journal with `dimensions: []`.
+
+> **`reduction: true` — a consideration reduction after the fact.** A cash discount taken, a credit
+> note, a price reduction after a complaint: the consideration changes *after* the supply was
+> reported, so the taxable base and the tax have to come back down in the period the change
+> happens (§ 17 UStG under the DE pack). Set `reduction: true` and everything about the call stays
+> the same — same `taxCode`, same `direction` as the original supply, net amount of the reduction
+> in `netLines`. What changes is that **every line swaps sides** (net, tax and the gross contra
+> line) and the tax tag carries a *negative* base, so the reporting key the supply was reported
+> under goes down rather than a second key going up.
+>
+> ```json
+> // 2 % discount on a 1,190.00 invoice = 23.80 gross = 20.00 net + 3.80 VAT
+> { "voucher": { "voucherNumber": "AR-001-SK", "voucherDate": "2026-05-12" },
+>   "taxCode": "USt19", "direction": "output", "reduction": true,
+>   "netLines": [ { "account": "8731", "money": { "amount": "20.00", "currency": "EUR" } } ],
+>   "counterAccount": "1400" }
+> // books 8731 debit 20.00 / 1776 debit 3.80 / 1400 credit 23.80
+> // → key 81 falls from 1000.00 / 190.00 to 980.00 / 186.20
+> ```
+>
+> **What is yours to decide** is *whether* a given reduction changes the taxable base — that is
+> jurisdiction law and depends on the case. summae supplies the mirror, not the judgement; there is
+> no rule here that decides a discount for you.
+>
+> The same thing is reachable without the flag, by writing the `taxTag` yourself on a plain
+> [`post`](#post) — that is how it worked before 0.13.0, and it still works. It asks you to know
+> the tag shape, the applied rule version and the reporting key, which is a German form number on
+> your screen; `reduction: true` exists so you do not have to.
 
 > **A tax code is required in practice.** `taxCode` is formally optional, but a
 > net line without one — and without a pack default — is rejected with
@@ -795,7 +866,9 @@ Output: `{ "id": <uuid>, "voucherNumber": <string> }`.
 
 Changes the text and/or lines of a posting — only in status `entered`, with an
 audit trail (no deletion). `entryId` (yes), `text` (no), `lines` (no, ≥ 2 &
-balanced). Output: serialized (changed) posting. Errors: `E_ENTRY_UNKNOWN`,
+balanced — the same element shape as on [`post`](#post): `account`, `side`, `money`, `dimensions`
+(`type`/`code`), `taxTag` (`code`, `appliedVersion`, `reportingKey`, `baseMoney`) and `openItem`
+without effect). Output: serialized (changed) posting. Errors: `E_ENTRY_UNKNOWN`,
 `E_ENTRY_FINALIZED`, `E_INPUT_INVALID`, `E_ENTRY_HAS_OPEN_ITEMS`, plus the
 `lines` errors of `post`.
 
@@ -921,8 +994,8 @@ cost-accounting operation.
 #### importChartOfAccounts
 
 Atomic chart-of-accounts import: validate everything first, then create. `rows`
-(yes, non-empty; each row carries fields like `createAccount`), `format` (no,
-not evaluated in the core). Output: `{ "importedCount": <int> }`. Errors:
+(yes, non-empty; each row carries `number`, `name`, `type`, `subtype` and `status` — the same
+fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in the core). Output: `{ "importedCount": <int> }`. Errors:
 `E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
 batch).
 
@@ -978,8 +1051,9 @@ lines including tax lines, tax tags, and the gross total (the precursor to
 | `date` | string (date) | yes | voucher date; version selection if no `serviceDate` |
 | `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
 | `direction` | string | no | `output` (default, credit) or `input` (debit) |
+| `reduction` | boolean | no | mirror every side and tag a negative base — a consideration reduction after the fact, see [`postVoucher`](#postvoucher) |
 | `taxCode` | string | no | default key for positions without their own |
-| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions`) |
+| `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions` of `{type, code}`) |
 
 Calculation: tax **per voucher and per rate** (net total per key, rounded
 half-up once — not per position); groups sorted by tax account (codepoints).
@@ -1009,7 +1083,9 @@ whole profile, not a diff. Both are stored with the tenant, so what you read bac
 the engine runs on (`systemDescription.taxProfile` reports the same thing without
 changing anything).
 
-`smallBusiness` (yes): `{ validFrom (yes), value (bool, default false) }`.
+`smallBusiness` (yes): `{ validFrom (yes), value (bool, default false) }`. `reason` (no) is
+accepted and **without effect** — declared so the gap is visible rather than hidden behind a
+tolerant reader; nothing stores it.
 Output: the serialized `TaxProfile` (`taxationMethod`, `vatPeriod`,
 `smallBusiness[]` sorted by `validFrom`). Error:
 `E_PROFILE_RETROACTIVE_CONFLICT` (no `validFrom`, or postings already finalized
@@ -1135,6 +1211,8 @@ Records an acquisition and decides the low-value-asset (GWG) routing.
 | `usefulLifeMonths` | integer | no | overrides the `usefulLife` lookup for THIS asset; capitalized route only |
 | `depreciationMethod` | string | no (`"straight_line"`) | otherwise `declining_balance`; capitalized route only |
 | `dimensions` | array of `{type, code}` | no | cost centre etc.; **every** machine entry about this asset inherits them |
+| `specialDepreciation` | boolean | no | elects the additional allowance the pack declares, once and at acquisition (see below) |
+| `totalUnits` | integer | no | the expected total output for `units_of_production` — kilometres, operating hours, copies |
 
 GWG routing with `auto`: cost ≤ `immediateMax` → `immediate_expense`;
 `poolMin` ≤ cost ≤ `poolMax` → `pool` (over `poolYears`); otherwise →
@@ -1322,6 +1400,28 @@ Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` y
 not perform — it is refused, never approximated), `E_COSTING_CYCLE`; missing `sender`
 → `InvalidValue` ⚠.
 
+**`rates[]` — the overhead rates**, set here rather than by an operation of their own because a
+rate is computed *from* an allocation and frozen *into* a run, and two operations would need two
+freezing rules for one moment. Each entry: `costCenter` (which centre the rate belongs to), `label`
+(what to call it in the report, default = the cost centre), and `base` — the denominator, given as
+`base.accounts` (direct-cost accounts) and/or `base.costCenters`. **`accounts` belongs under
+`base`**: at rate level it is not read, which is exactly the silent-drop this contract now refuses.
+
+**`productionCost` — what may be capitalized** (§ 255 HGB territory under the DE pack, and a
+different answer elsewhere, which is why the treatments come from the pack). `include` is the
+tenant's election among the *optional* components, by id; `components[]` declares them, each with an
+`id` and a `base` of the same shape as a rate's. A component the pack forbids is `E_INPUT_INVALID`;
+one the pack does not declare at all is `E_PACK_INCOHERENT`.
+
+```json
+{ "method": "step_ladder",
+  "steps": [ { "sender": "VW", "receivers": [ { "code": "FE", "share": "1" } ] } ],
+  "rates": [ { "costCenter": "FE", "label": "Fertigungszuschlag",
+               "base": { "accounts": ["5000"], "costCenters": ["FE"] } } ],
+  "productionCost": { "include": ["verwaltung"],
+                      "components": [ { "id": "material", "base": { "accounts": ["5000"] } } ] } }
+```
+
 **Stored with the tenant** — the change outlives the process, see [what summae stores](#what-summae-stores-and-what-you-store).
 A stored scheme is replayed on the next open **when it is first used** (by `setAllocationScheme` or
 `runCosting`), not while the tenant is built: it may name production-cost treatments only the pack
@@ -1430,13 +1530,38 @@ as-of evaluations.
 
 ### auditLog — change history
 
-`from`/`to` (no, date range inclusive). Output: `records[]` with `id`, `at`
+`from`/`to` (no, date range inclusive) · `objectType`, `objectId`, `actor`, `action` (no) ·
+`offset`, `limit` (no). Output: `count`, `offset`, `limit` and `records[]` with `id`, `at`
 (ATOM with zone), `actor`, `objectType`, `objectId`, `action`, `changes`
 (map `field → {from,to}`).
 
+**Filters combine with AND; an absent one filters nothing.** They are how the questions an
+auditor actually asks get asked: *what happened to this posting* (`objectId`), *who touched
+accounts* (`objectType: "account"`), *what did this user do* (`actor`). Until 0.13.0 only the date
+range existed, so the whole trail had to be fetched and filtered outside — which carries the
+fastest-growing table in the system across a boundary in order to discard most of it, and makes
+traceability a property of your application rather than of the books.
+
+**`count` is the number of matches *before* paging**, so a page header can say "51–100 of 3,204"
+without a second call — the same contract [`journal`](#journal--the-journal-windowed-and-paged)
+publishes. An absent `limit` means everything from the offset on: no default page size is invented,
+because that would silently truncate a caller who never asked for pages. Order is the trail's
+recording order, which is already its total order.
+
+**Every record carries a before/after diff**, creations included — those read `{"from": null, …}`.
+What the diff holds are the identifying fields, never a copy of the object: an account's current
+state is in [`accounts`](#accounts--the-chart-of-accounts), a posting's lines are in the
+append-only [`journal`](#journal--the-journal-windowed-and-paged). A trail that duplicates the
+object would be a second source of truth rather than a history.
+
+The `actor` is recorded exactly as you supply it and is never verified — binding it to an
+authenticated identity is your application's job, and
+[`systemDescription`](#systemdescription--technical-system-description) says so in `notProvided`.
+
 ```json
-// params { "from": "2026-01-01", "to": "2026-12-31" }
-{ "records": [ { "objectType": "journalEntry", "action": "corrected",
+// params { "objectId": "…", "limit": 50 }
+{ "count": 2, "offset": 0, "limit": 50,
+  "records": [ { "objectType": "journalEntry", "action": "corrected",
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 
@@ -1447,10 +1572,15 @@ as-of evaluations.
 `fiscalYear`, `count`, `offset`, `limit` and `entries[]`, ordered by
 `sequenceNumber`.
 
-Each entry carries `sequenceNumber`, `entryId`, `status`
+Each entry carries `sequenceNumber`, `entryId`, `actor`, `status`
 (`entered`/`finalized`), `entryDate`, `voucherNumber`, `voucherDate`, `text`,
 `reverses`, `reversedBy` and its **complete** `lines[]` — `account`,
 `accountName`, `side`, `money`, `dimensions`, `taxTag`.
+
+`actor` is **who recorded the posting** — the actor of the `post` that created it, `"system"` when
+none was supplied. The entry itself carries no author; the fact lives in the audit trail, and this
+is summae reading it for you rather than you rebuilding it. See
+[`unfinalizedEntries`](#unfinalizedentries--postings-still-open) for why that matters.
 
 **This is the projection to fill a journal view with**, not `journalExport` and
 not `datevExport`. The export is lossless but builds five streams with a
@@ -1554,7 +1684,19 @@ decision.
 `asOf` (no, default: today by the injected clock), `olderThanDays` (no, default
 `0`), `fiscalYear` (no). Output: `asOf`, `olderThanDays`, `count`,
 `oldestAgeInDays` and `entries[]` with `entryId`, `sequenceNumber`, `entryDate`,
-`recordedAt`, `fiscalYear`, `period`, `ageInDays` and `text`, in journal order.
+`recordedAt`, `fiscalYear`, `period`, `ageInDays`, `text` and `actor`, in journal order.
+
+**`actor` is who recorded the posting**, and it is here for **separation of duties**: the rule that
+nobody may finalize a batch containing their own postings. Without it the only place the answer
+existed was the audit trail, so an application checking the rule read the *entire* trail on every
+finalization and rebuilt the mapping itself — a check that scales with the age of the books instead
+of with the size of the batch, and an application reconstructing library state from a history.
+`"system"` when the posting supplied no actor.
+
+Note what summae does **not** do with it: it neither enforces the rule nor verifies who the actor
+is (see [`systemDescription`](#systemdescription--technical-system-description)'s `notProvided`).
+Binding the actor to an authenticated identity, and deciding what happens when the rule is broken,
+is your application's.
 
 The age is measured from the **`entryDate`**, not from `recordedAt`: a posting
 recorded late for an old date is precisely the case a finalization deadline is
@@ -1844,11 +1986,31 @@ income-effective, asset payments not deductible. A deviating fiscal year →
 
 `year` (yes), `quarter` (no). Intra-community supplies per VAT ID (from the key
 tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
-`amount`, `kind`). Postings without a partner VAT ID drop out.
+`amount`, `kind`) and `gapWarnings[]`.
+
+**A supply that cannot be reported is reported as unreportable.** The list is keyed by VAT ID, so a
+supply whose partner has none has no row to go in — and until 0.13.0 it simply vanished: two
+postings, one with a VAT ID and one without, and the answer was one row and nothing else. That is
+the dangerous direction, because without the recipient's VAT ID the supply is not exempt in the
+first place (§ 6a Abs. 1 Nr. 3 UStG), so what dropped out was exactly the case where something is
+wrong. Each warning carries `reason`, `sequenceNumber`, `entryDate`, `reportingKey`, `money` and
+`partnerId`, in journal order — the same shape and the same reasoning as
+[`vatReturn.gapWarnings`](#vatreturn--vat-return-umsatzsteuer-voranmeldung).
+
+Two reasons, because the fix differs: `partner_without_vat_id` (the voucher names a partner, the
+partner has no VAT ID — add it to the master data) and `supply_without_partner` (the voucher names
+no partner at all — the posting has to say who it went to).
+
+It is **not** a refusal. Whether a missing VAT ID makes the supply taxable is your call and your
+jurisdiction's; summae's job is that the case is never invisible.
 
 ```json
 // params { "year": 2026, "quarter": 1 }
-{ "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ] }
+{ "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ],
+  "gapWarnings": [ { "reason": "partner_without_vat_id", "sequenceNumber": 2,
+                     "entryDate": "2026-03-11", "reportingKey": "41",
+                     "money": { "amount": "500.00", "currency": "EUR" },
+                     "partnerId": "…" } ] }
 ```
 
 ### journalExport — GoBD Z3 export
@@ -1957,6 +2119,57 @@ verified. Binding it to an authenticated identity is your application's job.
   "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
                     "enforcedBy": "No delete or update path exists on the journal repository." } ],
   "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
+```
+
+### tenantConfiguration — what this tenant is set up as
+
+No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
+`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
+(raw, exactly as `setAllocationScheme` accepts it, or `null`) and `mappings[]`
+(`{id, kind, version}` each).
+
+This is the read side of [what summae stores](#what-summae-stores-and-what-you-store). Four
+things live in `summae_tenants.config`, five operations change them, and until 0.13.0 exactly
+one of the four was reported back — the tax profile, through `systemDescription`. The other
+three could be written and never read.
+
+**Why that mattered more than an ordinary gap.** Before the configuration was persisted, your
+application passed its cost centres in on every open, so your copy was the truth by construction.
+Since 0.12.0 the stored record wins and what you pass is a seed that is ignored from the second
+open on: summae's copy is the truth and yours is a guess — and nothing let you check it. A screen
+with a cost-centre field could learn the accepted values only by posting and reading
+`E_DIMENSION_INVALID`.
+
+**It reports what is in force, not what is stored**, and the two places those differ are the
+point:
+
+- **`dimensionRules[]` are the pack's** — which accounts may not be posted without which
+  dimension. They stand in no record at all (they come back from the pack on every open), and you
+  cannot derive them from the pack file without reimplementing the resolver. This is how a form
+  knows which field it must not leave empty.
+- **`mappings[]` lists the pack's mappings and the imported ones together.** The record holds only
+  the imports, so a projection mirroring it would answer "none" for a `de` tenant whose
+  `balanceSheet`, `incomeStatement` and `cashBasisReport` all work. These are the names those
+  three projections accept as `mapping`.
+
+**Identity is not repeated here** — id, name, base currency and pack are `systemDescription`'s
+`tenant` and `pack` blocks, which report all four. This projection answers the other question.
+
+**Mapping identity only, never the positions.** The definitions are your pack's, and summae keeps
+no copy of it on purpose: two answers to "which rules is this tenant on" is one answer too many.
+
+```json
+// params {}
+{ "taxProfile": { "taxationMethod": "accrual", "vatPeriod": "quarterly", "smallBusiness": [] },
+  "dimensionTypes":  [ { "code": "costCenter" } ],
+  "dimensionValues": [ { "typeCode": "costCenter", "code": "FERT" },
+                       { "typeCode": "costCenter", "code": "VERW" } ],
+  "dimensionRules":  [ { "accountRange": { "from": "6000", "to": "6999" },
+                         "requiredDimension": "costCenter" } ],
+  "allocationScheme": { "method": "step_ladder",
+                        "steps": [ { "sender": "VERW", "receivers": [ { "code": "FERT", "share": "1" } ] } ] },
+  "mappings": [ { "id": "de-bilanz", "kind": "balance-sheet",   "version": "2026.4" },
+                { "id": "de-guv",    "kind": "income-statement", "version": "2026.4" } ] }
 ```
 
 ## 8. Value objects

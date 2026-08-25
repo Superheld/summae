@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Policies\Projection;
 
 use Summae\Core\Port\AccountRepository;
+use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Substrate\CalendarDate;
@@ -33,6 +34,10 @@ use Summae\Core\Substrate\JournalEntry;
  * Ordered by sequenceNumber, which is already the journal's total order: paging needs a stable one,
  * and inventing a tie-break where the ledger already has none would be a second answer to a
  * question that has one.
+ *
+ * Each entry carries `actor` (F-CORE-037): who recorded it. The entry itself has no author — the
+ * fact lives in the audit trail and nowhere else, so a screen showing the journal could show
+ * everything about a posting except who made it. See `EntryAuthors`.
  */
 final readonly class JournalProjection
 {
@@ -40,6 +45,8 @@ final readonly class JournalProjection
         private AccountRepository $accounts,
         private JournalRepository $journal,
         private VoucherRepository $vouchers,
+        /** Where the author of a posting lives — required for the same reason as everywhere else. */
+        private AuditTrail $audit,
     ) {
     }
 
@@ -74,23 +81,36 @@ final readonly class JournalProjection
             ? array_slice($matching, $offset)
             : array_slice($matching, $offset, $limit);
 
+        $authors = EntryAuthors::forEntries(
+            $this->audit,
+            array_map(static fn (JournalEntry $entry): string => $entry->id->value, $page),
+        );
+
         return [
             'fiscalYear' => $fiscalYear,
             'count' => count($matching),
             'offset' => $offset,
             'limit' => $limit,
-            'entries' => array_map($this->serialize(...), $page),
+            'entries' => array_map(
+                fn (JournalEntry $entry): array => $this->serialize($entry, $authors),
+                $page,
+            ),
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function serialize(JournalEntry $entry): array
+    /**
+     * @param array<string, string> $authors
+     *
+     * @return array<string, mixed>
+     */
+    private function serialize(JournalEntry $entry, array $authors): array
     {
         $voucher = $this->vouchers->byId($entry->voucherId);
 
         return [
             'sequenceNumber' => $entry->sequenceNumber,
             'entryId' => $entry->id->value,
+            'actor' => $authors[$entry->id->value] ?? null,
             'status' => $entry->isFinalized() ? 'finalized' : 'entered',
             'entryDate' => $entry->entryDate->iso,
             'voucherNumber' => $voucher?->voucherNumber,

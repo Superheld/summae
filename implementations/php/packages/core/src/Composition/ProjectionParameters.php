@@ -69,9 +69,18 @@ final class ProjectionParameters
         'assetRegister' => [
             'asOf' => ['type' => 'date'],
         ],
+        // Filters combine with AND; an absent one filters nothing. The four object filters arrived
+        // with F-CORE-036: the auditor's question is about ONE thing, and `from`/`to` alone forced
+        // the caller to transport the whole trail in order to discard most of it.
         'auditLog' => [
             'from' => ['type' => 'date'],
             'to' => ['type' => 'date'],
+            'objectType' => ['type' => 'string'],
+            'objectId' => ['type' => 'string'],
+            'actor' => ['type' => 'string'],
+            'action' => ['type' => 'string'],
+            'offset' => ['type' => 'integer'],
+            'limit' => ['type' => 'integer'],
         ],
         'unfinalizedEntries' => [
             'asOf' => ['type' => 'date'],
@@ -126,6 +135,10 @@ final class ProjectionParameters
         'productionCost' => [
             'runId' => ['type' => 'string', 'required' => true],
         ],
+        // No parameters, for the third time and the same reason as systemDescription and accounts:
+        // a tenant has exactly one configuration. There is nothing to select, and a filter would
+        // turn "what is this tenant set up as" into a question with more than one answer.
+        'tenantConfiguration' => [],
     ];
 
     /**

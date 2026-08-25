@@ -8,6 +8,16 @@ export interface ParameterSpec {
   readonly required?: true;
   /** Passed by existing fixtures, read by no implementation — declared so the gap is visible. */
   readonly acceptedWithoutEffect?: true;
+  /**
+   * What is inside a structure (SPEC-017). `fields` for an object, `element` for an array — the
+   * declaration every element is checked against. Recursive, and it stops where the declaration
+   * stops: a shape that is not written out is not checked, which is a decision the contract's
+   * author makes visibly rather than one that happens.
+   */
+  readonly fields?: Readonly<Record<string, ParameterSpec>>;
+  readonly element?: ParameterSpec;
+  /** Another schema owns this structure. The value is the reason, and it is required. */
+  readonly opaque?: string;
 }
 
 /**
@@ -65,9 +75,18 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   assetRegister: {
     asOf: { type: 'date' },
   },
+  // Filters combine with AND; an absent one filters nothing. The four object filters arrived with
+  // F-CORE-036: the auditor's question is about ONE thing, and `from`/`to` alone forced the caller
+  // to transport the whole trail in order to discard most of it.
   auditLog: {
     from: { type: 'date' },
     to: { type: 'date' },
+    objectType: { type: 'string' },
+    objectId: { type: 'string' },
+    actor: { type: 'string' },
+    action: { type: 'string' },
+    offset: { type: 'integer' },
+    limit: { type: 'integer' },
   },
   unfinalizedEntries: {
     asOf: { type: 'date' },
@@ -122,6 +141,10 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   productionCost: {
     runId: { type: 'string', required: true },
   },
+  // No parameters, for the third time and the same reason as systemDescription and accounts: a
+  // tenant has exactly one configuration. There is nothing to select, and a filter would turn
+  // "what is this tenant set up as" into a question with more than one answer.
+  tenantConfiguration: {},
 };
 
 /**

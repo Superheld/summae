@@ -74,6 +74,17 @@ final class CostingService
     /** @var array<string, mixed>|null a stored scheme waiting for its first use — see restoreAllocationScheme */
     private ?array $pendingScheme = null;
 
+    /**
+     * The scheme as it was given, kept for `tenantConfiguration` to report.
+     *
+     * The raw input rather than the parsed fields, for the same reason the store keeps the raw
+     * input: it is exactly what `setAllocationScheme` accepts, so what comes out can be put back
+     * in and no second serializer can drift from the first one.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $schemeData = null;
+
     private string $method = 'step_ladder';
 
     public function __construct(
@@ -169,6 +180,23 @@ final class CostingService
     }
 
     /**
+     * The allocation scheme in force, as it was set — what `tenantConfiguration` reports, or null
+     * when none was ever set.
+     *
+     * Reads the *pending* scheme first and deliberately does not apply it. A stored scheme may
+     * name production-cost treatments only the current pack answers, so applying it is what
+     * `restoreAllocationScheme` defers to first use — and a projection is the wrong place to find
+     * out: reporting what a tenant is configured as must not fail on a scheme that was valid when
+     * it was set. Reporting it unapplied is the honest answer, because unapplied is what it is.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function allocationScheme(): ?array
+    {
+        return $this->pendingScheme ?? $this->schemeData;
+    }
+
+    /**
      * @param array<string, mixed> $input
      *
      * @return array{valid: bool, method: string, stepCount: int, rateCount: int, productionCostComponents: int}
@@ -244,6 +272,7 @@ final class CostingService
         $this->method = $method;
         $this->rateDefinitions = $rates;
         $this->productionCostConfig = $productionCost;
+        $this->schemeData = $input;
 
         return [
             'valid' => true,

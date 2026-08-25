@@ -1,4 +1,5 @@
-import type { AccountRepository, JournalRepository, VoucherRepository } from '../../port.js';
+import type { AccountRepository, AuditTrail, JournalRepository, VoucherRepository } from '../../port.js';
+import { entryAuthors } from './entry-authors.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { JournalEntry } from '../../substrate/journal-entry.js';
 import { integerOr, integerOrNull } from './parameters.js';
@@ -24,12 +25,18 @@ import { integerOr, integerOrNull } from './parameters.js';
  * Ordered by `sequenceNumber`, which is already the journal's total order: paging needs a stable
  * one, and inventing a tie-break where the ledger already has none would be a second answer to a
  * question that has one.
+ *
+ * Each entry carries `actor` (F-CORE-037): who recorded it. The entry itself has no author — the
+ * fact lives in the audit trail and nowhere else, so a screen showing the journal could show
+ * everything about a posting except who made it. See `entryAuthors`.
  */
 export class JournalProjection {
   constructor(
     private readonly accounts: AccountRepository,
     private readonly journal: JournalRepository,
     private readonly vouchers: VoucherRepository,
+    /** Where the author of a posting lives — required for the same reason as everywhere else. */
+    private readonly audit: AuditTrail,
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
@@ -51,22 +58,27 @@ export class JournalProjection {
     // A limit that is absent means "everything from the offset on" — a projection that invented a
     // default page size would silently truncate a caller that never asked for pages.
     const page = limit === null || limit < 0 ? matching.slice(offset) : matching.slice(offset, offset + limit);
+    const authors = entryAuthors(
+      this.audit,
+      page.map((entry) => entry.id.value),
+    );
 
     return {
       fiscalYear,
       count: matching.length,
       offset,
       limit,
-      entries: page.map((entry) => this.serialize(entry)),
+      entries: page.map((entry) => this.serialize(entry, authors)),
     };
   }
 
-  private serialize(entry: JournalEntry): Record<string, unknown> {
+  private serialize(entry: JournalEntry, authors: Map<string, string>): Record<string, unknown> {
     const voucher = this.vouchers.byId(entry.voucherId);
 
     return {
       sequenceNumber: entry.sequenceNumber,
       entryId: entry.id.value,
+      actor: authors.get(entry.id.value) ?? null,
       status: entry.isFinalized() ? 'finalized' : 'entered',
       entryDate: entry.entryDate.iso,
       voucherNumber: voucher?.voucherNumber ?? null,

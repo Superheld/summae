@@ -1,0 +1,96 @@
+{
+  "fixture": "input-structure-contract",
+  "description": "SPEC-017: the parameter contract reaches into structures, not just to their keys. `netLines`/`lines`/`allocations` were declared as `array` and nothing looked inside the elements, so `dimension` instead of `dimensions` was accepted, booked correctly, and dropped the cost centre — no error, no warning, and the posting looked right. That is the same defect one level in as the one the contract was built to end. The rule is now recursive and it is the same two rules the outer level always had: an undeclared key is a caller mistake, a declared key of the wrong type is rejected rather than coerced. Requiredness stays with the operation, whose own error says more than a generic one. The recursion stops where the DECLARATION stops, which is what makes it durable rather than \"one level deeper\": a shape that is not written out is not checked, and that is a decision the contract's author makes visibly — a guard test refuses an array or object input that declares neither `element`/`fields` nor `opaque` with a reason. The error names the full path, so a caller does not have to hunt for the typo.",
+  "covers": ["F-CORE-025"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "8400", "name": "Erlöse", "type": "revenue" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "AR-1", "voucherDate": "2026-06-01" } ],
+    "dimensionTypes": [ { "code": "costCenter" } ],
+    "dimensionValues": [ { "typeCode": "costCenter", "code": "VERW" } ]
+  },
+  "steps": [
+    {
+      "comment": "The reported case: a singular `dimension` on a posting line. It used to book and lose the cost centre.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01", "voucherId": "$V1", "text": "Tippfehler im Zeilenschlüssel",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimension": [ { "type": "costCenter", "code": "VERW" } ] },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "Two levels down, where the declaration goes: `kode` instead of `code` inside a dimension.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01", "voucherId": "$V1", "text": "Tippfehler eine Ebene tiefer",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "kode": "VERW" } ] },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "Objects too, not only array elements: the voucher is a declared structure.",
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNr": "AR-2", "voucherDate": "2026-06-02" },
+        "entryDate": "2026-06-02", "text": "Tippfehler im Beleg",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "8400", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "A wrong TYPE inside a structure is rejected, never coerced — the amount as a JSON number is the mistake `money` exists to catch, now reachable one level in.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01", "voucherId": "$V1", "text": "Betrag als Zahl",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": 100 },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "comment": "And the boundary: a structure declared `opaque` takes anything, because another owner validates it. A partner's address is free-form master data the engine stores whole.",
+      "op": "createPartner",
+      "input": {
+        "name": "Kunde AG", "kind": "customer",
+        "address": { "street": "Hauptstr. 1", "city": "Bremen", "wasAuchImmer": { "tief": true } }
+      },
+      "expect": { "result": { "name": "Kunde AG" } }
+    },
+    {
+      "comment": "The correct spelling still books, so the refusal above is about the key and not about dimensions.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01", "voucherId": "$V1", "text": "richtig geschrieben",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VERW" } ] },
+          { "account": "8400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "lines": [
+        { "account": "1400", "dimensions": [ { "type": "costCenter", "code": "VERW" } ] },
+        { "account": "8400" }
+      ] } }
+    }
+  ],
+  "projections": []
+}

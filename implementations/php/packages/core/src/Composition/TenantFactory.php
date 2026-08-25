@@ -61,11 +61,19 @@ final readonly class TenantFactory
             static fn (mixed $code): bool => is_array($code) && in_array($code['code'] ?? null, $wantedCodes, true),
         ));
 
-        $defaults = is_array($profile['defaults'] ?? null) ? $profile['defaults'] : [];
-        $taxProfile = TaxProfile::fromData($defaults);
-
-        // packPolicy is a pack parameter (money scale + tax granularity), not global.
+        // packPolicy is a pack parameter (money scale, tax granularity, filing windows), not global.
         $packPolicy = is_array($this->ruleModules['packPolicy'] ?? null) ? $this->ruleModules['packPolicy'] : null;
+
+        // Which filing windows exist is the pack's answer, not the substrate's (SPEC-016). A pack
+        // that says nothing gets the substrate's default; one that says something replaces it.
+        /** @var list<string>|null $vatPeriods */
+        $vatPeriods = is_array($packPolicy['vatPeriods'] ?? null)
+            ? array_values(array_filter($packPolicy['vatPeriods'], is_string(...)))
+            : null;
+
+        $defaults = is_array($profile['defaults'] ?? null) ? $profile['defaults'] : [];
+        $taxProfile = TaxProfile::fromData($defaults, $vatPeriods);
+
         $currencyScale = is_int($packPolicy['currencyScale'] ?? null) ? $packPolicy['currencyScale'] : null;
         $granularity = is_string($packPolicy['taxRoundingGranularity'] ?? null)
             ? $packPolicy['taxRoundingGranularity']

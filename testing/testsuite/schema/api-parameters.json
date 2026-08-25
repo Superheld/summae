@@ -14,36 +14,188 @@
     "unknownParameter": "A parameter that is not declared here is rejected with E_INPUT_INVALID. Silently ignoring it turns a misspelled `fiscalYear` on vatReturn into a plausible annual figure where a quarter was asked for.",
     "absentOptional": "An undeclared-as-required parameter that is absent keeps its documented default. Absent is not the same as wrong.",
     "presentButInvalid": "A declared parameter present with a value of the wrong type is rejected with E_INPUT_INVALID — never coerced, never defaulted.",
-    "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is declared but read by no implementation. It is declared so the gap is visible instead of hiding behind a tolerant reader — NOT because it works, and each one is recorded as a finding. Resolve it by giving the parameter an effect or by retiring it in a new fixture; do not quietly bend an existing one. As of 2026-08-16 exactly one remains: balanceSheet.incomeMapping, and there by decision — see the comment on it."
+    "structuralInputs": "A parameter of type `array` or `object` MUST declare what is inside it: `element` for an array (the declaration every element is checked against), `fields` for an object (a name → declaration map), or `opaque` with a REASON when another owner validates it. The rule is recursive and stops where the declaration stops — an `element` may itself have `fields`, and a field may itself be an array. A declaration that stops early leaves the depth below it unchecked, which is a choice the author makes rather than one that happens: nothing may be structural and silent. This closes SPEC-017 and closes it for the next input too, because a new array without an inner declaration fails the contract test rather than shipping a hole. What is NOT checked inside a structure is requiredness — that stays with the operation, whose own error says more than a generic one (`post` refuses a line without an account with its own code).",
+    "acceptedWithoutEffect": "A parameter marked acceptedWithoutEffect is declared but read by no implementation. It is declared so the gap is visible instead of hiding behind a tolerant reader — NOT because it works, and each one is recorded as a finding. Resolve it by giving the parameter an effect or by retiring it in a new fixture; do not quietly bend an existing one. Two remain, both by decision: `balanceSheet.incomeMapping` (IMPL-014) and `post`/`postVoucher` `lines[].openItem` (IMPL-029) — see the comment on each."
   },
-  "$operationsComment": "The same contract for the operations (F-9, reported by an embedding app). `PROJECTION_PARAMETERS` had declared every projection parameter since 0.7 while `execute()` read what it recognised and ignored the rest — so a typo in a projection parameter was an immediate E_INPUT_INVALID naming the parameter, and a typo in an operation input was silence plus a default. That asymmetry is the wrong way round: a projection returns a wrong number, an operation writes one into the books. Three defects came out of it before the contract existed — `expandTax` taking `date` where its neighbours take `voucherDate`, a wrong `direction` booking an invoice inverted (IMPL-013), and every numeric input read with a typeof check, so a form's \"30\" was not rejected but ignored while the default stood. `actor` is declared on every operation that writes an audit record, because that is what reads it.",
+  "$structuralComment": "Inner shapes are written out where they repeat (a `dimensions` element, a `taxTag`, an overhead-rate `base`) rather than named once and referenced. Deliberate: a reference mechanism is a second thing to resolve in two languages, and these literals are three lines each. The contract is read far more often than it is edited, and explicit beats indirect for a reader checking what an operation accepts.",
+    "$operationsComment": "The same contract for the operations (F-9, reported by an embedding app). `PROJECTION_PARAMETERS` had declared every projection parameter since 0.7 while `execute()` read what it recognised and ignored the rest — so a typo in a projection parameter was an immediate E_INPUT_INVALID naming the parameter, and a typo in an operation input was silence plus a default. That asymmetry is the wrong way round: a projection returns a wrong number, an operation writes one into the books. Three defects came out of it before the contract existed — `expandTax` taking `date` where its neighbours take `voucherDate`, a wrong `direction` booking an invoice inverted (IMPL-013), and every numeric input read with a typeof check, so a form's \"30\" was not rejected but ignored while the default stood. `actor` is declared on every operation that writes an audit record, because that is what reads it.",
   "operations": {
     "post": {
       "voucherId": { "type": "string", "required": true },
       "entryDate": { "type": "date", "required": true },
-      "lines": { "type": "array", "required": true },
+      "lines": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "side": { "type": "string" },
+            "money": { "type": "money" },
+            "dimensions": {
+            "type": "array",
+            "element": { "type": "object", "fields": {
+              "type": { "type": "string" },
+              "code": { "type": "string" }
+            } }
+          },
+            "taxTag": {
+            "type": "object",
+            "fields": {
+              "code": { "type": "string" },
+              "appliedVersion": { "type": "string" },
+              "reportingKey": { "type": "string" },
+              "baseMoney": { "type": "money" }
+            }
+          },
+            "openItem": {
+              "type": "object",
+              "acceptedWithoutEffect": true,
+              "opaque": "read by no implementation",
+              "$comment": "Found by this contract on its first deep run (IMPL-029). Fixtures have passed `openItem: {kind}` on a posting line since v0.2 and nothing has ever read it: an open item is derived from the account's subtype and the line's side, which is the better answer because it cannot disagree with the account. Declared without effect rather than accepted silently, per the acceptedWithoutEffect rule."
+            }
+          }
+        }
+      },
       "text": { "type": "string" },
       "actor": { "type": "string" }
     },
     "postVoucher": {
-      "voucher": { "type": "object", "required": true },
+      "voucher": {
+        "type": "object",
+        "required": true,
+        "fields": {
+          "voucherNumber": { "type": "string" },
+          "voucherDate": { "type": "date" },
+          "serviceDate": { "type": "date" },
+          "servicePeriod": { "type": "object", "opaque": "a from/to window the record stores whole" },
+          "economicYear": { "type": "integer" },
+          "due": { "type": "date" },
+          "recurring": { "type": "boolean" },
+          "issuer": { "type": "string" },
+          "kind": { "type": "string" },
+          "partnerId": { "type": "string" },
+          "supplierTaxationMethod": { "type": "string" }
+        }
+      },
       "taxCode": { "type": "string" },
       "direction": { "type": "string" },
-      "netLines": { "type": "array" },
-      "lines": { "type": "array" },
+      "reduction": {
+        "type": "boolean",
+        "$comment": "Books the MIRROR of the taxed posting `direction` describes, tagged so the reporting key goes down instead of up — a consideration reduction after the fact (cash discount, credit note, price reduction; § 17 UStG in the DE pack). Law-free: WHETHER a given reduction changes the taxable base is the pack's and the caller's business, mirroring a taxed posting is mechanism. It was reachable before only by hand-writing a `taxTag` with a negative `baseMoney` onto a plain `post`, which is library-internal knowledge and a reporting key on the caller's screen."
+      },
+      "netLines": {
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "money": { "type": "money" },
+            "taxCode": { "type": "string" },
+            "dimensions": {
+            "type": "array",
+            "element": { "type": "object", "fields": {
+              "type": { "type": "string" },
+              "code": { "type": "string" }
+            } }
+          }
+          }
+        }
+      },
+      "lines": {
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "side": { "type": "string" },
+            "money": { "type": "money" },
+            "dimensions": {
+            "type": "array",
+            "element": { "type": "object", "fields": {
+              "type": { "type": "string" },
+              "code": { "type": "string" }
+            } }
+          },
+            "taxTag": {
+            "type": "object",
+            "fields": {
+              "code": { "type": "string" },
+              "appliedVersion": { "type": "string" },
+              "reportingKey": { "type": "string" },
+              "baseMoney": { "type": "money" }
+            }
+          },
+            "openItem": {
+              "type": "object",
+              "acceptedWithoutEffect": true,
+              "opaque": "read by no implementation",
+              "$comment": "Found by this contract on its first deep run (IMPL-029). Fixtures have passed `openItem: {kind}` on a posting line since v0.2 and nothing has ever read it: an open item is derived from the account's subtype and the line's side, which is the better answer because it cannot disagree with the account. Declared without effect rather than accepted silently, per the acceptedWithoutEffect rule."
+            }
+          }
+        }
+      },
       "counterAccount": { "type": "string" },
       "entryDate": { "type": "date" },
       "text": { "type": "string" },
       "actor": { "type": "string" }
     },
     "createVoucher": {
-      "voucher": { "type": "object", "required": true },
+      "voucher": {
+        "type": "object",
+        "required": true,
+        "fields": {
+          "voucherNumber": { "type": "string" },
+          "voucherDate": { "type": "date" },
+          "serviceDate": { "type": "date" },
+          "servicePeriod": { "type": "object", "opaque": "a from/to window the record stores whole" },
+          "economicYear": { "type": "integer" },
+          "due": { "type": "date" },
+          "recurring": { "type": "boolean" },
+          "issuer": { "type": "string" },
+          "kind": { "type": "string" },
+          "partnerId": { "type": "string" },
+          "supplierTaxationMethod": { "type": "string" }
+        }
+      },
       "actor": { "type": "string" }
     },
     "correct": {
       "entryId": { "type": "string", "required": true },
       "text": { "type": "string" },
-      "lines": { "type": "array" },
+      "lines": {
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "side": { "type": "string" },
+            "money": { "type": "money" },
+            "dimensions": {
+            "type": "array",
+            "element": { "type": "object", "fields": {
+              "type": { "type": "string" },
+              "code": { "type": "string" }
+            } }
+          },
+            "taxTag": {
+            "type": "object",
+            "fields": {
+              "code": { "type": "string" },
+              "appliedVersion": { "type": "string" },
+              "reportingKey": { "type": "string" },
+              "baseMoney": { "type": "money" }
+            }
+          },
+            "openItem": {
+              "type": "object",
+              "acceptedWithoutEffect": true,
+              "opaque": "read by no implementation",
+              "$comment": "Found by this contract on its first deep run (IMPL-029). Fixtures have passed `openItem: {kind}` on a posting line since v0.2 and nothing has ever read it: an open item is derived from the account's subtype and the line's side, which is the better answer because it cannot disagree with the account. Declared without effect rather than accepted silently, per the acceptedWithoutEffect rule."
+            }
+          }
+        }
+      },
       "actor": { "type": "string" }
     },
     "finalize": {
@@ -60,7 +212,24 @@
     },
     "settle": {
       "entryId": { "type": "string", "required": true },
-      "allocations": { "type": "array", "required": true },
+      "allocations": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "openItemId": { "type": "string" },
+            "money": { "type": "money" },
+            "difference": {
+              "type": "object",
+              "fields": {
+                "money": { "type": "money" },
+                "kind": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
       "actor": { "type": "string" }
     },
     "createAccount": {
@@ -80,7 +249,20 @@
       "actor": { "type": "string" }
     },
     "importChartOfAccounts": {
-      "rows": { "type": "array", "required": true },
+      "rows": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "number": { "type": "string" },
+            "name": { "type": "string" },
+            "type": { "type": "string" },
+            "subtype": { "type": "string" },
+            "status": { "type": "string" }
+          }
+        }
+      },
       "format": { "type": "string", "acceptedWithoutEffect": true },
       "actor": { "type": "string" }
     },
@@ -117,16 +299,47 @@
       "date": { "type": "date", "required": true },
       "serviceDate": { "type": "date" },
       "direction": { "type": "string" },
+      "reduction": { "type": "boolean" },
       "taxCode": { "type": "string" },
-      "netLines": { "type": "array", "required": true }
+      "netLines": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "money": { "type": "money" },
+            "taxCode": { "type": "string" },
+            "dimensions": {
+            "type": "array",
+        "required": true,
+            "element": { "type": "object", "fields": {
+              "type": { "type": "string" },
+              "code": { "type": "string" }
+            } }
+          }
+          }
+        }
+      }
     },
     "setTaxProfile": {
-      "smallBusiness": { "type": "object", "required": true },
+      "smallBusiness": {
+        "type": "object",
+        "required": true,
+        "fields": {
+          "validFrom": { "type": "date" },
+          "value": { "type": "boolean" }
+        }
+      },
       "reason": { "type": "string", "acceptedWithoutEffect": true },
       "actor": { "type": "string" }
     },
     "importMapping": {
-      "mapping": { "type": "object", "required": true },
+      "mapping": {
+        "type": "object",
+        "required": true,
+        "opaque": "a whole mapping document; its shape is owned by format.schema.json, and declaring it twice would be the drift this contract exists to prevent"
+      },
       "actor": { "type": "string" }
     },
     "createPartner": {
@@ -134,8 +347,8 @@
       "kind": { "type": "string" },
       "vatId": { "type": "string" },
       "paymentTermsDays": { "type": "integer" },
-      "accountNumbers": { "type": "array" },
-      "address": { "type": "object" },
+      "accountNumbers": { "type": "array", "element": { "type": "string" } },
+      "address": { "type": "object", "opaque": "free-form master data; the engine stores it whole and interprets no key of it" },
       "actor": { "type": "string" }
     },
     "deactivatePartner": {
@@ -152,8 +365,8 @@
       "kind": { "type": "string" },
       "vatId": { "type": "string" },
       "paymentTermsDays": { "type": "integer" },
-      "accountNumbers": { "type": "array" },
-      "address": { "type": "object" },
+      "accountNumbers": { "type": "array", "element": { "type": "string" } },
+      "address": { "type": "object", "opaque": "free-form master data; the engine stores it whole and interprets no key of it" },
       "actor": { "type": "string" }
     },
     "acquireAsset": {
@@ -166,7 +379,13 @@
       "gwgChoice": { "type": "string" },
       "usefulLifeMonths": { "type": "integer" },
       "depreciationMethod": { "type": "string" },
-      "dimensions": { "type": "array" },
+      "dimensions": {
+        "type": "array",
+        "element": { "type": "object", "fields": {
+          "type": { "type": "string" },
+          "code": { "type": "string" }
+        } }
+      },
       "specialDepreciation": { "type": "boolean" },
       "totalUnits": { "type": "integer" },
       "actor": { "type": "string" }
@@ -209,9 +428,52 @@
     },
     "setAllocationScheme": {
       "method": { "type": "string" },
-      "steps": { "type": "array" },
-      "rates": { "type": "array" },
-      "productionCost": { "type": "object" },
+      "steps": {
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": {
+            "sender": { "type": "string" },
+            "receivers": {
+              "type": "array",
+              "element": { "type": "object", "fields": {
+                "code": { "type": "string" },
+                "share": { "type": "string" }
+              } }
+            }
+          }
+        }
+      },
+      "rates": {
+        "type": "array",
+        "element": {
+          "type": "object",
+          "fields": {
+            "costCenter": { "type": "string" },
+            "label": { "type": "string" },
+            "base": { "type": "object", "fields": {
+                "accounts": { "type": "array", "element": { "type": "string" } },
+                "costCenters": { "type": "array", "element": { "type": "string" } }
+              } }
+          }
+        }
+      },
+      "productionCost": {
+        "type": "object",
+        "fields": {
+          "include": { "type": "array", "element": { "type": "string" } },
+          "components": {
+            "type": "array",
+            "element": { "type": "object", "fields": {
+              "id": { "type": "string" },
+              "base": { "type": "object", "fields": {
+                "accounts": { "type": "array", "element": { "type": "string" } },
+                "costCenters": { "type": "array", "element": { "type": "string" } }
+              } }
+            } }
+          }
+        }
+      },
       "actor": { "type": "string" }
     },
     "runCosting": {
@@ -225,7 +487,12 @@
     },
     "allocate": {
       "total": { "type": "money", "required": true },
-      "weights": { "type": "array", "required": true }
+      "weights": {
+        "type": "array",
+        "required": true,
+        "$comment": "Whole numbers or decimal strings; the elements are values, not structures, so the element declaration is a type rather than a shape.",
+        "element": { "type": "string" }
+      }
     }
   },
   "projections": {
@@ -345,6 +612,26 @@
       },
       "to": {
         "type": "date"
+      },
+      "objectType": {
+        "type": "string",
+        "$comment": "The auditor's question is about ONE thing — this posting, this account, this partner — and until 0.13.0 the projection could only answer \"everything, by date\". Filtering outside the library means transporting the whole trail to do it, on the fastest-growing table in the system."
+      },
+      "objectId": {
+        "type": "string"
+      },
+      "actor": {
+        "type": "string"
+      },
+      "action": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer"
+      },
+      "limit": {
+        "type": "integer",
+        "$comment": "Absent means everything from the offset on, exactly as on `journal`: a projection that invented a default page size would silently truncate a caller that never asked for pages."
       }
     },
     "unfinalizedEntries": {
@@ -456,6 +743,7 @@
         "type": "string",
         "required": true
       }
-    }
+    },
+    "tenantConfiguration": {}
   }
 }
