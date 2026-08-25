@@ -132,9 +132,11 @@ copy collapsed into one). Alongside them live the machine-readable spec parts th
 change is a *new* fixture, never a quiet edit to an existing one — an edited fixture rewrites
 what the contract always said, and every implementation that agreed with the old expectation
 silently becomes "wrong" retroactively. Contradiction between spec/fixture/model → **do not
-guess, do not bend the fixture**, but document it in the repo-root `SPEC-FINDINGS.md` — **one
-register for both implementations** since 2026-08-25; the per-language files are thin pointers —
-and continue building with the next most plausible behavior.
+guess, do not bend the fixture**, but document it in the repo-root `SPEC-FINDINGS.md` and
+continue building with the next most plausible behavior. **One register for both implementations,
+split by state:** `SPEC-FINDINGS.md` holds what is *open* and is kept short enough to read whole;
+`SPEC-FINDINGS-RESOLVED.md` holds what is decided, in full, plus the status table. Closing a finding
+means moving its block across — the per-language files are thin pointers.
 
 **Retiring a fixture is the one exception, and it is narrow.** Append-only stops a fixture from
 being *edited*; it does not claim a fixture can never have pinned the wrong thing. The three
@@ -168,8 +170,8 @@ deleted). Do not edit it here.
   (`30-anforderungen/funktional.md`, areas CORE/TAX/AST/KLR/IO) · **`NF-n[.n]`** non-functional
   requirement (`30-anforderungen/nicht-funktional.md`) · **`SF-nn`** standard case
   (`30-anforderungen/lieferumfang.md`) · **`SPEC-nnn` / `SPEC-Cnn` / `IMPL-nnn`** findings
-  (repo-root `SPEC-FINDINGS.md`, one register for both languages). Fixtures name only requirements
-  in `covers`. Until 2026-08-23 the findings ran as `F-0xx`/`NF-0xx`, which a reader — and a grep —
+  (repo-root `SPEC-FINDINGS.md` open / `SPEC-FINDINGS-RESOLVED.md` decided). Fixtures name only
+  requirements in `covers`. Until 2026-08-23 the findings ran as `F-0xx`/`NF-0xx`, which a reader — and a grep —
   could tell from the requirements only by a leading zero or a missing area word; the mapping is at
   the top of `SPEC-FINDINGS.md`. A new series gets its own word, not a number range.
 
