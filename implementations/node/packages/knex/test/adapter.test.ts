@@ -389,7 +389,9 @@ describe('tenant configuration survives the process (SPEC-015)', () => {
     const first = tenantOn(TENANT_C, 'Config GmbH');
     new TenantOperations(first).execute('setAllocationScheme', {
       method: 'step_ladder',
-      steps: [{ sender: 'HILFS', receivers: [{ costCenter: 'FERTIGUNG', share: '1' }] }],
+      // `code`, not `costCenter`: this test carried the wrong key until SPEC-017 made the contract
+      // reach into elements, and the receiver was silently dropped while the test stayed green.
+      steps: [{ sender: 'HILFS', receivers: [{ code: 'FERTIGUNG', share: '1' }] }],
     });
     const auditedOnce = first.audit.all().filter((r) => r.objectType === 'allocationScheme').length;
 

@@ -81,7 +81,7 @@
         "method": "step_ladder",
         "steps": [],
         "rates": [
-          { "costCenter": "FERTIGUNG", "label": "Fertigungszuschlag", "accounts": ["5000"] }
+          { "costCenter": "FERTIGUNG", "label": "Fertigungszuschlag", "base": { "accounts": ["5000"] } }
         ]
       },
       "expect": { "valid": true, "stepCount": 0, "rateCount": 1 }
