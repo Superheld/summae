@@ -126,6 +126,10 @@ final class ProjectionParameters
         'productionCost' => [
             'runId' => ['type' => 'string', 'required' => true],
         ],
+        // No parameters, for the third time and the same reason as systemDescription and accounts:
+        // a tenant has exactly one configuration. There is nothing to select, and a filter would
+        // turn "what is this tenant set up as" into a question with more than one answer.
+        'tenantConfiguration' => [],
     ];
 
     /**

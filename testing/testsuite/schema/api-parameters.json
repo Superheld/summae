@@ -456,6 +456,7 @@
         "type": "string",
         "required": true
       }
-    }
+    },
+    "tenantConfiguration": {}
   }
 }
