@@ -12,6 +12,50 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The audit trail is audit-capable (F-CORE-014, F-CORE-036)
+
+Four findings of one shape, from a pass over everything that touches the trail: it was written
+well and could not be read, and two of its published claims were not held against reality by
+anything.
+
+**The completeness guard now runs against real persistence.** `AuditTrailContractTest` enumerates
+all 32 state-changing operations from the *published* API surface and runs each for real — a strong
+guard that was bound to `Tenant::inMemory` only, which is the one construction summae does not
+ship. It therefore could not see the defect class that actually occurred: `DatabaseTenantFactory`
+takes the `AuditWriter` as an **optional** argument and once left it off for three services, so the
+tax profile, the asset events and the costing runs wrote no record at all behind a database while
+every in-memory test stayed green (fixed in 0.12.0, unguarded until now). The enumeration moved to
+one place per language (`audit-cases.ts`, an overridable `buildTenant`) and is bound twice:
+`AuditTrailPersistedTest` and `packages/knex/test/audit-trail-contract.test.ts`. Wiring a new
+service without its writer is red now — and every record those bindings assert has been through a
+JSON column and come back.
+
+**`auditLog` answers the question an auditor asks.** It took `from`/`to` and nothing else, so *what
+happened to this posting*, *who touched this account* and *what did this user do* were not askable
+through the API: the caller fetched the whole trail and filtered outside. New parameters
+`objectType`, `objectId`, `actor`, `action` (AND-combined, absent filters nothing) and
+`offset`/`limit` with `count` = matches **before** paging — the same contract `journal` already
+publishes, in deliberately the same words. An absent `limit` still means everything from the offset
+on; no default page size is invented. Additive: existing callers keep the shape they had.
+
+**Creations record what was created.** The trail was inconsistent and nothing noticed: vouchers,
+fiscal years, dimension types/values and costing runs wrote `{from: null, to: …}`, while accounts,
+postings and partners wrote an empty diff — so the invariant `systemDescription` publishes ("actor,
+timestamp, object *and before/after values*") was true of most records and not of all. All three now
+record their identifying fields, and a guard asserts that **no** record carries an empty diff. The
+diff is never a copy of the object: a posting's lines stay in the append-only journal, and
+duplicating them would double the largest table in the system to create a second answer to what the
+posting says.
+
+**The published event list is guarded.** `systemDescription.auditTrail.events` is what an auditor
+reads as "this is what the trail records" — a hand-kept literal that nothing compared to reality,
+and one that had already fallen behind once (0.11.0). It is now held against the events the
+operations actually write, in both directions and in both bindings. Closing it surfaced
+`openItem/cancelled`: published, produced by `reverse` on a settled entry, and observed by no test.
+
+New fixtures `core/audit-trail-creations` and `core/audit-log-filtered`, red before the change in
+both languages. `docs/gobd-conformance.md` gains three rows and corrects a stale count.
+
 ### The tenant's configuration is readable (F-CORE-035)
 
 0.12.0 gave the library a place to keep what a tenant is set up as — tax profile, dimension

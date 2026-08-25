@@ -32,7 +32,7 @@ use Summae\Core\Tenant;
  * (projections, `expandTax`) are deliberately absent: they change nothing, so there is
  * nothing to log.
  */
-final class AuditTrailContractTest extends TestCase
+class AuditTrailContractTest extends TestCase
 {
     /**
      * Operations that mutate but are not yet pinned here. The list is EMPTY, and keeping it
@@ -44,10 +44,28 @@ final class AuditTrailContractTest extends TestCase
      */
     private const UNCOVERED_KNOWN = [];
 
+    /**
+     * The tenant under test — the seam that lets the SAME enumeration run against real persistence.
+     *
+     * The completeness check used to exist only for `Tenant::inMemory`, and that is precisely the
+     * construction summae does not ship. It could therefore not see the defect class that actually
+     * occurred: `DatabaseTenantFactory` took the `AuditWriter` as an OPTIONAL argument and left it
+     * off for three services, so the tax profile, the asset events and the costing runs wrote no
+     * record at all behind a database while every in-memory test here stayed green (0.12.0). An
+     * optional dependency makes that silent — nothing fails to compile, nothing warns, the trail is
+     * merely thinner in the one setup that counts.
+     *
+     * `AuditTrailPersistedTest` in the adapter suite overrides this and inherits every case below.
+     */
+    protected function buildTenant(FixedClock $clock): Tenant
+    {
+        return Tenant::inMemory('Audit GmbH', Currency::of('EUR'), $clock, new DeterministicIdGenerator($clock));
+    }
+
     private function freshOps(): TenantOperations
     {
         $clock = FixedClock::at('2026-06-07T12:00:00+02:00');
-        $tenant = Tenant::inMemory('Audit GmbH', Currency::of('EUR'), $clock, new DeterministicIdGenerator($clock));
+        $tenant = $this->buildTenant($clock);
         // The asset operations need the pack data they would normally be composed with;
         // without it `acquireAsset` fails on the missing useful life instead of on the thing
         // under test.
@@ -369,6 +387,28 @@ final class AuditTrailContractTest extends TestCase
                 ]);
 
                 return;
+            case 'reverseSettled':
+                // Not an operation of its own: `openItem/cancelled` is what `reverse` leaves behind
+                // when the entry it undoes had created an open item. Published as an audited event
+                // and, until this recipe existed, never observed by any test.
+                $voucherId = $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1400', 'name' => 'Forderungen', 'type' => 'asset', 'subtype' => 'ar']);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erlöse', 'type' => 'revenue']);
+                /** @var array<string, mixed> $invoice */
+                $invoice = $ops->execute('post', [
+                    'entryDate' => '2026-01-20',
+                    'voucherId' => $voucherId,
+                    'text' => 'Rechnung',
+                    'lines' => [
+                        ['account' => '1400', 'side' => 'debit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                        ['account' => '8400', 'side' => 'credit', 'money' => ['amount' => '119.00', 'currency' => 'EUR']],
+                    ],
+                ]);
+                $invoiceId = $invoice['id'] ?? null;
+                self::assertIsString($invoiceId);
+                $ops->execute('reverse', ['entryId' => $invoiceId, 'entryDate' => '2026-01-26', 'text' => 'Storno']);
+
+                return;
             case 'importChartOfAccounts':
                 $ops->execute('importChartOfAccounts', [
                     'rows' => [['number' => '4980', 'name' => 'Sonstiges', 'type' => 'expense']],
@@ -489,6 +529,105 @@ final class AuditTrailContractTest extends TestCase
         $ops->execute('createAccount', ['number' => '1200', 'name' => 'Bank', 'type' => 'asset', 'subtype' => 'bank']);
 
         self::assertSame('system', $this->auditRecords($ops)[0]['actor'] ?? null);
+    }
+
+    /**
+     * Every audit record every recipe produces, from a fresh tenant each time.
+     *
+     * `reverseSettled` is in the list and is not an operation: `openItem/cancelled` is what
+     * `reverse` leaves behind when the entry it undoes had created an open item. It is a published
+     * audited event that no case observed, which is exactly the kind of hole the two tests below
+     * are for.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function allObservedRecords(): array
+    {
+        $recipes = ['reverseSettled'];
+        foreach (self::auditedOperations() as $case) {
+            $recipes[] = $case[0];
+        }
+
+        $records = [];
+        foreach (array_unique($recipes) as $recipe) {
+            $ops = $this->freshOps();
+            $this->runOperation($ops, $recipe);
+            $records = [...$records, ...$this->auditRecords($ops)];
+        }
+
+        return $records;
+    }
+
+    /** @param array<string, mixed> $record */
+    private static function pairOf(array $record): string
+    {
+        $objectType = is_string($record['objectType'] ?? null) ? $record['objectType'] : '';
+        $action = is_string($record['action'] ?? null) ? $record['action'] : '';
+
+        return $objectType . '/' . $action;
+    }
+
+    /**
+     * The published event list is what an auditor reads as "this is what the trail records".
+     * Nothing held it against reality, and it had already fallen behind once (0.11.0). Both
+     * directions, like `capabilities`: under-reporting hides a recorded event, over-reporting
+     * promises one that never appears — and a Verfahrensdokumentation that claims more than the
+     * software does is worse than one that claims less.
+     */
+    public function testPublishedEventListMatchesWhatIsActuallyRecorded(): void
+    {
+        $published = [];
+        foreach (SystemDescriptionProjection::AUDITED_EVENTS as $event) {
+            foreach ($event['actions'] as $action) {
+                $published[] = $event['objectType'] . '/' . $action;
+            }
+        }
+
+        $observed = [];
+        foreach ($this->allObservedRecords() as $record) {
+            $observed[] = self::pairOf($record);
+        }
+
+        $published = array_unique($published);
+        $observed = array_unique($observed);
+        sort($published);
+        sort($observed);
+
+        self::assertSame(
+            [],
+            array_values(array_diff($observed, $published)),
+            'the trail writes these events and systemDescription does not publish them — '
+            .'a description that under-reports lets a recorded event look like one that never happens',
+        );
+        self::assertSame(
+            [],
+            array_values(array_diff($published, $observed)),
+            'systemDescription publishes these events and no operation produces them — '
+            .'either the claim is stale or a recipe is missing above; both are findings',
+        );
+    }
+
+    /**
+     * The published invariant says a record carries "actor, timestamp, object and before/after
+     * values". It was true of most records and not of all: accounts, postings and partners wrote an
+     * empty diff while vouchers, fiscal years, dimensions and costing runs wrote `from: null`.
+     * A creation is a change from nothing, and writing it as nothing is what made the claim false.
+     */
+    public function testEveryRecordCarriesABeforeAfterDiff(): void
+    {
+        $empty = [];
+        foreach ($this->allObservedRecords() as $record) {
+            $changes = $record['changes'] ?? null;
+            if (!is_array($changes) || $changes === []) {
+                $empty[] = self::pairOf($record);
+            }
+        }
+
+        self::assertSame(
+            [],
+            array_values(array_unique($empty)),
+            'these events record no before/after values, which systemDescription promises they do',
+        );
     }
 
     public function testEveryStateChangingOperationIsClaimedByThisList(): void

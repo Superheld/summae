@@ -90,6 +90,28 @@ export class ChartAdminService {
     return this.dimensions;
   }
 
+  /**
+   * What an account's creation records (F-CORE-014).
+   *
+   * A creation is a change from nothing, so it is written as `from: null` rather than as an empty
+   * diff. That was already the idiom for vouchers, fiscal years, dimensions and costing runs;
+   * accounts, postings and partners recorded nothing at all, which made the published invariant
+   * ("actor, timestamp, object and before/after values") true of some records and not others. The
+   * identifying fields only — the account's current state is retrievable from `accounts`, and a
+   * trail that copies the object is a second source of truth, not a history.
+   */
+  private static creationDiff(account: Account): Record<string, { from: unknown; to: unknown }> {
+    const changes: Record<string, { from: unknown; to: unknown }> = {
+      number: { from: null, to: account.number.value },
+      name: { from: null, to: account.name },
+      type: { from: null, to: account.type },
+    };
+
+    if (account.subtype !== null) changes.subtype = { from: null, to: account.subtype };
+
+    return changes;
+  }
+
   createAccount(input: Record<string, unknown>): Account {
     const actor = this.audit.actorOf(input);
     const account = this.buildAccount(input);
@@ -101,7 +123,7 @@ export class ChartAdminService {
     }
 
     this.accounts.add(account);
-    this.audit.record(actor, 'account', account.id, 'created');
+    this.audit.record(actor, 'account', account.id, 'created', ChartAdminService.creationDiff(account));
     return account;
   }
 
@@ -171,7 +193,7 @@ export class ChartAdminService {
 
     for (const account of accounts) {
       this.accounts.add(account);
-      this.audit.record(actor, 'account', account.id, 'created');
+      this.audit.record(actor, 'account', account.id, 'created', ChartAdminService.creationDiff(account));
     }
     return accounts.length;
   }

@@ -108,6 +108,33 @@ final readonly class ChartAdminService
         );
     }
 
+    /**
+     * What an account's creation records (F-CORE-014).
+     *
+     * A creation is a change from nothing, so it is written as `from: null` rather than as an empty
+     * diff. That was already the idiom for vouchers, fiscal years, dimensions and costing runs;
+     * accounts, postings and partners recorded nothing at all, which made the published invariant
+     * ("actor, timestamp, object and before/after values") true of some records and not others.
+     * The identifying fields only — the account's current state is retrievable from `accounts`, and
+     * a trail that copies the object is a second source of truth, not a history.
+     *
+     * @return array<string, array{from: mixed, to: mixed}>
+     */
+    private static function creationDiff(Account $account): array
+    {
+        $changes = [
+            'number' => ['from' => null, 'to' => $account->number->value],
+            'name' => ['from' => null, 'to' => $account->name],
+            'type' => ['from' => null, 'to' => $account->type->value],
+        ];
+
+        if ($account->subtype !== null) {
+            $changes['subtype'] = ['from' => null, 'to' => $account->subtype];
+        }
+
+        return $changes;
+    }
+
     /** @param array<string, mixed> $input */
     public function createAccount(array $input): Account
     {
@@ -122,7 +149,7 @@ final readonly class ChartAdminService
         }
 
         $this->accounts->add($account);
-        $this->audit->record($actor, 'account', $account->id, 'created');
+        $this->audit->record($actor, 'account', $account->id, 'created', self::creationDiff($account));
 
         return $account;
     }
@@ -217,7 +244,7 @@ final readonly class ChartAdminService
 
         foreach ($accounts as $account) {
             $this->accounts->add($account);
-            $this->audit->record($actor, 'account', $account->id, 'created');
+            $this->audit->record($actor, 'account', $account->id, 'created', self::creationDiff($account));
         }
 
         return count($accounts);

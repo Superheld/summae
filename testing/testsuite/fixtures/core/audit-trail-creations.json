@@ -1,0 +1,71 @@
+{
+  "fixture": "audit-trail-creations",
+  "description": "F-CORE-014: a creation is recorded as a change from nothing (`from: null`), not as an empty diff. The trail was inconsistent about this and nothing noticed: vouchers, fiscal years, dimension types/values and costing runs all wrote `{from: null, to: …}`, while accounts, postings and partners wrote no `changes` at all. `systemDescription` meanwhile published the invariant \"every state-changing operation writes an audit record with actor, timestamp, object **and before/after values**\" — true of some records and not of others, which is the kind of claim the GoBD census rule exists to stop. The identifying fields only, never a copy of the object: an account's current state is in `accounts`, a partner's in the master data, and an entry's lines are in the journal, which is append-only. A trail that duplicates the object is a second source of truth rather than a history — and for the journal it would double the largest table in the system. What the trail adds is the frame nobody can reconstruct afterwards: when, against which voucher, under which text.",
+  "covers": ["F-CORE-014"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-02-03" } ]
+  },
+  "steps": [
+    {
+      "op": "createAccount",
+      "input": { "actor": "bruce", "number": "4930", "name": "Bürobedarf", "type": "expense" },
+      "expect": { "result": { "number": "4930", "status": "active" } }
+    },
+    {
+      "op": "createPartner",
+      "input": { "actor": "bruce", "name": "Kunde AG", "kind": "customer" },
+      "expect": { "result": { "name": "Kunde AG", "kind": "customer" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "actor": "bruce",
+        "entryDate": "2026-02-03", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": {},
+      "expect": {
+        "comment": "Drei Anlagen, drei Diffs gegen null. `subtype` steht nur beim Konto, das eines hat — ein Feld, das nicht gesetzt wurde, wird nicht als „von null auf null\" erfunden.",
+        "records": [
+          {
+            "objectType": "account", "action": "created", "actor": "bruce",
+            "changes": {
+              "number": { "from": null, "to": "4930" },
+              "name": { "from": null, "to": "Bürobedarf" },
+              "type": { "from": null, "to": "expense" }
+            }
+          },
+          {
+            "objectType": "partner", "action": "created", "actor": "bruce",
+            "changes": {
+              "name": { "from": null, "to": "Kunde AG" },
+              "kind": { "from": null, "to": "customer" }
+            }
+          },
+          {
+            "objectType": "journalEntry", "objectId": "$E1", "action": "created", "actor": "bruce",
+            "changes": {
+              "entryDate": { "from": null, "to": "2026-02-03" },
+              "voucherId": { "from": null, "to": "$V1" },
+              "text": { "from": null, "to": "Bürobedarf" }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
