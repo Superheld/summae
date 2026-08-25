@@ -1,0 +1,204 @@
+{
+  "fixture": "xx-7-pack-declares-filing-periods",
+  "description": "SPEC-016: which VAT filing windows exist is the pack's answer, not the substrate's. `TaxProfile` refuses a `vatPeriod` it does not know — the right fix for the coercion defect F-TAX-003 — and refusing requires a list, which was `[monthly, quarterly, yearly]`: three constants in the jurisdiction-free core, saying \"these are the filing periods there are\". They are not. Ireland files bi-monthly, several jurisdictions have four-monthly or half-yearly windows, and some have no VAT at all. `packPolicy.vatPeriods` now declares them and **replaces** the substrate's list entirely, so a jurisdiction can name a window the core never learned. The core keeps its three as a DEFAULT, not a definition — the difference that closes the finding is that no pack is stuck with it, and keeping it is what makes the change additive for every pack, inline bundle and tenant already in the field. The first declared window is also the fallback for a profile that names none, because a pack that does not file quarterly should not have quarterly as its default. This fixture uses a fictional jurisdiction on purpose: it proves the mechanism without asserting anything about a shipped pack.",
+  "covers": [
+    "F-TAX-003",
+    "NF-3"
+  ],
+  "setup": {
+    "pack": {
+      "modules": [
+        {
+          "formatVersion": "0.6",
+          "id": "ie-minimal",
+          "kind": "accounts",
+          "version": "2026.1",
+          "name": "IE Minimal-Kontenrahmen",
+          "contributes": [
+            "accounts"
+          ],
+          "dependsOn": [],
+          "data": {
+            "accounts": [
+              {
+                "number": "100",
+                "name": "Bank",
+                "type": "asset",
+                "subtype": "bank"
+              },
+              {
+                "number": "120",
+                "name": "Debtors",
+                "type": "asset",
+                "subtype": "ar"
+              },
+              {
+                "number": "210",
+                "name": "VAT payable",
+                "type": "liability",
+                "subtype": "tax_out"
+              },
+              {
+                "number": "300",
+                "name": "Capital",
+                "type": "equity",
+                "subtype": "opening_balance"
+              },
+              {
+                "number": "400",
+                "name": "Sales",
+                "type": "revenue"
+              }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "ie-vat",
+          "kind": "tax",
+          "version": "2026.1",
+          "name": "IE VAT 23%",
+          "contributes": [
+            "taxCodes"
+          ],
+          "dependsOn": [
+            {
+              "kind": "accounts",
+              "id": "ie-minimal"
+            }
+          ],
+          "data": {
+            "taxCodes": [
+              {
+                "code": "VAT23",
+                "versions": [
+                  {
+                    "validFrom": "2024-01-01",
+                    "validTo": null,
+                    "rate": "23.00",
+                    "taxAccount": "210",
+                    "reportingKey": "T1",
+                    "mechanism": "standard"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "ie-policy",
+          "kind": "policy",
+          "version": "2026.1",
+          "name": "IE Policy",
+          "contributes": [
+            "policy"
+          ],
+          "dependsOn": [],
+          "data": {
+            "packPolicy": {
+              "roundingMode": "halfUpAwayFromZero",
+              "taxRoundingGranularity": "perVoucher",
+              "currencyScale": 2,
+              "vatPeriods": [
+                "bi-monthly",
+                "four-monthly",
+                "yearly"
+              ]
+            }
+          }
+        }
+      ],
+      "manifest": {
+        "formatVersion": "0.6",
+        "id": "ie-test-periods",
+        "name": "Fiktive Jurisdiktion IE",
+        "version": "2026.1",
+        "modules": [
+          {
+            "kind": "accounts",
+            "id": "ie-minimal",
+            "version": "2026.1"
+          },
+          {
+            "kind": "tax",
+            "id": "ie-vat",
+            "version": "2026.1"
+          },
+          {
+            "kind": "policy",
+            "id": "ie-policy",
+            "version": "2026.1"
+          }
+        ],
+        "overrides": [],
+        "defaults": {
+          "taxationMethod": "accrual",
+          "vatPeriod": "bi-monthly"
+        },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2,
+          "vatPeriods": [
+            "bi-monthly",
+            "four-monthly",
+            "yearly"
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": "ie-test-periods",
+        "version": "2026.1"
+      },
+      "expect": {
+        "result": {
+          "packPolicy": {
+            "vatPeriods": [
+              "bi-monthly",
+              "four-monthly",
+              "yearly"
+            ]
+          },
+          "accountCount": 5
+        }
+      }
+    },
+    {
+      "comment": "The window the substrate never knew, accepted because the pack declares it.",
+      "op": "createTenant",
+      "input": {
+        "name": "Eire Trading",
+        "baseCurrency": "EUR",
+        "pack": {
+          "id": "ie-test-periods",
+          "version": "2026.1"
+        },
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "taxationMethod": "accrual"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "systemDescription",
+      "params": {},
+      "expect": {
+        "comment": "Die Meldefenster-Angabe des Mandanten ist das, was das Pack erklärt hat — kein Wort davon steht im Substrat.",
+        "taxProfile": {
+          "taxationMethod": "accrual",
+          "vatPeriod": "bi-monthly"
+        }
+      }
+    }
+  ]
+}

@@ -22,43 +22,15 @@ table there. Moving it is the entire bookkeeping — the split is by *state*, an
 once. That is also why this is not the old per-language split: that one duplicated the same text in
 two places and drifted (SPEC-014 did, in the open).
 
-## SPEC-016: the set of VAT filing periods is a jurisdictional claim living in the substrate
+## Nothing open
 
-**Found 2026-08-24, while closing the `TaxProfile` coercion (F-TAX-003).**
+As of 2026-08-25 there is no undecided finding. That is a state, not an achievement: this register
+is empty roughly as often as it is full, and the useful reading of an empty one is *"the last pass
+closed what it opened"*, never *"there is nothing to find."* Everything that was open — SPEC-016,
+SPEC-017, SPEC-018 and SPEC-019 — is in
+[`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Two of them
+were closed by the same pass that made the third possible, and one of them says plainly that its own
+proposal had been wrong.
 
-`TaxProfile.fromData` now refuses a `vatPeriod` it does not know instead of silently returning
-`quarterly`, which is the right fix for the defect that was reported. Refusing requires a list, and
-the list is `['monthly', 'quarterly', 'yearly']` — three constants in the jurisdiction-free core.
+The next one goes here.
 
-**The litmus test fails.** *Would another jurisdiction answer this differently?* Yes, and not
-theoretically: Ireland files VAT bi-monthly, several jurisdictions have half-yearly windows, and
-some have none of these because they have no VAT. A closed list of filing periods in the substrate
-says "these are the filing periods there are", which is exactly the kind of statement the substrate
-is defined not to make. The guard test caught the first draft of this — the comment cited
-§ 18 Abs. 2 UStG as the reason `yearly` exists, and `no-jurisdiction-text.test.ts` refused it. The
-statute came out of the comment; the assumption it justified stayed in the code.
-
-**Why it was still done this way, deliberately:**
-
-- The field is a **label**. `vatPeriod` records which window a tenant files in and selects nothing —
-  `vatReturn` takes `year` + optional `quarter`/`month` and computes from those. So a wrong value
-  produces a wrong *statement about* the tenant, never a wrong figure. The blast radius of the
-  substrate being wrong here is one descriptive field.
-- The previous list was **also** a jurisdictional claim, and a worse one: it omitted a period that
-  exists and lost the caller's value silently. Replacing a wrong closed list with a less wrong
-  closed list is an improvement even if closed lists are the real problem.
-- The right shape — the pack declares which filing periods it recognises, e.g. in `packPolicy` —
-  touches the pack format, `format.schema.json`, all three shipped packs and every tenant built from
-  an inline bundle. That is a change with a decision in it, not a refactor, and it does not belong
-  inside a fix for a coercion bug.
-
-**Note the asymmetry with the field beside it.** `taxationMethod` gets the same treatment in the
-same function and is *not* this finding: accrual and cash are the two ways this engine can time a
-tax liability, and it implements both. That set is substrate mechanism — a jurisdiction picks from
-it, it does not extend it. Two fields, one line apart, on opposite sides of the boundary; that is
-worth writing down, because the next reader will see one enum and assume the other is like it.
-
-**What would decide it:** the first pack that needs a period this list does not have, or the first
-time `vatPeriod` stops being descriptive — if a projection ever selects its window from the profile,
-the list starts deciding figures and the argument above expires. Until then the constants stay, with
-this note as the reason they are not defended.

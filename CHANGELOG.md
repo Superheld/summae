@@ -12,6 +12,32 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The pack declares its VAT filing windows (SPEC-016)
+
+Refusing an unknown `vatPeriod` — the right fix for the coercion defect — needed a list, and the
+list was three constants in the jurisdiction-free core: `monthly`, `quarterly`, `yearly`. That is
+the core saying *these are the filing periods there are*, and they are not. Ireland files
+bi-monthly; several jurisdictions have four-monthly or half-yearly windows; some have no VAT at all.
+
+**`packPolicy.vatPeriods`** now declares them, and **replaces** the substrate's list rather than
+extending it — a pack whose jurisdiction has no quarterly filing does not get quarterly quietly
+available. The substrate's three stay as a **default, not a definition**: they answer for a pack
+that says nothing, which is what makes the change additive. No shipped pack had to change, no
+inline bundle moves, and every tenant in the field behaves exactly as before.
+
+The fallback for an absent `vatPeriod` follows whoever owns the list — the substrate default keeps
+its documented `quarterly`, a declaring pack gets its own first window.
+
+**`TaxProfile::restore` stops re-judging stored profiles.** The database factories rebuild a stored
+profile instead of re-validating it: validation belongs at the boundary, and re-checking on the way
+*out* of our own store would mean a tenant whose pack later drops a window can no longer be opened —
+a rule change reaching backwards into books kept correctly under the old one. That hazard only
+existed once the list became changeable.
+
+Fixture `pack/conformance-xx/xx-7-pack-declares-filing-periods` (a fictional jurisdiction filing
+bi-monthly, red before the change) plus `VatPeriodsFromPackTest` / `vat-periods-from-pack.test.ts`
+for the half no fixture can express: a pack that *excludes* a window.
+
 ### The audit trail is queried, not materialised (SPEC-018) — **breaking for custom `AuditTrail` adapters**
 
 `auditLog`'s filters and the author map behind `journal.actor` both ran *after* `AuditTrail::all()`,

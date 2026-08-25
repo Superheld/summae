@@ -33,17 +33,33 @@ export class TaxProfile {
    * a tax liability, and it implements both. `vatPeriod` is a *label* — it records which window a
    * tenant files in and selects nothing (`vatReturn` takes its own window). Which filing windows
    * exist is a question jurisdictions answer differently, so a closed list of them in the substrate
-   * is a claim the substrate has no business making. `yearly` is added here because the previous
-   * list was wrong in a way that lost data silently, not because the list is now right. Open, with
-   * the reasoning: SPEC-016.
+   * is a claim the substrate has no business making — **which is why the pack answers it now**
+   * (SPEC-016): `packPolicy.vatPeriods` declares the windows a jurisdiction files in, and a pack
+   * that declares them overrides the substrate's list entirely.
    */
   private static readonly METHODS = ['accrual', 'cash'];
 
+  /**
+   * The filing windows assumed when a pack declares none — a **default, not a definition**
+   * (SPEC-016). `packPolicy.vatPeriods` overrides it entirely, which is what lets a jurisdiction
+   * that files bi-monthly say so without the substrate learning the word.
+   */
   private static readonly PERIODS = ['monthly', 'quarterly', 'yearly'];
 
-  static fromData(data: Record<string, unknown>): TaxProfile {
+  /**
+   * @param vatPeriods what the pack recognises; absent = the substrate default (SPEC-016). Which
+   * filing windows exist is a question jurisdictions answer differently, so a closed list of them
+   * in the substrate is a claim the substrate has no business making — the pack answers it now, and
+   * a pack that declares nothing keeps exactly the behaviour it had.
+   */
+  static fromData(data: Record<string, unknown>, vatPeriods?: readonly string[] | null): TaxProfile {
     const method = TaxProfile.oneOf(data.taxationMethod, TaxProfile.METHODS, 'taxationMethod', 'accrual');
-    const period = TaxProfile.oneOf(data.vatPeriod, TaxProfile.PERIODS, 'vatPeriod', 'quarterly');
+    const declared = vatPeriods === undefined || vatPeriods === null || vatPeriods.length === 0 ? null : vatPeriods;
+    const periods = declared ?? TaxProfile.PERIODS;
+    // The substrate default keeps its documented `quarterly`; a declaring pack gets its own first
+    // entry, because a pack that does not file quarterly should not have it as a fallback.
+    const fallback = declared === null ? 'quarterly' : (declared[0] as string);
+    const period = TaxProfile.oneOf(data.vatPeriod, periods, 'vatPeriod', fallback);
 
     const segments: Segment[] = [];
     const smallBusiness = data.smallBusiness ?? false;
@@ -61,8 +77,31 @@ export class TaxProfile {
     return new TaxProfile(method, TaxProfile.sorted(segments), period);
   }
 
+  /**
+   * A profile summae itself stored, rebuilt without re-validating it.
+   *
+   * Validation belongs at the boundary, and this is not one: these values were checked when they
+   * arrived. Re-checking them on the way *out* of our own store would mean a tenant whose pack
+   * later drops a filing window can no longer be opened — a rule change reaching backwards into
+   * books that were kept correctly under the old one.
+   */
+  static restore(data: Record<string, unknown>): TaxProfile {
+    const method = typeof data.taxationMethod === 'string' ? data.taxationMethod : 'accrual';
+    const period = typeof data.vatPeriod === 'string' ? data.vatPeriod : 'quarterly';
+
+    const segments: Segment[] = [];
+    for (const segment of Array.isArray(data.smallBusiness) ? data.smallBusiness : []) {
+      if (segment === null || typeof segment !== 'object') continue;
+      const s = segment as Record<string, unknown>;
+      if (typeof s.validFrom !== 'string') continue;
+      segments.push({ validFrom: CalendarDate.of(s.validFrom), value: s.value === true });
+    }
+
+    return new TaxProfile(method, TaxProfile.sorted(segments), period);
+  }
+
   /** Absent keeps the documented default; anything else must be one of the documented values. */
-  private static oneOf(value: unknown, allowed: string[], field: string, fallback: string): string {
+  private static oneOf(value: unknown, allowed: readonly string[], field: string, fallback: string): string {
     if (value === undefined) return fallback;
     if (typeof value === 'string' && allowed.includes(value)) return value;
     throw new DomainError(
