@@ -39,7 +39,10 @@ final class OperationParametersTest extends TestCase
      */
     private function withoutComments(array $operations): array
     {
-        return self::stripComments($operations);
+        /** @var array<string, array<string, array<string, mixed>>> $stripped */
+        $stripped = self::stripComments($operations);
+
+        return $stripped;
     }
 
     /**
@@ -105,12 +108,15 @@ final class OperationParametersTest extends TestCase
 
         foreach (is_array($spec['fields'] ?? null) ? $spec['fields'] : [] as $key => $field) {
             if (is_array($field)) {
+                /** @var array<string, mixed> $field */
                 self::collectUndeclared($field, $path . '.' . $key, $undeclared);
             }
         }
 
-        if (is_array($spec['element'] ?? null)) {
-            self::collectUndeclared($spec['element'], $path . '[]', $undeclared);
+        $element = $spec['element'] ?? null;
+        if (is_array($element)) {
+            /** @var array<string, mixed> $element */
+            self::collectUndeclared($element, $path . '[]', $undeclared);
         }
     }
 

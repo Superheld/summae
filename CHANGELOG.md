@@ -12,6 +12,28 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The documentation gate reaches the vocabulary (SPEC-019)
+
+The manual gate proved every published operation and projection had a section. Nothing proved a
+documented **field** said anything — and `taxTag` stood in the manual as "(object, no)" for a year,
+which is how an embedding concluded that a capability working since v0.4 was impossible and shipped
+a screen without a discount field.
+
+SPEC-017 closing made the fix possible: the contract now declares every input key at every depth, so
+the manual is held against **the same list the dispatcher validates**. A declared key that is not
+named in the section of the operation accepting it fails the build, in both languages. Still
+deliberately weak in the same way the name check always was — appearing in prose is not being
+explained well; it catches *declared, published, meaningless*, and leaves quality to review. One
+exemption, kept as a list: `actor`, documented once for the whole section.
+
+**It found 46 undocumented keys**, which answers whether `taxTag` was an accident: the entire
+`voucher` vocabulary on `postVoucher` (`due`, `economicYear`, `issuer`, `kind`, `recurring`,
+`serviceDate`, `servicePeriod`), every element key on `correct.lines`, the row fields of
+`importChartOfAccounts`, `acquireAsset`'s `specialDepreciation` and `totalUnits`, `setTaxProfile`'s
+`reason`, and the whole rate / production-cost vocabulary of `setAllocationScheme` — where
+`base.accounts` lives, the key a regression scenario had been getting wrong for as long as nothing
+documented it. All written now.
+
 ### The input contract reaches into structures (SPEC-017)
 
 `api-parameters.json` declared every accepted key and checked it before routing — one level deep.
