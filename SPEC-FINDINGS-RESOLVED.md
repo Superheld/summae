@@ -107,7 +107,7 @@ a short file.
 | SPEC-017 the parameter contract reaches keys, not element structures | ✅ **RESOLVED 2026-08-25** — `element`/`fields` on any declaration, recursive, with a guard that refuses a structural input declaring neither an inner shape nor an `opaque` reason. Found three silent inputs on its first run (`lines[].openItem`, a scenario's misplaced rate base, a receiver key in both adapter suites) |
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | **OPEN 2026-08-25** — `auditLog`'s filters and `EntryAuthors`' author map both run *after* `AuditTrail::all()`; the store keeps `objectType`/`action` inside a JSON payload, so nothing can be pushed down. Real filtering needs indexed columns, and SPEC-014's idempotent install covers new *tables*, not new columns. The walk moved from the embedding into the library, which was the correctness half; the cost half is untouched |
-| SPEC-019 the documentation gate reaches names, not meanings | **OPEN 2026-08-25** — `HandbookCoversTheApiTest` proves every published operation and projection has a section. Nothing proves a documented **field** says anything. `taxTag` stood in the manual as "(object, no)" for a year, and an embedding concluded a capability that has worked since v0.4 was impossible |
+| SPEC-019 the documentation gate reaches names, not meanings | ✅ **RESOLVED 2026-08-25** — every input key the contract declares, at any depth, must be named in the manual section that accepts it. Unblocked by SPEC-017, which gave the contract the key list. Found 46 undocumented keys, including the whole voucher and overhead-rate vocabulary |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -1138,6 +1138,75 @@ Nothing in the suite had to bend: 168 fixtures green against both subjects.
 **This is a tightening**, and it is the same call the outer level was (F-9): a caller passing an
 undeclared key inside a structure now gets `E_INPUT_INVALID` where it used to be ignored. That is
 the point — the ignoring was the defect.
+
+## SPEC-019: the documentation gate reaches names, not meanings — and an embedding lost a release to it
+
+**Found 2026-08-25, while closing the embedding app's F-27.** The application reported that a
+consideration reduction could not reach the VAT return with the right sign, tried three routes, and
+concluded the case was unbuildable — so a legal obligation went unimplemented and a screen shipped
+without a discount field.
+
+**The third route works, and has since v0.4.** A plain `post` whose tax line carries a `taxTag` with
+a negative `baseMoney` does exactly what was wanted; the fixture `core/settlement-discount` has
+pinned it — including the corrected reporting key — the whole time.
+
+They could not know. `taxTag` appeared in the manual as one item in a list:
+
+```
+Posting line (`lines[]`): `account` (…), `side` (…), `money` (…), `dimensions` (…), `taxTag` (object, no).
+```
+
+No shape. No word that `vatReturn` counts **only** tagged lines, which is the fact that makes the
+field load-bearing. Nothing about the sign convention. A field that is named and never explained is
+worse than one that is absent: absent, they would have asked.
+
+**Why this is a gate gap and not a typo.** This repository guards contract surfaces on purpose, and
+the documentation is one of them: `HandbookCoversTheApiTest` / `handbook-covers-the-api.test.ts`
+fails when a published operation or projection has no section, and the walkthrough scenarios fail
+when documented *behaviour* stops being true. Both work on **names**. Neither can see a documented
+field that means nothing, and that is the shape this defect had. The published API surface is
+guarded down to the operation; the published *vocabulary* is not guarded at all.
+
+**Chosen behaviour:** `taxTag` is documented (shape, the only-tagged-lines rule, the sign
+convention), and `postVoucher`/`expandTax` gained `reduction: true` so the raw field is not the only
+road (F-TAX-014). Both halves, because the second one does not repair the first: the next
+under-explained field will be somewhere else.
+
+**Proposal — and the honest part is that none of the three is obviously right:**
+1. Declare the documented shape of the fields the contract already knows about. `api-parameters.json`
+   reaches keys, not element structures — which is SPEC-017 — so the two findings share a fix: an
+   element declaration would be both checkable *and* documentable from one source.
+2. A weaker guard with a good ratio: every field named in a parameter table must appear again in
+   prose in that section. Mechanical, catches exactly this case, says nothing about quality.
+3. Accept it as a review obligation and write it down. Cheapest, and the option this project usually
+   argues against — a contract surface without a guard is what the gate-gap list is for.
+
+Left open deliberately: option 1 depends on a decision SPEC-017 already owns, and pre-empting it
+here would be the wrong order.
+
+### RESOLVED 2026-08-25 — the gate reaches the vocabulary, and SPEC-017 made option 1 possible
+
+Option 1, which was blocked on SPEC-017 and stopped being blocked the moment it closed: the contract
+now declares every input key at every depth, so the manual can be held against **the same list the
+dispatcher validates**. `HandbookCoversTheApiTest` / `handbook-covers-the-api.test.ts` fails when a
+declared key is not named in the manual section of the operation that accepts it.
+
+Still deliberately weak, and in the same way the name check always was: appearing in the prose is
+not the same as being explained well. It catches the shape this defect had — declared, published,
+meaningless — and leaves quality to review, which is the honest division. A guard that judged prose
+is a guard nobody keeps green.
+
+**One exemption, as a list rather than a rule:** `actor` is documented once in "Conventions for this
+whole section" instead of in each of the thirty sections that accept it. Adding to that list is a
+decision somebody makes visibly.
+
+**It found 46 undocumented keys**, which is the answer to whether `taxTag` was one accident: the
+whole `voucher` vocabulary on `postVoucher` (`due`, `economicYear`, `issuer`, `kind`, `recurring`,
+`serviceDate`, `servicePeriod`), every element key on `correct.lines`, the row fields of
+`importChartOfAccounts`, `acquireAsset`'s `specialDepreciation` and `totalUnits`, `setTaxProfile`'s
+`reason`, and the entire rate / production-cost vocabulary of `setAllocationScheme`. All of them are
+written now — and the rate one mattered: it is where `base.accounts` lives, the key a regression
+scenario had been getting wrong at rate level for exactly as long as nothing documented it.
 
 ---
 
