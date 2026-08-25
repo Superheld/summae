@@ -8,9 +8,36 @@ versioning per SemVer (0.x: minor may break).
 > `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
 > unchanged. These notes keep the IDs they were published with, because a released note
 > should describe what was released. The mapping lives at the top of
-> [`implementations/php/SPEC-FINDINGS.md`](implementations/php/SPEC-FINDINGS.md).
+> [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
 ## Unreleased
+
+### The findings register is one file (docs)
+
+`implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin
+pointers to a single [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md) at the repository root. The
+language-neutral findings had been living in both: seven `SPEC-` entries were byte-identical copies
+and **SPEC-014 had already drifted** — the PHP copy carried the decision, its reasoning and a
+related finding, the Node copy had shrunk to a summary ending in "full write-up on the PHP side".
+A copy nothing compares drifts; that is the rule this project applies to every table and every
+constant, and the file that records such failures had quietly become one. Nothing was lost in the
+merge (verified by ID and by block), and which language a finding was found in is now a sentence in
+the entry rather than a directory — most of them concern both.
+
+Two findings from this release are recorded there:
+
+- **SPEC-018 — the audit trail can only be read whole.** `auditLog`'s new filters and the author map
+  behind `journal.actor` both run *after* `AuditTrail::all()`, because `objectType`/`action` live
+  inside a JSON payload and nothing can be pushed down. The walk moved out of the embedding and into
+  the library, which was the correctness half; the cost half needs indexed columns, and SPEC-014's
+  idempotent install covers new *tables*, not new columns.
+- **SPEC-019 — the documentation gate reaches names, not meanings.** `HandbookCoversTheApiTest`
+  proves every published operation has a section; nothing proves a documented *field* says anything.
+  `taxTag` stood in the manual as "(object, no)" and an embedding concluded that a capability
+  working since v0.4 was impossible.
+
+`docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
+with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
 ### Four findings from the embedding application (F-TAX-014, F-CORE-037, F-IO-011)
 
