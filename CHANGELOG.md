@@ -39,6 +39,13 @@ Two findings from this release are recorded there:
 `docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
 with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
+The register is also **ordered by what is undecided**: the four open findings first, the status
+index below them, the resolved reasoning after that. Resolved entries are kept rather than pruned,
+and the file now says why in one place — 112 comments in the source cite these IDs, the root
+`CLAUDE.md` uses `IMPL-025` as its worked example of the jurisdiction litmus test, and
+`NoJurisdictionTextTest` explains itself with it. A resolved entry is what "see IMPL-025" resolves
+to; delete it and the comment points at nothing.
+
 ### Four findings from the embedding application (F-TAX-014, F-CORE-037, F-IO-011)
 
 The app's `FINDINGS.md` had four entries open. One closed with the tenant-configuration read side
