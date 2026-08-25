@@ -106,7 +106,7 @@ a short file.
 | SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | **OPEN 2026-08-24** — refusing an unknown `vatPeriod` needs a list, and `[monthly, quarterly, yearly]` is one the substrate has no business making (Ireland files bi-monthly). Deliberate for now: the field is descriptive, it selects no window and decides no figure, and the previous list was a worse claim. The right shape is a pack declaration, which is a decision, not a refactor. `taxationMethod` beside it is NOT this finding — accrual/cash is substrate mechanism |
 | SPEC-017 the parameter contract reaches keys, not element structures | ✅ **RESOLVED 2026-08-25** — `element`/`fields` on any declaration, recursive, with a guard that refuses a structural input declaring neither an inner shape nor an `opaque` reason. Found three silent inputs on its first run (`lines[].openItem`, a scenario's misplaced rate base, a receiver key in both adapter suites) |
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
-| SPEC-018 the audit trail can only be read whole | **OPEN 2026-08-25** — `auditLog`'s filters and `EntryAuthors`' author map both run *after* `AuditTrail::all()`; the store keeps `objectType`/`action` inside a JSON payload, so nothing can be pushed down. Real filtering needs indexed columns, and SPEC-014's idempotent install covers new *tables*, not new columns. The walk moved from the embedding into the library, which was the correctness half; the cost half is untouched |
+| SPEC-018 the audit trail can only be read whole | ✅ **RESOLVED 2026-08-25** — `AuditTrail::find(criteria)` pushes the filters into SQL by reading the JSON payload (`json_extract` / `->>`), so no column and no migration; `EntryAuthors` asks for the ids on the page. The entry's own proposal was wrong and says so: columns would have needed a data migration nothing here can run. An index is what is left |
 | SPEC-019 the documentation gate reaches names, not meanings | ✅ **RESOLVED 2026-08-25** — every input key the contract declares, at any depth, must be named in the manual section that accepts it. Unblocked by SPEC-017, which gave the contract the key list. Found 46 undocumented keys, including the whole voucher and overhead-rate vocabulary |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
@@ -1207,6 +1207,91 @@ whole `voucher` vocabulary on `postVoucher` (`due`, `economicYear`, `issuer`, `k
 `reason`, and the entire rate / production-cost vocabulary of `setAllocationScheme`. All of them are
 written now — and the rate one mattered: it is where `base.accounts` lives, the key a regression
 scenario had been getting wrong at rate level for exactly as long as nothing documented it.
+
+## SPEC-018: the audit trail can only be read whole — filters and authorship both scan it
+
+**Found 2026-08-25, while making the audit trail audit-capable and while closing the embedding
+app's F-29.** Two pieces of work arrived at the same wall from opposite sides, which is usually the
+sign that the wall is real.
+
+`auditLog` gained filters (`objectType`, `objectId`, `actor`, `action`) and paging, because the
+question an auditor asks is about **one** thing and the projection could only answer "everything, by
+date". `journal` and `unfinalizedEntries` gained `actor`, because the author of a posting lives in
+the trail and nowhere else, and an application checking separation of duties was reading the whole
+trail per finalization to rebuild it.
+
+Both are **correct** and neither is **cheap**. The port answers `all()`:
+
+```
+interface AuditTrail { append(record); all(): list<AuditRecord>; }
+```
+
+So `AuditLogProjection` filters a fully materialised list, and `EntryAuthors` builds its map from
+one. What the embedding used to do per finalization, the library now does per projection call — one
+map serving the whole call instead of one per check, in the place that owns the data. That is a real
+improvement and it is not the improvement the cost argument asked for.
+
+**Why it cannot simply be pushed down.** `summae_audit_log` has `id`, `tenant_id`, `seq` and
+`payload`; `objectType`, `action`, `actor` and `objectId` all live *inside* the JSON. Filtering in
+SQL would mean either dialect-specific JSON functions — SQLite and Postgres differ, and byte parity
+across adapters is the one thing this project will not trade — or **columns**, which is where this
+meets SPEC-014: the idempotent install creates tables that are absent and does not touch tables that
+exist. A new column on a table that already has rows is precisely the case it does not cover.
+
+**Chosen behaviour:** the filters and the author map ship as they are, and the limit is stated where
+someone will hit it — in `EntryAuthors` in both languages, and in the manual's `auditLog` section.
+Correctness first, cost second, both said out loud.
+
+**Proposal, and it is one decision rather than a refactor:** promote the four fields to columns and
+extend the port with a filtered read. That needs a column-adding step in `installSchema`, which is
+the additive case SPEC-014 explicitly left out. Doing it for the audit table alone would answer the
+narrow question; doing it as "the installer can add nullable columns" answers a class of them and is
+the version worth deciding.
+
+**Not in scope for it:** the *contents* of the trail. Nothing here argues for storing less.
+
+### RESOLVED 2026-08-25 — the criteria travel to the store, and the proposal in this entry was wrong
+
+**Correction first, because the entry above argued for the expensive answer.** It proposed promoting
+the four fields to columns and said that needs a column-adding installer, which SPEC-014 had left
+out. Re-reading it turned up two things: a new column is easy but **filling it for rows that already
+exist is a data migration**, and neither language has a migration runner — an unfilled column makes
+the filter miss exactly the history an audit is about, which is worse than no filter. And the
+alternative the entry never considered works: **read the JSON in SQL.** SQLite has `json_extract`,
+Postgres has `->>`; no schema change, no migration, old rows included. The parity objection the entry
+raised does not survive contact either — different SQL is not different rows, and `seq` still decides
+the order.
+
+`AuditTrail::find(criteria)` on the port: `objectType`, `objectId`, `objectIds` (the set a page of
+postings needs), `actor`, `action`, `from`/`to`, `offset`/`limit`, returning the page and the count
+**before** paging. `auditLog` passes its parameters straight through, and `EntryAuthors` asks for the
+ids on the page — a journal view of forty postings now reads forty records instead of ten years of
+history. That was the half the first fix missed: it moved the embedding\'s walk into the library
+without making it smaller.
+
+**Two implementations of one rule, held together by a test.** SQL in the database adapters,
+`AuditFilter` / `applyAuditCriteria` in the in-memory ones. `AuditQueryEquivalenceTest` and its Node
+twin drive **every declared filter, alone and combined, plus the paging edges** through both and
+compare — the shared-data check the quality policy asks for, applied to a port instead of a format.
+The empty id set is in there on purpose: "these entries" with none of them is not "all of them", and
+a naive `IN ()` gets that exactly backwards.
+
+**Three things the build taught while closing it**, all of them recorded where they bite:
+- SQLite refuses an `OFFSET` without a `LIMIT`. Paging is pushed down only when there is a limit;
+  without one the caller has asked for every remaining row anyway, so the offset is applied after
+  reading.
+- PHPStan requires raw SQL to be a `literal-string`. Every predicate is a whole literal per field
+  rather than assembled — the right habit exactly where caller-supplied ids meet a query — and the
+  id set is a group of ORs rather than an `IN` list, whose placeholders cannot be literal.
+- The dialect branch lives in `AuditSql` as pure strings, because the adapter suite runs on SQLite
+  and the Postgres path would otherwise be exercised only by the conformance run against a real
+  server — proof that it works, invisible to the coverage floor. Both branches are pinned as
+  strings; behaviour stays the job of `--subject=database`, which is green.
+
+**What is genuinely left:** an index. Extraction reads every row of the table even when it returns
+few, so the *bandwidth* is bounded and the *scan* is not. Fixing that means a generated column or an
+expression index, which is the schema question this entry started with — now separable, because
+correctness no longer waits on it.
 
 ---
 

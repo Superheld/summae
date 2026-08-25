@@ -47,7 +47,6 @@ export class UnfinalizedEntriesProjection {
     const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
 
     const source = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
-    const authors = entryAuthors(this.audit);
     const entries: Array<Record<string, unknown>> = [];
     let oldestAgeInDays = 0;
 
@@ -65,10 +64,16 @@ export class UnfinalizedEntriesProjection {
         period: entry.periodRef.period,
         ageInDays,
         text: entry.text(),
-        actor: authors.get(entry.id.value) ?? null,
       });
       if (ageInDays > oldestAgeInDays) oldestAgeInDays = ageInDays;
     }
+
+    // The authors of exactly these postings, not of the whole trail (SPEC-018).
+    const authors = entryAuthors(
+      this.audit,
+      entries.map((row) => String(row.entryId)),
+    );
+    for (const row of entries) row.actor = authors.get(String(row.entryId)) ?? null;
 
     // Journal order (sequenceNumber) is the order the entries arrive in; keeping it makes
     // the result deterministic without a second sort key.

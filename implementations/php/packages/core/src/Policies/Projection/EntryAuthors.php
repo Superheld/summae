@@ -36,17 +36,23 @@ final class EntryAuthors
     }
 
     /**
+     * @param list<string> $entryIds the postings the caller is about to report on
+     *
      * @return array<string, string> entry id -> actor of the operation that created it
      */
-    public static function from(AuditTrail $audit): array
+    public static function forEntries(AuditTrail $audit, array $entryIds): array
     {
+        if ($entryIds === []) {
+            return [];
+        }
+
         $byEntry = [];
 
-        foreach ($audit->all() as $record) {
-            if ($record->objectType !== 'journalEntry' || $record->action !== 'created') {
-                continue;
-            }
-
+        foreach ($audit->find([
+            'objectType' => 'journalEntry',
+            'action' => 'created',
+            'objectIds' => $entryIds,
+        ])['records'] as $record) {
             $byEntry[$record->objectId->value] = $record->actor;
         }
 

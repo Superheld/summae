@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Laravel\Repository;
 
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Query\Builder;
 use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Substrate\Uuid;
@@ -32,9 +33,108 @@ final readonly class DatabaseAuditTrail implements AuditTrail
 
     public function all(): array
     {
+        return $this->hydrate($this->table()->where('tenant_id', $this->tenantId->value)->orderBy('seq')->get());
+    }
+
+    /**
+     * The criteria pushed into SQL (SPEC-018).
+     *
+     * `objectType`, `action`, `actor`, `objectId` and the recording date live inside the JSON
+     * payload rather than in columns, so they are extracted there. **Deliberately not columns:**
+     * adding one is easy, filling it for rows that already exist is a data migration, and neither
+     * language has a migration runner — an unfilled column would make the filter miss exactly the
+     * history an audit is about, which is worse than no filter. Extraction costs the index and
+     * keeps correctness, and correctness is not the half to trade.
+     *
+     * Dialect-specific by necessity and only here: SQLite reads JSON with `json_extract`, Postgres
+     * with `->>`. Different SQL, identical rows — `seq` still decides the order, and the adapter
+     * suite drives the same criteria through this and through the in-memory filter and compares.
+     */
+    public function find(array $criteria): array
+    {
+        $query = $this->table()->where('tenant_id', $this->tenantId->value);
+
+        foreach (['objectType', 'action', 'actor', 'objectId'] as $field) {
+            $wanted = $criteria[$field] ?? null;
+            if (is_string($wanted)) {
+                $query->whereRaw(AuditSql::equals($this->isPostgres(), $field), [$wanted]);
+            }
+        }
+
+        $objectIds = $criteria['objectIds'] ?? null;
+        if (is_array($objectIds)) {
+            $values = array_values(array_filter($objectIds, is_string(...)));
+            $predicate = AuditSql::equals($this->isPostgres(), 'objectId');
+            // A group of ORs rather than an IN list: the placeholder list of an IN clause has to be
+            // built as a string, and raw SQL here is required to be a literal — a rule worth keeping
+            // exactly where user-supplied ids meet the query. An empty set matches nothing, because
+            // "these entries" with none of them is not "all of them".
+            $query->where(static function (Builder $group) use ($values, $predicate): void {
+                if ($values === []) {
+                    $group->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                foreach ($values as $value) {
+                    $group->orWhereRaw($predicate, [$value]);
+                }
+            });
+        }
+
+        // `at` is a canonical UTC timestamp, so its first ten characters are the calendar date and
+        // compare as one.
+        $from = $criteria['from'] ?? null;
+        if (is_string($from)) {
+            $query->whereRaw(AuditSql::dateAtLeast($this->isPostgres()), [$from]);
+        }
+        $to = $criteria['to'] ?? null;
+        if (is_string($to)) {
+            $query->whereRaw(AuditSql::dateAtMost($this->isPostgres()), [$to]);
+        }
+
+        $count = (clone $query)->count();
+
+        $offset = max(0, is_int($criteria['offset'] ?? null) ? $criteria['offset'] : 0);
+        $limit = is_int($criteria['limit'] ?? null) ? $criteria['limit'] : null;
+
+        $page = $query->orderBy('seq');
+
+        // Paging is pushed down only when there IS a limit: SQLite refuses an OFFSET without one,
+        // and without a limit the caller has asked for every remaining row anyway — so the offset
+        // costs nothing to apply after reading. With a limit, both travel and the store reads a
+        // page, which is the case worth optimising.
+        if ($limit !== null && $limit >= 0) {
+            $records = $this->hydrate($page->limit($limit)->offset($offset)->get());
+        } else {
+            $records = array_slice($this->hydrate($page->get()), $offset);
+        }
+
+        return ['records' => $records, 'count' => $count];
+    }
+
+    /**
+     * `getDriverName()` is on the concrete Connection, not on ConnectionInterface — the same seam
+     * AdapterTestCase notes for the schema builder. Anything else is read as SQLite, which is the
+     * portable syntax here.
+     */
+    private function isPostgres(): bool
+    {
+        $connection = $this->connection;
+
+        return $connection instanceof \Illuminate\Database\Connection && $connection->getDriverName() === 'pgsql';
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, mixed> $rows
+     *
+     * @return list<AuditRecord>
+     */
+    private function hydrate(\Illuminate\Support\Collection $rows): array
+    {
         $records = [];
 
-        foreach ($this->table()->where('tenant_id', $this->tenantId->value)->orderBy('seq')->get() as $row) {
+        foreach ($rows as $row) {
             /** @var object{payload: string} $row */
             $data = Hydrator::decode($row->payload);
 

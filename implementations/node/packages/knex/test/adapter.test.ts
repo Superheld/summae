@@ -1,5 +1,7 @@
 import {
   Account,
+  applyAuditCriteria,
+  type AuditCriteria,
   AccountNumber,
   Asset,
   CalendarDate,
@@ -422,5 +424,89 @@ describe('tenant configuration survives the process (SPEC-015)', () => {
     // The seed rule: a second open passing a different name changes nothing. Two sources of truth
     // that drift is the state this finding came out of.
     expect(tenantOn(TENANT_C, 'A different name later').name).toBe('The name it was created with');
+  });
+});
+
+/**
+ * The SQL filter and the in-memory filter answer the same question the same way (SPEC-018).
+ *
+ * `AuditTrail.find` exists twice over: once as SQL that declines to read rows, once as
+ * `applyAuditCriteria` walking a list. That is the arrangement the quality policy calls a *shared
+ * data* check — two implementations of one rule, driven with the same input, compared. Without it
+ * the database path could quietly answer differently and every fixture would stay green, because
+ * fixtures run against the in-memory core.
+ *
+ * The criteria are not a sample: every filter the port declares, alone and combined, plus the
+ * paging edges (offset past the end, limit zero, an empty id set).
+ *
+ * The PHP twin is `packages/laravel/tests/AuditQueryEquivalenceTest.php`.
+ */
+describe('the audit query answers alike in SQL and in memory (SPEC-018)', () => {
+  it('matches the in-memory filter for every declared criterion', () => {
+    const tenant = tenantOn(TENANT_A);
+    const ops = new TenantOperations(tenant);
+
+    ops.execute('createAccount', { actor: 'anna', number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+    ops.execute('createAccount', { actor: 'anna', number: '8400', name: 'Erlöse', type: 'revenue' });
+    ops.execute('createFiscalYear', { actor: 'bruce', year: 2026, start: '2026-01-01', end: '2026-12-31' });
+    const voucher = ops.execute('createVoucher', {
+      actor: 'bruce',
+      voucher: { voucherNumber: 'AR-1', voucherDate: '2026-02-01' },
+    }) as { id: string };
+    const entry = ops.execute('post', {
+      actor: 'bruce',
+      entryDate: '2026-02-01',
+      voucherId: voucher.id,
+      text: 'Rechnung',
+      lines: [
+        { account: '1200', side: 'debit', money: { amount: '100.00', currency: 'EUR' } },
+        { account: '8400', side: 'credit', money: { amount: '100.00', currency: 'EUR' } },
+      ],
+    }) as { id: string };
+    ops.execute('lockAccount', { actor: 'anna', number: '8400' });
+
+    const trail = tenant.audit;
+    const all = trail.all();
+    expect(all.length, 'the trail needs enough records for paging to mean anything').toBeGreaterThan(4);
+    const accountRecord = all.find((record) => record.objectType === 'account');
+    expect(accountRecord).toBeDefined();
+    const accountId = accountRecord?.objectId.value ?? '';
+
+    const criteria: AuditCriteria[] = [
+      {},
+      { objectType: 'account' },
+      { objectType: 'journalEntry', action: 'created' },
+      { action: 'created' },
+      { actor: 'anna' },
+      { actor: 'bruce' },
+      { actor: 'niemand' },
+      { objectId: entry.id },
+      { objectId: accountId },
+      { objectIds: [entry.id, accountId] },
+      { objectIds: [entry.id] },
+      // An empty set means "none of them", not "all of them" — the case a naive IN clause gets
+      // exactly backwards.
+      { objectIds: [] },
+      { from: '2026-06-07' },
+      { to: '2026-06-07' },
+      { from: '2026-06-08' },
+      { to: '2026-06-06' },
+      { limit: 2 },
+      { offset: 1, limit: 2 },
+      { offset: 1 },
+      { limit: 0 },
+      { offset: 999 },
+      { objectType: 'account', actor: 'anna', limit: 1 },
+    ];
+
+    for (const c of criteria) {
+      const fromDatabase = trail.find(c);
+      const inMemory = applyAuditCriteria(all, c);
+      const label = JSON.stringify(c);
+      expect(fromDatabase.count, `count differs for ${label}`).toBe(inMemory.count);
+      expect(fromDatabase.records.map((r) => r.id.value), `records differ for ${label}`).toEqual(
+        inMemory.records.map((r) => r.id.value),
+      );
+    }
   });
 });

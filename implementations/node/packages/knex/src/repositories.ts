@@ -9,6 +9,7 @@ import {
   type AssetRoute,
   type AuditChanges,
   AuditRecord,
+  type AuditCriteria,
   type AuditTrail,
   CalendarDate,
   CostingRun,
@@ -40,6 +41,7 @@ import {
   Voucher,
   type VoucherRepository,
 } from '@superheld/summae-core';
+import type { Knex } from 'knex';
 import * as H from './hydrator.js';
 import { TABLE_PREFIX } from './schema-installer.js';
 import type { SyncDb } from './sync-db.js';
@@ -725,7 +727,78 @@ export class DatabaseAuditTrail implements AuditTrail {
   }
 
   all(): AuditRecord[] {
-    return this.db.all(this.table().where('tenant_id', this.tenantId.value).orderBy('seq')).map((row) => {
+    return this.hydrate(this.table().where('tenant_id', this.tenantId.value).orderBy('seq'));
+  }
+
+  /**
+   * The criteria pushed into SQL (SPEC-018).
+   *
+   * `objectType`, `action`, `actor`, `objectId` and the recording date live inside the JSON payload
+   * rather than in columns, so they are extracted there. **Deliberately not columns:** adding one is
+   * easy, filling it for rows that already exist is a data migration, and there is no migration
+   * runner — an unfilled column would make the filter miss exactly the history an audit is about,
+   * which is worse than no filter. Extraction costs the index and keeps correctness.
+   *
+   * SQLite syntax only, because this adapter is SQLite only (see `SyncDb`). The PHP twin carries a
+   * Postgres branch because its adapter runs both.
+   */
+  find(criteria: AuditCriteria): { records: AuditRecord[]; count: number } {
+    let query = this.table().where('tenant_id', this.tenantId.value);
+
+    const equals: Array<[keyof AuditCriteria, string]> = [
+      ['objectType', "json_extract(payload, '$.objectType') = ?"],
+      ['action', "json_extract(payload, '$.action') = ?"],
+      ['actor', "json_extract(payload, '$.actor') = ?"],
+      ['objectId', "json_extract(payload, '$.objectId') = ?"],
+    ];
+    for (const [key, predicate] of equals) {
+      const wanted = criteria[key];
+      if (typeof wanted === 'string') query = query.whereRaw(predicate, [wanted]);
+    }
+
+    if (Array.isArray(criteria.objectIds)) {
+      const values = criteria.objectIds.filter((value): value is string => typeof value === 'string');
+      // A group of ORs rather than an IN list over a raw expression: the placeholder list of an IN
+      // clause has to be built as a string, and building SQL next to caller-supplied ids is the
+      // habit worth not having. An empty set matches nothing — "these entries" with none of them is
+      // not "all of them".
+      query =
+        values.length === 0
+          ? query.whereRaw('1 = 0')
+          : query.where((group) => {
+              for (const value of values) {
+                void group.orWhereRaw("json_extract(payload, '$.objectId') = ?", [value]);
+              }
+            });
+    }
+
+    // `at` is a canonical UTC timestamp, so its first ten characters are the calendar date and
+    // compare as one.
+    if (typeof criteria.from === 'string') {
+      query = query.whereRaw("substr(json_extract(payload, '$.at'), 1, 10) >= ?", [criteria.from]);
+    }
+    if (typeof criteria.to === 'string') {
+      query = query.whereRaw("substr(json_extract(payload, '$.at'), 1, 10) <= ?", [criteria.to]);
+    }
+
+    const count = this.db.all(query.clone().count({ n: '*' }))[0]?.n ?? 0;
+
+    const offset = Math.max(0, criteria.offset ?? 0);
+    const limit = criteria.limit ?? null;
+    const ordered = query.orderBy('seq');
+
+    // Paging is pushed down only when there IS a limit: SQLite refuses an OFFSET without one, and
+    // without a limit the caller has asked for every remaining row anyway.
+    const records =
+      limit === null || limit < 0
+        ? this.hydrate(ordered).slice(offset)
+        : this.hydrate(ordered.limit(limit).offset(offset));
+
+    return { records, count: Number(count) };
+  }
+
+  private hydrate(query: Knex.QueryBuilder): AuditRecord[] {
+    return this.db.all(query).map((row) => {
       const data = H.decode(row.payload);
       const changes = H.isRecord(data.changes) ? (data.changes as AuditChanges) : {};
       return new AuditRecord(
