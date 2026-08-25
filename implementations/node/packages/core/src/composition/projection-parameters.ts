@@ -65,9 +65,18 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   assetRegister: {
     asOf: { type: 'date' },
   },
+  // Filters combine with AND; an absent one filters nothing. The four object filters arrived with
+  // F-CORE-036: the auditor's question is about ONE thing, and `from`/`to` alone forced the caller
+  // to transport the whole trail in order to discard most of it.
   auditLog: {
     from: { type: 'date' },
     to: { type: 'date' },
+    objectType: { type: 'string' },
+    objectId: { type: 'string' },
+    actor: { type: 'string' },
+    action: { type: 'string' },
+    offset: { type: 'integer' },
+    limit: { type: 'integer' },
   },
   unfinalizedEntries: {
     asOf: { type: 'date' },

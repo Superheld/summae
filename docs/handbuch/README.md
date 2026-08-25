@@ -1435,13 +1435,38 @@ as-of evaluations.
 
 ### auditLog — change history
 
-`from`/`to` (no, date range inclusive). Output: `records[]` with `id`, `at`
+`from`/`to` (no, date range inclusive) · `objectType`, `objectId`, `actor`, `action` (no) ·
+`offset`, `limit` (no). Output: `count`, `offset`, `limit` and `records[]` with `id`, `at`
 (ATOM with zone), `actor`, `objectType`, `objectId`, `action`, `changes`
 (map `field → {from,to}`).
 
+**Filters combine with AND; an absent one filters nothing.** They are how the questions an
+auditor actually asks get asked: *what happened to this posting* (`objectId`), *who touched
+accounts* (`objectType: "account"`), *what did this user do* (`actor`). Until 0.13.0 only the date
+range existed, so the whole trail had to be fetched and filtered outside — which carries the
+fastest-growing table in the system across a boundary in order to discard most of it, and makes
+traceability a property of your application rather than of the books.
+
+**`count` is the number of matches *before* paging**, so a page header can say "51–100 of 3,204"
+without a second call — the same contract [`journal`](#journal--the-journal-windowed-and-paged)
+publishes. An absent `limit` means everything from the offset on: no default page size is invented,
+because that would silently truncate a caller who never asked for pages. Order is the trail's
+recording order, which is already its total order.
+
+**Every record carries a before/after diff**, creations included — those read `{"from": null, …}`.
+What the diff holds are the identifying fields, never a copy of the object: an account's current
+state is in [`accounts`](#accounts--the-chart-of-accounts), a posting's lines are in the
+append-only [`journal`](#journal--the-journal-windowed-and-paged). A trail that duplicates the
+object would be a second source of truth rather than a history.
+
+The `actor` is recorded exactly as you supply it and is never verified — binding it to an
+authenticated identity is your application's job, and
+[`systemDescription`](#systemdescription--technical-system-description) says so in `notProvided`.
+
 ```json
-// params { "from": "2026-01-01", "to": "2026-12-31" }
-{ "records": [ { "objectType": "journalEntry", "action": "corrected",
+// params { "objectId": "…", "limit": 50 }
+{ "count": 2, "offset": 0, "limit": 50,
+  "records": [ { "objectType": "journalEntry", "action": "corrected",
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 

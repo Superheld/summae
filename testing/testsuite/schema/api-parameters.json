@@ -345,6 +345,26 @@
       },
       "to": {
         "type": "date"
+      },
+      "objectType": {
+        "type": "string",
+        "$comment": "The auditor's question is about ONE thing — this posting, this account, this partner — and until 0.13.0 the projection could only answer \"everything, by date\". Filtering outside the library means transporting the whole trail to do it, on the fastest-growing table in the system."
+      },
+      "objectId": {
+        "type": "string"
+      },
+      "actor": {
+        "type": "string"
+      },
+      "action": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer"
+      },
+      "limit": {
+        "type": "integer",
+        "$comment": "Absent means everything from the offset on, exactly as on `journal`: a projection that invented a default page size would silently truncate a caller that never asked for pages."
       }
     },
     "unfinalizedEntries": {

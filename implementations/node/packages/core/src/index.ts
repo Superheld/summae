@@ -44,7 +44,7 @@ export { Period } from './substrate/period.js';
 export { FiscalYear, type PeriodDefinition } from './substrate/fiscal-year.js';
 export { AuditRecord, type AuditChanges } from './records/audit-record.js';
 export { UnfinalizedEntriesProjection } from './policies/projection/unfinalized-entries.js';
-export { SystemDescriptionProjection, API_OPERATIONS, API_PROJECTIONS } from './policies/projection/system-description.js';
+export { SystemDescriptionProjection, API_OPERATIONS, API_PROJECTIONS, AUDITED_EVENTS } from './policies/projection/system-description.js';
 export { TenantConfigurationProjection } from './policies/projection/tenant-configuration.js';
 export {
   TenantConfigStore,

@@ -1,0 +1,138 @@
+{
+  "fixture": "audit-log-filtered",
+  "description": "F-CORE-036: the change history is retrievable for ONE thing, not only as a whole. `auditLog` took `from`/`to` and nothing else, so the questions an auditor actually asks — what happened to this posting, who touched this account, what did this user do — were not askable through the API: the caller had to fetch the entire trail and filter outside. That is the wrong place twice over. It carries the fastest-growing table in the system across a boundary in order to discard most of it, and it makes progressive and retrograde traceability (GoBD Rz. 107 ff.) a property of the embedding application rather than of the books. Filters combine with AND and an absent one filters nothing; `count` is the number of matches BEFORE paging, so a page header can say \"51–100 of 3,204\" without a second call — the same contract `journal` publishes, in deliberately the same words. An absent `limit` means everything from the offset on: a projection that invented a default page size would silently truncate a caller that never asked for pages.",
+  "covers": ["F-CORE-036", "F-CORE-014"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-03-02" } ]
+  },
+  "steps": [
+    {
+      "op": "createAccount",
+      "input": { "actor": "admin", "number": "4930", "name": "Bürobedarf", "type": "expense" },
+      "expect": { "result": { "number": "4930" } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "actor": "bruce",
+        "entryDate": "2026-03-02", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1, "id": "$E1" } }
+    },
+    {
+      "op": "correct",
+      "input": { "actor": "bruce", "entryId": "$E1", "text": "Bürobedarf März" },
+      "expect": { "result": { "text": "Bürobedarf März" } }
+    },
+    {
+      "op": "lockAccount",
+      "input": { "actor": "admin", "number": "4930" },
+      "expect": { "result": { "status": "locked" } }
+    },
+    {
+      "op": "createPartner",
+      "input": { "actor": "bruce", "name": "Kunde AG", "kind": "customer" },
+      "expect": { "result": { "name": "Kunde AG" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": {},
+      "expect": {
+        "comment": "Ohne Filter und ohne Grenze: alles, und `limit: null` heißt genau das — kein erfundener Seitenschnitt.",
+        "count": 5,
+        "offset": 0,
+        "limit": null
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "objectId": "$E1" },
+      "expect": {
+        "comment": "Die Historie EINER Buchung — die retrograde Prüfung: vom Datensatz zurück zu allem, was mit ihm geschah.",
+        "count": 2,
+        "records": [
+          { "objectType": "journalEntry", "objectId": "$E1", "action": "created", "actor": "bruce" },
+          { "objectType": "journalEntry", "objectId": "$E1", "action": "corrected", "actor": "bruce",
+            "changes": { "text": { "from": "Bürobedarf", "to": "Bürobedarf März" } } }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "objectType": "account" },
+      "expect": {
+        "comment": "Alles, was Konten betrifft — Anlage und Sperre, in Aufzeichnungsreihenfolge.",
+        "count": 2,
+        "records": [
+          { "objectType": "account", "action": "created", "actor": "admin" },
+          { "objectType": "account", "action": "locked", "actor": "admin" }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "actor": "admin" },
+      "expect": {
+        "comment": "Was ein Handelnder getan hat. Der `actor` ist der vom Aufrufer gelieferte — summae prüft ihn nicht, und `notProvided` sagt das auch.",
+        "count": 2
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "objectType": "journalEntry", "action": "corrected" },
+      "expect": {
+        "comment": "Filter sind UND-verknüpft.",
+        "count": 1,
+        "records": [
+          { "objectType": "journalEntry", "action": "corrected" }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "limit": 2 },
+      "expect": {
+        "comment": "`count` zählt die Treffer VOR dem Blättern — sonst könnte kein Seitenkopf „1–2 von 5\" sagen, ohne ein zweites Mal zu fragen.",
+        "count": 5,
+        "offset": 0,
+        "limit": 2,
+        "records": [
+          { "objectType": "account", "action": "created" },
+          { "objectType": "journalEntry", "action": "created" }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "offset": 4, "limit": 2 },
+      "expect": {
+        "comment": "Die letzte Seite ist kürzer als das Limit und kein Fehler.",
+        "count": 5,
+        "offset": 4,
+        "records": [
+          { "objectType": "partner", "action": "created", "actor": "bruce" }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": { "objectType": "asset" },
+      "expect": {
+        "comment": "Ein Filter ohne Treffer ist leer, kein Fehler — „es gibt keine\" ist eine Antwort.",
+        "count": 0,
+        "records": []
+      }
+    }
+  ]
+}
