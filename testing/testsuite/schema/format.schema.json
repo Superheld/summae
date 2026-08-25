@@ -595,6 +595,15 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 4
+        },
+        "vatPeriods": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Die Meldefenster, die diese Jurisdiktion kennt (SPEC-016). Fehlend = Substrat-Default [monthly, quarterly, yearly] — ein Default, keine Definition: welche Fenster es gibt, beantworten Jurisdiktionen verschieden (Irland meldet zweimonatlich), und eine geschlossene Liste im jurisdiktionsfreien Kern wäre eine Behauptung, die der Kern nicht aufstellen darf. Das erste Element ist zugleich der Default für ein Profil ohne vatPeriod."
         }
       },
       "additionalProperties": false,

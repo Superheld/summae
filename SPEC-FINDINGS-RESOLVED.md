@@ -103,7 +103,7 @@ a short file.
 | SPEC-013 a shipped pack's chart of accounts cannot grow | ✅ resolved 2026-08-23 together with SPEC-012 — same weld, same retirement |
 | SPEC-014 no way to evolve a shipped database schema | ✅ **decided and built 2026-08-24** — option 2, the idempotent install: `installSchema` creates only what is absent, guarded per table. Covers additive changes (a new table, by hand a nullable column) and deliberately nothing else; a column that changes type still means recreating the workspace |
 | SPEC-015 tenant configuration has no owner | **RESOLVED 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings were constructor arguments rebuilt on every open, so the five operations that change them audited durably and persisted nothing; our own CLI shipped with four of the five silently ineffective. Now a `summae_tenants` table, the stored record winning over the passed seed, and the CLI's hand-rolled `importMapping` write-back deleted. No fixture could ever have seen it (single-process); guarded now by `regression/tenant-configuration.json` — one CLI invocation per step — plus both adapter suites: seven tests go red without the fix |
-| SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | **OPEN 2026-08-24** — refusing an unknown `vatPeriod` needs a list, and `[monthly, quarterly, yearly]` is one the substrate has no business making (Ireland files bi-monthly). Deliberate for now: the field is descriptive, it selects no window and decides no figure, and the previous list was a worse claim. The right shape is a pack declaration, which is a decision, not a refactor. `taxationMethod` beside it is NOT this finding — accrual/cash is substrate mechanism |
+| SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | ✅ **RESOLVED 2026-08-25** — `packPolicy.vatPeriods` declares them and replaces the substrate's list; the three constants stay as a *default*, which is what makes the change additive for every shipped pack. `TaxProfile::restore` stops re-judging stored profiles, a hazard that only appeared once the list became changeable |
 | SPEC-017 the parameter contract reaches keys, not element structures | ✅ **RESOLVED 2026-08-25** — `element`/`fields` on any declaration, recursive, with a guard that refuses a structural input declaring neither an inner shape nor an `opaque` reason. Found three silent inputs on its first run (`lines[].openItem`, a scenario's misplaced rate base, a receiver key in both adapter suites) |
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | ✅ **RESOLVED 2026-08-25** — `AuditTrail::find(criteria)` pushes the filters into SQL by reading the JSON payload (`json_extract` / `->>`), so no column and no migration; `EntryAuthors` asks for the ids on the page. The entry's own proposal was wrong and says so: columns would have needed a data migration nothing here can run. An index is what is left |
@@ -1292,6 +1292,84 @@ a naive `IN ()` gets that exactly backwards.
 few, so the *bandwidth* is bounded and the *scan* is not. Fixing that means a generated column or an
 expression index, which is the schema question this entry started with — now separable, because
 correctness no longer waits on it.
+
+## SPEC-016: the set of VAT filing periods is a jurisdictional claim living in the substrate
+
+**Found 2026-08-24, while closing the `TaxProfile` coercion (F-TAX-003).**
+
+`TaxProfile.fromData` now refuses a `vatPeriod` it does not know instead of silently returning
+`quarterly`, which is the right fix for the defect that was reported. Refusing requires a list, and
+the list is `['monthly', 'quarterly', 'yearly']` — three constants in the jurisdiction-free core.
+
+**The litmus test fails.** *Would another jurisdiction answer this differently?* Yes, and not
+theoretically: Ireland files VAT bi-monthly, several jurisdictions have half-yearly windows, and
+some have none of these because they have no VAT. A closed list of filing periods in the substrate
+says "these are the filing periods there are", which is exactly the kind of statement the substrate
+is defined not to make. The guard test caught the first draft of this — the comment cited
+§ 18 Abs. 2 UStG as the reason `yearly` exists, and `no-jurisdiction-text.test.ts` refused it. The
+statute came out of the comment; the assumption it justified stayed in the code.
+
+**Why it was still done this way, deliberately:**
+
+- The field is a **label**. `vatPeriod` records which window a tenant files in and selects nothing —
+  `vatReturn` takes `year` + optional `quarter`/`month` and computes from those. So a wrong value
+  produces a wrong *statement about* the tenant, never a wrong figure. The blast radius of the
+  substrate being wrong here is one descriptive field.
+- The previous list was **also** a jurisdictional claim, and a worse one: it omitted a period that
+  exists and lost the caller's value silently. Replacing a wrong closed list with a less wrong
+  closed list is an improvement even if closed lists are the real problem.
+- The right shape — the pack declares which filing periods it recognises, e.g. in `packPolicy` —
+  touches the pack format, `format.schema.json`, all three shipped packs and every tenant built from
+  an inline bundle. That is a change with a decision in it, not a refactor, and it does not belong
+  inside a fix for a coercion bug.
+
+**Note the asymmetry with the field beside it.** `taxationMethod` gets the same treatment in the
+same function and is *not* this finding: accrual and cash are the two ways this engine can time a
+tax liability, and it implements both. That set is substrate mechanism — a jurisdiction picks from
+it, it does not extend it. Two fields, one line apart, on opposite sides of the boundary; that is
+worth writing down, because the next reader will see one enum and assume the other is like it.
+
+**What would decide it:** the first pack that needs a period this list does not have, or the first
+time `vatPeriod` stops being descriptive — if a projection ever selects its window from the profile,
+the list starts deciding figures and the argument above expires. Until then the constants stay, with
+this note as the reason they are not defended.
+
+### RESOLVED 2026-08-25 — the pack declares its filing windows, and the substrate keeps a default
+
+`packPolicy.vatPeriods` names the windows a jurisdiction files in, and it **replaces** the
+substrate's list rather than extending it: a pack whose jurisdiction has no quarterly filing does
+not get quarterly quietly available. Ireland can say bi-monthly without the core learning the word.
+
+**The substrate's three stay, as a default rather than a definition** — and that distinction is the
+whole fix, not a compromise. What made this a finding was the core *deciding* which windows exist;
+what it does now is answer for a pack that says nothing. Keeping it is also what makes the change
+additive: every existing pack, every inline bundle and every tenant already in the field behaves
+exactly as before, so no shipped pack had to change for this to close. (Declaring the three
+explicitly in `de`/`us`/`default` is a tidy-up in the pack source, not a prerequisite — and the pack
+source is authored outside this repository.)
+
+The fallback for an absent `vatPeriod` follows whoever owns the list: the substrate default keeps
+its documented `quarterly`, a declaring pack gets its own first window. A pack that does not file
+quarterly should not have quarterly as its default either.
+
+**Rehydration stopped re-judging.** `TaxProfile::restore` rebuilds a stored profile without
+validating it, and the database factories use it. Validation belongs at the boundary; re-checking on
+the way *out* of our own store would mean a tenant whose pack later drops a window can no longer be
+opened — a rule change reaching backwards into books kept correctly under the old one, which is the
+opposite of what an append-only ledger promises. That hazard was invisible until the list became
+changeable, which is a good argument for the finding having been written down rather than fixed in
+passing.
+
+Proven in two halves, because one test cannot see both: fixture
+`pack/conformance-xx/xx-7-pack-declares-filing-periods` builds a fictional jurisdiction that files
+bi-monthly and shows the window reaching `systemDescription` — red without the change. The
+*replacement* half needs a pack that **excludes** something, which no fixture can express, so
+`VatPeriodsFromPackTest` / `vat-periods-from-pack.test.ts` pin it in both languages along with the
+fallback and the untouched no-pack behaviour.
+
+**What the entry got right and kept:** `taxationMethod` is still not this finding. Accrual and cash
+are the two ways this engine can time a liability and it implements both — a jurisdiction picks from
+that set, it does not extend it. Two fields one line apart, on opposite sides of the boundary.
 
 ---
 

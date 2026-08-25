@@ -115,7 +115,10 @@ final readonly class DatabaseTenantFactory
             $mappings->add(Mapping::fromData($mappingData));
         }
 
-        $taxProfile = $config['taxProfile'] === null ? TaxProfile::default() : TaxProfile::fromData($config['taxProfile']);
+        // `restore`, not `fromData`: these values were validated when they arrived, and re-checking
+        // them on the way out of our own store would stop a tenant opening after its pack drops a
+        // filing window — a rule change reaching backwards into books kept correctly (SPEC-016).
+        $taxProfile = $config['taxProfile'] === null ? TaxProfile::default() : TaxProfile::restore($config['taxProfile']);
         $name = $record->name;
         $baseCurrency = Currency::of($record->baseCurrency, $baseCurrency?->scale);
 
