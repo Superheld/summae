@@ -12,6 +12,42 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The input contract reaches into structures (SPEC-017)
+
+`api-parameters.json` declared every accepted key and checked it before routing — one level deep.
+`netLines`, `lines`, `allocations`, `steps`, `rates` and the rest were declared `array` and nothing
+looked inside the elements, so:
+
+```json
+{ "netLines": [ { "account": "6040", "money": {…}, "dimension": [ … ] } ] }
+```
+
+was accepted, booked correctly, and dropped the cost centre. Same defect as the one the contract was
+built to end, one level in.
+
+- **`element` and `fields`** on any declaration, checked by the same two rules as before: an
+  undeclared key is `E_INPUT_INVALID`, a declared key of the wrong type is rejected rather than
+  coerced. Requiredness stays with the operation, whose own error says more. Errors name the path —
+  `post: unknown input "lines[0].dimension"`.
+- **Recursive, not "one level deeper".** A fixed depth is a number somebody re-decides later; a
+  recursion that stops where the *declaration* stops is a visible choice each time. `opaque` says
+  the same thing with a reason, for a structure another schema owns (`importMapping.mapping` belongs
+  to `format.schema.json`; a partner's `address` is free-form master data stored whole).
+- **A guard makes it stay closed:** an `array` or `object` declaration with neither an inner shape
+  nor an `opaque` reason fails the contract test, in both languages. Declaring today's inputs fixes
+  today; without the guard the next array added would be structural and silent again.
+
+**It found three silent inputs on its first run** — which is the argument for it, made by itself:
+`lines[].openItem`, passed by fixtures since v0.2 and read by nobody (now declared without effect,
+IMPL-029); a regression scenario declaring an overhead rate's `accounts` at rate level where the
+parser reads `base.accounts`, so the rate had no base and the scenario still passed; and
+`receivers[].costCenter` in both adapter suites where the parser reads `code`, so the receiver was
+dropped and both tests stayed green.
+
+**Breaking, deliberately:** a caller passing an undeclared key *inside* a structure now gets
+`E_INPUT_INVALID` where it used to be ignored. Same call as F-9 made for the outer level — the
+ignoring was the defect. New fixture `core/input-structure-contract`.
+
 ### The findings register is one file (docs)
 
 `implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin

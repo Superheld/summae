@@ -39,14 +39,117 @@ final class OperationParametersTest extends TestCase
      */
     private function withoutComments(array $operations): array
     {
-        foreach ($operations as $name => $params) {
-            foreach ($params as $param => $spec) {
-                unset($spec['$comment']);
-                $operations[$name][$param] = $spec;
+        return self::stripComments($operations);
+    }
+
+    /**
+     * Recursive since SPEC-017: a declaration nests now (`fields`, `element`), and a `$comment` may
+     * sit at any depth — it is documentation, and documentation belongs on the thing it concerns.
+     */
+    private static function stripComments(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $out = [];
+        foreach ($value as $key => $item) {
+            if ($key === '$comment') {
+                continue;
+            }
+
+            $out[$key] = self::stripComments($item);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Every structural input says what is inside it (SPEC-017).
+     *
+     * This is the guard that makes the finding stay closed. Declaring the element shapes once fixes
+     * today's inputs; without this test the next array added to the contract would be structural
+     * and unchecked again, and nothing would say so — which is exactly how the gap arose. An author
+     * must choose: `fields` for an object, `element` for an array, or `opaque` **with a reason**
+     * when another schema owns the structure.
+     */
+    public function testEveryStructuralInputDeclaresWhatIsInsideIt(): void
+    {
+        $undeclared = [];
+        foreach ($this->schemaOperations() as $op => $params) {
+            foreach ($params as $name => $spec) {
+                self::collectUndeclared($spec, $op . '.' . $name, $undeclared);
             }
         }
 
-        return $operations;
+        self::assertSame([], $undeclared, 'an array or object input must declare `element`, `fields` '
+            .'or `opaque` with a reason — otherwise it is structural and silent, which is SPEC-017');
+    }
+
+    /**
+     * @param array<string, mixed> $spec
+     * @param list<string> $undeclared
+     */
+    private static function collectUndeclared(array $spec, string $path, array &$undeclared): void
+    {
+        $type = $spec['type'] ?? null;
+
+        if ($type === 'array' || $type === 'object') {
+            $reason = $spec['opaque'] ?? null;
+            $hasInner = isset($spec['fields']) || isset($spec['element']);
+
+            if (!$hasInner && !(is_string($reason) && $reason !== '')) {
+                $undeclared[] = $path;
+            }
+        }
+
+        foreach (is_array($spec['fields'] ?? null) ? $spec['fields'] : [] as $key => $field) {
+            if (is_array($field)) {
+                self::collectUndeclared($field, $path . '.' . $key, $undeclared);
+            }
+        }
+
+        if (is_array($spec['element'] ?? null)) {
+            self::collectUndeclared($spec['element'], $path . '[]', $undeclared);
+        }
+    }
+
+    /**
+     * The rule reaches all the way down, not one level (SPEC-017).
+     *
+     * `dimension` instead of `dimensions` inside a net line is the case that was reported: accepted,
+     * booked correctly, cost centre gone, no error. The error names the path so the caller does not
+     * have to find it.
+     */
+    public function testRejectsAnUndeclaredKeyInsideAStructure(): void
+    {
+        self::assertSame('E_INPUT_INVALID', $this->errorCodeOf('post', [
+            'voucherId' => 'v', 'entryDate' => '2026-01-01',
+            'lines' => [['account' => '1200', 'side' => 'debit', 'dimension' => []]],
+        ]));
+
+        // ... and two levels down, where the declaration goes.
+        self::assertSame('E_INPUT_INVALID', $this->errorCodeOf('post', [
+            'voucherId' => 'v', 'entryDate' => '2026-01-01',
+            'lines' => [['account' => '1200', 'dimensions' => [['type' => 'costCenter', 'kode' => 'A']]]],
+        ]));
+    }
+
+    public function testRejectsAWronglyTypedValueInsideAStructure(): void
+    {
+        self::assertSame('E_INPUT_INVALID', $this->errorCodeOf('post', [
+            'voucherId' => 'v', 'entryDate' => '2026-01-01',
+            'lines' => [['account' => '1200', 'money' => 1200]],
+        ]));
+    }
+
+    /** An opaque structure is passed through untouched — that is what the reason buys. */
+    public function testAcceptsAnythingInsideAnOpaqueStructure(): void
+    {
+        self::assertNotSame('E_INPUT_INVALID', $this->errorCodeOf('createPartner', [
+            'name' => 'Kunde AG', 'kind' => 'customer',
+            'address' => ['street' => 'Hauptstr. 1', 'whatever' => ['deep' => true]],
+        ]));
     }
 
     /**

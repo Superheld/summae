@@ -104,7 +104,8 @@ a short file.
 | SPEC-014 no way to evolve a shipped database schema | ✅ **decided and built 2026-08-24** — option 2, the idempotent install: `installSchema` creates only what is absent, guarded per table. Covers additive changes (a new table, by hand a nullable column) and deliberately nothing else; a column that changes type still means recreating the workspace |
 | SPEC-015 tenant configuration has no owner | **RESOLVED 2026-08-24** — profile, dimension registry, allocation scheme and imported mappings were constructor arguments rebuilt on every open, so the five operations that change them audited durably and persisted nothing; our own CLI shipped with four of the five silently ineffective. Now a `summae_tenants` table, the stored record winning over the passed seed, and the CLI's hand-rolled `importMapping` write-back deleted. No fixture could ever have seen it (single-process); guarded now by `regression/tenant-configuration.json` — one CLI invocation per step — plus both adapter suites: seven tests go red without the fix |
 | SPEC-016 the set of VAT filing periods is a jurisdictional claim in the substrate | **OPEN 2026-08-24** — refusing an unknown `vatPeriod` needs a list, and `[monthly, quarterly, yearly]` is one the substrate has no business making (Ireland files bi-monthly). Deliberate for now: the field is descriptive, it selects no window and decides no figure, and the previous list was a worse claim. The right shape is a pack declaration, which is a decision, not a refactor. `taxationMethod` beside it is NOT this finding — accrual/cash is substrate mechanism |
-| SPEC-017 the parameter contract reaches keys, not element structures | **OPEN 2026-08-24** — `netLines` is declared `array` and nothing looks inside the elements, so `dimension` instead of `dimensions` books correctly and drops the cost centre. Same on every array input (`lines`, `allocations`, `steps`, `weights`). Not a regression — the outer layer got strict enough that the inner one stands out. Closing it is a choice between element declarations in the contract file, JSON Schema, or per-parser strictness; the first is the obvious continuation and deserves a decision, not a side effect |
+| SPEC-017 the parameter contract reaches keys, not element structures | ✅ **RESOLVED 2026-08-25** — `element`/`fields` on any declaration, recursive, with a guard that refuses a structural input declaring neither an inner shape nor an `opaque` reason. Found three silent inputs on its first run (`lines[].openItem`, a scenario's misplaced rate base, a receiver key in both adapter suites) |
+| IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | **OPEN 2026-08-25** — `auditLog`'s filters and `EntryAuthors`' author map both run *after* `AuditTrail::all()`; the store keeps `objectType`/`action` inside a JSON payload, so nothing can be pushed down. Real filtering needs indexed columns, and SPEC-014's idempotent install covers new *tables*, not new columns. The walk moved from the embedding into the library, which was the correctness half; the cost half is untouched |
 | SPEC-019 the documentation gate reaches names, not meanings | **OPEN 2026-08-25** — `HandbookCoversTheApiTest` proves every published operation and projection has a section. Nothing proves a documented **field** says anything. `taxTag` stood in the manual as "(object, no)" for a year, and an embedding concluded a capability that has worked since v0.4 was impossible |
 
@@ -1054,6 +1055,89 @@ both CLIs.
 
 `testing/scenarios/README.md` records the general lesson: a scenario is the only place in this test
 landscape where "does this survive the process" can be asked at all.
+
+## SPEC-017: the parameter contract reaches keys, not element structures
+
+**Found 2026-08-24, while carrying the net lines' dimensions through the tax expansion (F-CORE-006).**
+
+`api-parameters.json` declares every accepted parameter and every accepted operation input with its
+type, and the dispatcher validates against it *before* routing — an undeclared key is
+`E_INPUT_INVALID`, a declared one of the wrong type is rejected, an absent one keeps its default.
+That closed the accepted-and-ignored class for inputs, and it is what F-9 was about.
+
+It reaches one level deep. `netLines` is declared as `array`, and nothing looks inside the
+elements. So:
+
+```json
+{ "netLines": [ { "account": "6040", "money": {…}, "dimension": [ … ] } ] }
+```
+
+is accepted, books correctly, and drops the cost centre — because the key is `dimension` and the
+engine reads `dimensions`. No error, no warning, and the posting looks right. That is exactly the
+shape of the defect the same fixture just closed, one level further in: the element was dropped
+because nothing carried it, and now it is dropped because nothing checks the key that carries it.
+
+The same gap exists on every array-typed input: `lines` on `post`, `allocations` on `settle`,
+`steps`/`rates` on `setAllocationScheme`, `weights` on `allocate`, `smallBusiness` segments on
+`setTaxProfile`. Some of those have their own parsing that fails loudly on a missing *required*
+field — `post` refuses a line without an account — but an *optional* one is silently absent in all
+of them.
+
+**Why it is not closed here:** element schemas are a different mechanism from a key table, not a
+bigger one. Three shapes are defensible and they are not equivalent:
+
+1. **Element declarations in `api-parameters.json`** — `netLines: { type: 'array', element: {…} }`,
+   validated by the same dispatcher pass. Consistent with what exists, and it means writing the
+   element shape of every array input in the file plus a second traversal in both languages.
+2. **JSON Schema for inputs**, reusing `format.schema.json`'s machinery. Expressive, and it puts a
+   second validation language in front of the dispatcher.
+3. **Per-parser strictness** — each parser rejects keys it does not know, where it already reads the
+   element. Cheapest, and the rule then lives in a dozen places instead of one file, which is
+   precisely what the parameter contract was created to end.
+
+(1) is the obvious continuation, and it should be a decision rather than a side effect of the next
+fix that trips over it. Nothing here is a regression: this gap has existed since the contract was
+written, and the contract made the *outer* layer strict enough that the inner one now stands out.
+
+**What raises the priority:** the fix that found this made `dimensions` meaningful on a net line, so
+there is now an optional element key whose silent absence changes what cost accounting reports.
+Before it, the elements carried nothing optional worth losing.
+
+### RESOLVED 2026-08-25 — the contract reaches into structures, recursively
+
+`element` (for arrays) and `fields` (for objects) on any declaration, checked by the same two rules
+the outer level always had: an undeclared key is a caller mistake, a declared key of the wrong type
+is rejected rather than coerced. Requiredness deliberately stays with the operation, whose own error
+says more. Errors name the full path — `post: unknown input "lines[0].dimension"`.
+
+**Recursive rather than "one level deeper", on purpose.** A fixed depth is a number somebody
+re-decides in a year; a recursion that stops where the *declaration* stops is a choice the contract's
+author makes visibly each time. `opaque` is the same statement with a reason attached, for a
+structure another schema owns (`importMapping.mapping` belongs to `format.schema.json`;
+`createPartner.address` is free-form master data the engine stores whole).
+
+**The guard is the durable half.** `testEveryStructuralInputDeclaresWhatIsInsideIt` /
+`declares what is inside every structural input` refuses an `array` or `object` declaration that has
+neither an inner shape nor an `opaque` reason. Declaring today's inputs fixes today; without the
+guard the next array would be structural and silent again, which is exactly how this arose.
+
+**It found three things on its first run, all of them silent until then:**
+
+1. `post`/`postVoucher` `lines[].openItem` — passed by fixtures since v0.2, read by nobody. An open
+   item is derived from the account's subtype and the line's side, which cannot disagree with the
+   account. Declared `acceptedWithoutEffect` with the reason, recorded as **IMPL-029**.
+2. `testing/scenarios/regression/tenant-configuration.json` declared an overhead rate with
+   `accounts` at rate level, where the parser reads `base.accounts`. The rate had no base and the
+   scenario asserted only the cost-centre name, so it passed. Corrected.
+3. `packages/knex/test/adapter.test.ts` and its PHP twin passed `receivers[].costCenter` where the
+   parser reads `code`, so the receiver was dropped and both tests stayed green. Corrected.
+
+Fixture `core/input-structure-contract` pins the refusals and the opaque boundary in both languages.
+Nothing in the suite had to bend: 168 fixtures green against both subjects.
+
+**This is a tightening**, and it is the same call the outer level was (F-9): a caller passing an
+undeclared key inside a structure now gets `E_INPUT_INVALID` where it used to be ignored. That is
+the point — the ignoring was the defect.
 
 ---
 

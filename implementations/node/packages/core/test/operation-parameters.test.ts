@@ -34,21 +34,47 @@ const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
   operations: Record<string, Record<string, Record<string, unknown>>>;
 };
 
-/** `$comment` is documentation, not contract — see the projection twin. */
-function withoutComments(
-  operations: Record<string, Record<string, Record<string, unknown>>>,
-): Record<string, Record<string, Record<string, unknown>>> {
+/**
+ * `$comment` is documentation, not contract — see the projection twin.
+ *
+ * Recursive since SPEC-017: a declaration nests now (`fields`, `element`), and a comment may sit at
+ * any depth, because documentation belongs on the thing it concerns.
+ */
+function withoutComments(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutComments);
+  if (value === null || typeof value !== 'object') return value;
   return Object.fromEntries(
-    Object.entries(operations).map(([name, params]) => [
-      name,
-      Object.fromEntries(
-        Object.entries(params).map(([param, spec]) => [
-          param,
-          Object.fromEntries(Object.entries(spec).filter(([key]) => key !== '$comment')),
-        ]),
-      ),
-    ]),
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => key !== '$comment')
+      .map(([key, item]) => [key, withoutComments(item)]),
   );
+}
+
+/**
+ * Every array or object input must say what is inside it — `fields`, `element`, or `opaque` with a
+ * reason. Collects the ones that do not, at any depth.
+ */
+function undeclaredStructures(spec: Record<string, unknown>, path: string, out: string[]): void {
+  const type = spec.type;
+  if (type === 'array' || type === 'object') {
+    const reason = spec.opaque;
+    const hasInner = spec.fields !== undefined || spec.element !== undefined;
+    if (!hasInner && !(typeof reason === 'string' && reason !== '')) out.push(path);
+  }
+
+  const fields = spec.fields;
+  if (fields !== null && typeof fields === 'object') {
+    for (const [key, field] of Object.entries(fields as Record<string, unknown>)) {
+      if (field !== null && typeof field === 'object') {
+        undeclaredStructures(field as Record<string, unknown>, `${path}.${key}`, out);
+      }
+    }
+  }
+
+  const element = spec.element;
+  if (element !== null && typeof element === 'object') {
+    undeclaredStructures(element as Record<string, unknown>, `${path}[]`, out);
+  }
 }
 
 function freshOps(): TenantOperations {
@@ -112,6 +138,75 @@ describe('operation input contract', () => {
     expect(errorCodeOf(() => freshOps().execute('runDepreciation', { fiscalYear: 2026, period: null }))).toBe(
       'NO_ERROR',
     );
+  });
+
+  /**
+   * The guard that makes SPEC-017 stay closed. Declaring the element shapes once fixes today's
+   * inputs; without this, the next array added to the contract would be structural and unchecked
+   * again, and nothing would say so — which is exactly how the gap arose.
+   */
+  it('declares what is inside every structural input', () => {
+    const undeclared: string[] = [];
+    for (const [op, params] of Object.entries(schema.operations)) {
+      for (const [name, spec] of Object.entries(params)) {
+        undeclaredStructures(spec, `${op}.${name}`, undeclared);
+      }
+    }
+    expect(
+      undeclared,
+      'an array or object input must declare `element`, `fields` or `opaque` with a reason — ' +
+        'otherwise it is structural and silent, which is SPEC-017',
+    ).toEqual([]);
+  });
+
+  /**
+   * The rule reaches all the way down, not one level. `dimension` instead of `dimensions` inside a
+   * net line is the reported case: accepted, booked correctly, cost centre gone, no error.
+   */
+  it('rejects an undeclared key inside a structure', () => {
+    expect(
+      errorCodeOf(() =>
+        freshOps().execute('post', {
+          voucherId: 'v',
+          entryDate: '2026-01-01',
+          lines: [{ account: '1200', side: 'debit', dimension: [] }],
+        }),
+      ),
+    ).toBe('E_INPUT_INVALID');
+
+    expect(
+      errorCodeOf(() =>
+        freshOps().execute('post', {
+          voucherId: 'v',
+          entryDate: '2026-01-01',
+          lines: [{ account: '1200', dimensions: [{ type: 'costCenter', kode: 'A' }] }],
+        }),
+      ),
+    ).toBe('E_INPUT_INVALID');
+  });
+
+  it('rejects a wrongly typed value inside a structure', () => {
+    expect(
+      errorCodeOf(() =>
+        freshOps().execute('post', {
+          voucherId: 'v',
+          entryDate: '2026-01-01',
+          lines: [{ account: '1200', money: 1200 }],
+        }),
+      ),
+    ).toBe('E_INPUT_INVALID');
+  });
+
+  it('accepts anything inside an opaque structure', () => {
+    expect(
+      errorCodeOf(() =>
+        freshOps().execute('createPartner', {
+          name: 'Kunde AG',
+          kind: 'customer',
+          address: { street: 'Hauptstr. 1', whatever: { deep: true } },
+        }),
+      ),
+    ).not.toBe('E_INPUT_INVALID');
   });
 
   it('leaves an unknown operation name to the dispatcher', () => {

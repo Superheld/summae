@@ -8,6 +8,16 @@ export interface ParameterSpec {
   readonly required?: true;
   /** Passed by existing fixtures, read by no implementation — declared so the gap is visible. */
   readonly acceptedWithoutEffect?: true;
+  /**
+   * What is inside a structure (SPEC-017). `fields` for an object, `element` for an array — the
+   * declaration every element is checked against. Recursive, and it stops where the declaration
+   * stops: a shape that is not written out is not checked, which is a decision the contract's
+   * author makes visibly rather than one that happens.
+   */
+  readonly fields?: Readonly<Record<string, ParameterSpec>>;
+  readonly element?: ParameterSpec;
+  /** Another schema owns this structure. The value is the reason, and it is required. */
+  readonly opaque?: string;
 }
 
 /**

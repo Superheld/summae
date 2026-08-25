@@ -32,32 +32,173 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
   post: {
     voucherId: { type: 'string', required: true },
     entryDate: { type: 'date', required: true },
-    lines: { type: 'array', required: true },
+    lines: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          side: { type: 'string' },
+          money: { type: 'money' },
+          dimensions: {
+            type: 'array',
+            element: {
+              type: 'object',
+              fields: {
+                type: { type: 'string' },
+                code: { type: 'string' },
+              },
+            },
+          },
+          taxTag: {
+            type: 'object',
+            fields: {
+              code: { type: 'string' },
+              appliedVersion: { type: 'string' },
+              reportingKey: { type: 'string' },
+              baseMoney: { type: 'money' },
+            },
+          },
+          openItem: { type: 'object', acceptedWithoutEffect: true, opaque: 'read by no implementation' },
+        },
+      },
+    },
     text: { type: 'string' },
     actor: { type: 'string' },
   },
   postVoucher: {
-    voucher: { type: 'object', required: true },
+    voucher: {
+      type: 'object',
+      required: true,
+      fields: {
+        voucherNumber: { type: 'string' },
+        voucherDate: { type: 'date' },
+        serviceDate: { type: 'date' },
+        servicePeriod: { type: 'object', opaque: 'a from/to window the record stores whole' },
+        economicYear: { type: 'integer' },
+        due: { type: 'date' },
+        recurring: { type: 'boolean' },
+        issuer: { type: 'string' },
+        kind: { type: 'string' },
+        partnerId: { type: 'string' },
+        supplierTaxationMethod: { type: 'string' },
+      },
+    },
     taxCode: { type: 'string' },
     direction: { type: 'string' },
-    // Books the MIRROR of the taxed posting `direction` describes, tagged so the reporting key goes
-    // down instead of up (F-TAX-014).
     reduction: { type: 'boolean' },
-    netLines: { type: 'array' },
-    lines: { type: 'array' },
+    netLines: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          money: { type: 'money' },
+          taxCode: { type: 'string' },
+          dimensions: {
+            type: 'array',
+            element: {
+              type: 'object',
+              fields: {
+                type: { type: 'string' },
+                code: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+    lines: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          side: { type: 'string' },
+          money: { type: 'money' },
+          dimensions: {
+            type: 'array',
+            element: {
+              type: 'object',
+              fields: {
+                type: { type: 'string' },
+                code: { type: 'string' },
+              },
+            },
+          },
+          taxTag: {
+            type: 'object',
+            fields: {
+              code: { type: 'string' },
+              appliedVersion: { type: 'string' },
+              reportingKey: { type: 'string' },
+              baseMoney: { type: 'money' },
+            },
+          },
+          openItem: { type: 'object', acceptedWithoutEffect: true, opaque: 'read by no implementation' },
+        },
+      },
+    },
     counterAccount: { type: 'string' },
     entryDate: { type: 'date' },
     text: { type: 'string' },
     actor: { type: 'string' },
   },
   createVoucher: {
-    voucher: { type: 'object', required: true },
+    voucher: {
+      type: 'object',
+      required: true,
+      fields: {
+        voucherNumber: { type: 'string' },
+        voucherDate: { type: 'date' },
+        serviceDate: { type: 'date' },
+        servicePeriod: { type: 'object', opaque: 'a from/to window the record stores whole' },
+        economicYear: { type: 'integer' },
+        due: { type: 'date' },
+        recurring: { type: 'boolean' },
+        issuer: { type: 'string' },
+        kind: { type: 'string' },
+        partnerId: { type: 'string' },
+        supplierTaxationMethod: { type: 'string' },
+      },
+    },
     actor: { type: 'string' },
   },
   correct: {
     entryId: { type: 'string', required: true },
     text: { type: 'string' },
-    lines: { type: 'array' },
+    lines: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          side: { type: 'string' },
+          money: { type: 'money' },
+          dimensions: {
+            type: 'array',
+            element: {
+              type: 'object',
+              fields: {
+                type: { type: 'string' },
+                code: { type: 'string' },
+              },
+            },
+          },
+          taxTag: {
+            type: 'object',
+            fields: {
+              code: { type: 'string' },
+              appliedVersion: { type: 'string' },
+              reportingKey: { type: 'string' },
+              baseMoney: { type: 'money' },
+            },
+          },
+          openItem: { type: 'object', acceptedWithoutEffect: true, opaque: 'read by no implementation' },
+        },
+      },
+    },
     actor: { type: 'string' },
   },
   finalize: {
@@ -74,7 +215,24 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
   },
   settle: {
     entryId: { type: 'string', required: true },
-    allocations: { type: 'array', required: true },
+    allocations: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          openItemId: { type: 'string' },
+          money: { type: 'money' },
+          difference: {
+            type: 'object',
+            fields: {
+              money: { type: 'money' },
+              kind: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
     actor: { type: 'string' },
   },
   createAccount: {
@@ -94,7 +252,20 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     actor: { type: 'string' },
   },
   importChartOfAccounts: {
-    rows: { type: 'array', required: true },
+    rows: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          number: { type: 'string' },
+          name: { type: 'string' },
+          type: { type: 'string' },
+          subtype: { type: 'string' },
+          status: { type: 'string' },
+        },
+      },
+    },
     format: { type: 'string', acceptedWithoutEffect: true },
     actor: { type: 'string' },
   },
@@ -133,15 +304,44 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     direction: { type: 'string' },
     reduction: { type: 'boolean' },
     taxCode: { type: 'string' },
-    netLines: { type: 'array', required: true },
+    netLines: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          money: { type: 'money' },
+          taxCode: { type: 'string' },
+          dimensions: {
+            type: 'array',
+            required: true,
+            element: {
+              type: 'object',
+              fields: {
+                type: { type: 'string' },
+                code: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   setTaxProfile: {
-    smallBusiness: { type: 'object', required: true },
+    smallBusiness: {
+      type: 'object',
+      required: true,
+      fields: {
+        validFrom: { type: 'date' },
+        value: { type: 'boolean' },
+      },
+    },
     reason: { type: 'string', acceptedWithoutEffect: true },
     actor: { type: 'string' },
   },
   importMapping: {
-    mapping: { type: 'object', required: true },
+    mapping: { type: 'object', required: true, opaque: 'a whole mapping document; its shape is owned by format.schema.json, and declaring it twice would be the drift this contract exists to prevent' },
     actor: { type: 'string' },
   },
   createPartner: {
@@ -149,8 +349,11 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     kind: { type: 'string' },
     vatId: { type: 'string' },
     paymentTermsDays: { type: 'integer' },
-    accountNumbers: { type: 'array' },
-    address: { type: 'object' },
+    accountNumbers: {
+      type: 'array',
+      element: { type: 'string' },
+    },
+    address: { type: 'object', opaque: 'free-form master data; the engine stores it whole and interprets no key of it' },
     actor: { type: 'string' },
   },
   deactivatePartner: {
@@ -167,8 +370,11 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     kind: { type: 'string' },
     vatId: { type: 'string' },
     paymentTermsDays: { type: 'integer' },
-    accountNumbers: { type: 'array' },
-    address: { type: 'object' },
+    accountNumbers: {
+      type: 'array',
+      element: { type: 'string' },
+    },
+    address: { type: 'object', opaque: 'free-form master data; the engine stores it whole and interprets no key of it' },
     actor: { type: 'string' },
   },
   acquireAsset: {
@@ -181,7 +387,16 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     gwgChoice: { type: 'string' },
     usefulLifeMonths: { type: 'integer' },
     depreciationMethod: { type: 'string' },
-    dimensions: { type: 'array' },
+    dimensions: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          type: { type: 'string' },
+          code: { type: 'string' },
+        },
+      },
+    },
     specialDepreciation: { type: 'boolean' },
     totalUnits: { type: 'integer' },
     actor: { type: 'string' },
@@ -224,9 +439,79 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
   },
   setAllocationScheme: {
     method: { type: 'string' },
-    steps: { type: 'array' },
-    rates: { type: 'array' },
-    productionCost: { type: 'object' },
+    steps: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          sender: { type: 'string' },
+          receivers: {
+            type: 'array',
+            element: {
+              type: 'object',
+              fields: {
+                code: { type: 'string' },
+                share: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+    rates: {
+      type: 'array',
+      element: {
+        type: 'object',
+        fields: {
+          costCenter: { type: 'string' },
+          label: { type: 'string' },
+          base: {
+            type: 'object',
+            fields: {
+              accounts: {
+                type: 'array',
+                element: { type: 'string' },
+              },
+              costCenters: {
+                type: 'array',
+                element: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+    productionCost: {
+      type: 'object',
+      fields: {
+        include: {
+          type: 'array',
+          element: { type: 'string' },
+        },
+        components: {
+          type: 'array',
+          element: {
+            type: 'object',
+            fields: {
+              id: { type: 'string' },
+              base: {
+                type: 'object',
+                fields: {
+                  accounts: {
+                    type: 'array',
+                    element: { type: 'string' },
+                  },
+                  costCenters: {
+                    type: 'array',
+                    element: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     actor: { type: 'string' },
   },
   runCosting: {
@@ -240,7 +525,11 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
   },
   allocate: {
     total: { type: 'money', required: true },
-    weights: { type: 'array', required: true },
+    weights: {
+      type: 'array',
+      required: true,
+      element: { type: 'string' },
+    },
   },
 };
 
@@ -264,18 +553,69 @@ export function validateOperationInput(op: string, input: Record<string, unknown
     return;
   }
 
-  for (const [key, value] of Object.entries(input)) {
-    const spec = declared[key];
+  validateFields(op, input, declared, '');
+}
+
+/**
+ * The two rules, applied to one level of a structure.
+ *
+ * They are the same two the outer level has always had — an undeclared key is a caller mistake, a
+ * declared key of the wrong type is rejected rather than coerced — and applying them at every
+ * declared depth is the whole of SPEC-017. Requiredness is deliberately NOT checked here: it stays
+ * with the operation, whose own error says more than a generic one (`post` refuses a line without
+ * an account with its own code, naming the line).
+ */
+function validateFields(
+  op: string,
+  value: Record<string, unknown>,
+  fields: Readonly<Record<string, ParameterSpec>>,
+  path: string,
+): void {
+  for (const [key, item] of Object.entries(value)) {
+    const spec = fields[key];
+    const here = path === '' ? key : `${path}.${key}`;
+
     if (spec === undefined) {
-      throw new DomainError('E_INPUT_INVALID', `${op}: unknown input "${key}"`, { input: key });
+      throw new DomainError('E_INPUT_INVALID', `${op}: unknown input "${here}"`, { input: here });
     }
-    if (value === undefined || value === null) {
+    if (item === undefined || item === null) {
       continue;
     }
-    if (!matchesParameterType(value, spec.type)) {
-      throw new DomainError('E_INPUT_INVALID', `${op}: input "${key}" must be of type ${spec.type}`, {
-        [key]: rejectedValue(value),
-      });
-    }
+
+    validateValue(op, item, spec, here);
   }
+}
+
+/**
+ * One declared value: its type, and — where the declaration goes deeper — what is inside it.
+ *
+ * The recursion stops where the declaration stops, which is what makes this durable rather than
+ * "one level deeper". `opaque` is the same statement with a reason attached, for a structure
+ * another schema owns.
+ */
+function validateValue(op: string, value: unknown, spec: ParameterSpec, path: string): void {
+  if (!matchesParameterType(value, spec.type)) {
+    throw new DomainError('E_INPUT_INVALID', `${op}: input "${path}" must be of type ${spec.type}`, {
+      [path]: rejectedValue(value),
+    });
+  }
+
+  if (spec.opaque !== undefined) return;
+
+  if (spec.type === 'object' && spec.fields !== undefined && isRecord(value)) {
+    validateFields(op, value, spec.fields, path);
+    return;
+  }
+
+  if (spec.type === 'array' && spec.element !== undefined && Array.isArray(value)) {
+    const element = spec.element;
+    value.forEach((item, index) => {
+      if (item === undefined || item === null) return;
+      validateValue(op, item, element, `${path}[${index}]`);
+    });
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
