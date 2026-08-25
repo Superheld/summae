@@ -16,6 +16,18 @@ use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
  * EC sales list basis (v0.4, SF-21): intra-community supplies per
  * VAT ID and period — from reporting-key tags of the intra-community-supply codes,
  * partner assignment via the voucher.
+ *
+ * **A supply that cannot be reported is reported as unreportable** (F-IO-011). The list is keyed by
+ * VAT ID, so a supply whose partner has none used to fall out of it silently: two postings, one
+ * with a VAT ID and one without, and the answer was one row and nothing else. That is the dangerous
+ * direction — in the jurisdictions that have this report, a supply without the recipient's
+ * registration number is typically not exempt at all, so what dropped out was exactly the case
+ * where something is wrong. Same shape as `vatReturn.gapWarnings`,
+ * and for the same reason: the warning belongs at the figures, next to what is filed, rather than
+ * in a projection of its own that whoever files may never open.
+ *
+ * Not a refusal. Whether a missing VAT ID makes a supply taxable is jurisdiction law and the
+ * embedding's call; the library's job is to make sure the case is never invisible.
  */
 final readonly class EcSalesListProjection
 {
@@ -30,7 +42,7 @@ final readonly class EcSalesListProjection
     /**
      * @param array<string, mixed> $params year, quarter
      *
-     * @return array{rows: list<array<string, string>>}
+     * @return array{rows: list<array<string, string>>, gapWarnings: list<array<string, mixed>>}
      */
     public function compute(array $params): array
     {
@@ -46,6 +58,8 @@ final readonly class EcSalesListProjection
 
         /** @var array<string, Money> $byVatId */
         $byVatId = [];
+        /** @var list<array<string, mixed>> $gapWarnings */
+        $gapWarnings = [];
 
         foreach ($this->journal->all() as $entry) {
             $voucher = $this->vouchers->byId($entry->voucherId);
@@ -61,9 +75,6 @@ final readonly class EcSalesListProjection
 
             $partner = $voucher?->partnerId === null ? null : $this->partners->byId($voucher->partnerId);
             $vatId = $partner?->vatId();
-            if ($vatId === null) {
-                continue;
-            }
 
             foreach ($entry->lines() as $line) {
                 $key = $line->taxTag['reportingKey'] ?? null;
@@ -75,10 +86,32 @@ final readonly class EcSalesListProjection
                     continue;
                 }
 
+                // The line IS an intra-community supply — decided before the partner is looked at,
+                // which is the whole change. Deciding it afterwards is what made a missing VAT ID
+                // look like a posting that was never an intra-community supply to begin with.
+                if ($vatId === null) {
+                    $gapWarnings[] = [
+                        'reason' => $partner === null
+                            ? 'supply_without_partner'
+                            : 'partner_without_vat_id',
+                        'sequenceNumber' => $entry->sequenceNumber,
+                        'entryDate' => $entry->entryDate->iso,
+                        'reportingKey' => (string) $key,
+                        'money' => $line->money->jsonSerialize(),
+                        'partnerId' => $partner?->id->value,
+                    ];
+
+                    continue;
+                }
+
                 $signed = $line->side === Side::Credit ? $line->money : $line->money->negate();
                 $byVatId[$vatId] = isset($byVatId[$vatId]) ? $byVatId[$vatId]->add($signed) : $signed;
             }
         }
+
+        // Journal order: the order the postings happened in is the order somebody checking them
+        // will work through. Same rule as vatReturn's warnings.
+        usort($gapWarnings, static fn (array $a, array $b): int => $a['sequenceNumber'] <=> $b['sequenceNumber']);
 
         $vatIds = array_map(strval(...), array_keys($byVatId));
         usort($vatIds, static fn (string $a, string $b): int => strcmp($a, $b));
@@ -96,6 +129,6 @@ final readonly class EcSalesListProjection
             ];
         }
 
-        return ['rows' => $rows];
+        return ['rows' => $rows, 'gapWarnings' => $gapWarnings];
     }
 }

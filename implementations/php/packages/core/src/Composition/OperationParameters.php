@@ -48,6 +48,9 @@ final class OperationParameters
             'voucher' => ['type' => 'object', 'required' => true],
             'taxCode' => ['type' => 'string'],
             'direction' => ['type' => 'string'],
+            // Books the MIRROR of the taxed posting `direction` describes, tagged so the reporting
+            // key goes down instead of up (F-TAX-014).
+            'reduction' => ['type' => 'boolean'],
             'netLines' => ['type' => 'array'],
             'lines' => ['type' => 'array'],
             'counterAccount' => ['type' => 'string'],
@@ -136,6 +139,7 @@ final class OperationParameters
             'date' => ['type' => 'date', 'required' => true],
             'serviceDate' => ['type' => 'date'],
             'direction' => ['type' => 'string'],
+            'reduction' => ['type' => 'boolean'],
             'taxCode' => ['type' => 'string'],
             'netLines' => ['type' => 'array', 'required' => true],
         ],

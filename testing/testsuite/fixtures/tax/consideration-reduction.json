@@ -1,0 +1,34 @@
+{
+  "fixture": "consideration-reduction",
+  "description": "F-TAX-014: a consideration reduction after the fact reaches the VAT return with the right sign, through the ordinary posting API. `postVoucher`/`expandTax` with `reduction: true` book the MIRROR of what `direction` describes — net line, tax line and gross counter line all swap sides — and tag it so the reporting key goes down: same code, same rule version, same key, negative base in the tag. A reduction of a taxed supply belongs in the key the supply was reported under, not in one of its own. Law-free, and a flag rather than a mechanism in the closed repertoire for that reason: WHETHER a cash discount, a credit note or a price reduction changes the taxable base is jurisdiction law and the caller's decision (§ 17 UStG in the DE pack), while mirroring a taxed posting is mechanism and identical everywhere. The case was reachable before and only one way — a plain `post` with a hand-written `taxTag` carrying a negative `baseMoney`, which `core/settlement-discount` has pinned since v0.4 — and that path asks the caller for the tag shape, the applied rule version and the reporting key: library internals plus a German form number on an application's screen. An embedding reported it as unbuildable for exactly that reason (its F-27). Both directions are covered: a discount granted reduces output tax, a discount received reduces input tax.",
+  "covers": ["F-TAX-014", "F-TAX-004"],
+  "setup": {
+    "tenant": {"name": "Fixture GmbH", "baseCurrency": "EUR"},
+    "accounts": [
+      {"number": "1200", "name": "Bank", "type": "asset", "subtype": "bank"},
+      {"number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar"},
+      {"number": "1600", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap"},
+      {"number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in"},
+      {"number": "1776", "name": "USt 19%", "type": "liability", "subtype": "tax_out"},
+      {"number": "8400", "name": "Erlöse 19%", "type": "revenue"},
+      {"number": "8731", "name": "Gewährte Skonti", "type": "revenue"},
+      {"number": "4930", "name": "Bürobedarf", "type": "expense"},
+      {"number": "3736", "name": "Erhaltene Skonti", "type": "expense"}
+    ],
+    "fiscalYears": [ {"year": 2026, "start": "2026-01-01", "end": "2026-12-31"} ],
+    "vouchers": [],
+    "taxCodes": [
+      {"code": "USt19", "versions": [{"validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1776", "reportingKey": "81"}]},
+      {"code": "VSt19", "versions": [{"validFrom": "2024-01-01", "validTo": null, "rate": "19.00", "taxAccount": "1576", "reportingKey": "66"}]}
+    ]
+  },
+  "steps": [
+    {"comment": "The supply: key 81 goes to 1000.00 / 190.00.", "op": "postVoucher", "input": {"voucher": {"voucherNumber": "AR-1", "voucherDate": "2026-05-04", "kind": "invoice_out"}, "entryDate": "2026-05-04", "text": "Ausgangsrechnung", "taxCode": "USt19", "direction": "output", "netLines": [{"account": "8400", "money": {"amount": "1000.00", "currency": "EUR"}}], "counterAccount": "1400"}, "expect": {"result": {"grossTotal": {"amount": "1190.00", "currency": "EUR"}}}},
+    {"comment": "2 % cash discount on the gross: 23.80 = 20.00 net + 3.80 tax. Same code, same direction, `reduction: true` — the mirror. 8731 debit, 1776 debit, 1400 credit.", "op": "postVoucher", "input": {"voucher": {"voucherNumber": "AR-1-SK", "voucherDate": "2026-05-12", "kind": "invoice_out"}, "entryDate": "2026-05-12", "text": "Gewährtes Skonto", "taxCode": "USt19", "direction": "output", "reduction": true, "netLines": [{"account": "8731", "money": {"amount": "20.00", "currency": "EUR"}}], "counterAccount": "1400"}, "expect": {"result": {"comment": "Der Bruttobetrag ist derselbe wie ohne Minderung — was sich dreht, sind die Seiten.", "grossTotal": {"amount": "23.80", "currency": "EUR"}, "entry": {"lines": [{"account": "1400", "side": "credit", "money": {"amount": "23.80", "currency": "EUR"}}, {"account": "8731", "side": "debit", "money": {"amount": "20.00", "currency": "EUR"}, "taxTag": {"code": "USt19", "reportingKey": "81", "baseMoney": {"amount": "-20.00", "currency": "EUR"}}}, {"account": "1776", "side": "debit", "money": {"amount": "3.80", "currency": "EUR"}, "taxTag": {"code": "USt19", "reportingKey": "81", "baseMoney": {"amount": "-20.00", "currency": "EUR"}}}]}}}},
+    {"comment": "The other direction: an incoming invoice, then a discount taken on it. Input tax has to come back down the same way.", "op": "postVoucher", "input": {"voucher": {"voucherNumber": "ER-1", "voucherDate": "2026-05-06", "kind": "invoice_in"}, "entryDate": "2026-05-06", "text": "Eingangsrechnung", "taxCode": "VSt19", "direction": "input", "netLines": [{"account": "4930", "money": {"amount": "500.00", "currency": "EUR"}}], "counterAccount": "1600"}, "expect": {"result": {"grossTotal": {"amount": "595.00", "currency": "EUR"}}}},
+    {"op": "postVoucher", "input": {"voucher": {"voucherNumber": "ER-1-SK", "voucherDate": "2026-05-14", "kind": "invoice_in"}, "entryDate": "2026-05-14", "text": "Erhaltenes Skonto", "taxCode": "VSt19", "direction": "input", "reduction": true, "netLines": [{"account": "3736", "money": {"amount": "10.00", "currency": "EUR"}}], "counterAccount": "1600"}, "expect": {"result": {"grossTotal": {"amount": "11.90", "currency": "EUR"}, "entry": {"lines": [{"account": "1600", "side": "debit", "money": {"amount": "11.90", "currency": "EUR"}}, {"account": "3736", "side": "credit", "money": {"amount": "10.00", "currency": "EUR"}}, {"account": "1576", "side": "credit", "money": {"amount": "1.90", "currency": "EUR"}}]}}}}
+  ],
+  "projections": [
+    {"name": "vatReturn", "params": {"year": 2026, "month": 5}, "expect": {"comment": "§ 17: Kz 81 = 1000 − 20 = 980 Basis, 190 − 3.80 = 186.20 Steuer; Kz 66 = 500 − 10 = 490 Basis, 95 − 1.90 = 93.10 Vorsteuer. Zahllast 186.20 − 93.10.", "keys": {"81": {"base": "980.00", "tax": "186.20"}, "66": {"base": "490.00", "tax": "93.10"}}, "payload": {"amount": "93.10", "currency": "EUR"}}}
+  ]
+}

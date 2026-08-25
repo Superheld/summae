@@ -172,7 +172,7 @@ export class TenantOperations {
       case 'accounts':
         return new AccountsProjection(tenant.accounts).compute(params);
       case 'journal':
-        return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers).compute(params);
+        return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers, tenant.audit).compute(params);
       case 'fiscalYears':
         return new FiscalYearsProjection(tenant.fiscalYears).compute(params);
       case 'accountSheet':
@@ -180,7 +180,7 @@ export class TenantOperations {
       case 'auditLog':
         return new AuditLogProjection(tenant.audit).compute(params);
       case 'unfinalizedEntries':
-        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock).compute(params);
+        return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,

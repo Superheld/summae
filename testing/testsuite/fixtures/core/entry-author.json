@@ -1,0 +1,81 @@
+{
+  "fixture": "entry-author",
+  "description": "F-CORE-037: who recorded a posting is readable. A journal entry carries no author — the actor of the operation that created it goes into the audit record at that moment and nowhere else — so `journal` and `unfinalizedEntries` reported everything about a posting except who made it. An application building separation of duties (\"nobody may finalize a batch containing their own postings\") therefore read the ENTIRE audit trail on every finalization and rebuilt the mapping itself: a check that scales with the age of the books rather than with the size of the batch, and an embedding reconstructing library state from a trail, which this project has already named as a bug waiting for the first change that does not pass through the screen that writes it. Reported by an embedding application as its F-29. The trail stays the single source — the author is deliberately NOT copied onto the entry, which is append-only and could therefore never correct it.",
+  "covers": ["F-CORE-037", "F-CORE-031", "F-CORE-027"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4930", "name": "Bürobedarf", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-04-01" } ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "actor": "anna",
+        "entryDate": "2026-04-01", "voucherId": "$V1", "text": "Bürobedarf",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "60.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "60.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "comment": "A second author, so the projection has to distinguish them rather than report one value for all.",
+      "op": "post",
+      "input": {
+        "actor": "bruce",
+        "entryDate": "2026-04-02", "voucherId": "$V1", "text": "Porto",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "12.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "12.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 2 } }
+    },
+    {
+      "comment": "And one without an actor — recorded as the system, exactly as the audit trail records it. No invention on the read side.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-03", "voucherId": "$V1", "text": "Kaffee",
+        "lines": [
+          { "account": "4930", "side": "debit", "money": { "amount": "8.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "8.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 3 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "journal",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Der Urheber steht an der Buchung, nicht nur im Protokoll.",
+        "count": 3,
+        "entries": [
+          { "sequenceNumber": 1, "actor": "anna", "text": "Bürobedarf" },
+          { "sequenceNumber": 2, "actor": "bruce", "text": "Porto" },
+          { "sequenceNumber": 3, "actor": "system", "text": "Kaffee" }
+        ]
+      }
+    },
+    {
+      "name": "unfinalizedEntries",
+      "params": { "asOf": "2026-04-30" },
+      "expect": {
+        "comment": "Die Projektion, die eine Funktionstrennungs-Prüfung ohnehin liest — jetzt beantwortet sie die Frage, statt sie an den Trail weiterzureichen.",
+        "count": 3,
+        "entries": [
+          { "sequenceNumber": 1, "actor": "anna" },
+          { "sequenceNumber": 2, "actor": "bruce" },
+          { "sequenceNumber": 3, "actor": "system" }
+        ]
+      }
+    }
+  ]
+}

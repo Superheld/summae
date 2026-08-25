@@ -702,6 +702,21 @@ Posting line (`lines[]`): `account` (string, yes), `side`
 (`"debit"`/`"credit"`, yes), `money` (Money > 0, yes), `dimensions`
 (`[{type,code}]`, no), `taxTag` (object, no).
 
+> **`taxTag` is what puts a line into the VAT return**, and it is worth reading before you hand-write
+> one. `vatReturn` is built from tax-*coded* postings, not from what sits on the tax accounts: a line
+> without a tag contributes nothing, however correct the account is (the same posting shows up fine
+> in the trial balance and on the account sheet, which is why
+> [`vatReturn.gapWarnings`](#vatreturn--vat-return-umsatzsteuer-voranmeldung) exists). The shape is
+> `{ "code", "appliedVersion", "reportingKey", "baseMoney" }` — the tax code, the `validFrom` of the
+> rule version applied, the key the amount is reported under, and the base the tax was computed on.
+> **`baseMoney` is signed by the tag, not by the line's side**, so a correction that reduces a
+> previously reported base carries a negative `baseMoney`.
+>
+> Normally you never write one: [`postVoucher`](#postvoucher) and [`expandTax`](#expandtax) produce
+> tags from the tax code, and [`reduction: true`](#postvoucher) produces the negative-base case. Use
+> the raw field when you are reproducing a posting that already exists — an opening balance takeover,
+> a migration — where the tags have to say what the old system said.
+
 **Check order / error codes:** 1) structure `E_ENTRY_TOO_FEW_LINES`,
 `E_ENTRY_INVALID_AMOUNT`; 2) references `E_ENTRY_NO_VOUCHER`,
 `E_VOUCHER_UNKNOWN`, `E_ACCOUNT_UNKNOWN`, `E_ACCOUNT_LOCKED`,
@@ -740,6 +755,7 @@ and tax lines are produced automatically.
 | `voucher.supplierTaxationMethod` | string | no | `"accrual"` \| `"cash"` — how the *supplier* taxes; anything else is `E_INPUT_INVALID` |
 | `taxCode` | string | no | tax code for the expansion |
 | `direction` | string | no | `"output"` (default) or `"input"` |
+| `reduction` | boolean | no | books the **mirror** of what `direction` describes and tags it so the reporting key goes *down* — a consideration reduction after the fact (see below) |
 | `netLines` | array of `{account, money, taxCode?, dimensions?}` | no | net lines; `dimensions` carries onto the resulting net line, not onto the tax line |
 | `counterAccount` | string | yes | gross contra-account (bank/receivable) |
 | `entryDate` | string | no | default = `voucher.voucherDate` |
@@ -758,6 +774,34 @@ Output: `entry` (like `post`), `openItemsCreated[]`, `grossTotal` (Money),
 > This is what makes an operating expense with input tax usable in cost accounting — the ordinary
 > way a cost reaches a cost centre. Until 2026-08-24 the expansion dropped it: the posting
 > succeeded, the figures were right, and the entry reached the journal with `dimensions: []`.
+
+> **`reduction: true` — a consideration reduction after the fact.** A cash discount taken, a credit
+> note, a price reduction after a complaint: the consideration changes *after* the supply was
+> reported, so the taxable base and the tax have to come back down in the period the change
+> happens (§ 17 UStG under the DE pack). Set `reduction: true` and everything about the call stays
+> the same — same `taxCode`, same `direction` as the original supply, net amount of the reduction
+> in `netLines`. What changes is that **every line swaps sides** (net, tax and the gross contra
+> line) and the tax tag carries a *negative* base, so the reporting key the supply was reported
+> under goes down rather than a second key going up.
+>
+> ```json
+> // 2 % discount on a 1,190.00 invoice = 23.80 gross = 20.00 net + 3.80 VAT
+> { "voucher": { "voucherNumber": "AR-001-SK", "voucherDate": "2026-05-12" },
+>   "taxCode": "USt19", "direction": "output", "reduction": true,
+>   "netLines": [ { "account": "8731", "money": { "amount": "20.00", "currency": "EUR" } } ],
+>   "counterAccount": "1400" }
+> // books 8731 debit 20.00 / 1776 debit 3.80 / 1400 credit 23.80
+> // → key 81 falls from 1000.00 / 190.00 to 980.00 / 186.20
+> ```
+>
+> **What is yours to decide** is *whether* a given reduction changes the taxable base — that is
+> jurisdiction law and depends on the case. summae supplies the mirror, not the judgement; there is
+> no rule here that decides a discount for you.
+>
+> The same thing is reachable without the flag, by writing the `taxTag` yourself on a plain
+> [`post`](#post) — that is how it worked before 0.13.0, and it still works. It asks you to know
+> the tag shape, the applied rule version and the reporting key, which is a German form number on
+> your screen; `reduction: true` exists so you do not have to.
 
 > **A tax code is required in practice.** `taxCode` is formally optional, but a
 > net line without one — and without a pack default — is rejected with
@@ -983,6 +1027,7 @@ lines including tax lines, tax tags, and the gross total (the precursor to
 | `date` | string (date) | yes | voucher date; version selection if no `serviceDate` |
 | `serviceDate` | string (date) | no | service date (§ 27 UStG); takes precedence in version selection |
 | `direction` | string | no | `output` (default, credit) or `input` (debit) |
+| `reduction` | boolean | no | mirror every side and tag a negative base — a consideration reduction after the fact, see [`postVoucher`](#postvoucher) |
 | `taxCode` | string | no | default key for positions without their own |
 | `netLines` | array | yes | ≥ 1 net position (`account`, `money`, optional `taxCode`, optional `dimensions`) |
 
@@ -1477,10 +1522,15 @@ authenticated identity is your application's job, and
 `fiscalYear`, `count`, `offset`, `limit` and `entries[]`, ordered by
 `sequenceNumber`.
 
-Each entry carries `sequenceNumber`, `entryId`, `status`
+Each entry carries `sequenceNumber`, `entryId`, `actor`, `status`
 (`entered`/`finalized`), `entryDate`, `voucherNumber`, `voucherDate`, `text`,
 `reverses`, `reversedBy` and its **complete** `lines[]` — `account`,
 `accountName`, `side`, `money`, `dimensions`, `taxTag`.
+
+`actor` is **who recorded the posting** — the actor of the `post` that created it, `"system"` when
+none was supplied. The entry itself carries no author; the fact lives in the audit trail, and this
+is summae reading it for you rather than you rebuilding it. See
+[`unfinalizedEntries`](#unfinalizedentries--postings-still-open) for why that matters.
 
 **This is the projection to fill a journal view with**, not `journalExport` and
 not `datevExport`. The export is lossless but builds five streams with a
@@ -1584,7 +1634,19 @@ decision.
 `asOf` (no, default: today by the injected clock), `olderThanDays` (no, default
 `0`), `fiscalYear` (no). Output: `asOf`, `olderThanDays`, `count`,
 `oldestAgeInDays` and `entries[]` with `entryId`, `sequenceNumber`, `entryDate`,
-`recordedAt`, `fiscalYear`, `period`, `ageInDays` and `text`, in journal order.
+`recordedAt`, `fiscalYear`, `period`, `ageInDays`, `text` and `actor`, in journal order.
+
+**`actor` is who recorded the posting**, and it is here for **separation of duties**: the rule that
+nobody may finalize a batch containing their own postings. Without it the only place the answer
+existed was the audit trail, so an application checking the rule read the *entire* trail on every
+finalization and rebuilt the mapping itself — a check that scales with the age of the books instead
+of with the size of the batch, and an application reconstructing library state from a history.
+`"system"` when the posting supplied no actor.
+
+Note what summae does **not** do with it: it neither enforces the rule nor verifies who the actor
+is (see [`systemDescription`](#systemdescription--technical-system-description)'s `notProvided`).
+Binding the actor to an authenticated identity, and deciding what happens when the rule is broken,
+is your application's.
 
 The age is measured from the **`entryDate`**, not from `recordedAt`: a posting
 recorded late for an old date is precisely the case a finalization deadline is
@@ -1874,11 +1936,31 @@ income-effective, asset payments not deductible. A deviating fiscal year →
 
 `year` (yes), `quarter` (no). Intra-community supplies per VAT ID (from the key
 tags of the igL codes; partner via the voucher). Output: `rows[]` (`vatId`,
-`amount`, `kind`). Postings without a partner VAT ID drop out.
+`amount`, `kind`) and `gapWarnings[]`.
+
+**A supply that cannot be reported is reported as unreportable.** The list is keyed by VAT ID, so a
+supply whose partner has none has no row to go in — and until 0.13.0 it simply vanished: two
+postings, one with a VAT ID and one without, and the answer was one row and nothing else. That is
+the dangerous direction, because without the recipient's VAT ID the supply is not exempt in the
+first place (§ 6a Abs. 1 Nr. 3 UStG), so what dropped out was exactly the case where something is
+wrong. Each warning carries `reason`, `sequenceNumber`, `entryDate`, `reportingKey`, `money` and
+`partnerId`, in journal order — the same shape and the same reasoning as
+[`vatReturn.gapWarnings`](#vatreturn--vat-return-umsatzsteuer-voranmeldung).
+
+Two reasons, because the fix differs: `partner_without_vat_id` (the voucher names a partner, the
+partner has no VAT ID — add it to the master data) and `supply_without_partner` (the voucher names
+no partner at all — the posting has to say who it went to).
+
+It is **not** a refusal. Whether a missing VAT ID makes the supply taxable is your call and your
+jurisdiction's; summae's job is that the case is never invisible.
 
 ```json
 // params { "year": 2026, "quarter": 1 }
-{ "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ] }
+{ "rows": [ { "vatId": "ATU12345678", "amount": "1000.00", "kind": "supply" } ],
+  "gapWarnings": [ { "reason": "partner_without_vat_id", "sequenceNumber": 2,
+                     "entryDate": "2026-03-11", "reportingKey": "41",
+                     "money": { "amount": "500.00", "currency": "EUR" },
+                     "partnerId": "…" } ] }
 ```
 
 ### journalExport — GoBD Z3 export

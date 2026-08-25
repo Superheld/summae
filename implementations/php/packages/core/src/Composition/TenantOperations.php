@@ -141,7 +141,7 @@ final readonly class TenantOperations
 
         return match ($name) {
             'accounts' => (new AccountsProjection($tenant->accounts))->compute($params),
-            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers))
+            'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers, $tenant->audit))
                 ->compute($params),
             'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
@@ -151,7 +151,7 @@ final readonly class TenantOperations
             'accountSheet' => (new AccountSheetProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
-            'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock))->compute($params),
+            'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock, $tenant->audit))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection(
                 $tenant->id,
                 $tenant->name,

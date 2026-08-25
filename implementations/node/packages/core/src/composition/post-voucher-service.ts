@@ -133,18 +133,24 @@ export class PostVoucherService {
       serviceDate: voucher.taxDate().iso,
       taxCode: input.taxCode ?? null,
       direction: input.direction ?? 'output',
+      reduction: input.reduction ?? false,
       netLines: input.netLines ?? [],
     });
 
     const direction = input.direction === 'input' ? 'input' : 'output';
+    const reduction = input.reduction === true;
     const counterAccount = asString(input.counterAccount) ?? '';
+    // The gross side mirrors with everything else: a reduction gives money back, so a receivable
+    // goes down where the original supply put it up (F-TAX-014).
+    const plainCounterSide = direction === 'output' ? 'debit' : 'credit';
+    const counterSide = reduction ? (plainCounterSide === 'debit' ? 'credit' : 'debit') : plainCounterSide;
     const netLines = Array.isArray(expansion.netLines) ? expansion.netLines : [];
     const taxLines = Array.isArray(expansion.taxLines) ? expansion.taxLines : [];
 
     const lines: Array<Record<string, unknown>> = [
       {
         account: counterAccount,
-        side: direction === 'output' ? 'debit' : 'credit',
+        side: counterSide,
         money: expansion.grossTotal,
       },
       ...netLines,
