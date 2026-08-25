@@ -169,17 +169,26 @@ final readonly class PostVoucherService
             'serviceDate' => $voucher->taxDate()->iso,
             'taxCode' => $input['taxCode'] ?? null,
             'direction' => $input['direction'] ?? 'output',
+            'reduction' => $input['reduction'] ?? false,
             'netLines' => $input['netLines'] ?? [],
         ]);
 
         $direction = ($input['direction'] ?? null) === 'input' ? 'input' : 'output';
+        $reduction = ($input['reduction'] ?? false) === true;
         $counterAccount = is_string($input['counterAccount'] ?? null) ? $input['counterAccount'] : '';
+
+        // The gross side mirrors with everything else: a reduction gives money back, so a
+        // receivable goes down where the original supply put it up (F-TAX-014).
+        $counterSide = $direction === 'output' ? 'debit' : 'credit';
+        if ($reduction) {
+            $counterSide = $counterSide === 'debit' ? 'credit' : 'debit';
+        }
 
         /** @var list<array<string, mixed>> $lines */
         $lines = [
             [
                 'account' => $counterAccount,
-                'side' => $direction === 'output' ? 'debit' : 'credit',
+                'side' => $counterSide,
                 'money' => $expansion['grossTotal'],
             ],
         ];

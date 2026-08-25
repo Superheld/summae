@@ -40,6 +40,9 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     voucher: { type: 'object', required: true },
     taxCode: { type: 'string' },
     direction: { type: 'string' },
+    // Books the MIRROR of the taxed posting `direction` describes, tagged so the reporting key goes
+    // down instead of up (F-TAX-014).
+    reduction: { type: 'boolean' },
     netLines: { type: 'array' },
     lines: { type: 'array' },
     counterAccount: { type: 'string' },
@@ -128,6 +131,7 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     date: { type: 'date', required: true },
     serviceDate: { type: 'date' },
     direction: { type: 'string' },
+    reduction: { type: 'boolean' },
     taxCode: { type: 'string' },
     netLines: { type: 'array', required: true },
   },

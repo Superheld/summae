@@ -1,4 +1,5 @@
-import type { JournalRepository } from '../../port.js';
+import type { AuditTrail, JournalRepository } from '../../port.js';
+import { entryAuthors } from './entry-authors.js';
 import { CalendarDate } from '../../substrate/calendar-date.js';
 import type { Clock } from '../../substrate/clock.js';
 
@@ -17,11 +18,24 @@ import type { Clock } from '../../substrate/clock.js';
  *
  * The projection reports; it never blocks. Which age is too old, and what happens then, is
  * the embedding application's workflow — the library supplies the number.
+ *
+ * Each row carries `actor` (F-CORE-037): who recorded the posting. This is the projection a
+ * separation-of-duties check reads — "nobody may finalize a batch containing their own postings" —
+ * and without the author it was the one question it could not ask here, so an application read the
+ * whole audit trail per finalization and rebuilt the mapping itself. See `entryAuthors`.
  */
 export class UnfinalizedEntriesProjection {
   constructor(
     private readonly journal: JournalRepository,
     private readonly clock: Clock,
+    /**
+     * Where the author of a posting lives — the entry itself does not carry one.
+     *
+     * Required, not optional-with-a-default. An optional dependency is how three services in the
+     * database factory lost their audit writer and nobody noticed for a release: nothing fails to
+     * compile, nothing warns, the output is merely poorer in one setup.
+     */
+    private readonly audit: AuditTrail,
   ) {}
 
   compute(params: Record<string, unknown>): Record<string, unknown> {
@@ -33,6 +47,7 @@ export class UnfinalizedEntriesProjection {
     const fiscalYear = typeof params.fiscalYear === 'number' ? params.fiscalYear : null;
 
     const source = fiscalYear === null ? this.journal.all() : this.journal.forFiscalYear(fiscalYear);
+    const authors = entryAuthors(this.audit);
     const entries: Array<Record<string, unknown>> = [];
     let oldestAgeInDays = 0;
 
@@ -50,6 +65,7 @@ export class UnfinalizedEntriesProjection {
         period: entry.periodRef.period,
         ageInDays,
         text: entry.text(),
+        actor: authors.get(entry.id.value) ?? null,
       });
       if (ageInDays > oldestAgeInDays) oldestAgeInDays = ageInDays;
     }

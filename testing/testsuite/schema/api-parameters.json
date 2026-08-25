@@ -29,6 +29,10 @@
       "voucher": { "type": "object", "required": true },
       "taxCode": { "type": "string" },
       "direction": { "type": "string" },
+      "reduction": {
+        "type": "boolean",
+        "$comment": "Books the MIRROR of the taxed posting `direction` describes, tagged so the reporting key goes down instead of up — a consideration reduction after the fact (cash discount, credit note, price reduction; § 17 UStG in the DE pack). Law-free: WHETHER a given reduction changes the taxable base is the pack's and the caller's business, mirroring a taxed posting is mechanism. It was reachable before only by hand-writing a `taxTag` with a negative `baseMoney` onto a plain `post`, which is library-internal knowledge and a reporting key on the caller's screen."
+      },
       "netLines": { "type": "array" },
       "lines": { "type": "array" },
       "counterAccount": { "type": "string" },
@@ -117,6 +121,7 @@
       "date": { "type": "date", "required": true },
       "serviceDate": { "type": "date" },
       "direction": { "type": "string" },
+      "reduction": { "type": "boolean" },
       "taxCode": { "type": "string" },
       "netLines": { "type": "array", "required": true }
     },

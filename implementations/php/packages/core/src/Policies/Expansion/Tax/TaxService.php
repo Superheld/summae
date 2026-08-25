@@ -77,6 +77,28 @@ final readonly class TaxService
             );
         }
         $direction = $rawDirection === 'input' ? 'input' : 'output';
+
+        /**
+         * A consideration reduction after the fact (F-TAX-014).
+         *
+         * `true` books the **mirror** of the posting `direction` describes and tags it so the
+         * reporting key goes *down*: the net line and the tax line swap sides, and the tag carries a
+         * negative base. Nothing else changes — same code, same version, same reporting key, because
+         * a reduction of a taxed supply belongs in the key the supply was reported under.
+         *
+         * Law-free, which is why it is a flag here and not a mechanism in the closed repertoire:
+         * *whether* a discount, a credit note or a price reduction changes the taxable base is
+         * jurisdiction law and the caller's decision — the DE pack answers it one way, another pack may
+         * answer it differently; *mirroring a taxed posting* is mechanism and identical everywhere.
+         *
+         * It was reachable before, and only this way: a plain `post` with a hand-written `taxTag`
+         * carrying a negative `baseMoney` — see the fixture `core/settlement-discount`, which has
+         * pinned exactly that since v0.4. That path asks the caller to know the tag shape, the
+         * applied rule version and the reporting key, which is library-internal knowledge and a
+         * German form number on an application's screen. An embedding reported the case as
+         * unbuildable for precisely that reason.
+         */
+        $reduction = ($input['reduction'] ?? false) === true;
         $defaultCode = is_string($input['taxCode'] ?? null) ? $input['taxCode'] : null;
 
         $rawLines = is_array($input['netLines'] ?? null) ? array_values($input['netLines']) : [];
@@ -134,12 +156,25 @@ final readonly class TaxService
             $netTotal = $netTotal->add($line['money']);
         }
 
+        // The side every line of this expansion sits on. One place, because a reduction flips ALL
+        // of them together — a mirror with one line left standing is an unbalanced entry at best
+        // and a wrong VAT return at worst.
+        $lineSide = $direction === 'output' ? 'credit' : 'debit';
+        if ($reduction) {
+            $lineSide = $lineSide === 'credit' ? 'debit' : 'credit';
+        }
+
+        // The tag's base is what `vatReturn` adds to the reporting key, and it is signed there by
+        // the tag rather than by the line's side. So a reduction carries a negative base — the same
+        // convention `core/settlement-discount` has pinned by hand since v0.4.
+        $tagBase = fn (Money $base): Money => $reduction ? $base->negate() : $base;
+
         // Small business: no tax, no tags.
         if ($this->profile->smallBusinessAt($date)) {
             return [
                 'netLines' => array_map(static fn (array $line): array => [
                     'account' => $line['account'],
-                    'side' => $direction === 'output' ? 'credit' : 'debit',
+                    'side' => $lineSide,
                     'money' => $line['money']->jsonSerialize(),
                     'taxTag' => null,
                     'dimensions' => $line['dimensions'],
@@ -149,7 +184,7 @@ final readonly class TaxService
             ];
         }
 
-        $sideFor = $direction === 'output' ? 'credit' : 'debit';
+        $sideFor = $lineSide;
 
         // perLine (pack parameter): round tax per line, one tax line per
         // line. Standard mechanism only (perLine not combined with RC/IC).
@@ -159,7 +194,7 @@ final readonly class TaxService
             $resultNetLines = [];
             foreach ($netLines as $line) {
                 $version = $versions[$line['code']];
-                $tag = $this->tag($line['code'], $version, $version->reportingKey, $line['money']);
+                $tag = $this->tag($line['code'], $version, $version->reportingKey, $tagBase($line['money']));
                 $tax = Money::fromCalculation(
                     BigDecimal::of($line['money']->amountAsString())
                         ->multipliedBy(BigDecimal::of($version->rate))
@@ -211,8 +246,8 @@ final readonly class TaxService
                 $this->baseCurrency,
             );
 
-            $mainSide = $direction === 'output' ? 'credit' : 'debit';
-            $tag = fn (?string $reportingKey): array => $this->tag($code, $version, $reportingKey, $base);
+            $mainSide = $lineSide;
+            $tag = fn (?string $reportingKey): array => $this->tag($code, $version, $reportingKey, $tagBase($base));
             $contribution = TaxMechanisms::mechanismFor($version->mechanism)->contribute(
                 $version,
                 $tax,
@@ -230,7 +265,7 @@ final readonly class TaxService
         return [
             'netLines' => array_map(static fn (array $line): array => [
                 'account' => $line['account'],
-                'side' => $direction === 'output' ? 'credit' : 'debit',
+                'side' => $lineSide,
                 'money' => $line['money']->jsonSerialize(),
                 'taxTag' => $baseTags[$line['code']] ?? null,
                 'dimensions' => $line['dimensions'],

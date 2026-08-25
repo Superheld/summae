@@ -12,6 +12,53 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### Four findings from the embedding application (F-TAX-014, F-CORE-037, F-IO-011)
+
+The app's `FINDINGS.md` had four entries open. One closed with the tenant-configuration read side
+earlier in this release; the other three are here, and the first of them was not the wall it looked
+like.
+
+**A consideration reduction reaches the VAT return through the ordinary API** (F-TAX-014).
+`postVoucher`/`expandTax` take **`reduction: true`**: every line swaps sides — net, tax and the
+gross contra line — and the tag carries a negative base, so the reporting key the supply was
+reported under goes *down*. Same code, same rule version, same key; a reduction of a taxed supply
+belongs in that key rather than in one of its own. A flag rather than a mechanism in the closed
+repertoire, and deliberately: *whether* a cash discount, a credit note or a price reduction changes
+the taxable base is jurisdiction law and the caller's decision (§ 17 UStG under the DE pack), while
+*mirroring a taxed posting* is mechanism and identical everywhere.
+
+The case was **already reachable**, which is the part worth stating plainly: a plain `post` with a
+hand-written `taxTag` carrying a negative `baseMoney` does it, and `core/settlement-discount` has
+pinned exactly that since v0.4. The application reported it as unbuildable because nothing said so —
+`taxTag` appeared in the manual as "(object, no)", with no shape, no explanation that `vatReturn`
+counts only tagged lines, and no word about the sign convention. That is a documentation defect
+wearing a missing-feature costume. The manual now documents the field, and `reduction: true` exists
+so nobody needs it: the old path asks the caller for the tag shape, the applied rule version and the
+reporting key — library internals plus a German form number on an application's screen.
+
+**`ecSalesList` reports what it cannot report** (F-IO-011). A supply whose partner has no VAT ID
+produced no row and no warning: two postings, one with a VAT ID and one without, and the answer was
+one row and nothing else. That is the dangerous direction — without the recipient's VAT ID the
+supply is not exempt in the first place, so what dropped out was exactly the wrong case. New
+`gapWarnings[]`, same shape as `vatReturn`'s, with `partner_without_vat_id` and
+`supply_without_partner` told apart because the fix differs. The decision now happens on the
+*line* — is this tagged as an intra-community supply — before the partner is looked at; deciding it
+afterwards is what made a missing VAT ID indistinguishable from a posting that never was one.
+
+**`journal` and `unfinalizedEntries` carry `actor`** (F-CORE-037) — who recorded the posting. The
+entry has no author; the fact lives in the audit trail and nowhere else, so an application checking
+**separation of duties** ("nobody may finalize a batch containing their own postings") read the
+entire trail on every finalization and rebuilt the mapping itself: a check that scales with the age
+of the books rather than the size of the batch. The trail stays the single source — the author is
+deliberately *not* copied onto the append-only entry, where it could never be corrected. Honest
+limit: building the map still reads the whole trail, because the audit port answers `all()` and the
+store keeps `objectType`/`action` inside a JSON payload. The walk moved into the library, where one
+map serves the whole projection; it did not become a database query, and making it one needs
+indexed columns the idempotent installer cannot yet add.
+
+New fixtures `tax/consideration-reduction`, `core/ec-sales-list-gap-warnings` and
+`core/entry-author`, red before the change in both languages.
+
 ### The audit trail is audit-capable (F-CORE-014, F-CORE-036)
 
 Four findings of one shape, from a pass over everything that touches the trail: it was written

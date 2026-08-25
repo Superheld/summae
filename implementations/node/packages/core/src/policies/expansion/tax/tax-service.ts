@@ -105,6 +105,29 @@ export class TaxService {
       });
     }
     const direction = rawDirection === 'input' ? 'input' : 'output';
+
+    /**
+     * A consideration reduction after the fact (F-TAX-014).
+     *
+     * `true` books the **mirror** of the posting `direction` describes and tags it so the reporting
+     * key goes *down*: the net line and the tax line swap sides, and the tag carries a negative
+     * base. Nothing else changes — same code, same version, same reporting key, because a reduction
+     * of a taxed supply belongs in the key the supply was reported under.
+     *
+     * Law-free, which is why it is a flag here and not a mechanism in the closed repertoire:
+     * *whether* a discount, a credit note or a price reduction changes the taxable base is
+     * jurisdiction law and the caller's decision — the DE pack answers it one way, another pack may
+     * answer it differently; *mirroring a taxed
+     * posting* is mechanism and identical everywhere.
+     *
+     * It was reachable before, and only this way: a plain `post` with a hand-written `taxTag`
+     * carrying a negative `baseMoney` — see the fixture `core/settlement-discount`, which has
+     * pinned exactly that since v0.4. That path asks the caller to know the tag shape, the applied
+     * rule version and the reporting key, which is library-internal knowledge and a German form
+     * number on an application's screen. An embedding reported the case as unbuildable for
+     * precisely that reason.
+     */
+    const reduction = input.reduction === true;
     const defaultCode = asString(input.taxCode);
 
     const rawLines = Array.isArray(input.netLines) ? input.netLines : [];
@@ -141,7 +164,16 @@ export class TaxService {
     let netTotal = Money.zero(this.baseCurrency);
     for (const line of netLines) netTotal = netTotal.add(line.money);
 
-    const sideFor = direction === 'output' ? 'credit' : 'debit';
+    // The side every line of this expansion sits on. One place, because a reduction flips ALL of
+    // them together — a mirror with one line left standing is an unbalanced entry at best and a
+    // wrong VAT return at worst.
+    const plainSide = direction === 'output' ? 'credit' : 'debit';
+    const sideFor = reduction ? (plainSide === 'credit' ? 'debit' : 'credit') : plainSide;
+
+    // The tag's base is what `vatReturn` adds to the reporting key, and it is signed there by the
+    // tag rather than by the line's side. So a reduction carries a negative base — the same
+    // convention `core/settlement-discount` has pinned by hand since v0.4.
+    const tagBase = (base: Money): Money => (reduction ? base.negate() : base);
 
     if (this.profileValue.smallBusinessAt(date)) {
       return {
@@ -164,7 +196,7 @@ export class TaxService {
       let grossTotal = netTotal;
       const lineTags = netLines.map((line) => {
         const version = versions.get(line.code)!;
-        const tag = this.tag(line.code, version, version.reportingKey, line.money);
+        const tag = this.tag(line.code, version, version.reportingKey, tagBase(line.money));
         const tax = Money.fromCalculation(
           new Big(line.money.amountAsString()).times(version.rate).div(100),
           this.baseCurrency,
@@ -209,7 +241,7 @@ export class TaxService {
         version,
         tax,
         outputSide: sideFor,
-        tag: (reportingKey) => this.tag(code, version, reportingKey, base),
+        tag: (reportingKey) => this.tag(code, version, reportingKey, tagBase(base)),
         zero: Money.zero(this.baseCurrency),
       });
       for (const line of contribution.taxLines) taxLines.push(line);
