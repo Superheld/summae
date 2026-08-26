@@ -22,15 +22,103 @@ table there. Moving it is the entire bookkeeping — the split is by *state*, an
 once. That is also why this is not the old per-language split: that one duplicated the same text in
 two places and drifted (SPEC-014 did, in the open).
 
-## Nothing open
+## IMPL-031 — the pack docs describe a product that does not exist
 
-As of 2026-08-25 there is no undecided finding. That is a state, not an achievement: this register
-is empty roughly as often as it is full, and the useful reading of an empty one is *"the last pass
-closed what it opened"*, never *"there is nothing to find."* Everything that was open — SPEC-016,
-SPEC-017, SPEC-018 and SPEC-019 — is in
-[`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Two of them
-were closed by the same pass that made the third possible, and one of them says plainly that its own
-proposal had been wrong.
+**Found 2026-08-26**, while repairing the balance-sheet mappings (IMPL-030) and looking for
+every place that had to be corrected with them.
 
-The next one goes here.
+`knowledge/99-pack-docs/` documents each shipped module, position by position. Two of those
+documents describe mappings that do not match what the pack ships — not in a detail, in the
+structure:
 
+| | doc says | pack ships |
+|---|---|---|
+| `de` balance sheet | positions `A`, `B.I`, `B.II`, `B.III` / `A`, `C.1`, `C.2`, `C.3`; `includesNetIncome` "an der EK-Wurzel" | `A.I`–`A.V` / `P.A1`, `P.A2`, `P.C`, `P.D`; `includesNetIncome` on its own position |
+| `us` balance sheet | `L.F` = 2000–2499, `L.A` = 3000–3099 | `L.F` = 3000–3999, `L.A` = 2000–2099 — the two sides of the chart are swapped |
+
+These read as design notes written before the mapping was built and never reconciled. Only the
+two balance-sheet modules were checked; the same is likely true of others, so **the finding is
+the class, not the two files**.
+
+Deliberately not fixed alongside IMPL-030: patching the one line that my change made stale would
+have suggested the rest was sound. What is needed is a pass over `99-pack-docs/` against the
+shipped modules — and then the question of what keeps them in step, since nothing does today. The
+mapping data is machine-readable and the tables are not, which is the whole reason they drifted.
+
+## IMPL-032 — the `default` pack cannot produce a balance sheet, and does not say so
+
+**Found 2026-08-26** while checking whether IMPL-030 affected all three shipped packs.
+
+It does not, because `default` ships **no mapping module at all** — no balance sheet, no income
+statement, no cash-basis categories. It does ship the accounts they would need, including `2300
+Ergebnisverwendung`. `balanceSheet` requires `mapping`, so on a `default` tenant every statement
+projection fails with `E_INPUT_INVALID` until the embedding imports a mapping of its own.
+
+That may well be the intent — `default` is the account-bearing neutral pack, and a jurisdiction-free
+chart has no lawful statement layout to ship. But nothing states it: the pack's README does not, the
+manual does not, and the failure a caller meets is a missing-parameter error rather than "this pack
+ships no statements". A walkthrough scenario exists for `default` and simply never asks for one.
+
+Two ways out, and they are not exclusive: say it where a reader looks (pack README + the manual's
+pack table), and/or let a pack declare which projections it equips, so the answer comes from data
+instead of from an error. The second is the same shape as `packPolicy.vatPeriods` (SPEC-016).
+
+## SPEC-020 — `actorIsAuthenticated` can only ever be `false`, and it reads as a claim about the installation
+
+**Reported from outside 2026-08-25** by the embedding application (its F-30), against 0.13.0. Not
+yet decided.
+
+`systemDescription.auditTrail.actorIsAuthenticated` is a constant `false`
+(`system-description.ts`, `SystemDescriptionProjection.php`). No constructor argument, no operation
+and no configuration sets it, so no embedding can make it say anything else.
+
+Read as *"this library does not authenticate anybody"* that is exactly right — summae is handed an
+`actor` string and cannot know where it came from. The trouble is what the field is **used for**:
+the reporting app puts it into the generated Verfahrensdokumentation under obligation A-1, as
+"Urheber geprüft: **nein**". Since that app grew a login (scrypt, signed session cookie, a gate
+nothing passes but the login screen), the document tells an auditor that the identity behind every
+entry is unverified about an installation where it is verified. An understatement in a compliance
+document is cheaper than an overstatement, and it is not free.
+
+**Two options, from the report, and they are not exclusive.** (1) A way to tell the library — a
+declaration alongside the actor, so `systemDescription` reports what the embedding actually does;
+summae would still authenticate nobody, it would be reporting a fact only the embedding can state.
+(2) A field that cannot go stale — `libraryAuthenticatesActor: false` never becomes wrong, and a
+generator reading it knows not to turn it into a statement about the installation.
+
+Explicitly **not** wanted by the reporter: the app asserting "ja" on its own. The technical part of
+that document is generated for exactly one reason — a hand-written technical description is the part
+that quietly stops matching the software.
+
+Note a home already exists for (1): since SPEC-015 a tenant's configuration is stored and reported
+(`tenantConfiguration`), and a declaration by the embedding is the same shape as the four things it
+already carries. The open question is whether a declaration summae cannot verify belongs in a
+document whose value is that it is *read* rather than written, and if so, how it must be worded so it
+reads as a declaration and not as a finding.
+
+## SPEC-021 — `accountSheet` lines cannot reach their own entry
+
+**Reported from outside 2026-08-25** by the embedding application (its F-31), against 0.13.0. Not
+yet decided.
+
+`accountSheet` returns per line: `sequenceNumber`, `entryDate`, `text`, `side`, `money`,
+`runningBalance` and the reversal fields. No `entryId`, and no counter accounts. The projection is
+an extract of **one** account and knows nothing about the other lines of the entries it is made of,
+which is correct as a definition and means a T-account cannot show its own contra side — the
+question every account sheet raises is "6000 in debit, against what?".
+
+The way there today is `journal` with `fromDate` and `toDate` set to the same day, then filtering
+the day's entries by `sequenceNumber`: a search where a lookup belongs, for an entry whose identity
+the caller had two fields ago.
+
+**Two asks, the first alone would do it.** (1) `entryId` on `accountSheet[].lines[]` — the same
+identity `journal` publishes (`journal.ts`) and the trail records; the sheet is built from those
+entries and drops it. (2) `contraAccounts` per line — the accounts on the other side of the same
+entry. For a simple entry that is one; with a tax code it is two or more, and a screen showing "the"
+counter account would be inventing a fact, so a list is the honest shape.
+
+Cheap, and cheaper than it looks: the runner compares **subsets** (`comparator.ts`), so a new field
+on an object turns no existing fixture red. What is undecided is the shape of (2), not whether (1)
+is right.
+
+## The next one goes here.

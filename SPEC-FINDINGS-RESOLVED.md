@@ -108,6 +108,7 @@ a short file.
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | ✅ **RESOLVED 2026-08-25** — `AuditTrail::find(criteria)` pushes the filters into SQL by reading the JSON payload (`json_extract` / `->>`), so no column and no migration; `EntryAuthors` asks for the ids on the page. The entry's own proposal was wrong and says so: columns would have needed a data migration nothing here can run. An index is what is left |
 | SPEC-019 the documentation gate reaches names, not meanings | ✅ **RESOLVED 2026-08-25** — every input key the contract declares, at any depth, must be named in the manual section that accepts it. Unblocked by SPEC-017, which gave the contract the key list. Found 46 undocumented keys, including the whole voucher and overhead-rate vocabulary |
+| IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -119,6 +120,64 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### IMPL-030 — both shipped packs hid the appropriation entry from the balance sheet — RESOLVED
+
+**Reported from outside 2026-08-25** by the embedding application (its F-32), measured against
+0.12.0: *"the result of a year is never carried forward, and the next year's balance sheet says it
+was."* Books with three entries and a result of 900.00 —
+
+```
+incomeStatement 2027 → netIncome 0.00, positions []
+balanceSheet    2027 → P.A2 "Jahresergebnis" 900.00
+journal         2027 → count 0
+```
+
+— two reports of the same empty year, disagreeing. The report proposed carrying the result at
+`closeFiscalYear`, or failing that a balance sheet that distinguishes this year's result from what
+was carried in.
+
+**Both proposals were wrong, and the second was nearly right.** The engine has been correct since
+v0.3 and says so in `api.md`: a balance sheet is a snapshot, the `includesNetIncome` position holds
+the **cumulative** result, and that is precisely what makes it balance without closing entries —
+the same deliberate choice that makes the carry-forward implicit for *every* balance-carrying
+account. Carrying the result by posting would have made the result the one exception.
+
+And distinguishing the two was already built, in v0.4, as F-CORE-024/SF-25: appropriating profit is
+a **resolution**, not a calculation (§ 29 GmbHG, § 174 AktG — distribute, reserve or carry forward
+is not a library's decision), so it arrives as an ordinary entry, `result_allocation` account
+against retained earnings, and the position then reports the result *not yet appropriated*. The
+packs even ship the accounts: `de` 2300/2100, `us` 3300/3100.
+
+**What was actually broken was the product data.** `de-bilanz` claimed 2000–2499 wholesale, which
+swallowed 2300 next to 2100; `us-gaap-balance-sheet` claimed 3000–3999, swallowing 3300 next to
+3100. The two lines of a correct resolution therefore cancelled each other *inside one position*.
+Measured on the shipped `de` pack:
+
+```
+post 2300 → 2100  900.00        (the documented path, booked correctly)
+balanceSheet 2027 → P.A1 0.00 | P.A2 "Jahresergebnis" 900.00     ← unchanged
+```
+
+The only visible effect of a correct entry was a new zero row. With the range cut around the
+account and nothing else altered, the same books report `P.A1 900.00 | P.A2 0.00`, and 2026 is
+untouched.
+
+**Why nothing caught it, which is the part worth keeping.** The schema validates shape, not
+meaning. `PackCompletenessTest` checked that profit-and-loss accounts are assigned, which a balance
+sheet legitimately does not do. And every fixture covering SF-25 brings a **mapping of its own**
+that gets it right — mechanism proven on inline data says nothing about the data shipped with the
+product. Both gaps are closed: the completeness guard now requires each `result_allocation` account
+to sit in the result position and nowhere else (verified red against the old mapping in both
+languages), and `de-profit-appropriation` drives the path over the shipped pack, dating the
+resolution in the *following* fiscal year — which is also why `closeFiscalYear` could never have
+done this on anyone's behalf.
+
+`E_MAPPING_OVERLAP` is why the repair is a cut rather than an addition, and presumably why it was
+missed: adding the account to the result position without cutting the wholesale range is an error.
+
+Left open by this finding, recorded separately: the pack documentation describing these mappings is
+stale in its own right (IMPL-031), and the `default` pack ships no mapping at all (IMPL-032).
 
 ### IMPL-026 — a yearly run before a mid-year disposal left the asset account below zero — RESOLVED
 

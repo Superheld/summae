@@ -616,6 +616,13 @@ Nodes with `children[]` are resolved recursively; leaves carry `accounts[]`
 | `positions[].accounts[]` | list | account selectors |
 | `positions[].includeNonCash` / `includesNetIncome` | bool | cash-basis / balance-sheet flags |
 
+Exactly one leaf of a balance-sheet mapping carries `includesNetIncome`, and that
+leaf must also claim the chart's `result_allocation` accounts — otherwise an
+appropriation entry cancels itself out inside whatever position swallowed the
+account, and the balance sheet reports an appropriated result as unappropriated.
+A wholesale range around the equity accounts usually has to be cut around it,
+since a number in two positions is `E_MAPPING_OVERLAP`.
+
 ```json
 "mappings": [
   { "id": "test-bilanz", "kind": "balance-sheet", "version": "1",
@@ -1948,7 +1955,20 @@ i.e. "as at the end of fiscal year N", not "movements of year N". A balance shee
 is a snapshot and has to balance — `trialBalance`'s rule that income accounts
 restart each year would tear a hole exactly the size of the prior year's result,
 because summae writes no closing entries (`closeFiscalYear` is a pure status
-change) and that result was therefore never carried into equity.
+change) and that result is not carried into equity on its own.
+
+**Carrying the result forward is an entry you make, not something the close does.**
+Appropriating profit is a resolution — who decides, and whether the result is
+distributed, put into reserves or carried forward, is not something a library can
+know — so it arrives as an ordinary posting: the pack's `result_allocation`
+account against retained earnings or a distribution liability (`de`: `2300` to
+`2100`; `us`: `3300` to `3100`). The position with `includesNetIncome` reports the
+**cumulative result minus the balance of the `result_allocation` accounts**, i.e.
+the result *not yet appropriated*, so the amount moves out of it and into equity
+the moment you book the resolution. Book it with the date of the resolution, which
+usually falls in the following fiscal year. Until you do, the position keeps
+reporting the accumulated result of every year since the books opened — which is
+correct, and is why its label should not promise "this year".
 
 **Uncovered accounts stay visible**, as in `incomeStatement`: a `_unassigned`
 position per section (label `Unassigned`) plus `gapWarnings[]` — which is what

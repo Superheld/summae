@@ -162,6 +162,103 @@ final class PackCompletenessTest extends TestCase
         );
     }
 
+    /**
+     * A result-allocation account belongs to the position that carries the result — and to no other.
+     *
+     * The appropriation of profit is a resolution, not a calculation, so summae does not post it on
+     * anyone's behalf: the decision arrives as an ordinary entry, `result_allocation` account against
+     * retained earnings or a distribution liability (`datenformat.md`, F-CORE-024/SF-25). The balance
+     * sheet then subtracts that account's balance from the position with `includesNetIncome`, which
+     * is what makes the position mean "the result not yet appropriated".
+     *
+     * That only works if the mapping puts the account there. Both shipped packs put it somewhere
+     * else, and neither the schema nor a single fixture could see it, because a fixture brings a
+     * mapping of its own that gets it right. The effect was that the appropriation entry cancelled
+     * itself out INSIDE the equity position it had wrongly landed in: `de-bilanz` claimed 2000–2499
+     * wholesale, which swallowed 2300 next to the retained-earnings account 2100, and
+     * `us-gaap-balance-sheet` claimed 3000–3999, swallowing Income Summary 3300 next to Retained
+     * Earnings 3100. Book the resolution correctly and the balance sheet did not move — the result
+     * stayed labelled as this year's for every year that followed, and the only visible effect of a
+     * correct entry was a new zero row.
+     *
+     * `E_MAPPING_OVERLAP` is why the repair is not "add the account": a wholesale range has to be cut
+     * around it, which is presumably how it was missed in the first place.
+     */
+    public function testResultAllocationAccountsSitInThePositionThatCarriesTheResult(): void
+    {
+        $violations = [];
+
+        foreach ($this->packs() as $pack => $dir) {
+            $allocationAccounts = [];
+            foreach ($this->accountsOf($dir) as $account) {
+                $number = $account['number'] ?? null;
+                if (is_string($number) && ($account['subtype'] ?? null) === 'result_allocation') {
+                    $allocationAccounts[] = $number;
+                }
+            }
+
+            if ($allocationAccounts === []) {
+                continue;
+            }
+
+            foreach ($this->mappingsOf($dir) as $file => $mapping) {
+                if (($mapping['kind'] ?? null) !== 'balance-sheet') {
+                    continue;
+                }
+
+                $positions = [];
+                $this->collectPositions($mapping, $positions);
+
+                $result = null;
+                foreach ($positions as $position) {
+                    if ($position['includesNetIncome']) {
+                        $result = $position['key'];
+                    }
+                }
+
+                if ($result === null) {
+                    $violations[] = sprintf(
+                        '%s (%s): balance sheet has no position with includesNetIncome — the result lands nowhere',
+                        $pack,
+                        $file,
+                    );
+                    continue;
+                }
+
+                foreach ($allocationAccounts as $account) {
+                    $claiming = [];
+                    foreach ($positions as $position) {
+                        if (in_array($account, $position['accounts'], true)) {
+                            $claiming[] = $position['key'];
+                        }
+                    }
+
+                    if ($claiming === [$result]) {
+                        continue;
+                    }
+
+                    $violations[] = sprintf(
+                        '%s (%s): %s is claimed by %s, not by %s which carries the result',
+                        $pack,
+                        $file,
+                        $account,
+                        $claiming === [] ? 'no position' : implode(', ', $claiming),
+                        $result,
+                    );
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $violations,
+            "An appropriation entry booked against a result-allocation account outside the result\n"
+                . "position cancels itself out and leaves the balance sheet reporting an appropriated\n"
+                . "result as unappropriated:\n"
+                . implode("\n", $violations),
+        );
+    }
+
     /** @return array<string, string> pack name => directory */
     private function packs(): array
     {
@@ -265,6 +362,36 @@ final class PackCompletenessTest extends TestCase
 
         foreach ($node as $child) {
             $this->collect($child, $covered);
+        }
+    }
+
+    /**
+     * Every position node of a mapping, with the account numbers it claims. `coveredAccounts`
+     * answers "does the mapping cover this account at all"; the rule above needs to know *which*
+     * position does.
+     *
+     * @param mixed                                                                 $node
+     * @param list<array{key: string, accounts: list<string>, includesNetIncome: bool}> $positions
+     */
+    private function collectPositions(mixed $node, array &$positions): void
+    {
+        if (!is_array($node)) {
+            return;
+        }
+
+        $key = $node['key'] ?? null;
+        if (is_string($key) && (is_array($node['accounts'] ?? null) || ($node['includesNetIncome'] ?? null) === true)) {
+            $covered = [];
+            $this->collect(['key' => $key, 'accounts' => is_array($node['accounts'] ?? null) ? $node['accounts'] : []], $covered);
+            $positions[] = [
+                'key' => $key,
+                'accounts' => array_values(array_unique($covered)),
+                'includesNetIncome' => ($node['includesNetIncome'] ?? null) === true,
+            ];
+        }
+
+        foreach ($node as $child) {
+            $this->collectPositions($child, $positions);
         }
     }
 }

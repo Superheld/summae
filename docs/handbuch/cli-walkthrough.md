@@ -360,7 +360,7 @@ summae report balanceSheet    --params '{"fiscalYear":2026,"mapping":"de-bilanz"
 {"positions":[{"key":"1","label":"Umsatzerlöse","amount":"1000.00"}, …],"netIncome":"1000.00"}
 {"assets":[{"key":"A.III","label":"Kassenbestand und Guthaben bei Kreditinstituten","amount":"1190.00"}, …],
  "assetsTotal":"1190.00",
- "liabilitiesAndEquity":[{"key":"P.A2","label":"Jahresergebnis","amount":"1000.00"},
+ "liabilitiesAndEquity":[{"key":"P.A2","label":"Jahresergebnis / nicht verwendete Ergebnisse","amount":"1000.00"},
                          {"key":"P.C","label":"Verbindlichkeiten","amount":"190.00"}],
  "liabilitiesAndEquityTotal":"1190.00"}
 ```

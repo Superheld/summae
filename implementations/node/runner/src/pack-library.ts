@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { PackManifest, PackModule } from '@superheld/summae-core';
 import { repoRoot } from './fixture-loader.js';
 
-/** Home of the shipped pack library in the repo (mirrored from the knowledge base). */
+/** Home of the shipped pack library in the repo (authored here since 2026-08-26). */
 export const packLibraryDir = join(repoRoot, 'pack-library');
 
 export interface PackLibrary {
