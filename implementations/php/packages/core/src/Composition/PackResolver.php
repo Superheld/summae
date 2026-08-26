@@ -20,7 +20,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -180,6 +180,7 @@ final class PackResolver
         $depreciation = null;
         /** @var array<mixed>|null $productionCost */
         $productionCost = null;
+        $resultAppropriation = null;
         /** @var list<array<mixed>> $dimensionRules */
         $dimensionRules = [];
         /** @var array<mixed>|null $packPolicyModule */
@@ -234,6 +235,9 @@ final class PackResolver
                     break;
                 case 'productionCost':
                     $productionCost = $data;
+                    break;
+                case 'resultAppropriation':
+                    $resultAppropriation = $data;
                     break;
                 case 'constraint':
                     // Constraints add up rather than replace: two modules may each contribute rules,
@@ -294,6 +298,25 @@ final class PackResolver
                 }
             }
         }
+        // I8: the appropriation module names accounts that exist — the allocation account and
+        // every target it offers. A target pointing at nothing would fail at posting time, deep
+        // inside an operation, instead of when the pack is composed.
+        if ($resultAppropriation !== null) {
+            $allocation = self::str($resultAppropriation['allocationAccount'] ?? null);
+            if ($allocation === null || !isset($accountNumbers[$allocation])) {
+                throw new DomainError('E_PACK_UNRESOLVED_REF', 'resultAppropriation.allocationAccount without account (I8)');
+            }
+            $targets = is_array($resultAppropriation['targets'] ?? null) ? $resultAppropriation['targets'] : [];
+            if ($targets === []) {
+                throw new DomainError('E_PACK_INCOHERENT', 'resultAppropriation without a single target (I8)');
+            }
+            foreach ($targets as $name => $target) {
+                $number = is_array($target) ? self::str($target['account'] ?? null) : null;
+                if ($number === null || !isset($accountNumbers[$number])) {
+                    throw new DomainError('E_PACK_UNRESOLVED_REF', 'resultAppropriation.targets.' . (string) $name . ' without account (I8)');
+                }
+            }
+        }
         // I2: every mapping selector hits >= 1 account.
         $numbers = array_keys($accountNumbers);
         foreach ($mappings as $mapping) {
@@ -339,6 +362,7 @@ final class PackResolver
             'assetAccounts' => $assetAccounts,
             'depreciation' => $depreciation,
             'productionCost' => $productionCost,
+            'resultAppropriation' => $resultAppropriation,
             'dimensionRules' => $dimensionRules,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
@@ -404,6 +428,9 @@ final class PackResolver
             // Not spread like depreciation: the CostingService reads it under its own key, because
             // "treatments" is a word another module could plausibly want too.
             'productionCost' => is_array($pack['productionCost'] ?? null) ? $pack['productionCost'] : null,
+            // The appropriation plug: which account the resolution books against, and which targets
+            // the jurisdiction offers. A pack that stays silent simply does not support the operation.
+            'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,
             // The first constraint plug: which accounts may not be posted without which dimension.
             'dimensionRules' => is_array($pack['dimensionRules'] ?? null) ? array_values($pack['dimensionRules']) : [],
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],

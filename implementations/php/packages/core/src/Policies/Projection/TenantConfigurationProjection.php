@@ -51,6 +51,15 @@ final readonly class TenantConfigurationProjection
         private DimensionRegistry $dimensions,
         private ?array $allocationScheme,
         private MappingRegistry $mappings,
+        /**
+         * Which appropriation targets the pack offers. Same reason as `dimensionRules`: it is the
+         * *pack's* answer, an embedding cannot derive it, and without it a screen offering "carry
+         * forward / distribute" would have to find out by provoking E_APPROPRIATION_UNSUPPORTED.
+         * Empty means the pack supports no appropriation at all.
+         *
+         * @var list<string>
+         */
+        private array $appropriationTargets,
     ) {
     }
 
@@ -72,6 +81,7 @@ final readonly class TenantConfigurationProjection
             'dimensionRules' => $this->dimensions->rulesData(),
             'allocationScheme' => $this->allocationScheme,
             'mappings' => $this->mappings->summaries(),
+            'appropriationTargets' => $this->appropriationTargets,
         ];
     }
 }

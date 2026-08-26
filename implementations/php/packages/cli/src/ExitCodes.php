@@ -83,6 +83,11 @@ final class ExitCodes
         // reaches one that keeps it has no solution at all. Refused, because there is no number to give
         // — cost that circulates forever is a modelling mistake, not a small residue.
         'E_COSTING_UNSOLVABLE',
+        // Appropriation of profit (v0.14.0). Two refusals that must not be confused: the pack does
+        // not offer this operation or this target at all, versus the books do not carry the amount.
+        // The first is answered by configuration, the second only by posting differently.
+        'E_APPROPRIATION_UNSUPPORTED',
+        'E_APPROPRIATION_EXCEEDS_RESULT',
     ];
 
     private function __construct()

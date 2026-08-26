@@ -38,7 +38,7 @@ import type { Uuid } from '../../substrate/uuid.js';
  * found. A surface larger than its declaration is the same defect as one smaller than it.
  */
 export const API_OPERATIONS = [
-   'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
+   'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
    'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
    'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',

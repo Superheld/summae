@@ -46,7 +46,7 @@ final readonly class SystemDescriptionProjection
      * @var list<string>
      */
     public const API_OPERATIONS = [
-        'acquireAsset', 'allocate', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
+        'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
         'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
         'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',

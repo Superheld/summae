@@ -1,68 +1,70 @@
 {
   "formatVersion": "0.6",
-  "id": "us",
-  "name": "United States — complete pack (own chart + sales/use tax + US-GAAP mappings + cash-basis Schedule C + MACRS)",
+  "id": "de",
+  "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
   "version": "2026.5",
   "modules": [
     {
       "kind": "accounts",
-      "id": "us-accounts-2026",
-      "version": "2026.1"
+      "id": "de-konten",
+      "version": "2026.3"
     },
     {
       "kind": "tax",
-      "id": "us-salestax-2026",
-      "version": "2026.2"
+      "id": "de-ust",
+      "version": "2026.4"
     },
     {
       "kind": "mapping",
-      "id": "us-gaap-balance-sheet",
-      "version": "2026.2"
+      "id": "de-bilanz",
+      "version": "2026.3"
     },
     {
       "kind": "mapping",
-      "id": "us-gaap-income-statement",
+      "id": "de-guv",
       "version": "2026.1"
     },
     {
       "kind": "mapping",
-      "id": "us-schedule-c-2026",
-      "version": "2026.2"
+      "id": "de-euer",
+      "version": "2026.4"
     },
     {
       "kind": "depreciation",
-      "id": "macrs-us",
-      "version": "2026.2"
+      "id": "de-afa",
+      "version": "2026.7"
     },
     {
       "kind": "assetAccounts",
-      "id": "us-asset-accounts",
+      "id": "de-assets",
       "version": "2026.1"
     },
     {
       "kind": "policy",
-      "id": "us-usd",
+      "id": "de-policy",
       "version": "2026.1"
     },
     {
       "kind": "productionCost",
-      "id": "us-inventory-costing",
-      "version": "2026.1"
-    },
-    {
-      "kind": "resultAppropriation",
-      "id": "us-appropriation",
+      "id": "de-herstellungskosten",
       "version": "2026.1"
     }
   ],
   "overrides": [],
   "taxCodes": [
-    "SALETAX",
-    "USETAX",
-    "EXEMPT"
+    "USt19",
+    "USt7",
+    "VSt19",
+    "VSt7",
+    "RC13b",
+    "igL",
+    "USt19WA",
+    "IGE19",
+    "IGE7",
+    "AUSFUHR"
   ],
   "defaults": {
-    "taxationMethod": "accrual",
+    "taxationMethod": "cash",
     "smallBusiness": false,
     "vatPeriod": "quarterly"
   },

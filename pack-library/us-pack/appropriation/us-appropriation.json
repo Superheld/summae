@@ -1,0 +1,15 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-appropriation",
+  "kind": "resultAppropriation",
+  "version": "2026.1",
+  "name": "US closing of the income summary into retained earnings",
+  "contributes": ["resultAppropriation"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "allocationAccount": "3300",
+    "targets": {
+      "carryForward": { "account": "3100", "label": "Retained Earnings" }
+    }
+  }
+}

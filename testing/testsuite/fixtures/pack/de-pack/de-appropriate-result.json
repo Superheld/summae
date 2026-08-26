@@ -1,0 +1,219 @@
+{
+  "fixture": "de-appropriate-result",
+  "description": "F-CORE-024/SF-25 as a NAMED operation on the shipped de pack: the caller states the resolution, the pack supplies the accounts. Until this operation existed, appropriating a profit was the one part of the bookkeeping where an embedding still had to know account numbers — `2300 an 2100` — and a guessed account number is a wrong posting rather than an error message. Here the target is named (`carryForward`), the pack resolves it to 2100 and the allocation account to 2300, and the amount is checked against what the books actually carry. The resolution is dated 2027-05-20, in the year it is passed, which is also why `closeFiscalYear` could never do this on anyone's behalf: it would have to invent a date it does not have. Note `remaining`: the operation reports what is left, so a partial appropriation does not need the caller to do arithmetic on the books. The balance sheet before and after is what `de-profit-appropriation` pins; this fixture pins the operation.",
+  "covers": [
+    "F-CORE-024",
+    "SF-25"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Beschluss GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AR-001",
+          "voucherDate": "2026-03-01"
+        },
+        "entryDate": "2026-03-01",
+        "text": "Erlös 2026",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4040",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          }
+        }
+      }
+    },
+    {
+      "op": "createFiscalYear",
+      "input": {
+        "tenant": "$T1",
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31"
+      },
+      "expect": {
+        "result": {
+          "year": 2027
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "BESCHLUSS-2027-1",
+          "voucherDate": "2027-05-20",
+          "kind": "internal"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "comment": "Part of the profit distributed, the rest carried — two targets in one resolution, and the pack knows both accounts.",
+      "op": "appropriateResult",
+      "input": {
+        "tenant": "$T1",
+        "fiscalYear": 2026,
+        "entryDate": "2027-05-20",
+        "voucherId": "$V1",
+        "appropriations": [
+          {
+            "target": "distribution",
+            "money": {
+              "amount": "400.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "600.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "fiscalYear": 2026,
+          "appropriated": [
+            {
+              "target": "distribution",
+              "account": "3500",
+              "money": {
+                "amount": "400.00",
+                "currency": "EUR"
+              }
+            },
+            {
+              "target": "carryForward",
+              "account": "2100",
+              "money": {
+                "amount": "600.00",
+                "currency": "EUR"
+              }
+            }
+          ],
+          "remaining": "0.00",
+          "entry": {
+            "periodRef": {
+              "fiscalYear": 2027,
+              "period": 5
+            },
+            "lines": [
+              {
+                "account": "2300",
+                "side": "debit",
+                "money": {
+                  "amount": "1000.00",
+                  "currency": "EUR"
+                }
+              },
+              {
+                "account": "3500",
+                "side": "credit",
+                "money": {
+                  "amount": "400.00",
+                  "currency": "EUR"
+                }
+              },
+              {
+                "account": "2100",
+                "side": "credit",
+                "money": {
+                  "amount": "600.00",
+                  "currency": "EUR"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "Which targets exist is the pack's answer, so a screen can offer them instead of provoking an error to find out. `de` offers both; `us` and `default` offer carryForward only.",
+      "name": "tenantConfiguration",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "appropriationTargets": [
+          "carryForward",
+          "distribution"
+        ]
+      }
+    },
+    {
+      "comment": "The point of the whole thing: 2027 reports its own result, which is zero, and the profit sits in equity.",
+      "name": "balanceSheet",
+      "params": {
+        "tenant": "$T1",
+        "fiscalYear": 2027,
+        "mapping": "de-bilanz"
+      },
+      "expect": {
+        "liabilitiesAndEquity": [
+          {
+            "key": "P.A1",
+            "amount": "600.00"
+          },
+          {
+            "key": "P.A2",
+            "amount": "0.00"
+          },
+          {
+            "key": "P.C",
+            "amount": "400.00"
+          }
+        ],
+        "assetsTotal": "1000.00",
+        "liabilitiesAndEquityTotal": "1000.00"
+      }
+    }
+  ]
+}

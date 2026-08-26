@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-ergebnisverwendung",
+  "kind": "resultAppropriation",
+  "version": "2026.1",
+  "name": "DE Ergebnisverwendung (Gewinnvortrag, Ausschüttung)",
+  "contributes": ["resultAppropriation"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "allocationAccount": "2300",
+    "targets": {
+      "carryForward": { "account": "2100", "label": "Gewinnvortrag / Verlustvortrag" },
+      "distribution": { "account": "3500", "label": "Verbindlichkeit aus Gewinnverwendung" }
+    }
+  }
+}

@@ -1,0 +1,257 @@
+{
+  "fixture": "xx-6-pack-version-pinning-current",
+  "description": "A published (id, version) names one bundle for good. The pack is inline and therefore frozen, which is the point: this is where the rule belongs, not on a shipped pack whose numbers have to be free to move. Two versions of `xx-versioned` live side by side, each pinning a different version of the same accounts module. Asking for 2026.1 keeps returning the three-account chart even though 2026.2 exists — an old pin does not drift. Asking for 2026.2 returns the grown one. Asking without a version returns 2026.2, because current means highest version by code point, not whichever file the directory walk happened to reach first; on the first-match rule the answer would differ between two machines. `contentDigest` is derived from the resolution, so it is pinned here where the input is frozen: it is what makes a version that silently changed its content visible, and both implementations must compute it byte-identically. | Successor to `xx-6-pack-version-pinning`, and what moved is the one thing that was never this fixture's subject: it pinned the two contentDigest VALUES literally, so every field the resolved bundle gains — even one that is null for this pack, which declares no such module — changed the hash and turned this red. The digest is DERIVED from the bundle's serialisation, so a literal value welds the engine's internal shape to the contract, the same way a literal formatVersion welded the data format. What this fixture is about is unchanged and now pinned with placeholders: the digest of a pinned version is the SAME one every time it is resolved and the same one a tenant built from that pin reports, while the current version reports a different one. Whether the two differ is already carried by accountCount, which is real data rather than a hash.",
+  "covers": [
+    "F-PACK-011",
+    "NF-2"
+  ],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.6",
+        "id": "xx-versioned-accounts",
+        "kind": "accounts",
+        "version": "2026.1",
+        "name": "XX chart, version 2026.1",
+        "contributes": [
+          "accounts"
+        ],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            {
+              "number": "100",
+              "name": "Bank",
+              "type": "asset",
+              "subtype": "bank"
+            },
+            {
+              "number": "300",
+              "name": "Equity",
+              "type": "equity",
+              "subtype": "opening_balance"
+            },
+            {
+              "number": "400",
+              "name": "Revenue",
+              "type": "revenue"
+            }
+          ]
+        }
+      },
+      {
+        "formatVersion": "0.6",
+        "id": "xx-versioned-accounts",
+        "kind": "accounts",
+        "version": "2026.2",
+        "name": "XX chart, version 2026.2",
+        "contributes": [
+          "accounts"
+        ],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            {
+              "number": "100",
+              "name": "Bank",
+              "type": "asset",
+              "subtype": "bank"
+            },
+            {
+              "number": "300",
+              "name": "Equity",
+              "type": "equity",
+              "subtype": "opening_balance"
+            },
+            {
+              "number": "400",
+              "name": "Revenue",
+              "type": "revenue"
+            },
+            {
+              "number": "110",
+              "name": "Cash",
+              "type": "asset",
+              "subtype": "cash"
+            }
+          ]
+        }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.6",
+        "id": "xx-versioned",
+        "name": "XX versioned pack",
+        "version": "2026.1",
+        "modules": [
+          {
+            "kind": "accounts",
+            "id": "xx-versioned-accounts",
+            "version": "2026.1"
+          }
+        ],
+        "overrides": [],
+        "taxCodes": [],
+        "defaults": {
+          "taxationMethod": "accrual"
+        },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      {
+        "formatVersion": "0.6",
+        "id": "xx-versioned",
+        "name": "XX versioned pack",
+        "version": "2026.2",
+        "modules": [
+          {
+            "kind": "accounts",
+            "id": "xx-versioned-accounts",
+            "version": "2026.2"
+          }
+        ],
+        "overrides": [],
+        "taxCodes": [],
+        "defaults": {
+          "taxationMethod": "accrual"
+        },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": {
+          "id": "xx-versioned",
+          "version": "2026.1"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "xx-versioned",
+          "version": "2026.1",
+          "accountCount": 3,
+          "contentDigest": "$DIGEST_2026_1"
+        }
+      }
+    },
+    {
+      "op": "resolvePack",
+      "input": {
+        "manifest": {
+          "id": "xx-versioned",
+          "version": "2026.2"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "xx-versioned",
+          "version": "2026.2",
+          "accountCount": 4,
+          "contentDigest": "$DIGEST_2026_2"
+        }
+      }
+    },
+    {
+      "comment": "No version asked for: current is the highest, and it is the same resolution as the explicit 2026.2 above — same digest.",
+      "op": "resolvePack",
+      "input": {
+        "manifest": "xx-versioned"
+      },
+      "expect": {
+        "result": {
+          "id": "xx-versioned",
+          "version": "2026.2",
+          "accountCount": 4,
+          "contentDigest": "$DIGEST_2026_2"
+        }
+      }
+    },
+    {
+      "comment": "Asking again for the old version still returns the old bundle, unchanged by the newer one existing.",
+      "op": "resolvePack",
+      "input": {
+        "manifest": {
+          "id": "xx-versioned",
+          "version": "2026.1"
+        }
+      },
+      "expect": {
+        "result": {
+          "version": "2026.1",
+          "accountCount": 3,
+          "contentDigest": "$DIGEST_2026_1"
+        }
+      }
+    },
+    {
+      "comment": "A version nobody published is not silently rounded to a neighbour.",
+      "op": "resolvePack",
+      "input": {
+        "manifest": {
+          "id": "xx-versioned",
+          "version": "2026.9"
+        }
+      },
+      "expect": {
+        "error": "E_PACK_UNRESOLVED_REF"
+      }
+    },
+    {
+      "comment": "The tenant pins what it was built from; version-less creation takes the current one.",
+      "op": "createTenant",
+      "input": {
+        "name": "XX Ltd",
+        "baseCurrency": "XXD",
+        "pack": "xx-versioned",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "xx-versioned",
+            "version": "2026.2",
+            "contentDigest": "$DIGEST_2026_2"
+          },
+          "accountCount": 4
+        }
+      }
+    },
+    {
+      "comment": "An explicit old pin builds the old chart, next to the tenant that took the current one.",
+      "op": "createTenant",
+      "input": {
+        "name": "XX Ltd (pinned)",
+        "baseCurrency": "XXD",
+        "pack": {
+          "id": "xx-versioned",
+          "version": "2026.1"
+        },
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T2",
+          "pack": {
+            "id": "xx-versioned",
+            "version": "2026.1",
+            "contentDigest": "$DIGEST_2026_1"
+          },
+          "accountCount": 3
+        }
+      }
+    }
+  ],
+  "projections": []
+}

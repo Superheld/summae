@@ -10,6 +10,81 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.14.0 — 2026-08-26
+
+**The pack learns a resolution.** Appropriating a profit was the last part of the bookkeeping where
+an embedding still had to know account numbers. Everything else has long been a named operation —
+an invoice with VAT names no tax account, an asset acquisition names no depreciation account,
+because the pack supplies them and the core expands. Carrying a result forward did not: you booked
+`2300 an 2100` by hand, and 0.13.1 is the release that showed what that costs, because the shipped
+mapping quietly made those two lines cancel each other out.
+
+`appropriateResult` closes it. You state the decision, the pack states the accounts:
+
+```json
+{ "fiscalYear": 2026, "entryDate": "2027-05-20", "voucherId": "…",
+  "appropriations": [ { "target": "distribution", "money": { "amount": "400.00", "currency": "EUR" } },
+                      { "target": "carryForward", "money": { "amount": "600.00", "currency": "EUR" } } ] }
+```
+
+**Why it is an operation and not something `closeFiscalYear` does**, which is the part worth keeping:
+appropriating a result is a *resolution* — § 29 GmbHG, § 174 AktG and their equivalents — and which
+part is distributed, reserved or carried forward is not derivable from the books. It is also dated
+when the resolution is passed, normally in the *following* fiscal year, so a close that booked it
+would have to invent a date it does not have. summae does not decide; it expands.
+
+### New: the `resultAppropriation` module kind
+
+A pack declares the account a resolution books against and the targets it offers:
+
+```json
+{ "kind": "resultAppropriation",
+  "data": { "allocationAccount": "2300",
+            "targets": { "carryForward": { "account": "2100", … },
+                         "distribution":  { "account": "3500", … } } } }
+```
+
+Which targets exist is the **pack's** answer, not the core's — `de` offers both, `us` and `default`
+offer `carryForward` only, because a jurisdiction that closes its income summary straight into
+retained earnings has no second target to offer. Silence is a valid answer; half an answer is not,
+which is why the resolver refuses a module whose target names an account that does not exist (I8).
+
+`tenantConfiguration` reports `appropriationTargets[]` so a screen can build its menu from data
+instead of provoking an error to find out. Same reason `dimensionRules` is reported there.
+
+### ⚠ What changes
+
+- **Two new error codes**, appended to the exit-code tables: `E_APPROPRIATION_UNSUPPORTED` (the pack
+  offers no appropriation, or not this target — the error names what it *does* offer) and
+  `E_APPROPRIATION_EXCEEDS_RESULT` (more than the books carry, or nothing to appropriate). Neither is
+  `E_INPUT_INVALID`: the input is well-formed, it is simply not satisfiable, and a caller that cannot
+  tell the two apart cannot tell a misconfigured pack from a mistyped amount.
+- **`tenantConfiguration` gains `appropriationTargets[]`.** Additive.
+- **All three packs move**: `de@2026.6`, `us@2026.5`, `default@2026.2`. Old versions stay resolvable
+  under `versions/`.
+- **`TenantConfigurationProjection` takes a fifth constructor argument** — relevant only to code
+  constructing it directly. It has deliberately **no default**: an optional argument is exactly what
+  hid a missing wiring during this work, where the projection answered "no targets" instead of
+  failing to compile. Same lesson the audit writer taught in 0.12.0.
+
+**What may be appropriated** is the result *not yet appropriated* — the cumulative result up to and
+including the named year, minus what the `result_allocation` accounts already carry. That is the same
+figure `balanceSheet` publishes, on purpose: the number on the screen and the number the operation
+refuses against cannot drift apart. Appropriating less is fine; `remaining` says what is left. A loss
+books the other way round and amounts stay positive either way — the direction follows the books, not
+a sign the caller has to get right.
+
+The entry is an ordinary posting: correctable, reversible, audited like any other, and — unlike
+machine entries — **not** finalized on the spot, because it is a user's input rather than a run.
+
+### One fixture retired
+
+`xx-6-pack-version-pinning` pinned both `contentDigest` values literally, so every field the resolved
+bundle gains changed the hash — including one that is `null` for a pack declaring no such module.
+That welds the engine's internal shape to the contract, the way a literal `formatVersion` once did.
+The successor pins the mechanism with placeholders: a pinned version resolves to the *same* digest
+every time, across `resolvePack` and `createTenant` alike. Register: `superseded.json`.
+
 ## 0.13.1 — 2026-08-26
 
 **A mechanism nobody could reach, because the product data hid it.** One fix, and the report that

@@ -47,6 +47,19 @@ Geld, das nie geflossen ist.
 | `E_FISCALYEAR_CLOSED` | Wiedereröffnung nach Jahresabschluss | edge-errors |
 | `E_FISCALYEAR_UNFINALIZED_ENTRIES` | closeFiscalYear bei nicht festgeschriebenen Buchungen (v0.5/SPEC-003) | fiscalyear-close-guard |
 
+## E_APPROPRIATION — Ergebnisverwendung (v0.14.0)
+
+`appropriateResult` bucht einen Gewinnverwendungsbeschluss (F-CORE-024/SF-25). Die
+beiden Codes trennen zwei verschiedene Verweigerungen: **das Pack bietet den Vorgang
+oder das Ziel nicht an** (Konfiguration — Schweigen ist eine gültige Antwort, eine halbe
+nicht) gegen **die Bücher geben den Betrag nicht her** (Constraint). Beides ist absichtlich
+kein `E_INPUT_INVALID`: die Eingabe ist wohlgeformt, sie ist nur nicht erfüllbar.
+
+| Code | Invariante | Fixture |
+|---|---|---|
+| `E_APPROPRIATION_UNSUPPORTED` | Das Pack liefert kein `resultAppropriation`-Modul, oder das angefragte `target` ist darin nicht deklariert (v0.14.0) | result-appropriation-guards |
+| `E_APPROPRIATION_EXCEEDS_RESULT` | Σ der Verwendungen übersteigt das noch nicht verwendete Ergebnis, oder es ist nichts zu verwenden (v0.14.0) | result-appropriation-guards |
+
 ## E_ACCOUNT / E_COA
 
 | Code | Invariante | Fixture |
