@@ -10,6 +10,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Currency;
+use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Substrate\Money;
 
 /**
@@ -17,6 +18,17 @@ use Summae\Core\Substrate\Money;
  * running balance. Opening balance = cumulative prior years for
  * balance-carrying accounts, null for income accounts (api.md period semantics).
  * Order: sequenceNumber — the only authoritative one (determinismus.md §3).
+ *
+ * Each line carries the **identity of its entry** and the accounts on the other side of it
+ * (SPEC-021, reported by an embedding app as its F-31). Without the first, a screen that shows a
+ * sheet and lets the reader open a line had to go looking: `journal` with `fromDate` and `toDate`
+ * set to the same day, then filter the day's entries by `sequenceNumber` — a search where a lookup
+ * belongs, for an entry whose identity the caller had two fields ago. Without the second, a
+ * T-account cannot answer the question it raises on every line: *6000 in debit, against what?*
+ *
+ * `contraAccounts` is a **list** on purpose. For a plain entry it holds one account; as soon as a
+ * tax code is involved it holds two or more, and a field called "the counter account" would have to
+ * pick one and thereby invent a fact.
  */
 final readonly class AccountSheetProjection
 {
@@ -102,11 +114,13 @@ final readonly class AccountSheetProjection
 
                 $lines[] = [
                     'sequenceNumber' => $entry->sequenceNumber,
+                    'entryId' => $entry->id->value,
                     'entryDate' => $entry->entryDate->iso,
                     'text' => $entry->text(),
                     'side' => $line->side->value,
                     'money' => $line->money->jsonSerialize(),
                     'runningBalance' => $running->amountAsString(),
+                    'contraAccounts' => $this->contraAccounts($entry, $line->side),
                 ] + $reversals->forEntry($entry);
             }
         }
@@ -118,5 +132,38 @@ final readonly class AccountSheetProjection
             'lines' => $lines,
             'closingBalance' => $running->amountAsString(),
         ];
+    }
+
+    /**
+     * The accounts on the other side of one entry, by number, deduplicated and sorted.
+     *
+     * "Other side" is decided per line, not per sheet: on a debit line the credit accounts answer
+     * the question, and the other way round. An entry that touches the same account on both sides —
+     * a correction within one account — therefore names it here too, which is the honest answer
+     * rather than an empty list.
+     *
+     * @return list<array{account: string, name: string}>
+     */
+    private function contraAccounts(JournalEntry $entry, Side $side): array
+    {
+        $seen = [];
+        foreach ($entry->lines() as $line) {
+            if ($line->side === $side) {
+                continue;
+            }
+            $account = $this->accounts->byId($line->accountId);
+            if ($account === null) {
+                continue;
+            }
+            $seen[$account->number->value] = $account->name;
+        }
+        ksort($seen, SORT_STRING);
+
+        $out = [];
+        foreach ($seen as $number => $name) {
+            $out[] = ['account' => (string) $number, 'name' => $name];
+        }
+
+        return $out;
     }
 }

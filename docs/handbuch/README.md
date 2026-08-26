@@ -1585,9 +1585,31 @@ as-of evaluations.
 ### accountSheet — account ledger
 
 `account` (yes, number; unknown → `E_ACCOUNT_UNKNOWN`), `fiscalYear` (yes),
-`throughPeriod` (no). Output: `account`, `name`, `openingBalance`, `lines[]`
-(each `sequenceNumber`, `entryDate`, `text`, `side`, `money` [Money],
-`runningBalance`), `closingBalance`. ⚠ Shape from code (no fixture).
+`throughPeriod` (no). Output: `account`, `name`, `openingBalance`, `lines[]`,
+`closingBalance`. Each line carries `sequenceNumber`, `entryId`, `entryDate`,
+`text`, `side`, `money` [Money], `runningBalance`, `contraAccounts[]` — plus the
+reversal fields when the entry is one (see below).
+
+**`entryId` is the same identity `journal` publishes** and the audit trail records.
+A screen that lets the reader open a line looks the entry up by it; before it
+existed the only route was `journal` with `fromDate` and `toDate` on the same day
+plus a filter by `sequenceNumber`, which is a search where a lookup belongs.
+
+**`contraAccounts[]` are the accounts on the other side of the same entry**, as
+`{account, name}`, deduplicated and sorted by number. It answers what a T-account
+raises on every line — *6000 in debit, against what?* — and it is a **list**
+because it has to be: a plain entry has one counter account, an entry with a tax
+code has two or more, and a field naming "the" counter account would have to pick
+one and thereby invent a fact. The side is decided **per line**: on a debit line
+the credit accounts answer, on a credit line the debit ones, so the same entry
+reads differently from the two sheets it appears on — which is correct.
+
+```json
+// accountSheet { "account": "6000", "fiscalYear": 2026 }
+{ "sequenceNumber": 2, "entryId": "…", "side": "debit",
+  "money": { "amount": "200.00", "currency": "EUR" }, "runningBalance": "300.00",
+  "contraAccounts": [ { "account": "1200", "name": "Bank" } ] }
+```
 
 ### auditLog — change history
 
