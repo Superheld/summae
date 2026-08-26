@@ -1,8 +1,8 @@
 # Modul 5 — Cash-Basis / Schedule C (`mapping`)
 
 ```
-kind: mapping · id: us-schedule-c-2026 · version: 2026.1 · formatVersion: 0.6
-contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-konten-2026}]
+kind: mapping · id: us-schedule-c-2026 · version: 2026.2 · formatVersion: 0.6
+contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.mapping = { id, kind: "cash-basis-categories", version, positions[] }
 ```
 
@@ -24,31 +24,16 @@ steuert über `includeNonCash`, welche Buchungen ohne Zahlungsfluss zählen.
 
 ## Positionsstruktur (Schedule-C-Logik, auf US-Konten Modul 1)
 
-**Income (Part I)**
-
-| key | Schedule-C-Bezug | Label | Konten | includeNonCash |
-|---|---|---|---|---|
-| L1 | Line 1 | Gross receipts or sales | 4000–4019 | — |
-| L2 | Line 2 | Returns and allowances | 4020–4039 | — |
-| L6 | Line 6 | Other income (incl. gain on disposal) | 4900 | — |
-
-**Cost of Goods Sold (Part III) & Expenses (Part II)**
-
-| key | Schedule-C-Bezug | Label | Konten | includeNonCash |
-|---|---|---|---|---|
-| L4 | Line 4 / Part III | Cost of goods sold | 5000–5999 | — |
-| L13 | Line 13 | Depreciation and §179 expense | 6500–6599 | **true** |
-| L26 | Line 26 | Wages | 6300 | — |
-| L23 | Line 23 | Taxes and licenses (incl. employer payroll tax, use tax) | 6020, 6310 | — |
-| L27 | Line 27a | Other expenses (SG&A, bad debt) | 6000–6099, 6700 | — |
-
-- **Depreciation (L13)** ist die `includeNonCash`-Position — Abschreibung mindert den
-  Cash-Basis-Gewinn, obwohl kein Zahlungsfluss vorliegt (wie AfA in der DE-EÜR, A3).
-- **Sales Tax** erscheint nicht als eigene Einnahme/Ausgabe: erhobene Sales Tax (3130) ist ein
-  Durchlaufposten (treuhänderisch für den Staat), kein Income. Use Tax dagegen ist echte
-  Betriebsausgabe (6020 → L23).
-- Schedule C kennt **keine** Bilanzposten — Prepaid (1900) / Deferred Revenue (3900) sind hier
-  bewusst ohne Position (cash-basis ignoriert Periodenabgrenzung).
+| Pos | Label im Modul | Konten |
+|---|---|---|
+| L1 | Gross receipts or sales | 4000–4199 |
+| L2 | Returns and allowances | 4200–4399 |
+| L6 | Other income (incl. gain on disposal) | 4900 |
+| L4 | Cost of goods sold | 5000–5999 |
+| L13 | Depreciation and section 179 expense | 6300–6399 · `includeNonCash` |
+| L26 | Wages | 6100 |
+| L23 | Taxes and licenses (incl. employer payroll tax, use tax) | 6110, 6200 |
+| L27 | Other expenses (SG&A, bad debt) | 6000, 6400, 6900 |
 
 ## Abweichung zu DE (EÜR)
 

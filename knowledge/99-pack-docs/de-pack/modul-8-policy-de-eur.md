@@ -1,7 +1,7 @@
 # Modul 8 — Policy DE (EUR) (`policy`)
 
 ```
-kind: policy · id: de-eur · version: 2026.1 · formatVersion: 0.6
+kind: policy · id: de-policy · version: 2026.1 · formatVersion: 0.6
 contributes: ["policy"] · dependsOn: []
 data.packPolicy = die drei Policy-Felder (§ packPolicy)
 ```

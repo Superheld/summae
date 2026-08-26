@@ -1,8 +1,8 @@
 # Modul 6 — Depreciation USA (`depreciation`)
 
 ```
-kind: depreciation · id: macrs-us · version: 2026.1 · formatVersion: 0.6
-contributes: ["depreciation"] · dependsOn: []   (datenrein, keine Konten-Referenz)
+kind: depreciation · id: macrs-us · version: 2026.2 · formatVersion: 0.6
+contributes: ["depreciation"] · dependsOn: []
 data = De-minimis-Grenzen + Recovery-Periods (assets-modell.md v0.4)
 ```
 

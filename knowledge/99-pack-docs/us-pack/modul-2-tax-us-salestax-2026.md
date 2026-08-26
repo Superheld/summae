@@ -1,8 +1,8 @@
 # Modul 2 — Sales & Use Tax USA 2026 (`tax`)
 
 ```
-kind: tax · id: us-salestax-2026 · version: 2026.1 · formatVersion: 0.6
-contributes: ["taxCodes"] · dependsOn: [{kind: accounts, id: us-konten-2026}]
+kind: tax · id: us-salestax-2026 · version: 2026.2 · formatVersion: 0.6
+contributes: ["taxCodes"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.taxCodes[]  (TaxCode = {code, versions[]}; tax-modell.md §1)
 ```
 

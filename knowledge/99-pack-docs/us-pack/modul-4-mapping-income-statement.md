@@ -2,7 +2,7 @@
 
 ```
 kind: mapping · id: us-gaap-income-statement · version: 2026.1 · formatVersion: 0.6
-contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-konten-2026}]
+contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.mapping = { id, kind: "income-statement", version, positions[] }
 ```
 
@@ -28,21 +28,14 @@ abgeleitet, nicht im Mapping kodiert.
 
 ## Positionsstruktur (Multi-Step, auf US-Konten Modul 1)
 
-| Pos | Label | Konten | Hinweis |
-|---|---|---|---|
-| 1 | Net Sales | 4000–4099 | Erlöse 4000/4010/4040 abzüglich Contra-Revenue 4020/4030 → netto |
-| 2 | Cost of Goods Sold | 5000–5999 | → Zwischensumme **Gross Profit** (berechnet) |
-| 3 | Selling, General and Administrative Expenses | 6000–6399 | inkl. 6020 Use Tax Expense, 6300/6310 Personal |
-| 4 | Depreciation and Amortization | 6500–6599 | inkl. 6510 de-minimis-Sofortabzug |
-| 5 | Other Income | 4900–4999 | Gain on Disposal → unterhalb Operating Income |
-| 6 | Other Expenses | 6700–6999 | Bad Debt (6700), Loss on Disposal (6900) |
-
-- **Contra-Revenue (4020 Returns & Allowances, 4030 Discounts)** liegen im Net-Sales-Bereich
-  4000–4099 und mindern dort als Soll-Saldo den Umsatz → ergibt **Net** Sales direkt.
-- **Gross Profit** (Pos 1 − Pos 2) und **Operating Income** (Gross Profit − Pos 3 − Pos 4) sind
-  abgeleitete Zwischensummen, nicht als eigene Positionen kodiert.
-- **6510 (de-minimis-Sofortabzug)** liegt unter D&A (Pos 4) — steuerlich sofort abgezogen,
-  buchhalterisch hier als Abschreibungs-naher Aufwand ausgewiesen.
+| Pos | Label im Modul | Konten |
+|---|---|---|
+| 1 | Net Sales | 4000–4399 |
+| 2 | Cost of Goods Sold | 5000–5999 |
+| 3 | Selling, General and Administrative Expenses | 6000–6299 |
+| 4 | Depreciation and Amortization | 6300–6399 |
+| 5 | Other Income | 4900–4999 |
+| 6 | Other Expenses | 6400–6999 |
 
 ## Offene Punkte
 

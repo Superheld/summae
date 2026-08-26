@@ -1,8 +1,8 @@
 # Modul 3 — Balance Sheet US-GAAP (`mapping`)
 
 ```
-kind: mapping · id: us-gaap-balance-sheet · version: 2026.1 · formatVersion: 0.6
-contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-konten-2026}]
+kind: mapping · id: us-gaap-balance-sheet · version: 2026.2 · formatVersion: 0.6
+contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.mapping = { id, kind: "balance-sheet", version, positions[] }
 ```
 
@@ -29,26 +29,26 @@ beginnt. Außerdem klassifiziert GAAP explizit **current vs. non-current**.
 
 ## Positionsstruktur (auf US-Konten Modul 1)
 
-**Assets** (`side: assets`) — nach Liquidität
+**Assets** (`side: assets`)
 
-| Pos | Label | Konten |
+| Pos | Label im Modul | Konten |
 |---|---|---|
-| A.I | Cash and Cash Equivalents | 1200–1399 |
-| A.II | Accounts Receivable and Other Current Assets | 1400–1599 |
-| A.III | Prepaid Expenses | 1900–1999 |
-| A.IV | Property, Plant and Equipment | 0000–0999 |
+| A.I | Cash and Cash Equivalents | 1000–1099 |
+| A.II | Accounts Receivable and Other Current Assets | 1200–1299 |
+| A.III | Prepaid Expenses | 1400–1499 |
+| A.IV | Property, Plant and Equipment | 1500–1599 |
 
 **Liabilities and Equity** (`side: liabilitiesAndEquity`)
 
-| Pos | Label | Konten | Hinweis |
-|---|---|---|---|
-| L.A | Accounts Payable | 3000–3099 | Current |
-| L.B | Sales and Use Tax Payable | 3100–3199 | Current; umfasst 3130/3140 |
-| L.C | Payroll Liabilities | 3300–3399 | Current |
-| L.D | Other Current Liabilities | 3500–3599 | inkl. Customer Deposits |
-| L.E | Deferred Revenue | 3900–3999 | Current/Long-term |
-| L.F | Stockholders' Equity (Capital and Retained Earnings) | 2000–2499 | |
-| L.G | Net Income | — | `includesNetIncome: true`, keine Konten |
+| Pos | Label im Modul | Konten |
+|---|---|---|
+| L.A | Accounts Payable | 2000–2099 |
+| L.B | Sales and Use Tax Payable | 2100–2199 |
+| L.C | Payroll Liabilities | 2200–2299 |
+| L.D | Other Current Liabilities | 2300–2399, 2900–2999 |
+| L.E | Deferred Revenue | 2400–2499 |
+| L.F | Stockholders' Equity (Capital and Retained Earnings) | 3000–3299, 3400–3999 |
+| L.G | Net Income (not yet closed to Retained Earnings) | 3300 + `includesNetIncome` |
 
 > **Erfolgskonten (4xxx–6xxx)** gehören nicht in die Bilanz — sie fließen über das
 > Jahresergebnis (`includesNetIncome`, Position L.G) ins Eigenkapital ein und werden durch das
