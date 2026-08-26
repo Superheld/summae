@@ -31,11 +31,7 @@ export class IncomeStatementProjection {
     // hunting the wrong thing, and an omitted parameter produced `Mapping "" is not loaded`.
     const mapping = this.mappings.byId(mappingId);
     if (mapping === null) {
-      throw new DomainError(
-        'E_INPUT_INVALID',
-        mappingId === '' ? 'incomeStatement requires the parameter "mapping"' : `mapping "${mappingId}" is not loaded`,
-        { mapping: mappingId },
-      );
+      throw this.mappingRefusal('incomeStatement', mappingId);
     }
 
     const zero = Money.zero(this.baseCurrency);
@@ -89,5 +85,30 @@ export class IncomeStatementProjection {
       .map((account) => ({ account, assignedTo: UNASSIGNED }));
 
     return { positions, netIncome: netIncome.amountAsString(), gapWarnings };
+  }
+
+  /**
+   * Which mappings this tenant could use — part of the refusal, because the refusal is the only
+   * place a caller learns it. A `default` tenant has none at all: the neutral pack ships no mapping
+   * module, since a jurisdiction-free chart has no lawful statement layout to ship (IMPL-032). That
+   * is a legitimate answer and used to arrive as "requires the parameter mapping", which reads as
+   * *you forgot something* rather than *this pack cannot do this*.
+   */
+  private mappingRefusal(projection: string, mappingId: string): DomainError {
+    const available = this.mappings.summaries().map((summary) => summary.id);
+    if (available.length === 0) {
+      return new DomainError(
+        'E_INPUT_INVALID',
+        `${projection} needs a mapping and this tenant has none: its pack ships no mapping module, so one has to be loaded with importMapping`,
+        { mapping: mappingId, available },
+      );
+    }
+    return new DomainError(
+      'E_INPUT_INVALID',
+      mappingId === ''
+        ? `${projection} requires the parameter "mapping"`
+        : `mapping "${mappingId}" is not loaded`,
+      { mapping: mappingId, available },
+    );
   }
 }

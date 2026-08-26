@@ -1,0 +1,32 @@
+{
+  "fixture": "default-pack-has-no-mappings",
+  "description": "IMPL-032: the `default` pack ships no mapping module, and now says so instead of answering with a missing-parameter error. A jurisdiction-free chart of accounts has no lawful statement layout it could ship — a balance sheet gliederung is always somebody's law — so silence is the correct answer and not a gap. What was wrong is how it arrived: `balanceSheet requires the parameter \"mapping\"` reads as *you forgot something*, and a caller who then passes one gets `mapping \"x\" is not loaded`, which reads as *you named the wrong one*. Neither says *this pack cannot do this and here is what to do about it*. The refusal now carries `available`, empty for this pack, and the message names `importMapping`. Same shape as `tenantConfiguration.mappings`, which answers the same question without an error at all — that is the route an application should take, and this fixture pins that the two agree.",
+  "covers": ["F-CORE-015", "SF-10"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Neutral Ltd", "baseCurrency": "EUR", "pack": "default", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "default" } } }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "The route without an error: the tenant reports that it has no mappings at all.",
+      "name": "tenantConfiguration",
+      "params": { "tenant": "$T1" },
+      "expect": { "mappings": [], "appropriationTargets": ["carryForward"] }
+    },
+    {
+      "comment": "And the refusal says the same thing in the same words.",
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "error": "E_INPUT_INVALID" }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026 },
+      "expect": { "error": "E_INPUT_INVALID" }
+    }
+  ]
+}
