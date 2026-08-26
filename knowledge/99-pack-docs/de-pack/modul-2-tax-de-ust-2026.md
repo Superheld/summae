@@ -1,8 +1,8 @@
 # Modul 2 — USt Deutschland 2026 (`tax`)
 
 ```
-kind: tax · id: de-ust-2026 · version: 2026.1 · formatVersion: 0.6
-contributes: ["taxCodes"] · dependsOn: [{kind: accounts, id: de-konten-2026}]
+kind: tax · id: de-ust · version: 2026.4 · formatVersion: 0.6
+contributes: ["taxCodes"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.taxCodes[]  (TaxCode = {code, versions[], datevBu?}; tax-modell.md §1)
 ```
 

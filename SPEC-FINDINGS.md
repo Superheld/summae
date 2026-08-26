@@ -22,29 +22,6 @@ table there. Moving it is the entire bookkeeping — the split is by *state*, an
 once. That is also why this is not the old per-language split: that one duplicated the same text in
 two places and drifted (SPEC-014 did, in the open).
 
-## IMPL-031 — the pack docs describe a product that does not exist
-
-**Found 2026-08-26**, while repairing the balance-sheet mappings (IMPL-030) and looking for
-every place that had to be corrected with them.
-
-`knowledge/99-pack-docs/` documents each shipped module, position by position. Two of those
-documents describe mappings that do not match what the pack ships — not in a detail, in the
-structure:
-
-| | doc says | pack ships |
-|---|---|---|
-| `de` balance sheet | positions `A`, `B.I`, `B.II`, `B.III` / `A`, `C.1`, `C.2`, `C.3`; `includesNetIncome` "an der EK-Wurzel" | `A.I`–`A.V` / `P.A1`, `P.A2`, `P.C`, `P.D`; `includesNetIncome` on its own position |
-| `us` balance sheet | `L.F` = 2000–2499, `L.A` = 3000–3099 | `L.F` = 3000–3999, `L.A` = 2000–2099 — the two sides of the chart are swapped |
-
-These read as design notes written before the mapping was built and never reconciled. Only the
-two balance-sheet modules were checked; the same is likely true of others, so **the finding is
-the class, not the two files**.
-
-Deliberately not fixed alongside IMPL-030: patching the one line that my change made stale would
-have suggested the rest was sound. What is needed is a pass over `99-pack-docs/` against the
-shipped modules — and then the question of what keeps them in step, since nothing does today. The
-mapping data is machine-readable and the tables are not, which is the whole reason they drifted.
-
 ## IMPL-032 — the `default` pack cannot produce a balance sheet, and does not say so
 
 **Found 2026-08-26** while checking whether IMPL-030 affected all three shipped packs.

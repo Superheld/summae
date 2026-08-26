@@ -108,6 +108,7 @@ a short file.
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | ✅ **RESOLVED 2026-08-25** — `AuditTrail::find(criteria)` pushes the filters into SQL by reading the JSON payload (`json_extract` / `->>`), so no column and no migration; `EntryAuthors` asks for the ids on the page. The entry's own proposal was wrong and says so: columns would have needed a data migration nothing here can run. An index is what is left |
 | SPEC-019 the documentation gate reaches names, not meanings | ✅ **RESOLVED 2026-08-25** — every input key the contract declares, at any depth, must be named in the manual section that accepts it. Unblocked by SPEC-017, which gave the contract the key list. Found 46 undocumented keys, including the whole voucher and overhead-rate vocabulary |
+| IMPL-031 the pack docs described a product that does not exist | ✅ **RESOLVED 2026-08-26** — every `de` module document named a module id the pack does not have, the `de` balance sheet listed positions from an older draft, and the `us` balance sheet had the two sides of the chart swapped (equity at 2000–2499, payables at 3000–3099). Headers, position tables and the folder READMEs now come from the modules; five missing documents written, including the `default` pack's first. Guarded by `PackDocsTest`/`pack-docs.test.ts` in both languages: one document per shipped module, header states the real kind/id/version, every mapping row names the accounts its position really claims |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
@@ -120,6 +121,44 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### IMPL-031 — the pack docs described a product that does not exist — RESOLVED
+
+**Found 2026-08-26** while repairing the balance-sheet mappings (IMPL-030) and looking for every
+place that had to be corrected with them. `knowledge/99-pack-docs/` is the reference work for
+whoever builds or audits a pack — one file per module, position by position. Nothing held it
+against the modules, and the drift was total rather than detailed:
+
+- **Every one of the eight `de` module documents named a module id the pack does not have**
+  (`de-konten-2026` for `de-konten`, `de-hgb-bilanz-266` for `de-bilanz`, `afa-de` for `de-afa`, …).
+- The **`de` balance sheet** listed positions `A`, `B.I`, `B.II`, `B.III` / `A`, `C.1`, `C.2`, `C.3`
+  where the module ships `A.I`–`A.V` and `P.A1`–`P.D` — not one key in common.
+- The **`us` balance sheet** had the two sides of the chart **swapped**: equity documented at
+  2000–2499 and payables at 3000–3099, the exact opposite of the module. Eleven of eleven rows wrong.
+- Four `us` documents stated a version the module had moved past; `de-guv` was missing three
+  positions and `de-euer` one; five modules had no document at all, and the `default` pack had no
+  folder.
+
+They read as design notes written before the modules were built and never reconciled. **A reference
+work that is wrong is worse than none: it is believed** — and this one is what somebody builds the
+next pack from.
+
+**Resolved by making the checkable parts checked.** Headers, position tables and the folder READMEs
+are now derived from the modules; the prose was kept, since a document may well call a position
+something clearer than the module's own label. Five documents were written, among them the
+`default` pack's first two — which is also where IMPL-032 became visible enough to record.
+
+The guard is `PackDocsTest` / `pack-docs.test.ts`, identical in both languages, three rules that a
+pack author can satisfy without guessing: every shipped module has exactly one document, found by
+its own `id:` header; that header states the module's real kind, id and version, so a version bump
+cannot land without the document being opened; and every mapping table names each position of its
+module with the accounts that position really claims. Verified red against the old content in both
+languages.
+
+One lesson about the guard itself: its first version had a dangling `else` and therefore checked
+only single account numbers, not ranges — it reported four rows where there were thirty-one. A test
+that passes for the wrong reason is the failure mode a documentation gate is most prone to, because
+nobody rereads what turned green.
 
 ### IMPL-030 — both shipped packs hid the appropriation entry from the balance sheet — RESOLVED
 

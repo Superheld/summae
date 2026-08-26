@@ -77,6 +77,21 @@ a sign the caller has to get right.
 The entry is an ordinary posting: correctable, reversible, audited like any other, and — unlike
 machine entries — **not** finalized on the spot, because it is a user's input rather than a run.
 
+### The pack documentation describes the packs again
+
+`knowledge/99-pack-docs/` is the reference work for building and auditing a pack, and nothing held
+it against the modules. The drift was total rather than detailed: every one of the eight `de`
+module documents named a module id the pack does not have, the `de` balance sheet listed positions
+from a draft that predates the module, and the `us` balance sheet had the two sides of the chart
+**swapped** — equity documented at 2000–2499, payables at 3000–3099, eleven of eleven rows wrong.
+Five modules had no document at all and the `default` pack had no folder.
+
+Headers, position tables and the folder indexes now come from the modules; the prose was kept.
+`PackDocsTest` / `pack-docs.test.ts` hold it there in both languages — one document per shipped
+module, the header stating the module's real kind, id and version (so a version bump cannot land
+without the document being opened), and every mapping row naming the accounts its position really
+claims. IMPL-031, closed.
+
 ### One fixture retired
 
 `xx-6-pack-version-pinning` pinned both `contentDigest` values literally, so every field the resolved
