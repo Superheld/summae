@@ -10,7 +10,6 @@ make install    # composer install
 make check      # PHPStan (level max) + PHPUnit — this is what CI checks too
 make fixtures   # conformance suite against the in-memory core
 make shell      # shell in the container
-make sync       # update testsuite + schema from the knowledge base
 ```
 
 Postgres is only needed for the database conformance run:
@@ -69,9 +68,9 @@ The `expected-green.txt` in `runner/` is the regression guard: without
 
 ## A spec change comes in (retrofit)
 
-1. `make sync` — fetch new/changed fixtures + schema.
+1. Write the new/changed fixtures in `testing/testsuite/` (append-only) + schema.
 2. `make fixtures` — see what goes red (controlled failure, no crash).
-3. Read the knowledge-base spec files fresh (not from memory).
+3. Read the spec files in `knowledge/50-spezifikation/` fresh (not from memory).
 4. Adjust until green; on a contradiction between spec/fixture →
    [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md), do not bend the fixture.
 

@@ -8,9 +8,9 @@ identical data format**. "Identical" is checkable: a language-neutral **fixture 
 **complete double run yields byte-identical** results — and when the cross-test
 against PHP comes out byte-identical.
 
-The fixtures are the normative source. They live in the knowledge base and are mirrored
-into `testing/testsuite/` via `make sync` (one-way street). **Never edit here** — see
-"SPEC-FINDINGS" below.
+The fixtures are the normative source and are authored in `testing/testsuite/`. They are
+**append-only**: a behaviour change is a *new* fixture, never a quiet edit to an existing one
+— see "SPEC-FINDINGS" below.
 
 ## How the runner works
 

@@ -25,7 +25,7 @@ implementation must satisfy all fixtures byte-identically and deterministically.
 | `packages/laravel/` | `superheld/summae-laravel` — ServiceProvider, database adapter, migrations |
 | `packages/cli/` | `superheld/summae-cli` — CLI, JSON output |
 | `runner/` | fixture runner for the conformance suite |
-| `testing/testsuite/` | copy of the conformance fixtures — **read-only** (maintainer: `make sync`) |
+| `testing/testsuite/` | the conformance fixtures — authored here, **append-only** |
 | `SPEC-FINDINGS.md` | findings against spec/fixtures (escalation path) |
 
 ## Development
@@ -36,7 +36,6 @@ Everything runs in Docker, no local PHP needed:
 make build      # build the PHP 8.3 image (once)
 make install    # composer install
 make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
-make sync       # (maintainer) update the testsuite from the internal source
 make shell      # shell in the container
 ```
 

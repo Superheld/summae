@@ -20,7 +20,7 @@ Der erste durchgespielte Lauf des [`METHODE-Bauflow.md`](../METHODE-Bauflow.md).
     de-complete.json        ← Manifest: benannte, aufgelöste Modulliste
   testing/testsuite/fixtures/conformance-xx/   ← Test-Pack „XX" (test-only, nicht ausgeliefert)
   ```
-  Sync-Mechanik: `summae/bin/sync-pack-library.sh` (Einbahnstraße WB→Runtime, read-only — der letzte verbliebene Spiegel).
+  Seit 2026-08-26 im Repo selbst gepflegt (`summae/pack-library/`); der Spiegel WB→Runtime und sein Skript sind entfallen.
 - **packPolicy E-A/E-B/E-C: alle nach Empfehlung** — Manifest-Kopie ja, Schema-`$id` → **0.6**, Enum `perVoucher|perLine`.
 - **Modul** = kohärenter Regelsatz (ein Kontenrahmen, ein Steuersatz-Satz, *ein* Mapping, ein AfA-Satz, eine Policy). Deklariert **was es beiträgt** (Politiksorten-Beiträge) und **wovon es abhängt**.
 - **Manifest** = `de-complete` u. a.: kuratierte Modulliste + Overrides + `packPolicy`.
@@ -46,7 +46,7 @@ In `50-spezifikation/` überführen:
 ### Gate 2 — KERN inside-out (PHP-Referenz zuerst)
 - **Ring 0 — reiner Resolver:** `Module`/`Manifest`/`ResolvedPack` (Value Objects) + Resolver-Algorithmus, gegen **Fakes inkl. bewusst kaputter Module**. Jeder Grenzfall → lautes `E_PACK_*`. Hier sitzt die Geld-Strenge.
 - **Ring 1 — Engine + Regressions-Gate:** Der `ResolvedPack` erzeugt genau die Struktur, die heute als hand-gereichte Regelmodul-Daten in den Mandanten geht (`TaxProfile`, Mappings, Konten, `assetAccounts`, `packPolicy`). Gate: **DE komponiert == DE heute** (45 Fixtures grün).
-- **Ring 2 — Lade-Adapter:** Module/Manifeste als JSON von der (gesyncten) Platte; Fake-Quelle → echter Loader.
+- **Ring 2 — Lade-Adapter:** Module/Manifeste als JSON von der Platte; Fake-Quelle → echter Loader.
 
 **Gate:** Unit/Fake-Tests für *jeden* Edge/Error grün; Invarianten gehalten.
 
