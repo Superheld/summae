@@ -241,8 +241,17 @@ summae init --name "Example Ltd" --currency EUR --rules rules.json --dir ./accou
 ```
 
 Shipped packs: **`de`** (Germany), **`us`** (United States), **`default`**
-(account-less base). `--currency` is *not* derived from the pack — it defaults
-to `EUR` regardless, so `--pack us` wants `--currency USD` alongside it.
+(neutral chart, no jurisdiction). `--currency` is *not* derived from the pack — it
+defaults to `EUR` regardless, so `--pack us` wants `--currency USD` alongside it.
+
+> **`default` ships no mappings, deliberately.** A jurisdiction-free chart of
+> accounts has no lawful statement layout it could bring: every balance-sheet and
+> income-statement gliederung is somebody's law. So on a `default` tenant
+> `balanceSheet`, `incomeStatement` and `cashBasisReport` have nothing to work
+> with until you load one with `importMapping` — the refusal says so and carries
+> `available: []`, and `tenantConfiguration.mappings` answers the same question
+> without an error. Everything else works: posting, journal, trial balance,
+> account sheets, the audit trail, and the appropriation of profit.
 
 `--pack de` (or `--pack us` / `--pack default`) loads the pack from the **pack library**
 (`pack-library/`; overridable with `--pack-library <dir>`), resolves it, and

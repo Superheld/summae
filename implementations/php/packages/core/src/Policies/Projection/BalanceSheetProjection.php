@@ -62,13 +62,7 @@ final readonly class BalanceSheetProjection
         // E_MAPPING_OVERLAP (the code for two positions claiming the same account) sent operators
         // hunting the wrong thing, and an omitted parameter produced 'Mapping "" is not loaded'.
         $mapping = $this->mappings->byId($mappingId)
-            ?? throw new DomainError(
-                'E_INPUT_INVALID',
-                $mappingId === ''
-                    ? 'balanceSheet requires the parameter "mapping"'
-                    : sprintf('mapping "%s" is not loaded', $mappingId),
-                ['mapping' => $mappingId],
-            );
+            ?? throw $this->mappingRefusal('balanceSheet', $mappingId);
 
         $zero = Money::zero($this->baseCurrency);
 
@@ -239,5 +233,39 @@ final readonly class BalanceSheetProjection
         }
 
         return false;
+    }
+
+    /**
+     * Which mappings this tenant could use — part of the refusal, because the refusal is the only
+     * place a caller learns it. A `default` tenant has none at all: the neutral pack ships no
+     * mapping module, since a jurisdiction-free chart has no lawful statement layout to ship
+     * (IMPL-032). That is a legitimate answer and used to arrive as "requires the parameter
+     * mapping", which reads as *you forgot something* rather than *this pack cannot do this*.
+     */
+    private function mappingRefusal(string $projection, string $mappingId): DomainError
+    {
+        $available = array_map(
+            static fn (array $summary): string => $summary['id'],
+            $this->mappings->summaries(),
+        );
+
+        if ($available === []) {
+            return new DomainError(
+                'E_INPUT_INVALID',
+                sprintf(
+                    '%s needs a mapping and this tenant has none: its pack ships no mapping module, so one has to be loaded with importMapping',
+                    $projection,
+                ),
+                ['mapping' => $mappingId, 'available' => $available],
+            );
+        }
+
+        return new DomainError(
+            'E_INPUT_INVALID',
+            $mappingId === ''
+                ? sprintf('%s requires the parameter "mapping"', $projection)
+                : sprintf('mapping "%s" is not loaded', $mappingId),
+            ['mapping' => $mappingId, 'available' => $available],
+        );
     }
 }
