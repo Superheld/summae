@@ -79,6 +79,12 @@ export class Tenant {
     readonly packIdentity: { id: string; version: string } | null = null,
     /** Where configuration changes are kept; null when this tenant has no record (SPEC-015). */
     readonly configStore: TenantConfigStore | null = null,
+    /**
+     * What the embedding declares about the identity behind `actor` (SPEC-020). Null = it has not
+     * said, which `systemDescription` reports as null rather than as "no". Not stored: it describes
+     * the running installation, not the books.
+     */
+    readonly actorAuthentication: { declared: boolean; method: string | null } | null = null,
   ) {}
 
   static inMemory(
@@ -92,6 +98,7 @@ export class Tenant {
     mappings: MappingRegistry = MappingRegistry.empty(),
     taxRoundingGranularity = 'perVoucher',
     packIdentity: { id: string; version: string } | null = null,
+    actorAuthentication: { declared: boolean; method: string | null } | null = null,
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     const tenantId = idGen.next(); // tenant ID = first generated ID (determinism)
@@ -130,6 +137,7 @@ export class Tenant {
       taxRoundingGranularity,
       packIdentity,
       store,
+      actorAuthentication,
     );
   }
 
@@ -168,6 +176,8 @@ export class Tenant {
      * record existed, and what an adapter without the table still does.
      */
     configStore: TenantConfigStore | null = null,
+    /** See the constructor: the embedding's declaration about `actor` (SPEC-020). */
+    actorAuthentication: { declared: boolean; method: string | null } | null = null,
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
     const ledger = new Ledger(
@@ -234,6 +244,7 @@ export class Tenant {
       ids,
       packIdentity,
       configStore,
+      actorAuthentication,
     );
   }
 }

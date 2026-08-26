@@ -22,37 +22,16 @@ table there. Moving it is the entire bookkeeping — the split is by *state*, an
 once. That is also why this is not the old per-language split: that one duplicated the same text in
 two places and drifted (SPEC-014 did, in the open).
 
-## SPEC-020 — `actorIsAuthenticated` can only ever be `false`, and it reads as a claim about the installation
+## Nothing open
 
-**Reported from outside 2026-08-25** by the embedding application (its F-30), against 0.13.0. Not
-yet decided.
+As of 2026-08-26 there is no undecided finding. That is a state, not an achievement: this register
+is empty roughly as often as it is full, and the useful reading of an empty one is *"the last pass
+closed what it opened"*, never *"there is nothing to find."*
 
-`systemDescription.auditTrail.actorIsAuthenticated` is a constant `false`
-(`system-description.ts`, `SystemDescriptionProjection.php`). No constructor argument, no operation
-and no configuration sets it, so no embedding can make it say anything else.
+The five that were here — IMPL-030, IMPL-031, IMPL-032, SPEC-020 and SPEC-021 — are in
+[`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Four of the
+five came **from outside**, reported by an application embedding the library, and the fifth was found
+while fixing one of them. That is the pattern worth noticing: our own suite was green through all of
+it, and each fix came with the guard that would have caught it.
 
-Read as *"this library does not authenticate anybody"* that is exactly right — summae is handed an
-`actor` string and cannot know where it came from. The trouble is what the field is **used for**:
-the reporting app puts it into the generated Verfahrensdokumentation under obligation A-1, as
-"Urheber geprüft: **nein**". Since that app grew a login (scrypt, signed session cookie, a gate
-nothing passes but the login screen), the document tells an auditor that the identity behind every
-entry is unverified about an installation where it is verified. An understatement in a compliance
-document is cheaper than an overstatement, and it is not free.
-
-**Two options, from the report, and they are not exclusive.** (1) A way to tell the library — a
-declaration alongside the actor, so `systemDescription` reports what the embedding actually does;
-summae would still authenticate nobody, it would be reporting a fact only the embedding can state.
-(2) A field that cannot go stale — `libraryAuthenticatesActor: false` never becomes wrong, and a
-generator reading it knows not to turn it into a statement about the installation.
-
-Explicitly **not** wanted by the reporter: the app asserting "ja" on its own. The technical part of
-that document is generated for exactly one reason — a hand-written technical description is the part
-that quietly stops matching the software.
-
-Note a home already exists for (1): since SPEC-015 a tenant's configuration is stored and reported
-(`tenantConfiguration`), and a declaration by the embedding is the same shape as the four things it
-already carries. The open question is whether a declaration summae cannot verify belongs in a
-document whose value is that it is *read* rather than written, and if so, how it must be worded so it
-reads as a declaration and not as a finding.
-
-## The next one goes here.
+The next one goes here.
