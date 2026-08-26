@@ -10,6 +10,74 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.13.1 — 2026-08-26
+
+**A mechanism nobody could reach, because the product data hid it.** One fix, and the report that
+led to it is the kind worth keeping: an embedding application said "the result of a year is never
+carried forward, and the next year's balance sheet says it was". Measured against 0.12.0 on books
+with a result of 900.00, the 2027 income statement said `netIncome 0.00` while the 2027 balance
+sheet reported a `Jahresergebnis` of 900.00 — the 2026 result, still sitting in the position that
+promises "this year".
+
+The engine was right and had been right since v0.3: a balance sheet is a snapshot, the position with
+`includesNetIncome` reports the **cumulative** result, and that is what keeps it balancing without
+closing entries. Carrying the result into equity is not something a close can do on its own —
+appropriating profit is a resolution (§ 29 GmbHG, § 174 AktG), and which part is distributed, put
+into reserves or carried forward is not something a library can know. So it arrives as an ordinary
+entry, `result_allocation` account against retained earnings, and the balance sheet moves the amount
+out of the result position. That has existed since v0.4 (F-CORE-024/SF-25).
+
+**Both shipped packs made that entry invisible.** `de-bilanz` claimed 2000–2499 wholesale, which
+swallowed the appropriation account 2300 right next to retained earnings 2100; `us-gaap-balance-sheet`
+claimed 3000–3999, swallowing Income Summary 3300 next to Retained Earnings 3100. The two lines of a
+correctly booked resolution then cancelled each other *inside one position*: the balance sheet did
+not move, the only visible effect was a new zero row, and every following year kept reporting the
+prior year's result as its own. Whoever followed the documented path saw nothing happen.
+
+### ⚠ What changes
+
+- **`de` is now `2026.5`, `us` is `2026.4`** (mappings `de-bilanz@2026.3`,
+  `us-gaap-balance-sheet@2026.2`). The old module and manifest versions are kept under
+  `versions/`, so a pinned `de@2026.4` or `us@2026.3` still resolves exactly what it always did.
+- **The equity range is cut around the appropriation account.** `E_MAPPING_OVERLAP` forbids a number
+  in two positions, which is presumably how this was missed in the first place: adding the account to
+  the result position without cutting the range is an error, not a fix.
+- **The result position is relabelled.** `Jahresergebnis` → `Jahresergebnis / nicht verwendete
+  Ergebnisse`, `Net Income` → `Net Income (not yet closed to Retained Earnings)`. The label is part of
+  the defect, not cosmetics: the position reports the result *not yet appropriated*, cumulative until
+  somebody books the resolution, and a label promising "this year" is the sentence the report tripped
+  over. A caller reading `label` sees new text; `key` is unchanged.
+- **Books that already carry an appropriation entry will show different figures** — the ones they
+  should have shown. Books that never booked one are unaffected in every figure.
+
+No API change, no format change: the data format stays at **0.7** and the cross-test compares 107
+byte-identical exports.
+
+### Two guards, because neither alone would have caught it
+
+`PackCompletenessTest` / `pack-completeness.test.ts` now require every `result_allocation` account to
+sit in the position that carries the result — and in no other. Verified red against the old mapping in
+both languages, with the identical message.
+
+`de-profit-appropriation` drives the whole path over the **shipped** pack: two fiscal years, the
+resolution booked with the date it is actually passed (which falls in the *following* year, and is why
+`closeFiscalYear` could never do this on anyone's behalf). Every fixture covering SF-25 until now
+brought a mapping of its own that got it right — which is exactly why a broken pack stayed green. The
+lesson generalises: mechanism proven on inline data says nothing about the product data shipped with
+it.
+
+The manual gained the paragraph that was missing at `balanceSheet`. Before this release
+`result_allocation` appeared in `docs/` not once, so the path existed and could not be found.
+
+### The last mirror is retired
+
+`pack-library/` was authored outside the repository and copied in by `make sync` (`rsync --delete`) —
+the one mirror left after the conformance suite stopped being one on 2026-08-23. It cost exactly what
+a mirror costs, and this release is the invoice: the defect above could not be repaired where it is
+read. Source and repo copy were verified byte-identical before the switch;
+`bin/sync-pack-library.sh` and the `sync` make target are gone. Several docs still claimed
+`testing/testsuite/` was mirrored too, untrue since August 23 — corrected in the same pass.
+
 ## 0.13.0 — 2026-08-25
 
 **What the library says about itself — and the guards that keep it honest.** The release began as
