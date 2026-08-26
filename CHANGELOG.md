@@ -12,6 +12,10 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.14.0 — 2026-08-26
 
+> Ships the 0.13.1 section below as well: the pack repair was written, gated and released-noted as
+> its own change, and the work that followed reached the registry first. The section stays where it
+> is rather than being folded in — what was fixed and why is a separate story from what was built.
+
 **The pack learns a resolution.** Appropriating a profit was the last part of the bookkeeping where
 an embedding still had to know account numbers. Everything else has long been a named operation —
 an invoice with VAT names no tax account, an asset acquisition names no depreciation account,
@@ -137,7 +141,7 @@ That welds the engine's internal shape to the contract, the way a literal `forma
 The successor pins the mechanism with placeholders: a pinned version resolves to the *same* digest
 every time, across `resolvePack` and `createTenant` alike. Register: `superseded.json`.
 
-## 0.13.1 — 2026-08-26
+## 0.13.1 — 2026-08-26 (never tagged on its own; shipped inside 0.14.0)
 
 **A mechanism nobody could reach, because the product data hid it.** One fix, and the report that
 led to it is the kind worth keeping: an embedding application said "the result of a year is never
