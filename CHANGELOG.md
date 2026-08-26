@@ -77,6 +77,43 @@ a sign the caller has to get right.
 The entry is an ordinary posting: correctable, reversible, audited like any other, and — unlike
 machine entries — **not** finalized on the spot, because it is a user's input rather than a run.
 
+### The three open reports from the embedding app are closed
+
+**`accountSheet` lines reach their own entry** (SPEC-021). Each line now carries `entryId` — the
+identity `journal` already publishes — and `contraAccounts[]`, the accounts on the other side of the
+same entry as `{account, name}`, deduplicated and sorted. A list rather than a field, because a tax
+code puts two or more there and naming "the" counter account would invent a fact; the side is decided
+**per line**, so one entry reads differently from the two sheets it appears on. Additive: the runner
+compares subsets, so no existing fixture changed.
+
+**The `default` pack says it ships no statements** (IMPL-032) instead of answering `balanceSheet
+requires the parameter "mapping"`, which reads as *you forgot something*. It ships no mapping module
+on purpose — a jurisdiction-free chart has no lawful gliederung to bring — and the refusal now says
+so and carries `available`, the mapping ids this tenant could pass. `tenantConfiguration.mappings`
+answers the same question without an error at all.
+
+**The embedding can declare who is behind `actor`** (SPEC-020), and this is the one where the
+library was right and the answer was still unusable. `actorIsAuthenticated: false` correctly says
+summae authenticates nobody; an application putting it into a generated Verfahrensdokumentation
+printed "Urheber geprüft: **nein**" about an installation that had since grown a login.
+
+```json
+// summae.json — read on every open
+"actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+// → systemDescription.auditTrail
+"actorAuthentication": { "byLibrary": false, "declaredByEmbedding": true, "method": "…" }
+```
+
+`byLibrary` can never go stale whatever an embedding does; `declaredByEmbedding` is the embedding's
+own sentence, quoted and never endorsed. **`null` is not a "no"** — nothing declared and a denial
+read differently to an auditor, and a malformed declaration is ignored rather than half-read into a
+claim nobody made. Deliberately **not stored** with the tenant: it describes the running
+installation, not the books, so dropping a login tomorrow must not leave yesterday's claim in a
+record. `actorIsAuthenticated` is unchanged — it was never wrong, only easy to misread.
+
+**The findings register is empty.** All five entries were closed in this release, and four of them
+came from outside.
+
 ### The pack documentation describes the packs again
 
 `knowledge/99-pack-docs/` is the reference work for building and auditing a pack, and nothing held

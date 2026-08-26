@@ -190,6 +190,7 @@ export class TenantOperations {
           tenant.baseCurrency,
           tenant.packIdentity,
           tenant.tax.profile().toJSON(),
+          tenant.actorAuthentication,
         ).compute(params);
       case 'tenantConfiguration':
         return new TenantConfigurationProjection(

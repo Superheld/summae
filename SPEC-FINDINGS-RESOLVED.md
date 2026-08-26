@@ -111,6 +111,7 @@ a short file.
 | IMPL-031 the pack docs described a product that does not exist | ✅ **RESOLVED 2026-08-26** — every `de` module document named a module id the pack does not have, the `de` balance sheet listed positions from an older draft, and the `us` balance sheet had the two sides of the chart swapped (equity at 2000–2499, payables at 3000–3099). Headers, position tables and the folder READMEs now come from the modules; five missing documents written, including the `default` pack's first. Guarded by `PackDocsTest`/`pack-docs.test.ts` in both languages: one document per shipped module, header states the real kind/id/version, every mapping row names the accounts its position really claims |
 | IMPL-032 the `default` pack cannot produce a statement, and did not say so | ✅ **RESOLVED 2026-08-26** — it ships no mapping module on purpose (a jurisdiction-free chart has no lawful gliederung to bring), but the caller learned it from `balanceSheet requires the parameter "mapping"`, which reads as *you forgot something*. The refusal now names the situation and carries `available` — empty for this pack — and points at `importMapping`; `tenantConfiguration.mappings` answers the same question without an error, and `default-pack-has-no-mappings` pins that the two agree. Documented where a reader looks: the manual's pack list and the pack's own README |
 | SPEC-021 `accountSheet` lines could not reach their own entry | ✅ **RESOLVED 2026-08-26** — `entryId` (the identity `journal` already publishes) plus `contraAccounts[]`, the accounts on the other side of the same entry, deduplicated and sorted. A list rather than a field, because a tax code puts two or more there and naming "the" counter account would invent a fact; the side is decided per line, so one entry reads differently from the two sheets it appears on. Additive — the runner compares subsets, so no fixture changed. Reported by the embedding app (its F-31), fixture `account-sheet-entry-reference` |
+| SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
@@ -123,6 +124,46 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### SPEC-020 — `actorIsAuthenticated` could only ever say `false` — RESOLVED
+
+**Reported from outside 2026-08-25** by the embedding application (its F-30), against 0.13.0, and
+the one entry on that list where **the library was not wrong and the answer was still unusable**.
+
+`systemDescription.auditTrail.actorIsAuthenticated` is a constant `false`. Read as *"this library
+does not authenticate anybody"* it is exactly right: summae is handed an `actor` string and has no
+way to know where it came from. The trouble is what the field is **used for**. The reporting app
+puts it into the generated Verfahrensdokumentation under obligation A-1 as "Urheber geprüft:
+**nein**" — deliberately, because the alternative is the app asserting something about itself in a
+document whose whole point is that the technical part is *read* rather than written. Then the app
+grew a login: scrypt in the people register, a signed session cookie, a gate nothing passes but the
+login screen. The document went on telling an auditor that the identity behind every entry is
+unverified, about an installation where a password had been proved before the actor was ever set.
+
+An understatement in a compliance document is cheaper than an overstatement. It is not free.
+
+**Both wishes were built, because they answer different halves.** `auditTrail.actorAuthentication`
+carries `byLibrary: false` — the name that cannot go stale, whatever any embedding does — next to
+`declaredByEmbedding` and `method`, which are the embedding's own sentence, quoted. `actorIsAuthenticated`
+stays exactly as it was: it was never wrong, only easy to misread, and the note now says which of
+the two questions it answers.
+
+**Three states, and the third is the decision.** `true` and `false` are statements; `null` means
+nothing was declared, and it survives as `null` all the way to the caller. An unanswered question
+and a denial read differently to an auditor, and turning the first into the second is precisely the
+error this finding is about — so a malformed declaration (a `method` with no `declared`) is ignored
+rather than half-read into a claim nobody made.
+
+**Not stored, and that is the other decision.** It would have fitted the `summae_tenants.config`
+record next to the four things SPEC-015 put there, and it does not belong: this describes the
+*running installation*, not the books. An embedding that drops its login tomorrow must not leave
+yesterday's claim behind in a record that outlives it. So it arrives on every construction, like
+the pack does, and in the CLI it lives in `summae.json`.
+
+What summae is doing here is reporting a declaration, not endorsing one — it cannot verify that a
+login exists and does not pretend to. That is still worth more than the app writing the line by
+hand into the document, which was the outcome the reporter explicitly did not want: a hand-written
+technical description is the part that quietly stops matching the software.
 
 ### SPEC-021 — `accountSheet` lines could not reach their own entry — RESOLVED
 

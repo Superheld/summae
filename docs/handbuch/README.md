@@ -2197,6 +2197,37 @@ books were kept under — and because until 2026-08-24 nothing published it, so 
 display only what it had written itself. Those are the same value by construction *in one
 embedding*, which is a property of that caller and not a guarantee.
 
+#### `auditTrail.actorAuthentication` — who is behind `actor`
+
+summae is handed an `actor` string and cannot know where it came from. `byLibrary` says so and can
+never go stale; `actorIsAuthenticated: false` has always meant the same thing and keeps its value.
+
+What summae cannot know, **you** can, and you are the only one who can:
+
+```json
+// summae.json — read on every open, never stored with the books
+"actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+```
+
+```json
+// systemDescription → auditTrail
+"actorAuthentication": { "byLibrary": false, "declaredByEmbedding": true,
+                         "method": "scrypt password login, signed session cookie" }
+```
+
+**Three states, and the third is the point.** `true` and `false` are statements; **`null` is not a
+"no"** — it means nothing was declared, and a generator that turns it into "Urheber geprüft: nein"
+is making a claim summae did not make. An unanswered question and a denial read differently to an
+auditor, and the difference matters in exactly the document this projection exists for.
+
+Note what summae is doing here: **reporting your declaration, not endorsing it.** It cannot verify
+that a login exists, and it does not pretend to — `declaredByEmbedding` is your sentence, quoted.
+That is still worth more than writing the line by hand into the document, because it is
+configuration you version and deploy rather than prose that quietly stops matching the software.
+
+It is deliberately **not** stored with the tenant. This describes the running installation, not the
+books: drop your login tomorrow and yesterday's claim must not survive in a record.
+
 This is the **Verfahrensdokumentation** building block a library can supply
 (GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and
 processes and no library can write them. The technical one is different: what

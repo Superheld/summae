@@ -52,6 +52,8 @@ export interface DatabaseTenantOptions {
   taxCodes?: TaxCodeRegistry;
   taxRoundingGranularity?: string;
   packIdentity?: { id: string; version: string } | null;
+  /** The embedding's declaration about `actor` (SPEC-020) — passed on every open, never stored. */
+  actorAuthentication?: { declared: boolean; method: string | null } | null;
 }
 
 /**
@@ -123,6 +125,7 @@ export class DatabaseTenantFactory {
       options.taxRoundingGranularity,
       record.packIdentity,
       store,
+      options.actorAuthentication ?? null,
     );
 
     // Replayed, not re-set: `restore…` runs the same validation without auditing a change nobody

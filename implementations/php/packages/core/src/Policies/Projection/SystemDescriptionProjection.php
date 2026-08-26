@@ -198,6 +198,28 @@ final readonly class SystemDescriptionProjection
          * @var array<string, mixed>|null
          */
         private ?array $taxProfile = null,
+        /**
+         * What the embedding declares about the identity behind `actor` (SPEC-020, reported by an
+         * embedding app as its F-30).
+         *
+         * summae is handed an actor string and cannot know where it came from — that is what
+         * `auditTrail.actorIsAuthenticated: false` has always said, and it stays true. The trouble
+         * was what the field gets *used for*: an application generating the technical part of a
+         * Verfahrensdokumentation put it in as "Urheber geprüft: **nein**", and then grew a login.
+         * The document went on telling an auditor that every entry's author is unverified about an
+         * installation where a password had been proved before the actor was ever set.
+         *
+         * So the only party that can know says so, and summae reports it **as a declaration**
+         * rather than as a finding of its own. `null` — the default, and what every embedding gets
+         * until it speaks — means nothing was declared, which is not the same as "no".
+         *
+         * Deliberately **not** stored with the tenant. This describes the running installation, not
+         * the books: an embedding that drops its login tomorrow must not leave yesterday's claim
+         * behind in a record. It is passed on every construction, like the pack.
+         *
+         * @var array{declared: bool, method: string|null}|null
+         */
+        private ?array $actorAuthentication = null,
     ) {
     }
 
@@ -234,7 +256,19 @@ final readonly class SystemDescriptionProjection
             'auditTrail' => [
                 'events' => self::AUDITED_EVENTS,
                 'actorIsAuthenticated' => false,
-                'note' => 'The actor is recorded as supplied by the caller. Binding it to an authenticated identity is the embedding application\'s responsibility.',
+                'actorAuthentication' => [
+                    // Never goes stale, whatever any embedding does: this library authenticates nobody.
+                    'byLibrary' => false,
+                    // What the embedding states about itself. `null` = it has not said, which a
+                    // generator must not turn into "no" — an unanswered question and a denial read
+                    // differently to an auditor.
+                    'declaredByEmbedding' => $this->actorAuthentication === null ? null : $this->actorAuthentication['declared'],
+                    'method' => $this->actorAuthentication === null ? null : $this->actorAuthentication['method'],
+                ],
+                'note' => 'The actor is recorded as supplied by the caller; summae authenticates nobody, which is what '
+                    . 'actorAuthentication.byLibrary states and what actorIsAuthenticated has always meant. Whether the '
+                    . 'identity behind it was proved is a fact only the embedding knows, and it is reported here as that '
+                    . "embedding's declaration — never as summae's own finding.",
             ],
             'capabilities' => [
                 'operations' => self::API_OPERATIONS,

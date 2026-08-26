@@ -53,7 +53,10 @@ final readonly class DatabaseTenantFactory
     ) {
     }
 
-    /** @param array{id: string, version: string}|null $packIdentity */
+    /**
+     * @param array{id: string, version: string}|null        $packIdentity
+     * @param array{declared: bool, method: string|null}|null $actorAuthentication
+     */
     public function build(
         ?string $name = null,
         ?Currency $baseCurrency = null,
@@ -71,6 +74,8 @@ final readonly class DatabaseTenantFactory
         // a caller who does not pass it.
         string $taxRoundingGranularity = 'perVoucher',
         ?array $packIdentity = null,
+        /** The embedding's declaration about `actor` (SPEC-020) — passed on every open, never stored. */
+        ?array $actorAuthentication = null,
     ): Tenant {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -211,6 +216,7 @@ final readonly class DatabaseTenantFactory
             $ids,
             $record->packIdentity,
             $configStore,
+            $actorAuthentication,
         );
     }
 }

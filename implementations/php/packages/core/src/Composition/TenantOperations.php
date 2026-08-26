@@ -159,6 +159,7 @@ final readonly class TenantOperations
                 $tenant->baseCurrency,
                 $tenant->packIdentity,
                 $tenant->tax->profile()->jsonSerialize(),
+                $tenant->actorAuthentication,
             ))->compute($params),
             'tenantConfiguration' => (new TenantConfigurationProjection(
                 $tenant->tax->profile()->jsonSerialize(),

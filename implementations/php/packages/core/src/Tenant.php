@@ -83,10 +83,21 @@ final readonly class Tenant
         public ?array $packIdentity = null,
         /** Where configuration changes are kept; null when this tenant has no record (SPEC-015). */
         public ?TenantConfigStore $configStore = null,
+        /**
+         * What the embedding declares about the identity behind `actor` (SPEC-020). Null = it has
+         * not said, which `systemDescription` reports as null rather than as "no". Not stored: it
+         * describes the running installation, not the books.
+         *
+         * @var array{declared: bool, method: string|null}|null
+         */
+        public ?array $actorAuthentication = null,
     ) {
     }
 
-    /** @param array{id: string, version: string}|null $packIdentity */
+    /**
+     * @param array{id: string, version: string}|null            $packIdentity
+     * @param array{declared: bool, method: string|null}|null     $actorAuthentication
+     */
     public static function inMemory(
         string $name,
         Currency $baseCurrency,
@@ -98,6 +109,7 @@ final readonly class Tenant
         ?MappingRegistry $mappings = null,
         string $taxRoundingGranularity = 'perVoucher',
         ?array $packIdentity = null,
+        ?array $actorAuthentication = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -195,6 +207,7 @@ final readonly class Tenant
             $ids,
             $packIdentity,
             $configStore,
+            $actorAuthentication,
         );
     }
 }
