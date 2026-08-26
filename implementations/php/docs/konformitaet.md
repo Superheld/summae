@@ -8,8 +8,8 @@ intent but checkable: a language-neutral **fixture suite** (pure JSON data). An
 implementation counts as conformant when **all fixtures are green** and a
 **complete double run yields byte-identical** results.
 
-The fixtures are the normative source. They live in the knowledge base and are
-mirrored into `testing/testsuite/` via `make sync` (one-way street). **Never edit here**
+The fixtures are the normative source and are authored in `testing/testsuite/`. They are
+**append-only**: a behaviour change is a *new* fixture, never a quiet edit to an existing one
 — see "SPEC-FINDINGS" below.
 
 ## How the runner works

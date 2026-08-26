@@ -19,7 +19,7 @@ Repo layout:
 - `knowledge/` — **the authoring side**: domain knowledge, requirements (`F-…`/`NF-…`/`SF-…`), domain model, the prose spec, build reports, pack docs. For whoever *builds* summae; `docs/` is for whoever *uses* it. Still German, unlike everything shipped — see `knowledge/README.md`. Project/strategy material (roadmaps, decision log, governance) deliberately stays outside this public repo.
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
-- `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules). Source is the knowledge base, mirrored via `make sync` (`rsync --delete`); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
+- `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules), authored here since 2026-08-26 (the last mirror, retired); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
 - `Makefile`, `compose.yaml`, `docker/` — Docker toolchain (currently drives the PHP side).
 
 ## Scope: capabilities, not workflows
@@ -152,9 +152,12 @@ pins *behaviour* is never retired, it is argued with. Product data (a pack's ver
 its chart) belongs to the product; mechanism (that a pinned version keeps resolving what it always
 resolved) belongs in a fixture that owns its own data, like `xx-6-pack-version-pinning`.
 
-**One mirror remains:** `pack-library/` is still authored outside and comes in via `make sync`
-(`bin/sync-pack-library.sh`, `rsync --delete` — whatever is here and not in the source gets
-deleted). Do not edit it here.
+**No mirror remains.** `pack-library/` was the last one — authored outside and copied in by
+`make sync` (`rsync --delete`) until 2026-08-26. It is now authored **here**, like everything else:
+edit the packs in place, the sync script and its make target are gone. What the mirror cost is worth
+remembering, because it is the argument against ever adding another one: a folder that a script
+overwrites cannot be fixed where the defect is read, so the two shipped packs carried a mapping
+defect nobody could repair without leaving the repository first.
 
 ## Conventions (language-neutral)
 

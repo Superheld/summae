@@ -16,7 +16,6 @@ make check      # PHPStan (level max) + PHPUnit — exactly what CI checks
 make fixtures   # conformance suite against the in-memory core
 make test       # PHPUnit only
 make stan       # PHPStan level max only
-make sync       # mirror testing/testsuite/ from the knowledge base (one-way)
 make shell      # shell in the PHP container
 ```
 

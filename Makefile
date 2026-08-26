@@ -1,7 +1,7 @@
 COMPOSE = docker compose
 PHP     = $(COMPOSE) run --rm php
 
-.PHONY: build install test stan check sync shell fixtures fixtures-strict fixtures-db cross
+.PHONY: build install test stan check shell fixtures fixtures-strict fixtures-db cross
 
 fixtures:     ## Konformitäts-Fixtures gegen den Kern (schnell, beim Entwickeln)
 	$(PHP) php runner/bin/run-fixtures.php
@@ -35,9 +35,6 @@ stan:         ## PHPStan (level max)
 	$(PHP) vendor/bin/phpstan analyse
 
 check: stan test fixtures-strict fixtures-db  ## Alles, was CI für PHP prüft — jetzt wirklich
-
-sync:         ## Pack-Library aus der Wissensbasis spiegeln (Einbahnstraße, letzter Spiegel)
-	./bin/sync-pack-library.sh
 
 shell:        ## Shell im PHP-Container
 	$(PHP) bash
