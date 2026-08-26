@@ -60,6 +60,12 @@
       "supersededBy": "system-description-current",
       "on": "2026-08-24",
       "reason": "Pinned `formatVersion: \"0.6\"` in its expectation, so the DATA FORMAT could not be versioned without this fixture going red — the same weld a shipped pack's version was retired for, one layer down. The contract is that an export states the CURRENT format version, and that is pinned where it belongs: `format-version.test.ts` / `FormatVersionTest` compare the constant against the schema's own `$id`, in both languages. The number itself is the product's. It moved to 0.7 on 2026-08-24, when the partner record gained a `status`. The rest of this fixture keeps being carried forward as the software grows — the capability lists and the audited events are what it exists to pin, and a description that does not mention a capability the software has lies by omission."
+    },
+    {
+      "fixture": "xx-6-pack-version-pinning",
+      "supersededBy": "xx-6-pack-version-pinning-current",
+      "on": "2026-08-26",
+      "reason": "Pinned both contentDigest values literally. The digest is derived from the serialisation of the resolved bundle, so ANY field the bundle gains changes it — including a field that is null for this pack, which is what happened when the appropriation plug was added and this fixture, whose own pack declares no such module, went red. That is the same weld a literal formatVersion was retired for, one layer further in: the number belongs to the engine's internal shape, not to the contract. The successor drives exactly the same six steps and pins the mechanism with placeholders — a pinned version resolves to the SAME digest every time, across resolvePack and createTenant alike, while the current version resolves to a different one. That the two versions differ at all is carried by accountCount, which is data rather than a hash."
     }
   ]
 }

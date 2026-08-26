@@ -1,0 +1,15 @@
+{
+  "formatVersion": "0.6",
+  "id": "neutral-appropriation",
+  "kind": "resultAppropriation",
+  "version": "2026.1",
+  "name": "Neutral result appropriation (carry forward only)",
+  "contributes": ["resultAppropriation"],
+  "dependsOn": [{ "kind": "accounts", "id": "neutral" }],
+  "data": {
+    "allocationAccount": "2300",
+    "targets": {
+      "carryForward": { "account": "2100", "label": "Gewinnvortrag" }
+    }
+  }
+}

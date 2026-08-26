@@ -79,6 +79,8 @@ export class TenantOperations {
         return ledger.reopenPeriod(input);
       case 'closeFiscalYear':
         return { fiscalYear: ledger.closeFiscalYear(input).year, status: 'closed' };
+      case 'appropriateResult':
+        return this.tenant.resultAppropriation.appropriate(input);
       case 'createAccount':
         return serialize(ledger.createAccount(input));
       case 'defineDimensionType':
@@ -195,6 +197,7 @@ export class TenantOperations {
           tenant.ledger.dimensionRegistry(),
           tenant.costing.allocationScheme(),
           tenant.mappings,
+          tenant.resultAppropriation.offeredTargets(),
         ).compute(params);
       case 'costingRuns':
         return new CostingRunsProjection(tenant.costingRuns).compute(params);

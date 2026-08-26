@@ -6,6 +6,7 @@ namespace Summae\Laravel;
 
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Policies\Expansion\Assets\AssetService;
+use Summae\Core\Policies\Expansion\ResultAppropriationService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
@@ -168,6 +169,7 @@ final readonly class DatabaseTenantFactory
         );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
         $assetService = new AssetService($baseCurrency, $assets, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
+        $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);
         $costing = new CostingService(
             $baseCurrency,
             $accounts,
@@ -202,6 +204,7 @@ final readonly class DatabaseTenantFactory
             $tax,
             $partnerService,
             $assetService,
+            $resultAppropriation,
             $costing,
             $mappings,
             $clock,

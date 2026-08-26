@@ -138,6 +138,8 @@ final readonly class TenantFactory
         $tenant->assetService->setRuleModule($this->ruleModules);
         // And the same for costing: the pack decides which components may enter production cost.
         $tenant->costing->setRuleModule($this->ruleModules);
+        // And the appropriation plug: which account a resolution books against, and which targets exist.
+        $tenant->resultAppropriation->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

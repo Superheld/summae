@@ -30,6 +30,7 @@ const OPERATIONS = [
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
   'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
   'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
+  'appropriateResult',
 ] as const;
 
 const PROJECTIONS = [

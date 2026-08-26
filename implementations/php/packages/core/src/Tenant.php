@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core;
 
 use Summae\Core\Policies\Expansion\Assets\AssetService;
+use Summae\Core\Policies\Expansion\ResultAppropriationService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
@@ -67,6 +68,7 @@ final readonly class Tenant
         public TaxService $tax,
         public PartnerService $partnerService,
         public AssetService $assetService,
+        public ResultAppropriationService $resultAppropriation,
         public CostingService $costing,
         public MappingRegistry $mappings,
         public Clock $clock,
@@ -157,6 +159,7 @@ final readonly class Tenant
         );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
+        $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);
         $costing = new CostingService(
             $baseCurrency,
             $accounts,
@@ -185,6 +188,7 @@ final readonly class Tenant
             $tax,
             $partnerService,
             $assetService,
+            $resultAppropriation,
             $costing,
             $mappings,
             $clock,

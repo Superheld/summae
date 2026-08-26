@@ -41,6 +41,13 @@ export class TenantConfigurationProjection {
     /** Raw, as `setAllocationScheme` accepts it. */
     private readonly allocationScheme: Record<string, unknown> | null,
     private readonly mappings: MappingRegistry,
+    /**
+     * Which appropriation targets the pack offers. Same reason as `dimensionRules`: it is the
+     * *pack's* answer, an embedding cannot derive it, and without it a screen offering "carry
+     * forward / distribute" would have to find out by provoking E_APPROPRIATION_UNSUPPORTED.
+     * Empty means the pack supports no appropriation at all.
+     */
+    private readonly appropriationTargets: string[],
   ) {}
 
   compute(_params: Record<string, unknown>): Record<string, unknown> {
@@ -53,6 +60,7 @@ export class TenantConfigurationProjection {
       dimensionRules: this.dimensions.rulesData(),
       allocationScheme: this.allocationScheme,
       mappings: this.mappings.summaries(),
+      appropriationTargets: [...this.appropriationTargets],
     };
   }
 }

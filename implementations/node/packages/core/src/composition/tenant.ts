@@ -1,4 +1,5 @@
 import { AssetService } from '../policies/expansion/assets/asset-service.js';
+import { ResultAppropriationService } from '../policies/expansion/result-appropriation-service.js';
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
 import {
   InMemoryAccountRepository,
@@ -64,6 +65,7 @@ export class Tenant {
     readonly ledger: Ledger,
     readonly tax: TaxService,
     readonly assetService: AssetService,
+    readonly resultAppropriation: ResultAppropriationService,
     readonly costing: CostingService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
@@ -195,6 +197,7 @@ export class Tenant {
       configStore,
     );
     const assetService = new AssetService(baseCurrency, assets, fiscalYears, vouchers, ledger, ids, tenantId, auditWriter);
+    const resultAppropriation = new ResultAppropriationService(baseCurrency, accounts, journal, ledger, auditWriter);
     const costing = new CostingService(
       baseCurrency,
       accounts,
@@ -223,6 +226,7 @@ export class Tenant {
       ledger,
       tax,
       assetService,
+      resultAppropriation,
       costing,
       partnerService,
       mappings,

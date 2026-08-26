@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "us",
   "name": "United States — complete pack (own chart + sales/use tax + US-GAAP mappings + cash-basis Schedule C + MACRS)",
-  "version": "2026.5",
+  "version": "2026.4",
   "modules": [
     {
       "kind": "accounts",
@@ -47,11 +47,6 @@
     {
       "kind": "productionCost",
       "id": "us-inventory-costing",
-      "version": "2026.1"
-    },
-    {
-      "kind": "resultAppropriation",
-      "id": "us-appropriation",
       "version": "2026.1"
     }
   ],

@@ -68,6 +68,14 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       disposalLossAccount: '4930',
     },
   });
+  // The appropriation plug, for the same reason: without it the operation refuses with
+  // E_APPROPRIATION_UNSUPPORTED instead of reaching the trail.
+  tenant.resultAppropriation.setRuleModule({
+    resultAppropriation: {
+      allocationAccount: '2300',
+      targets: { carryForward: { account: '2100', label: 'Gewinnvortrag' } },
+    },
+  });
   return new TenantOperations(tenant);
 }
 
@@ -233,6 +241,34 @@ const AUDITED: readonly Case[] = [
       ops.execute('finalize', { finalizeUntil: '2026-12-31' });
       for (let period = 1; period <= 12; period++) ops.execute('closePeriod', { fiscalYear: 2026, period });
       ops.execute('closeFiscalYear', { fiscalYear: 2026 });
+    },
+  },
+  {
+    // The resolution is an ordinary entry, so it is the entry that is audited — which is the
+    // point: an appropriation must be as traceable as any other posting, not a side channel.
+    op: 'appropriateResult',
+    objectType: 'journalEntry',
+    action: 'created',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      ops.execute('createAccount', { number: '2100', name: 'Gewinnvortrag', type: 'equity' });
+      ops.execute('createAccount', { number: '2300', name: 'Ergebnisverwendung', type: 'equity', subtype: 'result_allocation' });
+      ops.execute('createAccount', { number: '8400', name: 'Erlöse', type: 'revenue' });
+      ops.execute('post', {
+        entryDate: '2026-01-20',
+        voucherId,
+        text: 'Erlös',
+        lines: [
+          { account: '1200', side: 'debit', money: { amount: '900.00', currency: 'EUR' } },
+          { account: '8400', side: 'credit', money: { amount: '900.00', currency: 'EUR' } },
+        ],
+      });
+      ops.execute('appropriateResult', {
+        fiscalYear: 2026,
+        entryDate: '2026-06-30',
+        voucherId,
+        appropriations: [{ target: 'carryForward', money: { amount: '900.00', currency: 'EUR' } }],
+      });
     },
   },
   // --- tenant-level configuration (F-CORE-014 "Steuerschlüssel, Profile") --
