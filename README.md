@@ -73,8 +73,8 @@ new fixture; existing ones are never silently edited.
 
 > **Maintainer note:** Fixtures are authored in `testing/testsuite/` itself. They used to be
 > mirrored in from an external knowledge base; that base is now `knowledge/` in this repo, so
-> the copy was retired along with its sync script. The one mirror that remains is
-> `pack-library/` (`make sync`), whose source is still authored outside.
+> the copy was retired along with its sync script. `pack-library/` followed on 2026-08-26 —
+> nothing in this repository is a copy of something authored elsewhere any more.
 
 ## Quick test
 

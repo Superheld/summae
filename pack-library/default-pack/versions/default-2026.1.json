@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "default",
+  "name": "Default-Pack — neutraler Standard-Kontenrahmen, jurisdiktionsfrei",
+  "version": "2026.1",
+  "modules": [
+    { "kind": "accounts", "id": "neutral", "version": "2026.1" }
+  ],
+  "overrides": [],
+  "defaults": { "taxationMethod": "accrual" },
+  "packPolicy": {
+    "roundingMode": "halfUpAwayFromZero",
+    "taxRoundingGranularity": "perVoucher",
+    "currencyScale": 2
+  }
+}

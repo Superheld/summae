@@ -20,7 +20,7 @@ import { canonicalJson } from '../substrate/canonical-json.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -69,6 +69,7 @@ export interface ResolvedPack {
   assetAccounts: Record<string, unknown> | null;
   depreciation: Record<string, unknown> | null;
   productionCost: Record<string, unknown> | null;
+  resultAppropriation: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
@@ -191,6 +192,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let assetAccounts: Record<string, unknown> | null = null;
   let depreciation: Record<string, unknown> | null = null;
   let productionCost: Record<string, unknown> | null = null;
+  let resultAppropriation: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
   let packPolicyModule: Record<string, unknown> | null = null;
 
@@ -232,6 +234,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'productionCost':
         productionCost = m.data;
+        break;
+      case 'resultAppropriation':
+        resultAppropriation = m.data;
         break;
       case 'constraint':
         // Constraints add up rather than replace: two modules may each contribute rules, and a later
@@ -288,6 +293,25 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       }
     }
   }
+  // I8: the appropriation module names accounts that exist — the allocation account and every
+  // target it offers. A target pointing at nothing would fail at posting time, deep inside an
+  // operation, instead of when the pack is composed.
+  if (resultAppropriation !== null) {
+    const allocation = asString(resultAppropriation.allocationAccount);
+    if (allocation === null || !accountNumbers.has(allocation)) {
+      throw new DomainError('E_PACK_UNRESOLVED_REF', 'resultAppropriation.allocationAccount without account (I8)');
+    }
+    const targets = isRecord(resultAppropriation.targets) ? resultAppropriation.targets : {};
+    if (Object.keys(targets).length === 0) {
+      throw new DomainError('E_PACK_INCOHERENT', 'resultAppropriation without a single target (I8)');
+    }
+    for (const [name, target] of Object.entries(targets)) {
+      const number = isRecord(target) ? asString(target.account) : null;
+      if (number === null || !accountNumbers.has(number)) {
+        throw new DomainError('E_PACK_UNRESOLVED_REF', `resultAppropriation.targets.${name} without account (I8)`);
+      }
+    }
+  }
   // I2: every mapping selector hits >= 1 account; fires only on a fully empty selector.
   for (const mapping of mappings) {
     checkMappingSelectors(mapping, accountNumbers);
@@ -326,6 +350,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     assetAccounts,
     depreciation,
     productionCost,
+    resultAppropriation,
     dimensionRules,
     packPolicy: effectivePolicy,
     profile,
@@ -355,6 +380,9 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // Not spread like depreciation: the CostingService reads it under its own key, because
     // "treatments" is a word another module could plausibly want too.
     productionCost: isRecord(pack.productionCost) ? pack.productionCost : null,
+    // The appropriation plug: which account the resolution books against, and which targets the
+    // jurisdiction offers. A pack that stays silent simply does not support the operation.
+    resultAppropriation: isRecord(pack.resultAppropriation) ? pack.resultAppropriation : null,
     // The first constraint plug: which accounts may not be posted without which dimension.
     dimensionRules: Array.isArray(pack.dimensionRules) ? pack.dimensionRules : [],
     packPolicy: pack.packPolicy,

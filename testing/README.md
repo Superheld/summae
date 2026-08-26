@@ -79,8 +79,8 @@ never point back.
 > base outside the repository and copied in by `make sync` (`rsync --delete`), so editing them
 > here meant losing the work at the next sync. The knowledge base moved into `knowledge/`, and
 > with source and copy in the same repository the copy stopped earning its keep: this tree is
-> now the source. Edit fixtures here. The one remaining mirror is `pack-library/`
-> (`make sync` → `bin/sync-pack-library.sh`), whose source is still authored outside.
+> now the source. Edit fixtures here. `pack-library/` was the last mirror left and followed on
+> 2026-08-26; `make sync` and its script are gone.
 
 **The rule that did survive: fixtures are append-only.** A behaviour change is a *new* fixture,
 never a quiet edit to an existing one — that discipline was never about the mirror, and losing

@@ -108,6 +108,11 @@ a short file.
 | IMPL-029 `lines[].openItem` is read by nobody | ✅ **RESOLVED 2026-08-25 by declaration** — fixtures have passed it since v0.2; an open item is derived from the account subtype and the line side, which cannot disagree with the account. Declared `acceptedWithoutEffect` rather than accepted silently, per the rule that each one is recorded |
 | SPEC-018 the audit trail can only be read whole | ✅ **RESOLVED 2026-08-25** — `AuditTrail::find(criteria)` pushes the filters into SQL by reading the JSON payload (`json_extract` / `->>`), so no column and no migration; `EntryAuthors` asks for the ids on the page. The entry's own proposal was wrong and says so: columns would have needed a data migration nothing here can run. An index is what is left |
 | SPEC-019 the documentation gate reaches names, not meanings | ✅ **RESOLVED 2026-08-25** — every input key the contract declares, at any depth, must be named in the manual section that accepts it. Unblocked by SPEC-017, which gave the contract the key list. Found 46 undocumented keys, including the whole voucher and overhead-rate vocabulary |
+| IMPL-031 the pack docs described a product that does not exist | ✅ **RESOLVED 2026-08-26** — every `de` module document named a module id the pack does not have, the `de` balance sheet listed positions from an older draft, and the `us` balance sheet had the two sides of the chart swapped (equity at 2000–2499, payables at 3000–3099). Headers, position tables and the folder READMEs now come from the modules; five missing documents written, including the `default` pack's first. Guarded by `PackDocsTest`/`pack-docs.test.ts` in both languages: one document per shipped module, header states the real kind/id/version, every mapping row names the accounts its position really claims |
+| IMPL-032 the `default` pack cannot produce a statement, and did not say so | ✅ **RESOLVED 2026-08-26** — it ships no mapping module on purpose (a jurisdiction-free chart has no lawful gliederung to bring), but the caller learned it from `balanceSheet requires the parameter "mapping"`, which reads as *you forgot something*. The refusal now names the situation and carries `available` — empty for this pack — and points at `importMapping`; `tenantConfiguration.mappings` answers the same question without an error, and `default-pack-has-no-mappings` pins that the two agree. Documented where a reader looks: the manual's pack list and the pack's own README |
+| SPEC-021 `accountSheet` lines could not reach their own entry | ✅ **RESOLVED 2026-08-26** — `entryId` (the identity `journal` already publishes) plus `contraAccounts[]`, the accounts on the other side of the same entry, deduplicated and sorted. A list rather than a field, because a tax code puts two or more there and naming "the" counter account would invent a fact; the side is decided per line, so one entry reads differently from the two sheets it appears on. Additive — the runner compares subsets, so no fixture changed. Reported by the embedding app (its F-31), fixture `account-sheet-entry-reference` |
+| SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
+| IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -119,6 +124,197 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### SPEC-020 — `actorIsAuthenticated` could only ever say `false` — RESOLVED
+
+**Reported from outside 2026-08-25** by the embedding application (its F-30), against 0.13.0, and
+the one entry on that list where **the library was not wrong and the answer was still unusable**.
+
+`systemDescription.auditTrail.actorIsAuthenticated` is a constant `false`. Read as *"this library
+does not authenticate anybody"* it is exactly right: summae is handed an `actor` string and has no
+way to know where it came from. The trouble is what the field is **used for**. The reporting app
+puts it into the generated Verfahrensdokumentation under obligation A-1 as "Urheber geprüft:
+**nein**" — deliberately, because the alternative is the app asserting something about itself in a
+document whose whole point is that the technical part is *read* rather than written. Then the app
+grew a login: scrypt in the people register, a signed session cookie, a gate nothing passes but the
+login screen. The document went on telling an auditor that the identity behind every entry is
+unverified, about an installation where a password had been proved before the actor was ever set.
+
+An understatement in a compliance document is cheaper than an overstatement. It is not free.
+
+**Both wishes were built, because they answer different halves.** `auditTrail.actorAuthentication`
+carries `byLibrary: false` — the name that cannot go stale, whatever any embedding does — next to
+`declaredByEmbedding` and `method`, which are the embedding's own sentence, quoted. `actorIsAuthenticated`
+stays exactly as it was: it was never wrong, only easy to misread, and the note now says which of
+the two questions it answers.
+
+**Three states, and the third is the decision.** `true` and `false` are statements; `null` means
+nothing was declared, and it survives as `null` all the way to the caller. An unanswered question
+and a denial read differently to an auditor, and turning the first into the second is precisely the
+error this finding is about — so a malformed declaration (a `method` with no `declared`) is ignored
+rather than half-read into a claim nobody made.
+
+**Not stored, and that is the other decision.** It would have fitted the `summae_tenants.config`
+record next to the four things SPEC-015 put there, and it does not belong: this describes the
+*running installation*, not the books. An embedding that drops its login tomorrow must not leave
+yesterday's claim behind in a record that outlives it. So it arrives on every construction, like
+the pack does, and in the CLI it lives in `summae.json`.
+
+What summae is doing here is reporting a declaration, not endorsing one — it cannot verify that a
+login exists and does not pretend to. That is still worth more than the app writing the line by
+hand into the document, which was the outcome the reporter explicitly did not want: a hand-written
+technical description is the part that quietly stops matching the software.
+
+### SPEC-021 — `accountSheet` lines could not reach their own entry — RESOLVED
+
+**Reported from outside 2026-08-25** by the embedding application (its F-31), against 0.13.0, while
+making the account sheet answer the question it raises on every line: *6000 in debit, against what?*
+
+The projection returned `sequenceNumber`, `entryDate`, `text`, `side`, `money`, `runningBalance` and
+the reversal fields — no entry identity and no counter accounts. Both omissions have the same root:
+the sheet is an extract of **one** account and knows nothing about the other lines of the entries it
+is made of. Correct as a definition, and it left the caller two dead ends. The route to the entry was
+`journal` with `fromDate` and `toDate` on the same day, then filtering that day's entries by
+`sequenceNumber` — a search where a lookup belongs, for an entry whose identity the caller had two
+fields ago. The counter accounts could not be formed at all without the embedding combining figures
+of its own, which is the one thing a bookkeeping API should make unnecessary.
+
+Both were built. `entryId` is the identity `journal` publishes and the audit trail records — the sheet
+was building its lines from those very entries and dropping it.
+
+`contraAccounts[]` is a **list**, and that is the whole decision: a plain entry has one counter
+account, an entry with a tax code has two or more, and a field called "the counter account" would
+have to pick one and thereby invent a fact. It is decided **per line** rather than per sheet — on a
+debit line the credit accounts answer the question, on a credit line the debit ones — so the same
+entry reads differently from the two sheets it appears on. The fixture pins both views of the same
+two entries for exactly that reason.
+
+Cheap in the end, and cheaper than it looked: the runner compares **subsets**, so a new field on an
+object turns no existing fixture red. What the report called the second, optional half turned out to
+be the half only the library can supply.
+
+### IMPL-032 — the `default` pack cannot produce a statement, and did not say so — RESOLVED
+
+**Found 2026-08-26** while checking whether the appropriation defect (IMPL-030) reached all three
+shipped packs. It did not, for a reason worth recording: `default` ships **no mapping module at
+all** — no balance sheet, no income statement, no cash-basis categories — while shipping the
+accounts they would need.
+
+That is the right answer and not a gap. A jurisdiction-free chart has no lawful statement layout it
+could bring; every gliederung is somebody's law, and inventing one would be the `default` pack
+claiming a jurisdiction it exists to avoid.
+
+**What was wrong is how a caller found out.** `balanceSheet` requires `mapping`, so the refusal was
+`balanceSheet requires the parameter "mapping"` — which reads as *you forgot something*. Pass one
+anyway and the next refusal is `mapping "x" is not loaded`, which reads as *you named the wrong
+one*. Neither says *this pack ships none, load one*. For an application, and much more for an
+agent, that is the difference between a dead end and an instruction.
+
+The refusal now distinguishes the two situations and carries `available` either way — the ids this
+tenant could pass, empty for `default`. No new mechanism was needed for the honest answer: a tenant
+that reports `mappings: []` through `tenantConfiguration` has already said it, and the fixture
+`default-pack-has-no-mappings` pins that the projection and the error agree. Documented in the
+manual's pack list and in the pack's own README, both of which a reader reaches before an error.
+
+Deliberately **not** built: letting a pack declare which projections it equips. That would be a new
+kind of statement about a pack (the `packPolicy.vatPeriods` shape), and the data to answer this
+question already exists. If a second question of that kind turns up, it is worth revisiting.
+
+### IMPL-031 — the pack docs described a product that does not exist — RESOLVED
+
+**Found 2026-08-26** while repairing the balance-sheet mappings (IMPL-030) and looking for every
+place that had to be corrected with them. `knowledge/99-pack-docs/` is the reference work for
+whoever builds or audits a pack — one file per module, position by position. Nothing held it
+against the modules, and the drift was total rather than detailed:
+
+- **Every one of the eight `de` module documents named a module id the pack does not have**
+  (`de-konten-2026` for `de-konten`, `de-hgb-bilanz-266` for `de-bilanz`, `afa-de` for `de-afa`, …).
+- The **`de` balance sheet** listed positions `A`, `B.I`, `B.II`, `B.III` / `A`, `C.1`, `C.2`, `C.3`
+  where the module ships `A.I`–`A.V` and `P.A1`–`P.D` — not one key in common.
+- The **`us` balance sheet** had the two sides of the chart **swapped**: equity documented at
+  2000–2499 and payables at 3000–3099, the exact opposite of the module. Eleven of eleven rows wrong.
+- Four `us` documents stated a version the module had moved past; `de-guv` was missing three
+  positions and `de-euer` one; five modules had no document at all, and the `default` pack had no
+  folder.
+
+They read as design notes written before the modules were built and never reconciled. **A reference
+work that is wrong is worse than none: it is believed** — and this one is what somebody builds the
+next pack from.
+
+**Resolved by making the checkable parts checked.** Headers, position tables and the folder READMEs
+are now derived from the modules; the prose was kept, since a document may well call a position
+something clearer than the module's own label. Five documents were written, among them the
+`default` pack's first two — which is also where IMPL-032 became visible enough to record.
+
+The guard is `PackDocsTest` / `pack-docs.test.ts`, identical in both languages, three rules that a
+pack author can satisfy without guessing: every shipped module has exactly one document, found by
+its own `id:` header; that header states the module's real kind, id and version, so a version bump
+cannot land without the document being opened; and every mapping table names each position of its
+module with the accounts that position really claims. Verified red against the old content in both
+languages.
+
+One lesson about the guard itself: its first version had a dangling `else` and therefore checked
+only single account numbers, not ranges — it reported four rows where there were thirty-one. A test
+that passes for the wrong reason is the failure mode a documentation gate is most prone to, because
+nobody rereads what turned green.
+
+### IMPL-030 — both shipped packs hid the appropriation entry from the balance sheet — RESOLVED
+
+**Reported from outside 2026-08-25** by the embedding application (its F-32), measured against
+0.12.0: *"the result of a year is never carried forward, and the next year's balance sheet says it
+was."* Books with three entries and a result of 900.00 —
+
+```
+incomeStatement 2027 → netIncome 0.00, positions []
+balanceSheet    2027 → P.A2 "Jahresergebnis" 900.00
+journal         2027 → count 0
+```
+
+— two reports of the same empty year, disagreeing. The report proposed carrying the result at
+`closeFiscalYear`, or failing that a balance sheet that distinguishes this year's result from what
+was carried in.
+
+**Both proposals were wrong, and the second was nearly right.** The engine has been correct since
+v0.3 and says so in `api.md`: a balance sheet is a snapshot, the `includesNetIncome` position holds
+the **cumulative** result, and that is precisely what makes it balance without closing entries —
+the same deliberate choice that makes the carry-forward implicit for *every* balance-carrying
+account. Carrying the result by posting would have made the result the one exception.
+
+And distinguishing the two was already built, in v0.4, as F-CORE-024/SF-25: appropriating profit is
+a **resolution**, not a calculation (§ 29 GmbHG, § 174 AktG — distribute, reserve or carry forward
+is not a library's decision), so it arrives as an ordinary entry, `result_allocation` account
+against retained earnings, and the position then reports the result *not yet appropriated*. The
+packs even ship the accounts: `de` 2300/2100, `us` 3300/3100.
+
+**What was actually broken was the product data.** `de-bilanz` claimed 2000–2499 wholesale, which
+swallowed 2300 next to 2100; `us-gaap-balance-sheet` claimed 3000–3999, swallowing 3300 next to
+3100. The two lines of a correct resolution therefore cancelled each other *inside one position*.
+Measured on the shipped `de` pack:
+
+```
+post 2300 → 2100  900.00        (the documented path, booked correctly)
+balanceSheet 2027 → P.A1 0.00 | P.A2 "Jahresergebnis" 900.00     ← unchanged
+```
+
+The only visible effect of a correct entry was a new zero row. With the range cut around the
+account and nothing else altered, the same books report `P.A1 900.00 | P.A2 0.00`, and 2026 is
+untouched.
+
+**Why nothing caught it, which is the part worth keeping.** The schema validates shape, not
+meaning. `PackCompletenessTest` checked that profit-and-loss accounts are assigned, which a balance
+sheet legitimately does not do. And every fixture covering SF-25 brings a **mapping of its own**
+that gets it right — mechanism proven on inline data says nothing about the data shipped with the
+product. Both gaps are closed: the completeness guard now requires each `result_allocation` account
+to sit in the result position and nowhere else (verified red against the old mapping in both
+languages), and `de-profit-appropriation` drives the path over the shipped pack, dating the
+resolution in the *following* fiscal year — which is also why `closeFiscalYear` could never have
+done this on anyone's behalf.
+
+`E_MAPPING_OVERLAP` is why the repair is a cut rather than an addition, and presumably why it was
+missed: adding the account to the result position without cutting the wholesale range is an error.
+
+Left open by this finding, recorded separately: the pack documentation describing these mappings is
+stale in its own right (IMPL-031), and the `default` pack ships no mapping at all (IMPL-032).
 
 ### IMPL-026 — a yearly run before a mid-year disposal left the asset account below zero — RESOLVED
 

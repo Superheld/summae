@@ -1,0 +1,215 @@
+{
+  "fixture": "result-appropriation-guards",
+  "description": "The two refusals `appropriateResult` owes, and they are deliberately different codes. `E_APPROPRIATION_UNSUPPORTED` is a question of CONFIGURATION — the pack does not offer this target, and the answer names what it does offer, so a caller can build a form from it rather than guessing. `E_APPROPRIATION_EXCEEDS_RESULT` is a question of the BOOKS — the amount is not there, or there is nothing to appropriate at all. Neither is `E_INPUT_INVALID`: the input is well-formed, it is simply not satisfiable, and a caller that cannot tell the two apart cannot tell a misconfigured pack from a mistyped amount. The inline bundle declares one target only, which is the normal case: a jurisdiction that closes its result straight into retained earnings has no second target, and silence about `distribution` is a valid answer rather than a gap. Zero as an amount is refused too — an entry that moves nothing would sit in the books claiming a resolution took effect.",
+  "covers": [
+    "F-CORE-024",
+    "SF-25"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Guards GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "2100",
+        "name": "Gewinnvortrag",
+        "type": "equity"
+      },
+      {
+        "number": "2300",
+        "name": "Ergebnisverwendung",
+        "type": "equity",
+        "subtype": "result_allocation"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2026-01-01",
+            "end": "2026-12-31"
+          }
+        ]
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-1",
+        "voucherDate": "2026-06-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "BESCHLUSS-1",
+        "voucherDate": "2026-12-30"
+      }
+    ],
+    "ruleModules": {
+      "resultAppropriation": {
+        "allocationAccount": "2300",
+        "targets": {
+          "carryForward": {
+            "account": "2100",
+            "label": "Gewinnvortrag"
+          }
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "comment": "Nothing posted yet, so there is no result to appropriate — refused rather than booked as zero.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2026-12-30",
+        "voucherId": "$V2",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01",
+        "voucherId": "$V1",
+        "text": "Erlös",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        }
+      }
+    },
+    {
+      "comment": "A target the bundle does not declare. The error carries what IS offered, so a caller can react instead of guessing.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2026-12-30",
+        "voucherId": "$V2",
+        "appropriations": [
+          {
+            "target": "distribution",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_UNSUPPORTED"
+      }
+    },
+    {
+      "comment": "More than the books carry.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2026-12-30",
+        "voucherId": "$V2",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "500.01",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    },
+    {
+      "comment": "Less than is available is fine — the rest stays and `remaining` says how much.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2026-12-30",
+        "voucherId": "$V2",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "remaining": "300.00"
+        }
+      }
+    },
+    {
+      "comment": "And the second resolution may only reach what the first one left.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2026-12-30",
+        "voucherId": "$V2",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "300.01",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    }
+  ]
+}

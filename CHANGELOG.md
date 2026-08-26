@@ -10,6 +10,205 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.14.0 — 2026-08-26
+
+> Ships the 0.13.1 section below as well: the pack repair was written, gated and released-noted as
+> its own change, and the work that followed reached the registry first. The section stays where it
+> is rather than being folded in — what was fixed and why is a separate story from what was built.
+
+**The pack learns a resolution.** Appropriating a profit was the last part of the bookkeeping where
+an embedding still had to know account numbers. Everything else has long been a named operation —
+an invoice with VAT names no tax account, an asset acquisition names no depreciation account,
+because the pack supplies them and the core expands. Carrying a result forward did not: you booked
+`2300 an 2100` by hand, and 0.13.1 is the release that showed what that costs, because the shipped
+mapping quietly made those two lines cancel each other out.
+
+`appropriateResult` closes it. You state the decision, the pack states the accounts:
+
+```json
+{ "fiscalYear": 2026, "entryDate": "2027-05-20", "voucherId": "…",
+  "appropriations": [ { "target": "distribution", "money": { "amount": "400.00", "currency": "EUR" } },
+                      { "target": "carryForward", "money": { "amount": "600.00", "currency": "EUR" } } ] }
+```
+
+**Why it is an operation and not something `closeFiscalYear` does**, which is the part worth keeping:
+appropriating a result is a *resolution* — § 29 GmbHG, § 174 AktG and their equivalents — and which
+part is distributed, reserved or carried forward is not derivable from the books. It is also dated
+when the resolution is passed, normally in the *following* fiscal year, so a close that booked it
+would have to invent a date it does not have. summae does not decide; it expands.
+
+### New: the `resultAppropriation` module kind
+
+A pack declares the account a resolution books against and the targets it offers:
+
+```json
+{ "kind": "resultAppropriation",
+  "data": { "allocationAccount": "2300",
+            "targets": { "carryForward": { "account": "2100", … },
+                         "distribution":  { "account": "3500", … } } } }
+```
+
+Which targets exist is the **pack's** answer, not the core's — `de` offers both, `us` and `default`
+offer `carryForward` only, because a jurisdiction that closes its income summary straight into
+retained earnings has no second target to offer. Silence is a valid answer; half an answer is not,
+which is why the resolver refuses a module whose target names an account that does not exist (I8).
+
+`tenantConfiguration` reports `appropriationTargets[]` so a screen can build its menu from data
+instead of provoking an error to find out. Same reason `dimensionRules` is reported there.
+
+### ⚠ What changes
+
+- **Two new error codes**, appended to the exit-code tables: `E_APPROPRIATION_UNSUPPORTED` (the pack
+  offers no appropriation, or not this target — the error names what it *does* offer) and
+  `E_APPROPRIATION_EXCEEDS_RESULT` (more than the books carry, or nothing to appropriate). Neither is
+  `E_INPUT_INVALID`: the input is well-formed, it is simply not satisfiable, and a caller that cannot
+  tell the two apart cannot tell a misconfigured pack from a mistyped amount.
+- **`tenantConfiguration` gains `appropriationTargets[]`.** Additive.
+- **All three packs move**: `de@2026.6`, `us@2026.5`, `default@2026.2`. Old versions stay resolvable
+  under `versions/`.
+- **`TenantConfigurationProjection` takes a fifth constructor argument** — relevant only to code
+  constructing it directly. It has deliberately **no default**: an optional argument is exactly what
+  hid a missing wiring during this work, where the projection answered "no targets" instead of
+  failing to compile. Same lesson the audit writer taught in 0.12.0.
+
+**What may be appropriated** is the result *not yet appropriated* — the cumulative result up to and
+including the named year, minus what the `result_allocation` accounts already carry. That is the same
+figure `balanceSheet` publishes, on purpose: the number on the screen and the number the operation
+refuses against cannot drift apart. Appropriating less is fine; `remaining` says what is left. A loss
+books the other way round and amounts stay positive either way — the direction follows the books, not
+a sign the caller has to get right.
+
+The entry is an ordinary posting: correctable, reversible, audited like any other, and — unlike
+machine entries — **not** finalized on the spot, because it is a user's input rather than a run.
+
+### The three open reports from the embedding app are closed
+
+**`accountSheet` lines reach their own entry** (SPEC-021). Each line now carries `entryId` — the
+identity `journal` already publishes — and `contraAccounts[]`, the accounts on the other side of the
+same entry as `{account, name}`, deduplicated and sorted. A list rather than a field, because a tax
+code puts two or more there and naming "the" counter account would invent a fact; the side is decided
+**per line**, so one entry reads differently from the two sheets it appears on. Additive: the runner
+compares subsets, so no existing fixture changed.
+
+**The `default` pack says it ships no statements** (IMPL-032) instead of answering `balanceSheet
+requires the parameter "mapping"`, which reads as *you forgot something*. It ships no mapping module
+on purpose — a jurisdiction-free chart has no lawful gliederung to bring — and the refusal now says
+so and carries `available`, the mapping ids this tenant could pass. `tenantConfiguration.mappings`
+answers the same question without an error at all.
+
+**The embedding can declare who is behind `actor`** (SPEC-020), and this is the one where the
+library was right and the answer was still unusable. `actorIsAuthenticated: false` correctly says
+summae authenticates nobody; an application putting it into a generated Verfahrensdokumentation
+printed "Urheber geprüft: **nein**" about an installation that had since grown a login.
+
+```json
+// summae.json — read on every open
+"actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+// → systemDescription.auditTrail
+"actorAuthentication": { "byLibrary": false, "declaredByEmbedding": true, "method": "…" }
+```
+
+`byLibrary` can never go stale whatever an embedding does; `declaredByEmbedding` is the embedding's
+own sentence, quoted and never endorsed. **`null` is not a "no"** — nothing declared and a denial
+read differently to an auditor, and a malformed declaration is ignored rather than half-read into a
+claim nobody made. Deliberately **not stored** with the tenant: it describes the running
+installation, not the books, so dropping a login tomorrow must not leave yesterday's claim in a
+record. `actorIsAuthenticated` is unchanged — it was never wrong, only easy to misread.
+
+**The findings register is empty.** All five entries were closed in this release, and four of them
+came from outside.
+
+### The pack documentation describes the packs again
+
+`knowledge/99-pack-docs/` is the reference work for building and auditing a pack, and nothing held
+it against the modules. The drift was total rather than detailed: every one of the eight `de`
+module documents named a module id the pack does not have, the `de` balance sheet listed positions
+from a draft that predates the module, and the `us` balance sheet had the two sides of the chart
+**swapped** — equity documented at 2000–2499, payables at 3000–3099, eleven of eleven rows wrong.
+Five modules had no document at all and the `default` pack had no folder.
+
+Headers, position tables and the folder indexes now come from the modules; the prose was kept.
+`PackDocsTest` / `pack-docs.test.ts` hold it there in both languages — one document per shipped
+module, the header stating the module's real kind, id and version (so a version bump cannot land
+without the document being opened), and every mapping row naming the accounts its position really
+claims. IMPL-031, closed.
+
+### One fixture retired
+
+`xx-6-pack-version-pinning` pinned both `contentDigest` values literally, so every field the resolved
+bundle gains changed the hash — including one that is `null` for a pack declaring no such module.
+That welds the engine's internal shape to the contract, the way a literal `formatVersion` once did.
+The successor pins the mechanism with placeholders: a pinned version resolves to the *same* digest
+every time, across `resolvePack` and `createTenant` alike. Register: `superseded.json`.
+
+## 0.13.1 — 2026-08-26 (never tagged on its own; shipped inside 0.14.0)
+
+**A mechanism nobody could reach, because the product data hid it.** One fix, and the report that
+led to it is the kind worth keeping: an embedding application said "the result of a year is never
+carried forward, and the next year's balance sheet says it was". Measured against 0.12.0 on books
+with a result of 900.00, the 2027 income statement said `netIncome 0.00` while the 2027 balance
+sheet reported a `Jahresergebnis` of 900.00 — the 2026 result, still sitting in the position that
+promises "this year".
+
+The engine was right and had been right since v0.3: a balance sheet is a snapshot, the position with
+`includesNetIncome` reports the **cumulative** result, and that is what keeps it balancing without
+closing entries. Carrying the result into equity is not something a close can do on its own —
+appropriating profit is a resolution (§ 29 GmbHG, § 174 AktG), and which part is distributed, put
+into reserves or carried forward is not something a library can know. So it arrives as an ordinary
+entry, `result_allocation` account against retained earnings, and the balance sheet moves the amount
+out of the result position. That has existed since v0.4 (F-CORE-024/SF-25).
+
+**Both shipped packs made that entry invisible.** `de-bilanz` claimed 2000–2499 wholesale, which
+swallowed the appropriation account 2300 right next to retained earnings 2100; `us-gaap-balance-sheet`
+claimed 3000–3999, swallowing Income Summary 3300 next to Retained Earnings 3100. The two lines of a
+correctly booked resolution then cancelled each other *inside one position*: the balance sheet did
+not move, the only visible effect was a new zero row, and every following year kept reporting the
+prior year's result as its own. Whoever followed the documented path saw nothing happen.
+
+### ⚠ What changes
+
+- **`de` is now `2026.5`, `us` is `2026.4`** (mappings `de-bilanz@2026.3`,
+  `us-gaap-balance-sheet@2026.2`). The old module and manifest versions are kept under
+  `versions/`, so a pinned `de@2026.4` or `us@2026.3` still resolves exactly what it always did.
+- **The equity range is cut around the appropriation account.** `E_MAPPING_OVERLAP` forbids a number
+  in two positions, which is presumably how this was missed in the first place: adding the account to
+  the result position without cutting the range is an error, not a fix.
+- **The result position is relabelled.** `Jahresergebnis` → `Jahresergebnis / nicht verwendete
+  Ergebnisse`, `Net Income` → `Net Income (not yet closed to Retained Earnings)`. The label is part of
+  the defect, not cosmetics: the position reports the result *not yet appropriated*, cumulative until
+  somebody books the resolution, and a label promising "this year" is the sentence the report tripped
+  over. A caller reading `label` sees new text; `key` is unchanged.
+- **Books that already carry an appropriation entry will show different figures** — the ones they
+  should have shown. Books that never booked one are unaffected in every figure.
+
+No API change, no format change: the data format stays at **0.7** and the cross-test compares 107
+byte-identical exports.
+
+### Two guards, because neither alone would have caught it
+
+`PackCompletenessTest` / `pack-completeness.test.ts` now require every `result_allocation` account to
+sit in the position that carries the result — and in no other. Verified red against the old mapping in
+both languages, with the identical message.
+
+`de-profit-appropriation` drives the whole path over the **shipped** pack: two fiscal years, the
+resolution booked with the date it is actually passed (which falls in the *following* year, and is why
+`closeFiscalYear` could never do this on anyone's behalf). Every fixture covering SF-25 until now
+brought a mapping of its own that got it right — which is exactly why a broken pack stayed green. The
+lesson generalises: mechanism proven on inline data says nothing about the product data shipped with
+it.
+
+The manual gained the paragraph that was missing at `balanceSheet`. Before this release
+`result_allocation` appeared in `docs/` not once, so the path existed and could not be found.
+
+### The last mirror is retired
+
+`pack-library/` was authored outside the repository and copied in by `make sync` (`rsync --delete`) —
+the one mirror left after the conformance suite stopped being one on 2026-08-23. It cost exactly what
+a mirror costs, and this release is the invoice: the defect above could not be repaired where it is
+read. Source and repo copy were verified byte-identical before the switch;
+`bin/sync-pack-library.sh` and the `sync` make target are gone. Several docs still claimed
+`testing/testsuite/` was mirrored too, untrue since August 23 — corrected in the same pass.
+
 ## 0.13.0 — 2026-08-25
 
 **What the library says about itself — and the guards that keep it honest.** The release began as

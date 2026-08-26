@@ -83,6 +83,14 @@ class AuditTrailContractTest extends TestCase
                 'disposalLossAccount' => '4930',
             ],
         ]);
+        // The appropriation plug, for the same reason: without it the operation refuses with
+        // E_APPROPRIATION_UNSUPPORTED instead of reaching the trail.
+        $tenant->resultAppropriation->setRuleModule([
+            'resultAppropriation' => [
+                'allocationAccount' => '2300',
+                'targets' => ['carryForward' => ['account' => '2100', 'label' => 'Gewinnvortrag']],
+            ],
+        ]);
 
         return new TenantOperations($tenant);
     }
@@ -155,6 +163,9 @@ class AuditTrailContractTest extends TestCase
         // API: it takes back a lock. It used to leave no trace at all.
         yield 'reopenPeriod' => ['reopenPeriod', 'period', 'reopened'];
         yield 'closeFiscalYear' => ['closeFiscalYear', 'fiscalYear', 'closed'];
+        // The resolution is an ordinary entry, so it is the entry that is audited — which is the
+        // point: an appropriation must be as traceable as any other posting, not a side channel.
+        yield 'appropriateResult' => ['appropriateResult', 'journalEntry', 'created'];
         // --- tenant-level configuration (F-CORE-014 "Steuerschlüssel, Profile")
         yield 'setTaxProfile' => ['setTaxProfile', 'taxProfile', 'changed'];
         yield 'importMapping' => ['importMapping', 'mapping', 'imported'];
@@ -280,6 +291,28 @@ class AuditTrailContractTest extends TestCase
                     $ops->execute('closePeriod', ['fiscalYear' => 2026, 'period' => $period]);
                 }
                 $ops->execute('closeFiscalYear', ['fiscalYear' => 2026]);
+
+                return;
+            case 'appropriateResult':
+                $voucherId = $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '2100', 'name' => 'Gewinnvortrag', 'type' => 'equity']);
+                $ops->execute('createAccount', ['number' => '2300', 'name' => 'Ergebnisverwendung', 'type' => 'equity', 'subtype' => 'result_allocation']);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erlöse', 'type' => 'revenue']);
+                $ops->execute('post', [
+                    'entryDate' => '2026-01-20',
+                    'voucherId' => $voucherId,
+                    'text' => 'Erlös',
+                    'lines' => [
+                        ['account' => '1200', 'side' => 'debit', 'money' => ['amount' => '900.00', 'currency' => 'EUR']],
+                        ['account' => '8400', 'side' => 'credit', 'money' => ['amount' => '900.00', 'currency' => 'EUR']],
+                    ],
+                ]);
+                $ops->execute('appropriateResult', [
+                    'fiscalYear' => 2026,
+                    'entryDate' => '2026-06-30',
+                    'voucherId' => $voucherId,
+                    'appropriations' => [['target' => 'carryForward', 'money' => ['amount' => '900.00', 'currency' => 'EUR']]],
+                ]);
 
                 return;
             case 'setTaxProfile':

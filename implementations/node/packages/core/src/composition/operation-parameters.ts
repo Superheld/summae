@@ -298,6 +298,24 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     fiscalYear: { type: 'integer', required: true },
     actor: { type: 'string' },
   },
+  appropriateResult: {
+    fiscalYear: { type: 'integer', required: true },
+    entryDate: { type: 'date', required: true },
+    voucherId: { type: 'string', required: true },
+    text: { type: 'string' },
+    appropriations: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          target: { type: 'string' },
+          money: { type: 'money' },
+        },
+      },
+    },
+    actor: { type: 'string' },
+  },
   expandTax: {
     date: { type: 'date', required: true },
     serviceDate: { type: 'date' },

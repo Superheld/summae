@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.4",
+  "version": "2026.6",
   "modules": [
     {
       "kind": "accounts",
@@ -17,7 +17,7 @@
     {
       "kind": "mapping",
       "id": "de-bilanz",
-      "version": "2026.2"
+      "version": "2026.3"
     },
     {
       "kind": "mapping",
@@ -42,6 +42,11 @@
     {
       "kind": "policy",
       "id": "de-policy",
+      "version": "2026.1"
+    },
+    {
+      "kind": "resultAppropriation",
+      "id": "de-ergebnisverwendung",
       "version": "2026.1"
     },
     {

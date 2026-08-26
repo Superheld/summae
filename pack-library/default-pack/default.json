@@ -2,9 +2,14 @@
   "formatVersion": "0.6",
   "id": "default",
   "name": "Default-Pack — neutraler Standard-Kontenrahmen, jurisdiktionsfrei",
-  "version": "2026.1",
+  "version": "2026.2",
   "modules": [
-    { "kind": "accounts", "id": "neutral", "version": "2026.1" }
+    { "kind": "accounts", "id": "neutral", "version": "2026.1" },
+    {
+      "kind": "resultAppropriation",
+      "id": "neutral-appropriation",
+      "version": "2026.1"
+    }
   ],
   "overrides": [],
   "defaults": { "taxationMethod": "accrual" },

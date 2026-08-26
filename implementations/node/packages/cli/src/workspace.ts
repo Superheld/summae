@@ -126,9 +126,14 @@ export class Workspace {
       dimensions: DimensionRegistry.fromData(dimensionTypes, dimensionValues, dimensionRules),
       taxCodes: TaxCodeRegistry.fromData(recordList(rules.taxCodes)),
       mappings: MappingRegistry.fromRuleModules(Array.isArray(ruleModules.mappings) ? ruleModules.mappings : []),
+      // What this workspace declares about who is behind `actor` (SPEC-020). The CLI itself proves
+      // nobody's identity, so the field is absent unless somebody writing summae.json puts it
+      // there — and absent stays null, which is not the same as "no".
+      actorAuthentication: actorAuthentication(config),
     });
     tenant.assetService.setRuleModule(ruleModules);
     tenant.costing.setRuleModule(ruleModules);
+    tenant.resultAppropriation.setRuleModule(ruleModules);
     return tenant;
   }
 
@@ -138,4 +143,21 @@ export class Workspace {
   private dbPath(): string {
     return join(this.directory, DB_FILE);
   }
+}
+
+/**
+ * `actorAuthentication` in summae.json, as `systemDescription` reports it (SPEC-020).
+ *
+ * ```json
+ * "actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+ * ```
+ *
+ * This is the embedding stating a fact about itself, and summae reports it as such — never as its
+ * own finding. Absent means nothing was declared, which a reader must not turn into "no": an
+ * unanswered question and a denial read differently to an auditor.
+ */
+function actorAuthentication(config: Record<string, unknown>): { declared: boolean; method: string | null } | null {
+  const raw = config.actorAuthentication;
+  if (!isRecord(raw) || typeof raw.declared !== 'boolean') return null;
+  return { declared: raw.declared, method: typeof raw.method === 'string' ? raw.method : null };
 }

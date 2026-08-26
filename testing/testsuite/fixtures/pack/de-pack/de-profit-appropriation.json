@@ -1,0 +1,76 @@
+{
+  "fixture": "de-profit-appropriation",
+  "description": "F-CORE-024/SF-25 on the SHIPPED de pack: the appropriation of profit is a resolution, not a calculation, so summae never posts it on anyone's behalf — it arrives as an ordinary entry, `result_allocation` (2300) against retained earnings (2100), and the balance sheet moves the amount out of the result position into equity. Every other fixture for this proves the mechanism with a mapping of its own, which is exactly why the defect this fixture pins could hide: `de-bilanz` claimed 2000–2499 wholesale, swallowing 2300 next to 2100, so the two lines of the entry cancelled inside one position and the balance sheet did not move at all. A correctly booked resolution had no visible effect except a new zero row, and year 2027 kept reporting the 2026 result as its own `Jahresergebnis` — reported from an embedding application (its F-32) against 0.12.0. No year-end close here on purpose: `closeFiscalYear` is a pure status change without posting effect (pinned in `two-year-carryover`), so it would add twelve `closePeriod` steps and nothing to the statement. The reading to keep is the pair of balance sheets: as at 2026 the amount is the year's result, as at 2027 it is equity and the result position is zero — which is what a reader has to be able to tell apart.",
+  "covers": ["F-CORE-024", "SF-25"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Verwendung GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01",
+        "text": "Erlös 2026",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "900.00", "currency": "EUR" } },
+          { "account": "4040", "side": "credit", "money": { "amount": "900.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "createFiscalYear",
+      "input": { "tenant": "$T1", "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      "expect": { "result": { "year": 2027 } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "BESCHLUSS-001", "voucherDate": "2027-05-20", "kind": "internal" },
+        "entryDate": "2027-05-20",
+        "text": "Gewinnverwendungsbeschluss 2026: Vortrag auf neue Rechnung",
+        "lines": [
+          { "account": "2300", "side": "debit", "money": { "amount": "900.00", "currency": "EUR" } },
+          { "account": "2100", "side": "credit", "money": { "amount": "900.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "periodRef": { "fiscalYear": 2027, "period": 5 } } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "mapping": "de-bilanz" },
+      "expect": {
+        "liabilitiesAndEquity": [
+          { "key": "P.A2", "amount": "900.00", "comment": "as at 2026 the amount IS the year's result — the resolution is dated 2027 and cannot reach back" }
+        ],
+        "assetsTotal": "900.00",
+        "liabilitiesAndEquityTotal": "900.00"
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "fiscalYear": 2027, "mapping": "de-bilanz" },
+      "expect": {
+        "liabilitiesAndEquity": [
+          { "key": "P.A1", "amount": "900.00", "comment": "carried to equity by the resolution" },
+          { "key": "P.A2", "amount": "0.00", "comment": "the year's own result, and 2027 has none — this read 900.00 before the mapping was repaired" }
+        ],
+        "assetsTotal": "900.00",
+        "liabilitiesAndEquityTotal": "900.00"
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2027, "mapping": "de-guv" },
+      "expect": { "positions": [], "netIncome": "0.00" }
+    }
+  ]
+}

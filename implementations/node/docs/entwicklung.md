@@ -13,8 +13,6 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run, byte-ident
 pnpm build         # tsup per package (ESM + CJS + .d.ts)
 ```
 
-`make sync` (repo root) updates `testing/testsuite/` + the `pack-library/` from the knowledge base.
-
 ## What must be green (= CI)
 
 - **`pnpm typecheck`** clean (counterpart to "PHPStan level max").
@@ -67,9 +65,9 @@ The **recipe** is language-neutral (root `CLAUDE.md`, "Bau-Konventionen"). Concr
 
 ## A spec change comes in (retrofit)
 
-1. `make sync` — fetch new/changed fixtures + schema + `pack-library/`.
+1. Write the new/changed fixtures in `testing/testsuite/` (append-only) + schema.
 2. `pnpm fixtures` — see what turns red (controlled failure, no crash).
-3. Re-read the spec files in the knowledge base fresh (not from memory).
+3. Re-read the spec files in `knowledge/50-spezifikation/` fresh (not from memory).
 4. Adjust until green; on a spec/fixture contradiction → [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md),
    **do not bend the fixture**.
 

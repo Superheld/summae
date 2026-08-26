@@ -28,16 +28,18 @@ in den Lücken.
 
 ## Module (alle US-eigen)
 
-| # | Datei | `kind` | `id` (Vorschlag) | beiträgt |
+| # | Datei | `kind` | `id` | Version |
 |---|---|---|---|---|
-| 1 | `modul-1-konten-us.md` | `accounts` | `us-konten-2026` | accounts |
-| 2 | `modul-2-tax-us-salestax-2026.md` | `tax` | `us-salestax-2026` | taxCodes |
-| 3 | `modul-3-mapping-balance-sheet-gaap.md` | `mapping` | `us-gaap-balance-sheet` | mappings |
-| 4 | `modul-4-mapping-income-statement.md` | `mapping` | `us-gaap-income-statement` | mappings |
-| 5 | `modul-5-mapping-schedule-c.md` | `mapping` | `us-schedule-c-2026` | mappings |
-| 6 | `modul-6-depreciation-us.md` | `depreciation` | `macrs-us` | depreciation |
-| 7 | `modul-7-asset-accounts-us.md` | `assetAccounts` | `us-asset-accounts` | assetAccounts |
-| 8 | `modul-8-policy-us-usd.md` | `policy` | `us-usd` | policy |
+| 1 | `modul-1-konten-us.md` | `accounts` | `us-accounts-2026` | 2026.1 |
+| 2 | `modul-2-tax-us-salestax-2026.md` | `tax` | `us-salestax-2026` | 2026.2 |
+| 3 | `modul-3-mapping-balance-sheet-gaap.md` | `mapping` | `us-gaap-balance-sheet` | 2026.2 |
+| 4 | `modul-4-mapping-income-statement.md` | `mapping` | `us-gaap-income-statement` | 2026.1 |
+| 5 | `modul-5-mapping-schedule-c.md` | `mapping` | `us-schedule-c-2026` | 2026.2 |
+| 6 | `modul-6-depreciation-us.md` | `depreciation` | `macrs-us` | 2026.2 |
+| 7 | `modul-7-asset-accounts-us.md` | `assetAccounts` | `us-asset-accounts` | 2026.1 |
+| 8 | `modul-8-policy-us-usd.md` | `policy` | `us-usd` | 2026.1 |
+| 9 | `modul-9-production-cost-us.md` | `productionCost` | `us-inventory-costing` | 2026.1 |
+| 10 | `modul-10-result-appropriation.md` | `resultAppropriation` | `us-appropriation` | 2026.1 |
 
 Dazu:
 

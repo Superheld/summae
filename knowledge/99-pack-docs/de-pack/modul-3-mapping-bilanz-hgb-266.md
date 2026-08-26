@@ -1,8 +1,8 @@
 # Modul 3 — Bilanz HGB §266 (`mapping`)
 
 ```
-kind: mapping · id: de-hgb-bilanz-266 · version: 2026.1 · formatVersion: 0.6
-contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten-2026}]
+kind: mapping · id: de-bilanz · version: 2026.3 · formatVersion: 0.6
+contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "balance-sheet", version, positions[] }
 ```
 
@@ -25,21 +25,22 @@ die Bilanz selbst ist berechnet (kein Abschlusszyklus). Schaltet SF-10 frei.
 
 **Aktiva** (`side: assets`)
 
-| Pos | Label | Konten |
+| Pos | Label im Modul | Konten |
 |---|---|---|
-| A | Anlagevermögen | 0100–0999 |
-| B.I | Vorräte / Forderungen L+L | 1400–1499 |
-| B.II | Sonstige Vermögensgegenstände (inkl. Vorsteuer) | 1450, 1500–1599 |
-| B.III | Kassenbestand, Bank, Guthaben | 1200–1399 |
+| A.I | Anlagevermögen | 0000–0999 |
+| A.II | Forderungen und sonstige Vermögensgegenstände | 1400–1599 |
+| A.III | Wertpapiere | 1250–1299 |
+| A.IV | Kassenbestand, Bundesbankguthaben, Guthaben bei Kreditinstituten und Schecks | 1200–1249, 1300–1349 |
+| A.V | Rechnungsabgrenzungsposten | 1900–1999 |
 
 **Passiva** (`side: liabilitiesAndEquity`)
 
-| Pos | Label | Konten | Hinweis |
-|---|---|---|---|
-| A | Eigenkapital | 2000–2499 | `includesNetIncome: true` an der EK-Wurzel |
-| C.1 | Verbindlichkeiten aus L+L | 3000–3099 | |
-| C.2 | Steuerrückstellungen / USt | 3100–3199 | |
-| C.3 | Sonstige Verbindlichkeiten (Personal, erhaltene Anzahlungen) | 3300–3599 | |
+| Pos | Label im Modul | Konten |
+|---|---|---|
+| P.A1 | Eigenkapital (Kapital und Rücklagen) | 2000–2299, 2400–2499 |
+| P.A2 | Jahresergebnis / nicht verwendete Ergebnisse | 2300 + `includesNetIncome` |
+| P.C | Verbindlichkeiten | 3000–3599 |
+| P.D | Rechnungsabgrenzungsposten | 3900–3999 |
 
 > **Aufwands-/Ertragskonten (4xxx–6xxx)** gehören nicht in die Bilanz — sie fließen über das
 > Jahresergebnis (`includesNetIncome`) ins EK ein. Daher in diesem Mapping **nicht** als

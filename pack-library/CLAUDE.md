@@ -3,8 +3,10 @@
 Here live the shipped **packs** — the **plugs** of the three policy kinds, never core code/law.
 Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 
-> **The source is an internal repository**, mirrored into this repo via `make sync` (`rsync --delete`)
-> — **never edit the folder in the repo directly**, the next sync overwrites it.
+> **This folder is the source.** Until 2026-08-26 it was mirrored in from an outside repository by
+> `make sync` and editing it here meant losing the work at the next sync; that mirror is retired and
+> the script is deleted. Edit the packs here. A pack is *product data* — a version bump is a product
+> decision, not a contract change, which is why no fixture may pin one (root `CLAUDE.md`, superseded).
 
 ## Layout
 

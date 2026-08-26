@@ -1,8 +1,8 @@
 # Modul 6 — AfA Deutschland (`depreciation`)
 
 ```
-kind: depreciation · id: afa-de · version: 2026.1 · formatVersion: 0.6
-contributes: ["depreciation"] · dependsOn: []   (datenrein, keine Konten-Referenz)
+kind: depreciation · id: de-afa · version: 2026.7 · formatVersion: 0.6
+contributes: ["depreciation"] · dependsOn: []
 data = AfA-Tabellen/-Sätze + GWG-Grenzen (assets-modell.md v0.4)
 ```
 

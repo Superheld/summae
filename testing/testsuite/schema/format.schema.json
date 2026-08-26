@@ -863,7 +863,8 @@
             "policy",
             "assetAccounts",
             "productionCost",
-            "constraint"
+            "constraint",
+            "resultAppropriation"
           ]
         },
         "version": {
@@ -883,7 +884,8 @@
               "policy",
               "depreciation",
               "productionCost",
-              "constraint"
+              "constraint",
+              "resultAppropriation"
             ]
           }
         },

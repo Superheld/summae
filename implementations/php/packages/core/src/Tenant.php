@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core;
 
 use Summae\Core\Policies\Expansion\Assets\AssetService;
+use Summae\Core\Policies\Expansion\ResultAppropriationService;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
@@ -67,6 +68,7 @@ final readonly class Tenant
         public TaxService $tax,
         public PartnerService $partnerService,
         public AssetService $assetService,
+        public ResultAppropriationService $resultAppropriation,
         public CostingService $costing,
         public MappingRegistry $mappings,
         public Clock $clock,
@@ -81,10 +83,21 @@ final readonly class Tenant
         public ?array $packIdentity = null,
         /** Where configuration changes are kept; null when this tenant has no record (SPEC-015). */
         public ?TenantConfigStore $configStore = null,
+        /**
+         * What the embedding declares about the identity behind `actor` (SPEC-020). Null = it has
+         * not said, which `systemDescription` reports as null rather than as "no". Not stored: it
+         * describes the running installation, not the books.
+         *
+         * @var array{declared: bool, method: string|null}|null
+         */
+        public ?array $actorAuthentication = null,
     ) {
     }
 
-    /** @param array{id: string, version: string}|null $packIdentity */
+    /**
+     * @param array{id: string, version: string}|null            $packIdentity
+     * @param array{declared: bool, method: string|null}|null     $actorAuthentication
+     */
     public static function inMemory(
         string $name,
         Currency $baseCurrency,
@@ -96,6 +109,7 @@ final readonly class Tenant
         ?MappingRegistry $mappings = null,
         string $taxRoundingGranularity = 'perVoucher',
         ?array $packIdentity = null,
+        ?array $actorAuthentication = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
@@ -157,6 +171,7 @@ final readonly class Tenant
         );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
+        $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);
         $costing = new CostingService(
             $baseCurrency,
             $accounts,
@@ -185,12 +200,14 @@ final readonly class Tenant
             $tax,
             $partnerService,
             $assetService,
+            $resultAppropriation,
             $costing,
             $mappings,
             $clock,
             $ids,
             $packIdentity,
             $configStore,
+            $actorAuthentication,
         );
     }
 }

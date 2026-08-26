@@ -1,7 +1,7 @@
 # Modul 1 — Konten US (`accounts`)
 
 ```
-kind: accounts · id: us-konten-2026 · version: 2026.1 · formatVersion: 0.6
+kind: accounts · id: us-accounts-2026 · version: 2026.1 · formatVersion: 0.6
 contributes: ["accounts"] · dependsOn: []
 data.accounts[]  (account-Objekte, § datenformat „account")
 ```

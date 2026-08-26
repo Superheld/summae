@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-bilanz",
   "kind": "mapping",
-  "version": "2026.2",
+  "version": "2026.3",
   "name": "Bilanzgliederung HGB §266 (auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
   "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
@@ -10,7 +10,7 @@
     "mapping": {
       "id": "de-bilanz",
       "kind": "balance-sheet",
-      "version": "2026.2",
+      "version": "2026.3",
       "positions": [
         { "key": "A", "label": "Aktiva", "side": "assets", "children": [
           { "key": "A.I", "label": "Anlagevermögen", "accounts": [ { "from": "0000", "to": "0999" } ] },
@@ -20,8 +20,8 @@
           { "key": "A.V", "label": "Rechnungsabgrenzungsposten", "accounts": [ { "from": "1900", "to": "1999" } ] }
         ] },
         { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [
-          { "key": "P.A1", "label": "Eigenkapital (Kapital und Rücklagen)", "accounts": [ { "from": "2000", "to": "2499" } ] },
-          { "key": "P.A2", "label": "Jahresergebnis", "accounts": [], "includesNetIncome": true },
+          { "key": "P.A1", "label": "Eigenkapital (Kapital und Rücklagen)", "accounts": [ { "from": "2000", "to": "2299" }, { "from": "2400", "to": "2499" } ] },
+          { "key": "P.A2", "label": "Jahresergebnis / nicht verwendete Ergebnisse", "accounts": [ { "numbers": ["2300"] } ], "includesNetIncome": true },
           { "key": "P.C", "label": "Verbindlichkeiten", "accounts": [ { "from": "3000", "to": "3599" } ] },
           { "key": "P.D", "label": "Rechnungsabgrenzungsposten", "accounts": [ { "from": "3900", "to": "3999" } ] }
         ] }

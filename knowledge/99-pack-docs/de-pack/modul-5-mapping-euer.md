@@ -1,8 +1,8 @@
 # Modul 5 — EÜR (Anlage EÜR) (`mapping`)
 
 ```
-kind: mapping · id: de-anlage-euer-2026 · version: 2026.1 · formatVersion: 0.6
-contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten-2026}]
+kind: mapping · id: de-euer · version: 2026.4 · formatVersion: 0.6
+contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "cash-basis-categories", version, positions[] }
 ```
 
@@ -24,34 +24,22 @@ Buchung** — kein eigener Buchungsstil. Ordnet Konten den EÜR-Zeilen zu und st
 
 ## Positionsstruktur (auf DE-Konten Modul 1)
 
-**Betriebseinnahmen**
-
-| key | Label | Konten | includeNonCash |
-|---|---|---|---|
-| E1 | Umsatzerlöse (19 % / 7 %) | 4000–4019 | — |
-| E2 | Steuerfreie ig. Lieferungen | 4030 | — |
-| E3 | Vereinnahmte Umsatzsteuer | 3100–3199 | — |
-| E4 | Unentgeltliche Wertabgaben | 4040 ⚠ | **true** |
-| E5 | USt auf unentgeltliche Wertabgaben | (WA-USt-Konto, s. Modul 2) | **true** |
-| E6 | Anlagenabgang (Erlös) | 4900 | — |
-
-**Betriebsausgaben**
-
-| key | Label | Konten | includeNonCash |
-|---|---|---|---|
-| A1 | Waren / Fremdleistungen | 5000–5999 | — |
-| A2 | Personalkosten | 6300, 6310 | — |
-| A3 | Abschreibungen (AfA + GWG) | 6500–6519 | **true** |
-| A4 | Bewirtung, abziehbar (70 %) | 6010 | — |
-| A5 | Sonstige Betriebsausgaben | 6000–6099, 6700 | — |
-| A6 | Gezahlte Vorsteuer | 1500–1599 | — |
-| A7 | An das Finanzamt gezahlte USt | (Zahlungen) | — |
-
-- **Bewirtung nicht abziehbar (6020)** ist **keine** Betriebsausgabe der EÜR (§4 Abs.5 EStG)
-  → bewusst in keiner Ausgaben-Position; nur der abziehbare Teil (6010) in A4.
-- **AfA (A3)** und **Wertabgabe (E4/E5)** sind die `includeNonCash`-Positionen — der Kern
-  der R4/R7-Sonderbehandlung. Beleg: `tax/non-cash-benefit` (includeNonCash auf 8924/1779).
-- ⚠ E4/E5: hängen an der Wertabgabe-Konto-Entscheidung (Modul 1 + `offene-entscheidungen.md`).
+| Pos | Label im Modul | Konten |
+|---|---|---|
+| E1 | Umsatzerlöse | 4000–4019, 4020 |
+| E2 | Steuerfreie innergemeinschaftliche Lieferungen | 4030 |
+| E3 | Vereinnahmte USt | 3100–3199 |
+| E4 | Unentgeltliche Wertabgaben | 4050 · `includeNonCash` |
+| E5 | Betriebseinnahmen als Kleinunternehmer (§ 19 UStG) | 4040 |
+| E6 | Erträge aus Anlagenabgang | 4900 |
+| A1 | Wareneinsatz und Fremdleistungen | 5000–5999 |
+| A2 | Personalkosten | 6300–6399 |
+| A3 | Abschreibungen (AfA und GWG) | 6500–6599 · `includeNonCash` |
+| A4 | Bewirtungskosten (abziehbar) | 6010 |
+| A5 | Sonstige Betriebsausgaben | 6000–6009, 6030–6099, 6700–6899 |
+| A6 | Gezahlte Vorsteuer | 1500–1599 |
+| A7 | Nicht abziehbare Betriebsausgaben | 6020 |
+| A8 | Restbuchwert bei Anlagenabgang | 6900 · `includeNonCash` |
 
 ## Belege
 

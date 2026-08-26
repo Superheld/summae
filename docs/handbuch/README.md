@@ -241,8 +241,17 @@ summae init --name "Example Ltd" --currency EUR --rules rules.json --dir ./accou
 ```
 
 Shipped packs: **`de`** (Germany), **`us`** (United States), **`default`**
-(account-less base). `--currency` is *not* derived from the pack — it defaults
-to `EUR` regardless, so `--pack us` wants `--currency USD` alongside it.
+(neutral chart, no jurisdiction). `--currency` is *not* derived from the pack — it
+defaults to `EUR` regardless, so `--pack us` wants `--currency USD` alongside it.
+
+> **`default` ships no mappings, deliberately.** A jurisdiction-free chart of
+> accounts has no lawful statement layout it could bring: every balance-sheet and
+> income-statement gliederung is somebody's law. So on a `default` tenant
+> `balanceSheet`, `incomeStatement` and `cashBasisReport` have nothing to work
+> with until you load one with `importMapping` — the refusal says so and carries
+> `available: []`, and `tenantConfiguration.mappings` answers the same question
+> without an error. Everything else works: posting, journal, trial balance,
+> account sheets, the audit trail, and the appropriation of profit.
 
 `--pack de` (or `--pack us` / `--pack default`) loads the pack from the **pack library**
 (`pack-library/`; overridable with `--pack-library <dir>`), resolves it, and
@@ -615,6 +624,13 @@ Nodes with `children[]` are resolved recursively; leaves carry `accounts[]`
 | `positions[].side` | string\|null | set at the root node, inherited to leaves |
 | `positions[].accounts[]` | list | account selectors |
 | `positions[].includeNonCash` / `includesNetIncome` | bool | cash-basis / balance-sheet flags |
+
+Exactly one leaf of a balance-sheet mapping carries `includesNetIncome`, and that
+leaf must also claim the chart's `result_allocation` accounts — otherwise an
+appropriation entry cancels itself out inside whatever position swallowed the
+account, and the balance sheet reports an appropriated result as unappropriated.
+A wholesale range around the equity accounts usually has to be cut around it,
+since a number in two positions is `E_MAPPING_OVERLAP`.
 
 ```json
 "mappings": [
@@ -1037,6 +1053,60 @@ A pure status change — **no** closing entries. Prerequisite: all periods close
 **and** all postings finalized. `fiscalYear` (yes). Output:
 `{ "fiscalYear", "status": "closed" }`. Errors: `E_PERIOD_UNKNOWN`,
 `E_PERIOD_OUT_OF_ORDER`, `E_FISCALYEAR_UNFINALIZED_ENTRIES`.
+
+What the close deliberately does not do is carry the result into equity — see
+`appropriateResult` below for why that is a separate decision and a separate entry.
+
+#### appropriateResult
+
+Books a resolution on the appropriation of profit (F-CORE-024/SF-25). You state
+the decision; the pack supplies the accounts, so no caller has to know that a
+carry-forward on the `de` pack means `2300 an 2100`.
+
+| Field | Type | Required | Meaning |
+|------|-----|---------|-----------|
+| `fiscalYear` | integer | yes | the year whose result is being appropriated |
+| `entryDate` | string (date) | yes | **the date of the resolution**, normally in the *following* year |
+| `voucherId` | string | yes | the voucher (the minutes) — create it with `createVoucher` first |
+| `text` | string | no | entry text; defaults to `Appropriation of the result <year>` |
+| `appropriations[]` | list | yes | one entry per target |
+| `appropriations[].target` | string | yes | a target **the pack offers** — `carryForward`, `distribution`, … |
+| `appropriations[].money` | money | yes | always a **positive** amount, in the tenant currency |
+| `actor` | string | no | who recorded it |
+
+Which targets exist is the pack's answer, not the core's: `de` offers
+`carryForward` (2100) and `distribution` (3500), `us` and `default` offer
+`carryForward` only — a jurisdiction that closes its books straight into retained
+earnings has no second target to offer. Ask a tenant what it accepts before you
+build a form: the shipped packs are listed in §5, and an unoffered target is
+refused by name rather than guessed at.
+
+**Direction follows the books, not the caller.** A profit leaves the
+`result_allocation` account in debit and reaches its targets in credit; a loss
+does the same journey backwards. Amounts stay positive either way.
+
+**What may be appropriated** is the result *not yet appropriated*: the cumulative
+result of all fiscal years up to and including `fiscalYear`, minus what the
+`result_allocation` accounts already carry. That is the same figure `balanceSheet`
+reports in its `includesNetIncome` position, so the number on the screen and the
+number this refuses against cannot drift apart. Appropriating less than is
+available is fine — the rest stays where it is and can be appropriated later.
+
+Output: `{ "entry", "fiscalYear", "appropriated": [{ "target", "account", "money" }],
+"remaining" }`. The entry is a normal posting: correctable, reversible, audited
+like any other. Errors: `E_APPROPRIATION_UNSUPPORTED` (the pack declares no
+appropriation, or not this target), `E_APPROPRIATION_EXCEEDS_RESULT` (more than
+the books carry, or nothing to appropriate at all), plus everything `post` can
+raise — `E_PERIOD_CLOSED`, `E_VOUCHER_UNKNOWN`, `E_ACCOUNT_UNKNOWN`.
+
+```json
+// after a 2026 result of 900.00, resolved on 2027-05-20
+{ "fiscalYear": 2026, "entryDate": "2027-05-20", "voucherId": "…",
+  "appropriations": [ { "target": "carryForward",
+                        "money": { "amount": "900.00", "currency": "EUR" } } ] }
+→ { "appropriated": [ { "target": "carryForward", "account": "2100", … } ],
+    "remaining": "0.00" }
+```
 
 ### 6.3 Tax, mapping & partners
 
@@ -1524,9 +1594,31 @@ as-of evaluations.
 ### accountSheet — account ledger
 
 `account` (yes, number; unknown → `E_ACCOUNT_UNKNOWN`), `fiscalYear` (yes),
-`throughPeriod` (no). Output: `account`, `name`, `openingBalance`, `lines[]`
-(each `sequenceNumber`, `entryDate`, `text`, `side`, `money` [Money],
-`runningBalance`), `closingBalance`. ⚠ Shape from code (no fixture).
+`throughPeriod` (no). Output: `account`, `name`, `openingBalance`, `lines[]`,
+`closingBalance`. Each line carries `sequenceNumber`, `entryId`, `entryDate`,
+`text`, `side`, `money` [Money], `runningBalance`, `contraAccounts[]` — plus the
+reversal fields when the entry is one (see below).
+
+**`entryId` is the same identity `journal` publishes** and the audit trail records.
+A screen that lets the reader open a line looks the entry up by it; before it
+existed the only route was `journal` with `fromDate` and `toDate` on the same day
+plus a filter by `sequenceNumber`, which is a search where a lookup belongs.
+
+**`contraAccounts[]` are the accounts on the other side of the same entry**, as
+`{account, name}`, deduplicated and sorted by number. It answers what a T-account
+raises on every line — *6000 in debit, against what?* — and it is a **list**
+because it has to be: a plain entry has one counter account, an entry with a tax
+code has two or more, and a field naming "the" counter account would have to pick
+one and thereby invent a fact. The side is decided **per line**: on a debit line
+the credit accounts answer, on a credit line the debit ones, so the same entry
+reads differently from the two sheets it appears on — which is correct.
+
+```json
+// accountSheet { "account": "6000", "fiscalYear": 2026 }
+{ "sequenceNumber": 2, "entryId": "…", "side": "debit",
+  "money": { "amount": "200.00", "currency": "EUR" }, "runningBalance": "300.00",
+  "contraAccounts": [ { "account": "1200", "name": "Bank" } ] }
+```
 
 ### auditLog — change history
 
@@ -1948,7 +2040,20 @@ i.e. "as at the end of fiscal year N", not "movements of year N". A balance shee
 is a snapshot and has to balance — `trialBalance`'s rule that income accounts
 restart each year would tear a hole exactly the size of the prior year's result,
 because summae writes no closing entries (`closeFiscalYear` is a pure status
-change) and that result was therefore never carried into equity.
+change) and that result is not carried into equity on its own.
+
+**Carrying the result forward is an entry you make, not something the close does.**
+Appropriating profit is a resolution — who decides, and whether the result is
+distributed, put into reserves or carried forward, is not something a library can
+know — so it arrives as an ordinary posting: the pack's `result_allocation`
+account against retained earnings or a distribution liability (`de`: `2300` to
+`2100`; `us`: `3300` to `3100`). The position with `includesNetIncome` reports the
+**cumulative result minus the balance of the `result_allocation` accounts**, i.e.
+the result *not yet appropriated*, so the amount moves out of it and into equity
+the moment you book the resolution. Book it with the date of the resolution, which
+usually falls in the following fiscal year. Until you do, the position keeps
+reporting the accumulated result of every year since the books opened — which is
+correct, and is why its label should not promise "this year".
 
 **Uncovered accounts stay visible**, as in `incomeStatement`: a `_unassigned`
 position per section (label `Unassigned`) plus `gapWarnings[]` — which is what
@@ -2092,6 +2197,37 @@ books were kept under — and because until 2026-08-24 nothing published it, so 
 display only what it had written itself. Those are the same value by construction *in one
 embedding*, which is a property of that caller and not a guarantee.
 
+#### `auditTrail.actorAuthentication` — who is behind `actor`
+
+summae is handed an `actor` string and cannot know where it came from. `byLibrary` says so and can
+never go stale; `actorIsAuthenticated: false` has always meant the same thing and keeps its value.
+
+What summae cannot know, **you** can, and you are the only one who can:
+
+```json
+// summae.json — read on every open, never stored with the books
+"actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+```
+
+```json
+// systemDescription → auditTrail
+"actorAuthentication": { "byLibrary": false, "declaredByEmbedding": true,
+                         "method": "scrypt password login, signed session cookie" }
+```
+
+**Three states, and the third is the point.** `true` and `false` are statements; **`null` is not a
+"no"** — it means nothing was declared, and a generator that turns it into "Urheber geprüft: nein"
+is making a claim summae did not make. An unanswered question and a denial read differently to an
+auditor, and the difference matters in exactly the document this projection exists for.
+
+Note what summae is doing here: **reporting your declaration, not endorsing it.** It cannot verify
+that a login exists, and it does not pretend to — `declaredByEmbedding` is your sentence, quoted.
+That is still worth more than writing the line by hand into the document, because it is
+configuration you version and deploy rather than prose that quietly stops matching the software.
+
+It is deliberately **not** stored with the tenant. This describes the running installation, not the
+books: drop your login tomorrow and yesterday's claim must not survive in a record.
+
 This is the **Verfahrensdokumentation** building block a library can supply
 (GoBD Rz. 151 ff.). Of its four parts, three describe *your* installation and
 processes and no library can write them. The technical one is different: what
@@ -2125,8 +2261,8 @@ verified. Binding it to an authenticated identity is your application's job.
 
 No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
 `taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
-(raw, exactly as `setAllocationScheme` accepts it, or `null`) and `mappings[]`
-(`{id, kind, version}` each).
+(raw, exactly as `setAllocationScheme` accepts it, or `null`), `mappings[]`
+(`{id, kind, version}` each) and `appropriationTargets[]`.
 
 This is the read side of [what summae stores](#what-summae-stores-and-what-you-store). Four
 things live in `summae_tenants.config`, five operations change them, and until 0.13.0 exactly
@@ -2151,6 +2287,12 @@ point:
   the imports, so a projection mirroring it would answer "none" for a `de` tenant whose
   `balanceSheet`, `incomeStatement` and `cashBasisReport` all work. These are the names those
   three projections accept as `mapping`.
+
+- **`appropriationTargets[]` are the pack's too** — the names `appropriateResult` accepts, sorted.
+  `de` answers `["carryForward", "distribution"]`, `us` and `default` answer `["carryForward"]`,
+  and a pack that supports no appropriation answers `[]`. Without it a screen offering "carry
+  forward / distribute" would have to find out by provoking `E_APPROPRIATION_UNSUPPORTED`, which
+  is a poor way to build a menu.
 
 **Identity is not repeated here** — id, name, base currency and pack are `systemDescription`'s
 `tenant` and `pack` blocks, which report all four. This projection answers the other question.

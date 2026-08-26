@@ -168,10 +168,17 @@ final class Workspace
             TaxProfile::fromData($taxProfile),
             MappingRegistry::fromRuleModules($mappings),
             $tenantId,
+            // Named, because this is the twelfth parameter of a factory whose tenth is a string:
+            // passing it positionally put a declaration where the rounding granularity goes.
+            // What this workspace declares about who is behind `actor` (SPEC-020). The CLI itself
+            // proves nobody's identity, so the field is absent unless somebody writing summae.json
+            // puts it there — and absent stays null, which is not the same as "no".
+            actorAuthentication: self::actorAuthentication($config),
         );
 
         $tenant->assetService->setRuleModule($ruleModules);
         $tenant->costing->setRuleModule($ruleModules);
+        $tenant->resultAppropriation->setRuleModule($ruleModules);
 
         return $tenant;
     }
@@ -197,5 +204,33 @@ final class Workspace
     private function configPath(): string
     {
         return $this->directory . '/' . self::CONFIG_FILE;
+    }
+
+    /**
+     * `actorAuthentication` in summae.json, as `systemDescription` reports it (SPEC-020).
+     *
+     * ```json
+     * "actorAuthentication": { "declared": true, "method": "scrypt password login, signed session cookie" }
+     * ```
+     *
+     * This is the embedding stating a fact about itself, and summae reports it as such — never as
+     * its own finding. Absent means nothing was declared, which a reader must not turn into "no":
+     * an unanswered question and a denial read differently to an auditor.
+     *
+     * @param array<string, mixed> $config
+     *
+     * @return array{declared: bool, method: string|null}|null
+     */
+    private static function actorAuthentication(array $config): ?array
+    {
+        $raw = $config['actorAuthentication'] ?? null;
+        if (!is_array($raw) || !is_bool($raw['declared'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'declared' => $raw['declared'],
+            'method' => is_string($raw['method'] ?? null) ? $raw['method'] : null,
+        ];
     }
 }

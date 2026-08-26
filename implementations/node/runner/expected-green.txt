@@ -141,7 +141,7 @@ xx-5-constraint-dimension-rule
 de-pack-resolves-current
 default-pack-resolves-current
 us-pack-resolves-current
-xx-6-pack-version-pinning
+xx-6-pack-version-pinning-current
 disposal-after-yearly-depreciation
 chart-of-accounts-projection
 fiscal-years-projection
@@ -174,3 +174,8 @@ entry-author
 consideration-reduction
 input-structure-contract
 xx-7-pack-declares-filing-periods
+de-appropriate-result
+result-appropriation-guards
+de-profit-appropriation
+account-sheet-entry-reference
+default-pack-has-no-mappings

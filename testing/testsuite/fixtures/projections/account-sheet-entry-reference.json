@@ -1,0 +1,96 @@
+{
+  "fixture": "account-sheet-entry-reference",
+  "description": "SPEC-021: an account-sheet line can reach its own entry and name the other side of it. Reported by an embedding app (its F-31) while making the account sheet answer the question it raises on every line — *6000 in debit, against what?* Before this, the route from a line to its entry was `journal` with fromDate and toDate on the same day and a filter by sequenceNumber: a search where a lookup belongs, for an entry whose identity the caller had two fields ago. The second step drives why `contraAccounts` is a LIST: the plain expense entry has exactly one counter account, the entry with input tax has two, and a field called \"the counter account\" would have to pick one and thereby invent a fact. Sorted by account number and deduplicated, so the same call comes back byte-identical. The bank sheet is the reverse view of the same two entries — on a credit line the DEBIT accounts answer the question, which is why the contra accounts are decided per line rather than per sheet.",
+  "covers": ["F-CORE-015"],
+  "setup": {
+    "tenant": { "name": "Kontoblatt GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1576", "name": "Vorsteuer 19%", "type": "asset", "subtype": "tax_in" },
+      { "number": "6000", "name": "Sonstiger Aufwand", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31", "periods": [{ "period": 1, "start": "2026-01-01", "end": "2026-12-31" }] }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "ER-1", "voucherDate": "2026-03-01" },
+      { "id": "$V2", "voucherNumber": "ER-2", "voucherDate": "2026-03-02" }
+    ]
+  },
+  "steps": [
+    {
+      "comment": "A plain entry: one counter account.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-01",
+        "voucherId": "$V1",
+        "text": "Bürobedarf",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "id": "$E1", "sequenceNumber": 1 } }
+    },
+    {
+      "comment": "A split entry: the expense line now has TWO accounts on the other side.",
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-02",
+        "voucherId": "$V2",
+        "text": "Bürobedarf mit Vorsteuer",
+        "lines": [
+          { "account": "6000", "side": "debit", "money": { "amount": "200.00", "currency": "EUR" } },
+          { "account": "1576", "side": "debit", "money": { "amount": "38.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "238.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "id": "$E2", "sequenceNumber": 2 } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "accountSheet",
+      "params": { "account": "6000", "fiscalYear": 2026 },
+      "expect": {
+        "account": "6000",
+        "openingBalance": "0.00",
+        "lines": [
+          {
+            "sequenceNumber": 1,
+            "entryId": "$E1",
+            "money": { "amount": "100.00", "currency": "EUR" },
+            "contraAccounts": [{ "account": "1200", "name": "Bank" }]
+          },
+          {
+            "sequenceNumber": 2,
+            "entryId": "$E2",
+            "money": { "amount": "200.00", "currency": "EUR" },
+            "comment": "the input-tax line is on the SAME side as this one and is therefore not a counter account",
+            "contraAccounts": [{ "account": "1200", "name": "Bank" }]
+          }
+        ],
+        "closingBalance": "300.00"
+      }
+    },
+    {
+      "comment": "The same two entries from the bank's side: now the debit accounts answer the question, and the split entry names both.",
+      "name": "accountSheet",
+      "params": { "account": "1200", "fiscalYear": 2026 },
+      "expect": {
+        "lines": [
+          { "sequenceNumber": 1, "entryId": "$E1", "contraAccounts": [{ "account": "6000", "name": "Sonstiger Aufwand" }] },
+          {
+            "sequenceNumber": 2,
+            "entryId": "$E2",
+            "contraAccounts": [
+              { "account": "1576", "name": "Vorsteuer 19%" },
+              { "account": "6000", "name": "Sonstiger Aufwand" }
+            ]
+          }
+        ],
+        "closingBalance": "-338.00"
+      }
+    }
+  ]
+}

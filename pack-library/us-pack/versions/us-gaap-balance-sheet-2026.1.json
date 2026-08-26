@@ -1,0 +1,33 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-gaap-balance-sheet",
+  "kind": "mapping",
+  "version": "2026.1",
+  "name": "Classified Balance Sheet US-GAAP (assets ordered by liquidity, on the US chart)",
+  "contributes": ["mappings"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "mapping": {
+      "id": "us-gaap-balance-sheet",
+      "kind": "balance-sheet",
+      "version": "2026.1",
+      "positions": [
+        { "key": "A", "label": "Assets", "side": "assets", "children": [
+          { "key": "A.I", "label": "Cash and Cash Equivalents", "accounts": [ { "from": "1000", "to": "1099" } ] },
+          { "key": "A.II", "label": "Accounts Receivable and Other Current Assets", "accounts": [ { "from": "1200", "to": "1299" } ] },
+          { "key": "A.III", "label": "Prepaid Expenses", "accounts": [ { "from": "1400", "to": "1499" } ] },
+          { "key": "A.IV", "label": "Property, Plant and Equipment", "accounts": [ { "from": "1500", "to": "1599" } ] }
+        ] },
+        { "key": "L", "label": "Liabilities and Equity", "side": "liabilitiesAndEquity", "children": [
+          { "key": "L.A", "label": "Accounts Payable", "accounts": [ { "from": "2000", "to": "2099" } ] },
+          { "key": "L.B", "label": "Sales and Use Tax Payable", "accounts": [ { "from": "2100", "to": "2199" } ] },
+          { "key": "L.C", "label": "Payroll Liabilities", "accounts": [ { "from": "2200", "to": "2299" } ] },
+          { "key": "L.D", "label": "Other Current Liabilities", "accounts": [ { "from": "2300", "to": "2399" }, { "from": "2900", "to": "2999" } ] },
+          { "key": "L.E", "label": "Deferred Revenue", "accounts": [ { "from": "2400", "to": "2499" } ] },
+          { "key": "L.F", "label": "Stockholders' Equity (Capital and Retained Earnings)", "accounts": [ { "from": "3000", "to": "3999" } ] },
+          { "key": "L.G", "label": "Net Income", "accounts": [], "includesNetIncome": true }
+        ] }
+      ]
+    }
+  }
+}
