@@ -3,9 +3,9 @@ import type { TenantRecordData, TenantRecordRepository } from '../port.js';
 /**
  * Keeps a tenant's configuration where the books already live (SPEC-015).
  *
- * Five operations change configuration — `setTaxProfile`, `defineDimensionType`,
- * `defineDimensionValue`, `setAllocationScheme` and `importMapping` — and until this existed each
- * of them changed a live object and nothing else. They audited the change durably all the same, which
+ * Six operations change configuration — `setTaxProfile`, `defineDimensionType`,
+ * `defineDimensionValue`, `setAllocationScheme`, `importMapping` and `setEntityProfile` — and until
+ * this existed each of them changed a live object and nothing else. They audited the change durably all the same, which
  * is the part that made it a defect rather than a limitation: the trail stated something the books
  * stopped carrying at the next restart.
  *
@@ -30,6 +30,11 @@ export class TenantConfigStore {
   ): void {
     this.record.config.dimensionTypes = types;
     this.record.config.dimensionValues = values;
+    this.flush();
+  }
+
+  rememberEntityProfile(profile: { legalForm: string; sizeClass: string | null }): void {
+    this.record.config.entityProfile = profile;
     this.flush();
   }
 
@@ -92,5 +97,12 @@ export function openTenantConfiguration(
 
 /** An empty configuration block — the shape every record carries, with nothing configured yet. */
 export function emptyTenantConfig(): TenantRecordData['config'] {
-  return { taxProfile: null, dimensionTypes: [], dimensionValues: [], allocationScheme: null, mappings: [] };
+  return {
+    taxProfile: null,
+    dimensionTypes: [],
+    dimensionValues: [],
+    allocationScheme: null,
+    mappings: [],
+    entityProfile: null,
+  };
 }

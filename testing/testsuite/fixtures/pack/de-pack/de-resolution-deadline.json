@@ -1,0 +1,130 @@
+{
+  "fixture": "de-resolution-deadline",
+  "description": "The same mechanism on the shipped `de` pack, which is where the actual numbers live. A GmbH owes a resolution on its result within eight months of the year end and a small one within eleven, and neither number is in the core — the module `de-rechtsformen` carries both, together with the citation the projection hands back untouched in `resolutionBasis`. Declared here as a small GmbH, so the 2026 result has to be resolved by 2027-11-30; without the size class it would be 2027-08-31. What is pinned is that the pack's data reaches the date, not that the date is eight or eleven months — the pack owns that, and it may correct it in a new version without this fixture standing in the way.",
+  "covers": [
+    "F-CORE-039",
+    "F-PACK-011"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Frist GmbH",
+        "baseCurrency": "EUR",
+        "pack": "de",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "de"
+          }
+        }
+      }
+    },
+    {
+      "op": "setEntityProfile",
+      "input": {
+        "tenant": "$T1",
+        "legalForm": "gmbh",
+        "sizeClass": "small"
+      },
+      "expect": {
+        "result": {
+          "legalForm": "gmbh",
+          "label": "Gesellschaft mit beschränkter Haftung",
+          "sizeClass": "small",
+          "resolutionRequired": true,
+          "resolutionDeadlineMonths": 11
+        }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "AR-001",
+          "voucherDate": "2026-03-01"
+        },
+        "entryDate": "2026-03-01",
+        "text": "Erlös 2026",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4040",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "entry": {
+            "sequenceNumber": 1
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "unappropriatedResult",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "unappropriated": "900.00",
+        "legalForm": "gmbh",
+        "resolutionRequired": true,
+        "byFiscalYear": [
+          {
+            "fiscalYear": 2026,
+            "available": "900.00",
+            "resolutionDueBy": "2027-11-30"
+          }
+        ]
+      }
+    },
+    {
+      "comment": "The eight forms the DE pack knows, so a Rechtsform field can be built from the tenant instead of from a hard-coded list.",
+      "name": "tenantConfiguration",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "entityProfile": {
+          "legalForm": "gmbh",
+          "sizeClass": "small"
+        },
+        "legalForms": [
+          "ag",
+          "eg",
+          "einzelunternehmen",
+          "gbr",
+          "gmbh",
+          "kg",
+          "ohg",
+          "ug"
+        ],
+        "sizeClasses": [
+          "large",
+          "medium",
+          "small"
+        ]
+      }
+    }
+  ]
+}

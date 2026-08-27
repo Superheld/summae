@@ -138,4 +138,42 @@ final class CalendarDateTest extends TestCase
     {
         self::assertSame($days, CalendarDate::of($later)->daysSince(CalendarDate::of($earlier)));
     }
+
+    /**
+     * Month arithmetic on three numbers, not on a timestamp. The clamping rule is the point: the
+     * deadline a pack declares as "n months" is measured from a fiscal year end, and those land on
+     * 31 December, 30 June and 30 November far more often than on the 15th.
+     *
+     * The SAME cases live in the Node calendar-date.test.ts.
+     *
+     * @return array<string, array{0: string, 1: int, 2: string}>
+     */
+    public static function plusMonthsProvider(): array
+    {
+        return [
+            'day 31 survives a 31-day month' => ['2026-12-31', 8, '2027-08-31'],
+            'clamped, and not 3 March' => ['2026-06-30', 8, '2027-02-28'],
+            'clamped to a leap day' => ['2024-01-31', 1, '2024-02-29'],
+            'clamped without one' => ['2023-01-31', 1, '2023-02-28'],
+            'plain arithmetic on a 30th' => ['2026-11-30', 8, '2027-07-30'],
+            'zero is identity' => ['2026-01-15', 0, '2026-01-15'],
+            'a whole year' => ['2026-01-15', 12, '2027-01-15'],
+            'backwards across the year boundary' => ['2026-01-15', -1, '2025-12-15'],
+            'backwards with clamping' => ['2026-03-31', -1, '2026-02-28'],
+        ];
+    }
+
+    #[DataProvider('plusMonthsProvider')]
+    public function testPlusMonths(string $from, int $months, string $to): void
+    {
+        self::assertSame($to, CalendarDate::of($from)->plusMonths($months)->iso);
+    }
+
+    public function testReachesTheEndOfTheNthMonthWhichIsWhatADeadlineMeans(): void
+    {
+        // "within the first eight months of the following financial year" for a year ending
+        // 30 November runs to 31 July — one day later than plain month arithmetic, and the wrong
+        // side to be wrong on.
+        self::assertSame('2027-07-31', CalendarDate::of('2026-11-30')->plusMonths(8)->lastDayOfMonth()->iso);
+    }
 }

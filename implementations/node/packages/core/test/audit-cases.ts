@@ -76,6 +76,14 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       targets: { carryForward: { account: '2100', label: 'Gewinnvortrag' } },
     },
   });
+  // And the legal-form catalogue, for the same reason: without it `setEntityProfile` refuses on the
+  // empty catalogue instead of reaching the trail.
+  tenant.legalForms.setRuleModule({
+    legalForms: {
+      sizeClasses: ['small'],
+      forms: { limited: { label: 'Limited company', resolution: { required: true, deadlineMonths: 8 } } },
+    },
+  });
   return new TenantOperations(tenant);
 }
 
@@ -277,6 +285,12 @@ const AUDITED: readonly Case[] = [
     objectType: 'taxProfile',
     action: 'changed',
     run: (ops) => void ops.execute('setTaxProfile', { smallBusiness: { validFrom: '2026-01-01', value: true } }),
+  },
+  {
+    op: 'setEntityProfile',
+    objectType: 'entityProfile',
+    action: 'changed',
+    run: (ops) => void ops.execute('setEntityProfile', { legalForm: 'limited', sizeClass: 'small' }),
   },
   {
     op: 'importMapping',

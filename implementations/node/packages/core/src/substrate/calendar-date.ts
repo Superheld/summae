@@ -102,6 +102,19 @@ export class CalendarDate {
     return Number(this.iso.slice(5, 7));
   }
 
+  /**
+   * The same day-of-month `months` later, clamped to the target month's last day (31 January plus
+   * one month is 28 February, never 3 March). Zoneless like everything else here: this is calendar
+   * arithmetic on three numbers, not a timestamp shifted by seconds.
+   */
+  plusMonths(months: number): CalendarDate {
+    const zeroBased = (this.year() * 12 + (this.month() - 1)) + months;
+    const year = Math.floor(zeroBased / 12);
+    const month = zeroBased - year * 12 + 1;
+    const day = Math.min(Number(this.iso.slice(8, 10)), daysInMonth(year, month));
+    return new CalendarDate(iso(year, month, day));
+  }
+
   lastDayOfMonth(): CalendarDate {
     return new CalendarDate(iso(this.year(), this.month(), daysInMonth(this.year(), this.month())));
   }

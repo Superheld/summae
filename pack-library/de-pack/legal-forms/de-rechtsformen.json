@@ -1,0 +1,45 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-rechtsformen",
+  "kind": "legalForms",
+  "version": "2026.1",
+  "name": "DE Rechtsformen (Beschlusspflicht und Frist der Ergebnisverwendung)",
+  "contributes": ["legalForms"],
+  "data": {
+    "sizeClasses": ["small", "medium", "large"],
+    "forms": {
+      "einzelunternehmen": {
+        "label": "Einzelunternehmen",
+        "resolution": { "required": false }
+      },
+      "gbr": {
+        "label": "Gesellschaft bürgerlichen Rechts",
+        "resolution": { "required": false }
+      },
+      "ohg": {
+        "label": "Offene Handelsgesellschaft",
+        "resolution": { "required": false }
+      },
+      "kg": {
+        "label": "Kommanditgesellschaft (auch GmbH & Co. KG)",
+        "resolution": { "required": false }
+      },
+      "gmbh": {
+        "label": "Gesellschaft mit beschränkter Haftung",
+        "resolution": { "required": true, "deadlineMonths": 8, "bySizeClass": { "small": 11 }, "basis": "§ 42a Abs. 2 GmbHG" }
+      },
+      "ug": {
+        "label": "Unternehmergesellschaft (haftungsbeschränkt)",
+        "resolution": { "required": true, "deadlineMonths": 8, "bySizeClass": { "small": 11 }, "basis": "§ 42a Abs. 2 GmbHG" }
+      },
+      "ag": {
+        "label": "Aktiengesellschaft",
+        "resolution": { "required": true, "deadlineMonths": 8, "basis": "§ 175 Abs. 1 AktG" }
+      },
+      "eg": {
+        "label": "Eingetragene Genossenschaft",
+        "resolution": { "required": true, "deadlineMonths": 6, "basis": "§ 48 Abs. 1 GenG" }
+      }
+    }
+  }
+}

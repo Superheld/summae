@@ -127,6 +127,8 @@ export class TenantFactory {
     tenant.costing.setRuleModule(this.ruleModules);
     // And the appropriation plug: which account a resolution books against, and which targets exist.
     tenant.resultAppropriation.setRuleModule(this.ruleModules);
+    // And the legal-form catalogue: which forms this jurisdiction knows, and what each one obliges.
+    tenant.legalForms.setRuleModule(this.ruleModules);
 
     return {
       tenant,

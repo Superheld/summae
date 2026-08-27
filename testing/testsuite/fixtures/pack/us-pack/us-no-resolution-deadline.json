@@ -1,0 +1,90 @@
+{
+  "fixture": "us-no-resolution-deadline",
+  "description": "The same question on the `us` pack, with the opposite answer — and the point is that it IS an answer. No US form in the pack owes a statutory resolution on the result: the year closes into retained earnings, which is also why `us-appropriation` offers `carryForward` and nothing else. The pack ships the catalogue anyway rather than leaving it out, because the two silences read differently: without the module `resolutionRequired` would be `null` (nobody has said what this company is) and with it `false` (this form resolves nothing). That distinction is what an application needs in order to decide between showing a deadline, showing nothing, and asking the user a question. `sizeClasses` is empty for the same reason — this jurisdiction grades no deadline by size, so there is no class to pick and one offered anyway is refused.",
+  "covers": [
+    "F-CORE-039",
+    "F-PACK-011"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Retained Inc",
+        "baseCurrency": "USD",
+        "pack": "us",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "us"
+          }
+        }
+      }
+    },
+    {
+      "op": "setEntityProfile",
+      "input": {
+        "tenant": "$T1",
+        "legalForm": "cCorporation"
+      },
+      "expect": {
+        "result": {
+          "legalForm": "cCorporation",
+          "label": "C corporation",
+          "resolutionRequired": false,
+          "resolutionDeadlineMonths": null
+        }
+      }
+    },
+    {
+      "comment": "A size class this pack does not grade by is refused rather than swallowed — an empty catalogue is still a catalogue.",
+      "op": "setEntityProfile",
+      "input": {
+        "tenant": "$T1",
+        "legalForm": "cCorporation",
+        "sizeClass": "small"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "`false`, not `null`: the question is answered, the answer is that nothing is owed.",
+      "name": "unappropriatedResult",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "legalForm": "cCorporation",
+        "resolutionRequired": false,
+        "resolutionBasis": null,
+        "byFiscalYear": []
+      }
+    },
+    {
+      "name": "tenantConfiguration",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "entityProfile": {
+          "legalForm": "cCorporation",
+          "sizeClass": null
+        },
+        "legalForms": [
+          "cCorporation",
+          "llc",
+          "partnership",
+          "sCorporation",
+          "soleProprietorship"
+        ],
+        "sizeClasses": []
+      }
+    }
+  ]
+}

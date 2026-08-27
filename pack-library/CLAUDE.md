@@ -21,10 +21,19 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `mapping` | **projection** (mappings) |
 | `accounts` | fills the (account-less) **substrate** account primitive |
 | `policy` | **parameters** (rounding/scale via `packPolicy`) |
+| `resultAppropriation` | **expansion** — which account a resolution books against and which targets the jurisdiction offers (`appropriateResult`) |
+| `legalForms` | **projection** — which legal forms the jurisdiction knows and what each owes in a resolution on the result, with its deadline and citation (`unappropriatedResult`). The only kind with **no** `dependsOn`: it names no accounts |
 | `constraint` | **constraint** — today one predicate: `dimensionRules` (which accounts may not be posted without which dimension). Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
   **fails loudly** on missing/incoherent references (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).
+
+- **What a pack does NOT offer, it should still say.** An omitted module and an empty one read the same
+  to the resolver and very differently to a caller: `us-legal-forms` declares five forms that owe no
+  resolution, so `unappropriatedResult` answers `false` ("this form resolves nothing") instead of `null`
+  ("nobody has said what this company is"). The `default` pack ships neither that module nor a mapping,
+  and both absences are then a *reported* absence rather than an error the caller has to interpret
+  (IMPL-032).
 
 ## Rule
 

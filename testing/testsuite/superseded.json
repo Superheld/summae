@@ -66,6 +66,12 @@
       "supersededBy": "xx-6-pack-version-pinning-current",
       "on": "2026-08-26",
       "reason": "Pinned both contentDigest values literally. The digest is derived from the serialisation of the resolved bundle, so ANY field the bundle gains changes it — including a field that is null for this pack, which is what happened when the appropriation plug was added and this fixture, whose own pack declares no such module, went red. That is the same weld a literal formatVersion was retired for, one layer further in: the number belongs to the engine's internal shape, not to the contract. The successor drives exactly the same six steps and pins the mechanism with placeholders — a pinned version resolves to the SAME digest every time, across resolvePack and createTenant alike, while the current version resolves to a different one. That the two versions differ at all is carried by accountCount, which is data rather than a hash."
+    },
+    {
+      "fixture": "system-description-invariants",
+      "supersededBy": "system-description-claims",
+      "on": "2026-08-27",
+      "reason": "Pinned the complete `auditTrail.events` list — fifteen object types with their actions — so `systemDescription` could not admit to auditing a sixteenth without the suite going red. That is the census the same fixture's predecessor already retired one level up for the capability list, and the argument is unchanged: the completeness is the contract, the length of the list is the product's. It is also guarded better than a literal can guard it — the audit-trail contract test in both languages runs every state-changing operation and compares what it writes against what the description claims, in both directions, so neither a stale claim nor an unlogged operation survives. `setEntityProfile` (F-CORE-039) is the sixteenth, and the successor pins everything about the trail except how long the list happens to be."
     }
   ]
 }

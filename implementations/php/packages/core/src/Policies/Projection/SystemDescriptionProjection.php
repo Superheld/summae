@@ -51,7 +51,7 @@ final readonly class SystemDescriptionProjection
         'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
         'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-        'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setTaxProfile',
+        'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
         'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
     ];
 
@@ -61,7 +61,7 @@ final readonly class SystemDescriptionProjection
         'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
         'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
         'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
-        'unfinalizedEntries', 'vatReturn'
+        'unappropriatedResult', 'unfinalizedEntries', 'vatReturn'
     ];
 
     /**
@@ -149,6 +149,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'fiscalYear', 'actions' => ['created', 'closed']],
         ['objectType' => 'period', 'actions' => ['closed', 'reopened']],
         ['objectType' => 'taxProfile', 'actions' => ['changed']],
+        ['objectType' => 'entityProfile', 'actions' => ['changed']],
         ['objectType' => 'mapping', 'actions' => ['imported']],
         ['objectType' => 'allocationScheme', 'actions' => ['changed']],
         ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown']],

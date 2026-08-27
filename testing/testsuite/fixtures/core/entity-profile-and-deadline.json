@@ -1,0 +1,221 @@
+{
+  "fixture": "entity-profile-and-deadline",
+  "description": "F-CORE-039: a tenant says what it IS, and the pack turns that into a date. `appropriateResult` could book a resolution but not say whether one was owed or by when, and both answers depend on the legal form as much as on the jurisdiction — so the pack carries a catalogue and the core carries only the arithmetic: fiscal-year end plus n months, rounded up to the end of that month. The pack here is deliberately fictional, because what is under test is mechanism, not German law: a form that owes a resolution in eight months, eleven when the entity is small, and a form that owes none at all. `required: false` is an ANSWER — the projection reports `false` and no date, which an application must be able to tell apart from `null`, meaning nobody has said what this company is. Note the fiscal year: it ends 30 November, so the deadline is 31 July of the year after next and not 30 July — the statutes of this kind read \"within the first n months of the following financial year\", and plain month arithmetic is a day short. The two refusals come first and leave nothing behind: `auditLog` counts two records, one per resolution that was actually accepted.",
+  "covers": [
+    "F-CORE-039",
+    "SF-25"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Rechtsform Ltd",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "2100",
+        "name": "Gewinnvortrag",
+        "type": "equity"
+      },
+      {
+        "number": "2300",
+        "name": "Ergebnisverwendung",
+        "type": "equity",
+        "subtype": "result_allocation"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2025-12-01",
+        "end": "2026-11-30",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2025-12-01",
+            "end": "2026-11-30"
+          }
+        ]
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-1",
+        "voucherDate": "2026-06-01"
+      }
+    ],
+    "ruleModules": {
+      "resultAppropriation": {
+        "allocationAccount": "2300",
+        "targets": {
+          "carryForward": {
+            "account": "2100",
+            "label": "Gewinnvortrag"
+          }
+        }
+      },
+      "legalForms": {
+        "sizeClasses": [
+          "small"
+        ],
+        "forms": {
+          "limited": {
+            "label": "Limited company",
+            "resolution": {
+              "required": true,
+              "deadlineMonths": 8,
+              "bySizeClass": {
+                "small": 11
+              },
+              "basis": "Fixture Companies Act, s. 12"
+            }
+          },
+          "soleTrader": {
+            "label": "Sole trader",
+            "resolution": {
+              "required": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "comment": "A form the pack does not know is refused by name, with the offered list attached — a screen can build itself from the refusal.",
+      "op": "setEntityProfile",
+      "input": {
+        "legalForm": "aktiengesellschaft"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "comment": "And so is a size class it does not grade by. Silently ignoring it would report the regular deadline as if it were the graded one.",
+      "op": "setEntityProfile",
+      "input": {
+        "legalForm": "limited",
+        "sizeClass": "huge"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "setEntityProfile",
+      "input": {
+        "legalForm": "limited"
+      },
+      "expect": {
+        "result": {
+          "legalForm": "limited",
+          "label": "Limited company",
+          "sizeClass": null,
+          "resolutionRequired": true,
+          "resolutionDeadlineMonths": 8
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01",
+        "voucherId": "$V1",
+        "text": "Erlös",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "comment": "Small entities get longer. The size class is declared, not computed — nobody can derive a headcount from a journal.",
+      "op": "setEntityProfile",
+      "input": {
+        "legalForm": "limited",
+        "sizeClass": "small"
+      },
+      "expect": {
+        "result": {
+          "legalForm": "limited",
+          "sizeClass": "small",
+          "resolutionDeadlineMonths": 11
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "Year ends 2026-11-30, eleven months, end of month → 2027-10-31.",
+      "name": "unappropriatedResult",
+      "params": {},
+      "expect": {
+        "unappropriated": "900.00",
+        "legalForm": "limited",
+        "resolutionRequired": true,
+        "resolutionBasis": "Fixture Companies Act, s. 12",
+        "byFiscalYear": [
+          {
+            "fiscalYear": 2026,
+            "available": "900.00",
+            "resolutionDueBy": "2027-10-31"
+          }
+        ]
+      }
+    },
+    {
+      "comment": "What was declared, and what could be declared — enough for a form to build its own select.",
+      "name": "tenantConfiguration",
+      "params": {},
+      "expect": {
+        "entityProfile": {
+          "legalForm": "limited",
+          "sizeClass": "small"
+        },
+        "legalForms": [
+          "limited",
+          "soleTrader"
+        ],
+        "sizeClasses": [
+          "small"
+        ]
+      }
+    },
+    {
+      "comment": "Two accepted changes, two records. The two refusals wrote nothing: a rejected operation leaves no trail and no stored state.",
+      "name": "auditLog",
+      "params": {
+        "objectType": "entityProfile"
+      },
+      "expect": {
+        "count": 2
+      }
+    }
+  ]
+}

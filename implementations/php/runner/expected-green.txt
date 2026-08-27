@@ -157,7 +157,6 @@ de-euer-mapping-gap-current
 de-aufwandskonten-erweiterbar
 journal-export-z3-current
 parameter-effect-current
-system-description-invariants
 partner-status
 voucher-net-line-dimensions
 partner-account-link-validated
@@ -179,3 +178,10 @@ result-appropriation-guards
 de-profit-appropriation
 account-sheet-entry-reference
 default-pack-has-no-mappings
+unappropriated-result
+appropriation-pot-direction
+system-description-claims
+entity-profile-and-deadline
+de-resolution-deadline
+us-no-resolution-deadline
+default-pack-has-no-legal-forms

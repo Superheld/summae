@@ -1,7 +1,11 @@
 {
   "id": "de",
   "description": "Germany pack: cash-basis VAT, standard + intra-community-supply mechanisms, GoBD/DATEV exports.",
-  "init": { "pack": "de", "currency": "EUR", "firstFiscalYear": 2026 },
+  "init": {
+    "pack": "de",
+    "currency": "EUR",
+    "firstFiscalYear": 2026
+  },
   "expect": {
     "initialized": true,
     "baseCurrency": "EUR",
@@ -12,22 +16,40 @@
     {
       "name": "empty ledger has no rows at all (balances are computed, not stored)",
       "report": "trialBalance",
-      "params": { "fiscalYear": 2026 },
-      "expect": { "rows": [] }
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "rows": []
+      }
     },
     {
       "name": "outgoing invoice: net line in, tax line derived",
       "op": "postVoucher",
       "input": {
-        "voucher": { "voucherNumber": "AR-001", "voucherDate": "2026-02-10" },
+        "voucher": {
+          "voucherNumber": "AR-001",
+          "voucherDate": "2026-02-10"
+        },
         "entryDate": "2026-02-10",
         "text": "Consulting February",
         "taxCode": "USt19",
         "direction": "output",
-        "netLines": [{ "account": "4000", "money": { "amount": "1000.00", "currency": "EUR" } }],
+        "netLines": [
+          {
+            "account": "4000",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ],
         "counterAccount": "1400"
       },
-      "capture": { "invoiceEntry": "entry.id", "receivable": "openItemsCreated[0].id" },
+      "capture": {
+        "invoiceEntry": "entry.id",
+        "receivable": "openItemsCreated[0].id"
+      },
       "expect": {
         "grossTotal.amount": "1190.00",
         "entry.sequenceNumber": 1,
@@ -46,12 +68,23 @@
       "name": "intra-community supply: tax-free, base tagged, no tax line",
       "op": "postVoucher",
       "input": {
-        "voucher": { "voucherNumber": "AR-002", "voucherDate": "2026-02-20" },
+        "voucher": {
+          "voucherNumber": "AR-002",
+          "voucherDate": "2026-02-20"
+        },
         "entryDate": "2026-02-20",
         "text": "Supply to AT",
         "taxCode": "igL",
         "direction": "output",
-        "netLines": [{ "account": "4030", "money": { "amount": "500.00", "currency": "EUR" } }],
+        "netLines": [
+          {
+            "account": "4030",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ],
         "counterAccount": "1400"
       },
       "expect": {
@@ -63,9 +96,18 @@
     {
       "name": "payment needs a voucher of its own (fields nested under `voucher`)",
       "op": "createVoucher",
-      "input": { "voucher": { "voucherNumber": "BK-001", "voucherDate": "2026-03-05" } },
-      "capture": { "paymentVoucher": "id" },
-      "expect": { "voucherNumber": "BK-001" }
+      "input": {
+        "voucher": {
+          "voucherNumber": "BK-001",
+          "voucherDate": "2026-03-05"
+        }
+      },
+      "capture": {
+        "paymentVoucher": "id"
+      },
+      "expect": {
+        "voucherNumber": "BK-001"
+      }
     },
     {
       "name": "bank posting, gross, no tax expansion",
@@ -75,12 +117,31 @@
         "entryDate": "2026-03-05",
         "text": "Payment received AR-001",
         "lines": [
-          { "account": "1200", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
-          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1400",
+            "side": "credit",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
-      "capture": { "paymentEntry": "id" },
-      "expect": { "sequenceNumber": 3, "periodRef.period": 3 }
+      "capture": {
+        "paymentEntry": "id"
+      },
+      "expect": {
+        "sequenceNumber": 3,
+        "periodRef.period": 3
+      }
     },
     {
       "name": "settle: link the payment to the receivable",
@@ -88,7 +149,13 @@
       "input": {
         "entryId": "$paymentEntry",
         "allocations": [
-          { "openItemId": "$receivable", "money": { "amount": "1190.00", "currency": "EUR" } }
+          {
+            "openItemId": "$receivable",
+            "money": {
+              "amount": "1190.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
       "expect": {
@@ -104,8 +171,22 @@
         "voucherId": "$paymentVoucher",
         "entryDate": "2026-03-06",
         "lines": [
-          { "account": "1200", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
-          { "account": "4000", "side": "credit", "money": { "amount": "90.00", "currency": "EUR" } }
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4000",
+            "side": "credit",
+            "money": {
+              "amount": "90.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
       "expectError": "E_ENTRY_UNBALANCED",
@@ -115,16 +196,31 @@
       "name": "incoming invoice, input tax",
       "op": "postVoucher",
       "input": {
-        "voucher": { "voucherNumber": "ER-001", "voucherDate": "2026-03-12" },
+        "voucher": {
+          "voucherNumber": "ER-001",
+          "voucherDate": "2026-03-12"
+        },
         "entryDate": "2026-03-12",
         "text": "Office supplies",
         "taxCode": "VSt19",
         "direction": "input",
-        "netLines": [{ "account": "6000", "money": { "amount": "200.00", "currency": "EUR" } }],
+        "netLines": [
+          {
+            "account": "6000",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          }
+        ],
         "counterAccount": "3000"
       },
-      "capture": { "expenseEntry": "entry.id" },
-      "expect": { "grossTotal.amount": "238.00" }
+      "capture": {
+        "expenseEntry": "entry.id"
+      },
+      "expect": {
+        "grossTotal.amount": "238.00"
+      }
     },
     {
       "name": "reversal: same side, negated amounts, back-reference — nothing is deleted",
@@ -134,7 +230,9 @@
         "entryDate": "2026-03-20",
         "text": "Reversal office supplies"
       },
-      "capture": { "reversalEntry": "id" },
+      "capture": {
+        "reversalEntry": "id"
+      },
       "expect": {
         "reverses": "$expenseEntry",
         "lines[0].account": "3000",
@@ -147,13 +245,18 @@
     {
       "name": "an entry can only be reversed once",
       "op": "reverse",
-      "input": { "entryId": "$expenseEntry", "entryDate": "2026-03-21" },
+      "input": {
+        "entryId": "$expenseEntry",
+        "entryDate": "2026-03-21"
+      },
       "expectError": "E_ENTRY_ALREADY_REVERSED"
     },
     {
       "name": "trial balance is recomputed from the journal",
       "report": "trialBalance",
-      "params": { "fiscalYear": 2026 },
+      "params": {
+        "fiscalYear": 2026
+      },
       "expect": {
         "rows[0].account": "1200",
         "rows[0].balance": "1190.00",
@@ -163,7 +266,10 @@
     {
       "name": "account ledger with running balance",
       "report": "accountSheet",
-      "params": { "account": "1200", "fiscalYear": 2026 },
+      "params": {
+        "account": "1200",
+        "fiscalYear": 2026
+      },
       "expect": {
         "name": "Bank",
         "closingBalance": "1190.00",
@@ -174,60 +280,121 @@
     {
       "name": "income statement requires a mapping from the pack",
       "report": "incomeStatement",
-      "params": { "fiscalYear": 2026, "mapping": "de-guv" },
-      "expect": { "netIncome": "1500.00" }
+      "params": {
+        "fiscalYear": 2026,
+        "mapping": "de-guv"
+      },
+      "expect": {
+        "netIncome": "1500.00"
+      }
     },
     {
       "name": "balance sheet balances",
       "report": "balanceSheet",
-      "params": { "fiscalYear": 2026, "mapping": "de-bilanz" },
-      "expect": { "assetsTotal": "1690.00", "liabilitiesAndEquityTotal": "1690.00" }
+      "params": {
+        "fiscalYear": 2026,
+        "mapping": "de-bilanz"
+      },
+      "expect": {
+        "assetsTotal": "1690.00",
+        "liabilitiesAndEquityTotal": "1690.00"
+      }
     },
     {
       "name": "VAT return takes year+quarter; cash-basis, so the paid invoice counts in the payment quarter — and the reversed, never-paid incoming invoice contributes NOTHING (key 66 absent, IMPL-005)",
       "report": "vatReturn",
-      "params": { "year": 2026, "quarter": 1 },
+      "params": {
+        "year": 2026,
+        "quarter": 1
+      },
       "expect": {
-        "keys": { "81": { "base": "1000.00", "tax": "190.00" } },
+        "keys": {
+          "81": {
+            "base": "1000.00",
+            "tax": "190.00"
+          }
+        },
         "payload.amount": "190.00"
       }
     },
     {
       "name": "EC sales list picks up the intra-community supply only",
       "report": "ecSalesList",
-      "params": { "year": 2026, "quarter": 1 },
-      "expect": { "rows": [] }
+      "params": {
+        "year": 2026,
+        "quarter": 1
+      },
+      "expect": {
+        "rows": []
+      }
     },
     {
       "name": "cash-basis report takes `year`, not `fiscalYear`",
       "report": "cashBasisReport",
-      "params": { "year": 2026 },
-      "expect": { "income[0].amount": "1000.00" }
+      "params": {
+        "year": 2026
+      },
+      "expect": {
+        "income[0].amount": "1000.00"
+      }
     },
     {
       "name": "postings must be finalized before periods can close",
       "op": "finalize",
-      "input": { "finalizeUntil": "2026-12-31" },
-      "expect": { "finalizedCount": 5 }
+      "input": {
+        "finalizeUntil": "2026-12-31"
+      },
+      "expect": {
+        "finalizedCount": 5
+      }
     },
     {
       "name": "periods close in order — skipping one is refused",
       "op": "closePeriod",
-      "input": { "fiscalYear": 2026, "period": 2 },
+      "input": {
+        "fiscalYear": 2026,
+        "period": 2
+      },
       "expectError": "E_PERIOD_OUT_OF_ORDER"
     },
     {
       "name": "close all twelve periods",
-      "repeat": { "over": "period", "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+      "repeat": {
+        "over": "period",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
       "op": "closePeriod",
-      "input": { "fiscalYear": 2026, "period": "$period" },
-      "expect": { "status": "closed" }
+      "input": {
+        "fiscalYear": 2026,
+        "period": "$period"
+      },
+      "expect": {
+        "status": "closed"
+      }
     },
     {
       "name": "close the year — a status change, no closing entries",
       "op": "closeFiscalYear",
-      "input": { "fiscalYear": 2026 },
-      "expect": { "fiscalYear": 2026, "status": "closed" }
+      "input": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "fiscalYear": 2026,
+        "status": "closed"
+      }
     },
     {
       "name": "the lock is real",
@@ -236,8 +403,22 @@
         "voucherId": "$paymentVoucher",
         "entryDate": "2026-04-01",
         "lines": [
-          { "account": "1200", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
-          { "account": "4000", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4000",
+            "side": "credit",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            }
+          }
         ]
       },
       "expectError": "E_PERIOD_CLOSED",
@@ -246,11 +427,18 @@
     {
       "name": "GoBD Z3 export: hashed streams, self-describing field catalogue",
       "report": "journalExport",
-      "params": { "fiscalYear": 2026 },
+      "params": {
+        "fiscalYear": 2026
+      },
       "expect": {
         "manifest.formatVersion": "0.7",
         "manifest.hashAlgorithm": "sha256",
-        "manifest.streams": ["journal", "accounts", "vouchers", "auditLog"],
+        "manifest.streams": [
+          "journal",
+          "accounts",
+          "vouchers",
+          "auditLog"
+        ],
         "fieldCatalogIncluded": true,
         "journal.allFinalized": true
       }
@@ -258,8 +446,39 @@
     {
       "name": "DATEV export",
       "report": "datevExport",
-      "params": { "fiscalYear": 2026 },
-      "expect": { "kind": "entries", "rows[0].debitCredit": "S", "rows[0].documentField1": "AR-001" }
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "kind": "entries",
+        "rows[0].debitCredit": "S",
+        "rows[0].documentField1": "AR-001"
+      }
+    },
+    {
+      "name": "what the entity IS decides whether a resolution is owed, and by when",
+      "op": "setEntityProfile",
+      "input": {
+        "legalForm": "gmbh",
+        "sizeClass": "small"
+      },
+      "expect": {
+        "label": "Gesellschaft mit beschränkter Haftung",
+        "resolutionRequired": true,
+        "resolutionDeadlineMonths": 11
+      }
+    },
+    {
+      "name": "the result nobody has appropriated yet — and its deadline",
+      "report": "unappropriatedResult",
+      "params": {},
+      "expect": {
+        "legalForm": "gmbh",
+        "resolutionRequired": true,
+        "resolutionBasis": "§ 42a Abs. 2 GmbHG",
+        "byFiscalYear[0].fiscalYear": 2026,
+        "byFiscalYear[0].resolutionDueBy": "2027-11-30"
+      }
     }
   ]
 }

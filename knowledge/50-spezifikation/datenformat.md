@@ -294,10 +294,10 @@ ein Mapping, ein AfA-Satz, eine Policy) — nicht atomar.
 |---|---|---|
 | `formatVersion` | semver | `0.6`. |
 | `id` | String, eindeutig **je `kind`** | Adresse für `dependsOn` / Pack-Manifest-Referenzen. |
-| `kind` | Enum `accounts` \| `tax` \| `mapping` \| `depreciation` \| `policy` \| `assetAccounts` | Bestandteils-**Typ**; bestimmt Struktur von `data` und zulässige `contributes`. Deckt sich mit `modules/<kind>/`. Export-Adapter (DATEV/SAF-T) sind **kein** `kind` (dünner Code je Format). `dimensionRules` ist zurückgestellt (kommunal, nicht v1) und **nicht** im aktiven Enum. |
+| `kind` | Enum `accounts` \| `tax` \| `mapping` \| `depreciation` \| `policy` \| `assetAccounts` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms` | Bestandteils-**Typ**; bestimmt Struktur von `data` und zulässige `contributes`. Deckt sich mit `modules/<kind>/`. Export-Adapter (DATEV/SAF-T) sind **kein** `kind` (dünner Code je Format). **Maßgeblich ist `testing/testsuite/schema/format.schema.json`** — diese Zeile ist die Erzählung dazu und war bis 2026-08-27 vier Sorten im Rückstand. |
 | `version` | String | Modul-Version, pinbar; Update = neue Version, nie still (erbt Profil-Pinning, v0.2). |
 | `name` | String | Menschenlesbar, nicht referenzwirksam. |
-| `contributes` | Array (Werte: `accounts` \| `taxCodes` \| `mappings` \| `assetAccounts` \| `policy` \| `depreciation`) | Welche `ResolvedPack`-Felder das Modul füllt — Basis der Integritätsprüfung. I. d. R. eine Sorte, passend zum `kind`. (`dimensionRules` erst mit der kommunalen Erweiterung.) |
+| `contributes` | Array (Werte: `accounts` \| `taxCodes` \| `mappings` \| `assetAccounts` \| `policy` \| `depreciation` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms`) | Welche `ResolvedPack`-Felder das Modul füllt — Basis der Integritätsprüfung. I. d. R. eine Sorte, passend zum `kind`. |
 | `dependsOn` | Array `{kind, id, version?}` | Module, deren Beiträge dieses referenziert (Steuer→Konten). Auflösungsreihenfolge + Integritätsbasis. Fehlt `version`, gilt die im Pack-Manifest gewählte. |
 | `data` | Objekt, je `kind` | Die Regelmodul-Daten — **wortgleich** zu den heutigen Strukturen dieser Spec. |
 
@@ -305,9 +305,14 @@ ein Mapping, ein AfA-Satz, eine Policy) — nicht atomar.
 (`E_PACK_INCOHERENT`), nicht still ignorieren.
 
 **`kind` → Politiksorte (eindeutig).** Jedes Modul bedient *genau eine* Politiksorte, bestimmt durch `kind`:
-`tax`/`depreciation`/`assetAccounts` → **Expansion** · `mapping` → **Projektion** · `accounts` → **Substrat** ·
-`policy` → **Parameter (querliegend)**. (`constraint` als Pack-Modul ist noch nicht im Enum — Constraints sind
-heute nur generisch im Kern.)
+`tax`/`depreciation`/`assetAccounts`/`resultAppropriation`/`productionCost` → **Expansion** ·
+`mapping`/`legalForms` → **Projektion** · `accounts` → **Substrat** · `constraint` → **Constraint**
+(seit 2026-08-23, bislang genau ein Prädikat: `dimensionRules`) · `policy` → **Parameter (querliegend)**.
+
+`legalForms` ist der erste Modultyp **ohne** `dependsOn`: er nennt keine Konten. Was er trägt, ist
+reines Rechtsformwissen — welche Formen die Jurisdiktion kennt und was jede an Beschluss und Frist
+schuldet (F-CORE-039) — und der Kern rechnet daraus nur Geschäftsjahresende + n Monate auf den
+Monatsletzten. Jede Zahl und jede Fundstelle bleibt im Modul.
 
 **Heimat — self-contained.** Module liegen im Ordner *ihres* Packs (`pack-library/<pack>/<kind>/<id>.json`,
 z. B. `de-pack/tax/de-ust.json`), **nicht** in einem über Packs geteilten `modules/`. **Packs bauen nicht

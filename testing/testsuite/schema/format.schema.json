@@ -864,7 +864,8 @@
             "assetAccounts",
             "productionCost",
             "constraint",
-            "resultAppropriation"
+            "resultAppropriation",
+            "legalForms"
           ]
         },
         "version": {
@@ -885,7 +886,8 @@
               "depreciation",
               "productionCost",
               "constraint",
-              "resultAppropriation"
+              "resultAppropriation",
+              "legalForms"
             ]
           }
         },

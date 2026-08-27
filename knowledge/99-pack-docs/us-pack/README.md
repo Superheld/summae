@@ -40,6 +40,7 @@ in den Lücken.
 | 8 | `modul-8-policy-us-usd.md` | `policy` | `us-usd` | 2026.1 |
 | 9 | `modul-9-production-cost-us.md` | `productionCost` | `us-inventory-costing` | 2026.1 |
 | 10 | `modul-10-result-appropriation.md` | `resultAppropriation` | `us-appropriation` | 2026.1 |
+| 11 | `modul-11-legal-forms-us.md` | `legalForms` | `us-legal-forms` | 2026.1 |
 
 Dazu:
 

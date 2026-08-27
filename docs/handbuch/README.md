@@ -1085,12 +1085,13 @@ refused by name rather than guessed at.
 `result_allocation` account in debit and reaches its targets in credit; a loss
 does the same journey backwards. Amounts stay positive either way.
 
-**What may be appropriated** is the result *not yet appropriated*: the cumulative
-result of all fiscal years up to and including `fiscalYear`, minus what the
-`result_allocation` accounts already carry. That is the same figure `balanceSheet`
-reports in its `includesNetIncome` position, so the number on the screen and the
-number this refuses against cannot drift apart. Appropriating less than is
-available is fine — the rest stays where it is and can be appropriated later.
+**What may be appropriated** is the result *not yet appropriated* — ask for it
+with the `unappropriatedResult` projection rather than deriving it: that
+projection's `available` for a year is the very function this operation refuses
+against, so the number on the screen and the number in the refusal cannot drift
+apart. It is also the figure `balanceSheet` reports in its `includesNetIncome`
+position. Appropriating less than is available is fine — the rest stays where it
+is and can be appropriated later.
 
 Output: `{ "entry", "fiscalYear", "appropriated": [{ "target", "account", "money" }],
 "remaining" }`. The entry is a normal posting: correctable, reversible, audited
@@ -1166,6 +1167,46 @@ as of the cutoff date).
 ```json
 { "smallBusiness": { "validFrom": "2026-07-01", "value": false } }
 // → smallBusiness: [ {"validFrom":"2026-01-01","value":true}, {"validFrom":"2026-07-01","value":false} ]
+```
+
+#### setEntityProfile
+
+Says **what the entity is** — its legal form, and where a jurisdiction grades entities by
+size, its size class. Nothing in the books changes; what changes is what summae can
+answer about them, namely whether a resolution on the result is owed at all and by when
+(`unappropriatedResult`).
+
+| Field | Type | Required | Meaning |
+|------|-----|---------|-----------|
+| `legalForm` | string | yes | one the **pack** declares — `gmbh`, `ug`, `ag`, `eg`, `kg`, `ohg`, `gbr`, `einzelunternehmen` on `de` |
+| `sizeClass` | string | no | one the pack declares — `small`, `medium`, `large` on `de`; the `us` pack grades nothing and accepts none |
+| `actor` | string | no | who recorded it |
+
+Which forms exist is the pack's answer, not the core's, and an unknown one is refused by
+name with the offered list attached rather than accepted and quietly ignored — a misspelt
+form would otherwise report "no resolution required" for a company that owes one, which is
+the one wrong answer that looks like a right one. Read the list from
+`tenantConfiguration.legalForms` before you build a form; a pack with no catalogue at all
+reports an empty list, and then this operation refuses everything.
+
+⚠ **The size class is declared, not computed.** Where a jurisdiction grades entities by size
+it does so on measures the books only partly hold — headcount, for one — so summae does not
+derive it. Say nothing and you get the regular deadline, which is the conservative one.
+
+Output: `{ "legalForm", "label", "sizeClass", "resolutionRequired", "resolutionDeadlineMonths" }`.
+Error: `E_INPUT_INVALID` (missing, or a form/size class the pack does not know — `details.offered`
+lists what it does).
+
+**Stored with the tenant**, unlike `actorAuthentication`: this describes the company whose books
+these are, not the installation running them, and the change is an audited event
+(`entityProfile/changed`) with a date. On reopening, a form the pack has since dropped comes back
+as it was stored and simply stops resolving to a deadline — a pack version must not make old books
+unopenable.
+
+```json
+{ "legalForm": "gmbh", "sizeClass": "small" }
+→ { "legalForm": "gmbh", "label": "Gesellschaft mit beschränkter Haftung",
+    "sizeClass": "small", "resolutionRequired": true, "resolutionDeadlineMonths": 11 }
 ```
 
 #### importMapping
@@ -1743,6 +1784,59 @@ period does not close the year, `closeFiscalYear` does.
                { "period": 2, "start": "2025-08-01", "end": "2025-08-31", "status": "open" } ] } ] }
 ```
 
+### unappropriatedResult — what a resolution may still appropriate
+
+`fiscalYear` (no, scopes `byFiscalYear` to one year). Output: `cumulativeResult`,
+`appropriated`, `unappropriated`, `legalForm`, `resolutionRequired`, `resolutionBasis`
+and `byFiscalYear[]` with `fiscalYear`, `result`, `cumulativeResult`, `available`
+and `resolutionDueBy`.
+
+This is the read side of `appropriateResult`, and until it existed the figure
+could only be obtained by doing something wrong: it left the library as the
+`available` detail of an `E_APPROPRIATION_EXCEEDS_RESULT` refusal, so an
+application pre-filling a resolution dialog had to provoke that error on purpose
+or read the balance-sheet position carrying `includesNetIncome` — which
+presupposes a mapping and knowing which position that is.
+
+**One pot, not one per year.** The `result_allocation` accounts carry what has
+been appropriated and nothing in them says which year's profit they consumed, so
+the three top-level figures describe the pot as a whole: `cumulativeResult` is
+everything earned, `appropriated` what the allocation accounts hold,
+`unappropriated` the difference. `byFiscalYear[]` says where the pot came from — `result` is that year
+alone, `cumulativeResult` everything through it.
+
+⚠ **`available` is the one field that is per year, and it is the contract.** It is
+exactly what `appropriateResult` will permit for a resolution naming that year —
+the same function, not a second implementation of it: what was earned through
+that year, minus everything already appropriated. Above, 2026's 900.00 is gone
+because the carry-forward consumed it; what is left was earned in 2027 and has to
+be resolved naming 2027. A year whose figure runs past the pot reports `0.00`
+rather than a phantom loss. Positive is a profit, negative a loss, as everywhere
+else.
+
+**When a resolution is due** is the pack's answer plus the tenant's own. Declare what the
+company is with `setEntityProfile`, and each year reports `resolutionDueBy` — the end of the
+nth month after **that year's** end, so a fiscal year running July to June is not measured
+from December. `resolutionRequired` is `true`/`false` when it can be answered and **`null`
+when nobody has said what the company is**: an application must be able to tell "this
+jurisdiction requires no resolution" from "this tenant has not been configured", and a
+default would erase the difference. `resolutionBasis` carries the pack's own citation, for
+a screen that wants to say why.
+
+Monitoring the date is yours. summae reports what the data say; who gets reminded, and what
+happens when the date passes, is your workflow — the same line as everywhere else.
+
+```json
+// params {}  — 2026 earned 900.00, 2027 earned 500.00, 900.00 already carried forward,
+//              tenant declared as a small GmbH on the de pack
+{ "cumulativeResult": "1400.00", "appropriated": "900.00", "unappropriated": "500.00",
+  "legalForm": "gmbh", "resolutionRequired": true, "resolutionBasis": "§ 42a Abs. 2 GmbHG",
+  "byFiscalYear": [ { "fiscalYear": 2026, "result": "900.00", "cumulativeResult": "900.00",
+                      "available": "0.00", "resolutionDueBy": "2027-11-30" },
+                    { "fiscalYear": 2027, "result": "500.00", "cumulativeResult": "1400.00",
+                      "available": "500.00", "resolutionDueBy": "2028-11-30" } ] }
+```
+
 ### cashJournal — cash book (Kassenbuch)
 
 `fiscalYear` (**yes**). Reports every account of subtype `cash`, so the pack (or
@@ -2262,12 +2356,13 @@ verified. Binding it to an authenticated identity is your application's job.
 No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
 `taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
 (raw, exactly as `setAllocationScheme` accepts it, or `null`), `mappings[]`
-(`{id, kind, version}` each) and `appropriationTargets[]`.
+(`{id, kind, version}` each), `appropriationTargets[]`, `entityProfile`, `legalForms[]` and
+`sizeClasses[]`.
 
-This is the read side of [what summae stores](#what-summae-stores-and-what-you-store). Four
-things live in `summae_tenants.config`, five operations change them, and until 0.13.0 exactly
-one of the four was reported back — the tax profile, through `systemDescription`. The other
-three could be written and never read.
+This is the read side of [what summae stores](#what-summae-stores-and-what-you-store). Five
+things live in `summae_tenants.config`, six operations change them, and until 0.13.0 exactly
+one of them was reported back — the tax profile, through `systemDescription`. The rest could be
+written and never read.
 
 **Why that mattered more than an ordinary gap.** Before the configuration was persisted, your
 application passed its cost centres in on every open, so your copy was the truth by construction.
@@ -2293,6 +2388,11 @@ point:
   and a pack that supports no appropriation answers `[]`. Without it a screen offering "carry
   forward / distribute" would have to find out by provoking `E_APPROPRIATION_UNSUPPORTED`, which
   is a poor way to build a menu.
+- **`entityProfile` is what you declared, `legalForms[]`/`sizeClasses[]` what you may declare.**
+  The first is stored library state (`setEntityProfile`) and `null` until you set it; the other two
+  are the pack's catalogue, so a "Rechtsform" field can be built from them instead of carrying its
+  own list and hoping the two agree. A pack that ships no catalogue answers with two empty lists,
+  which is also the honest answer for a jurisdiction-free one.
 
 **Identity is not repeated here** — id, name, base currency and pack are `systemDescription`'s
 `tenant` and `pack` blocks, which report all four. This projection answers the other question.

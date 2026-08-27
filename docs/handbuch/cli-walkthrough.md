@@ -44,8 +44,9 @@ because there is nothing to scrape and no interactive prompt to get stuck on.
 8. [Read the books](#8-read-the-books)
 9. [Close periods and the fiscal year](#9-close-periods-and-the-fiscal-year)
 10. [Export](#10-export)
-11. [Errors and exit codes](#11-errors-and-exit-codes)
-12. [Parameter cheat sheet](#12-parameter-cheat-sheet)
+11. [What is left over: the unappropriated result](#11-what-is-left-over-the-unappropriated-result)
+12. [Errors and exit codes](#12-errors-and-exit-codes)
+13. [Parameter cheat sheet](#13-parameter-cheat-sheet)
 
 ---
 
@@ -58,8 +59,12 @@ projection *name* — the same names in both languages, listed in the handbook
 | Command | Purpose | Payload flag |
 |---|---|---|
 | `summae init` | create workspace (`summae.json` + `summae.sqlite`) | `--pack` / `--rules` |
-| `summae op <operation>` | write operation (26 of them: `post`, `settle`, `reverse`, `closePeriod`, …) | `--input` |
-| `summae report <projection>` | read-only projection (14 of them: `trialBalance`, `vatReturn`, `journalExport`, …) | `--params` |
+| `summae op <operation>` | write operation (`post`, `settle`, `reverse`, `closePeriod`, …) | `--input` |
+| `summae report <projection>` | read-only projection (`trialBalance`, `vatReturn`, `journalExport`, …) | `--params` |
+
+The complete, current lists are `systemDescription`'s `capabilities` block — ask the
+engine rather than a count in a document, which is out of date the day summae gains
+one.
 
 Common to all three: `--dir <path>` selects the workspace (default: current
 directory). `--input` / `--params` take **JSON inline or `@file`**:
@@ -473,7 +478,41 @@ self-describing for an auditor:
 
 ---
 
-## 11. Errors and exit codes
+## 11. What is left over: the unappropriated result
+
+Closing the year does not carry the result into equity — summae writes no closing
+entries, on purpose. What the profit becomes is a **resolution**, and two things
+decide when one is owed: the pack, and what the company is.
+
+```bash
+summae op setEntityProfile --input '{"legalForm":"gmbh","sizeClass":"small"}'
+summae report unappropriatedResult --params '{}'
+```
+
+```json
+{"legalForm":"gmbh","resolutionRequired":true,"resolutionBasis":"§ 42a Abs. 2 GmbHG",
+ "cumulativeResult":"…","appropriated":"0.00","unappropriated":"…",
+ "byFiscalYear":[{"fiscalYear":2026,"result":"…","cumulativeResult":"…","available":"…",
+                  "resolutionDueBy":"2027-11-30"}]}
+```
+
+Which legal forms exist is the **pack's** answer — `summae report tenantConfiguration`
+lists them, and an unknown one is refused by name rather than swallowed. The deadline
+is the pack's too: eight months for a GmbH, eleven for a small one, and the citation
+comes back with it. A pack that knows no forms (`default`) reports
+`resolutionRequired: null` — nobody has said what this company is — which is a
+different answer from `false`, meaning this form resolves nothing at all.
+
+`available` is the figure `appropriateResult` will actually accept for a resolution
+naming that year. Not a copy of it: the same function, so what the screen shows and
+what the operation permits cannot drift apart.
+
+⚠ **Watching the date is your job.** summae reports what the data say; reminding
+anybody is workflow, and workflow lives in your application.
+
+---
+
+## 12. Errors and exit codes
 
 Domain errors are data, not stack traces:
 
@@ -496,7 +535,7 @@ The full catalogue of 35 codes is in handbook § 9.
 
 ---
 
-## 12. Parameter cheat sheet
+## 13. Parameter cheat sheet
 
 Projection parameter names are **not** uniform. Getting one wrong no longer gives
 you a plausible-looking empty report, though: each projection declares its

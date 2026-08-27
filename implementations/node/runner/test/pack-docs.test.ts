@@ -17,12 +17,21 @@ import { describe, expect, it } from 'vitest';
  * A reference work that is wrong is worse than none: it is believed. So the parts a machine can
  * check are checked, and the prose is left alone.
  *
- * Three rules, each narrow enough that a pack author can satisfy it without guessing:
+ * Four rules, each narrow enough that a pack author can satisfy it without guessing:
  *  1. every module the manifest lists has exactly one document, found by its own `id:` header;
  *  2. that header states the module's real `kind`, `id` and `version` — so a version bump cannot
  *     land without the document being opened;
  *  3. a mapping document's table names every position of its module, and each row carries the
- *     account selection that position really has.
+ *     account selection that position really has;
+ *  4. every pack has exactly one MANIFEST document (`pack:` in its header) naming the pack's real id
+ *     and version, and listing every module the manifest bundles.
+ *
+ * Rule 4 came a release later than the other three, and the gap it left is the reason it exists:
+ * the module documents were repaired on 2026-08-26 and the two manifest documents beside them were
+ * not even looked at — they described packs called `de-complete` and `us-complete` at version
+ * 2026.1 with eight modules each, none of which has existed since the packs were renamed. A reader
+ * following them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN` (IMPL-034). The
+ * guard reached modules and stopped exactly where the folder stopped being checked.
  *
  * Deliberately NOT checked: labels and prose. A document may call a position something clearer
  * than the module's own label, and should.
@@ -102,7 +111,7 @@ function docsIn(dir: string): Doc[] {
       const header: Record<string, string> = {};
       const fence = /```[\s\S]*?```/.exec(text)?.[0] ?? '';
       for (const part of fence.split(/[·\n]/)) {
-        const match = /^\s*(kind|id|version|formatVersion)\s*:\s*([A-Za-z0-9._-]+)/.exec(part);
+        const match = /^\s*(kind|id|pack|version|formatVersion)\s*:\s*([A-Za-z0-9._-]+)/.exec(part);
         if (match !== null && match[1] !== undefined && match[2] !== undefined) header[match[1]] = match[2];
       }
       return { file: basename(name), text, header };
@@ -198,6 +207,48 @@ describe('pack documentation', () => {
       violations,
       'The header is what a reader trusts before reading anything else, and a version bump that ' +
         'leaves it behind makes the whole document undatable',
+    ).toEqual([]);
+  });
+
+  it('gives every pack a manifest document that names what the manifest really bundles', () => {
+    const violations: string[] = [];
+
+    for (const pack of packs()) {
+      const manifest = manifestOf(pack.dir);
+      if (manifest === null) continue;
+      const id = typeof manifest.id === 'string' ? manifest.id : '';
+      const docs = docsIn(pack.docs).filter((doc) => doc.header.pack !== undefined);
+
+      if (docs.length === 0) {
+        violations.push(`${pack.name}: no manifest document (a document with \`pack: ${id}\` in its header)`);
+        continue;
+      }
+      if (docs.length > 1) {
+        violations.push(`${pack.name}: ${docs.length} manifest documents: ${docs.map((d) => d.file).join(', ')}`);
+        continue;
+      }
+
+      const doc = docs[0] as Doc;
+      if (doc.header.pack !== id) {
+        violations.push(`${pack.name} (${doc.file}): says pack ${String(doc.header.pack)}, the manifest says ${id}`);
+      }
+      if (doc.header.version !== undefined && doc.header.version !== manifest.version) {
+        violations.push(
+          `${pack.name} (${doc.file}): says version ${doc.header.version}, the manifest says ${String(manifest.version)}`,
+        );
+      }
+      for (const ref of manifest.modules as unknown[]) {
+        if (!isRecord(ref) || typeof ref.id !== 'string') continue;
+        if (!doc.text.includes(ref.id)) {
+          violations.push(`${pack.name} (${doc.file}): does not mention the bundled module "${ref.id}"`);
+        }
+      }
+    }
+
+    expect(
+      violations,
+      'The manifest document is what a reader copies from — a pack id it names has to be one that ' +
+        'resolves, and a module the pack bundles has to appear in the bundle it describes',
     ).toEqual([]);
   });
 
