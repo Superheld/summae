@@ -76,8 +76,32 @@ need: every `record.field` in the §1 inventory is resolved against `format.sche
 renamed field turns the build red instead of leaving a row that still reads correctly and is quietly
 wrong. Both guards went red on a deliberately mistyped field name before being trusted.
 
+### The Node gate reached the Makefile, and stopped being shorter than CI
+
+`make check` ran the whole PHP gate in one word; the Node gate lived as five commands in a
+CLAUDE.md — and that list was short by exactly one run. CI has always executed
+`pnpm fixtures --subject=database --strict`; the documented local gate did not mention it, so
+anybody following the file checked less than CI and found out after pushing. The run is not
+redundant: adapters build the tenant themselves, and what they leave out is invisible to a test
+against fakes, which is how a missing `AuditWriter` once reached CI green from a green desk.
+
+`make check-node` now runs the Node gate, `make check-all` runs both plus the cross-test, and the
+Definition of Green in `implementations/node/CLAUDE.md` names the database subject. A gate that is
+easier to run on one side gets run more on that side.
+
 ### Also
 
+- **`docs/proposals/` says on line one whether a memo is still a question.** Three decision memos
+  lived on unmerged tracking branches since June and are now in the repository. Two of them were
+  long since decided — the `ledger.ts` split was executed in both languages, the spec-vs-fixture
+  audit was run and came back clean — and both still read as open questions, which is how a settled
+  decision gets re-asked. The state is in each title, the differences between what was proposed and
+  what was built are recorded, and `docs/proposals/README.md` indexes all three. Only the us-pack
+  sign-offs are genuinely open.
+- **The last German in the Node build config is gone.** `eslint.config.js` (including the message a
+  developer sees when they breach the substrate boundary) and `packages/core/tsup.config.ts`, the
+  one of three tsup configs still written in German. The Makefile came along with them. The
+  remaining German comment in the suite quotes `api.md`, which is a German document, and stays.
 - **The `branch-alias` trap is caught now.** RELEASING.md recorded that
   `extra.branch-alias.dev-main` must be bumped by hand in all three `composer.json`, that it was
   missed at 0.8.0, and that "nothing catches it". Same class of defect — a version string with no

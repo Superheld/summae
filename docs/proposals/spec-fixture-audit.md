@@ -1,9 +1,9 @@
-> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
-> and nothing else; the branches are gone, the open decisions are not. Written before the
-> pack library and the knowledge base moved into this repository (2026-08-26), so anything
-> here about `make sync` or an external store has been corrected, not left standing.
+# Spec-vs-fixture audit (#28) — ✅ DONE (depth A executed, clean bill)
 
-# Spec-vs-fixture audit (#28) — depth A executed
+> **Nothing open here.** Depth A was chosen, run and came back clean; B and C below are the
+> options that were *not* taken and are kept for the reasoning. The only live question is whether
+> to ever run depth B, and the recommendation at the bottom already answers it: only if you want
+> the assurance, not because something is suspected.
 
 Goal (your methodological finding): do the fixtures pin the **spec's expectation**, or just the
 **code's current output**? The cash-basis German labels slipped through because a fixture pinned

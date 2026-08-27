@@ -59,7 +59,15 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 green **incl. coverage thresholds per package** (`vitest.config.ts`, fixed in the run via
 `coverage.enabled`; lines: core 92 / cli 91 / knex 88 / runner 91 — one floor per package,
 just below the measured value, may only rise) · `pnpm fixtures --strict`
-(all fixtures green + byte-identical double run).
+(all fixtures green + byte-identical double run) · `pnpm fixtures --subject=database --strict`
+(**the same suite against the real Knex adapter**).
+
+**The database subject belongs in the local gate, and this line used to omit it.** CI has run it
+since the subject existed; this file listed only the in-memory run, so anybody following it locally
+checked less than CI did and found out after pushing. The run is not redundant with the in-memory
+one: the adapters build the tenant themselves, and what they leave out is invisible to a test that
+runs against fakes — that is exactly how a missing `AuditWriter` in the PHP `DatabaseTenantFactory`
+reached CI green locally. `make check-node` runs the whole list in one command.
 
 `pnpm test` includes the **walkthrough scenarios** (`packages/cli/test/walkthrough.test.ts`),
 which drive the CLI through a full lifecycle per shipped configuration from the shared

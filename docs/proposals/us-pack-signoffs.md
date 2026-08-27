@@ -1,9 +1,7 @@
-> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
-> and nothing else; the branches are gone, the open decisions are not. Written before the
-> pack library and the knowledge base moved into this repository (2026-08-26), so anything
-> here about `make sync` or an external store has been corrected, not left standing.
+# us-pack sign-offs (#31) — ⚠️ OPEN, and the only one of the three that is
 
-# us-pack sign-offs (#31) — for Roland
+> Six decisions, all still unmade as of 2026-08-27. Nothing blocks the build; each becomes
+> quasi-irreversible once a tenant posts against the pack.
 
 Consolidated checklist of the open **human** decisions on the us-pack. None block the green
 build; each is quasi-irreversible once a tenant posts against the pack, so they want a sign-off
