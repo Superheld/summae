@@ -1,3 +1,8 @@
+> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
+> and nothing else; the branches are gone, the open decisions are not. Written before the
+> pack library and the knowledge base moved into this repository (2026-08-26), so anything
+> here about `make sync` or an external store has been corrected, not left standing.
+
 # Surgery B — split `ledger.ts` (#22) — plan for a go/leave decision
 
 `ledger.ts` (Node, 725 lines) / `Ledger.php` (~900) is the orchestrator: it fuses `post`

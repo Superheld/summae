@@ -1,13 +1,17 @@
+> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
+> and nothing else; the branches are gone, the open decisions are not. Written before the
+> pack library and the knowledge base moved into this repository (2026-08-26), so anything
+> here about `make sync` or an external store has been corrected, not left standing.
+
 # us-pack sign-offs (#31) — for Roland
 
 Consolidated checklist of the open **human** decisions on the us-pack. None block the green
 build; each is quasi-irreversible once a tenant posts against the pack, so they want a sign-off
-before the pack is recommended for production. Full background lives in the knowledge base
-(`99-pack-docs/us-pack/offene-entscheidungen.md`); this is the actionable short list.
+before the pack is recommended for production. Full background:
+[`knowledge/99-pack-docs/us-pack/offene-entscheidungen.md`](../../knowledge/99-pack-docs/us-pack/offene-entscheidungen.md);
+this is the actionable short list.
 
-> This is a tracking/proposal doc on a branch — not merged. Tick a box (or annotate) and I fold
-> the decision in. Where a change is needed it touches the knowledge base (no-undo), so I'll
-> prepare it and you apply/approve.
+> Tick a box (or annotate) and the decision gets folded in.
 
 ## Decisions
 
@@ -28,5 +32,5 @@ before the pack is recommended for production. Full background lives in the know
 
 ## After sign-off
 
-Each approved item that needs a content change is a knowledge-base edit (pack module / fixture),
-which I prepare as an exact diff for you to apply via `make sync` — never the no-undo store unsupervised.
+Each approved item that needs a content change is an edit to the pack module and its fixture, made
+here in the repository like everything else.

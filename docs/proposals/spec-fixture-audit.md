@@ -1,3 +1,8 @@
+> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
+> and nothing else; the branches are gone, the open decisions are not. Written before the
+> pack library and the knowledge base moved into this repository (2026-08-26), so anything
+> here about `make sync` or an external store has been corrected, not left standing.
+
 # Spec-vs-fixture audit (#28) — depth A executed
 
 Goal (your methodological finding): do the fixtures pin the **spec's expectation**, or just the
@@ -50,7 +55,7 @@ not hand-re-derived — trusted via covers-linkage + the conformance oracle.
 - **(A) Hotspots only** — re-derive expectations for the cash-basis / VAT / tax fixtures (the area
   where intent vs. output diverged) against the spec, by hand. ~1–2 h. Catches the same class.
 - **(B) Systematic** — for every fixture, confirm each `expect` value is derivable from the spec it
-  `covers`, not just reproduced from the engine. Needs the requirement specs (WB) open alongside;
+  `covers`, not just reproduced from the engine. Needs the requirement specs (`knowledge/30-anforderungen/`) open alongside;
   larger, produces a per-fixture audit table. Findings → `SPEC-FINDINGS.md`.
 - **(C) Structural-only** — rely on the #27 guards + covers-linkage + "fixtures are authored from
   the spec" discipline going forward, and skip the retro-audit. Cheapest; accepts that old
