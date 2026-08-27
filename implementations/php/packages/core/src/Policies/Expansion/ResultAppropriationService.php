@@ -8,6 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
 use Summae\Core\Port\AccountRepository;
+use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Exception\InvalidValue;
@@ -29,14 +30,10 @@ use Summae\Core\Substrate\Side;
  * an application guesses, and a guessed account number is a wrong posting rather than an error
  * message. Here a wrong target is refused by name and a wrong amount by the books.
  *
- * **What may be appropriated** is the result *not yet appropriated*: the cumulative result of all
- * fiscal years up to and including the one named, minus the balance of the `result_allocation`
- * accounts over the whole journal. That is deliberately the same figure the balance sheet reports
- * in its `includesNetIncome` position, so the number a user reads and the number this refuses
- * against cannot drift apart. The allocation accounts are counted over the whole journal and not
- * only up to the named year, because a resolution is dated *after* the year it appropriates —
- * cutting them at the year boundary would make every past appropriation invisible and let the same
- * profit be appropriated twice.
+ * **What may be appropriated** is the result *not yet appropriated*, and that figure is not computed
+ * here: `unappropriatedResult` publishes it and this operation asks the same projection, so the
+ * number a user reads and the number this refuses against cannot drift apart. It is also the figure
+ * the balance sheet reports in its `includesNetIncome` position.
  *
  * A loss appropriates the other way round (allocation account in credit), and the amounts stay
  * positive in the input either way: the direction follows from the books, not from a sign the
@@ -84,7 +81,8 @@ final class ResultAppropriationService
         }
 
         $requested = $this->parseAppropriations($input['appropriations'] ?? null, $offered);
-        $available = $this->unappropriated($fiscalYear);
+        $available = (new UnappropriatedResultProjection($this->baseCurrency, $this->accounts, $this->journal))
+            ->available($fiscalYear);
 
         // Nothing to appropriate is refused rather than posted as zero: an entry that moves nothing
         // would sit in the books claiming a resolution took effect.
@@ -285,43 +283,6 @@ final class ResultAppropriationService
         }
 
         return $money;
-    }
-
-    /**
-     * The result of every year up to and including `$fiscalYear`, minus what the result-allocation
-     * accounts already carry — the figure the balance sheet publishes as "not yet appropriated".
-     */
-    private function unappropriated(int $fiscalYear): Money
-    {
-        $result = Money::zero($this->baseCurrency);
-        $allocated = Money::zero($this->baseCurrency);
-
-        foreach ($this->journal->all() as $entry) {
-            $withinYear = $entry->periodRef->fiscalYear <= $fiscalYear;
-            foreach ($entry->lines() as $line) {
-                $account = $this->accounts->byId($line->accountId);
-                if ($account === null) {
-                    continue;
-                }
-
-                if (!$account->type->isBalanceCarrying()) {
-                    if (!$withinYear) {
-                        continue;
-                    }
-                    $result = $line->side === Side::Credit
-                        ? $result->add($line->money)
-                        : $result->subtract($line->money);
-                    continue;
-                }
-                if ($account->subtype === 'result_allocation') {
-                    $allocated = $line->side === Side::Debit
-                        ? $allocated->add($line->money)
-                        : $allocated->subtract($line->money);
-                }
-            }
-        }
-
-        return $result->subtract($allocated);
     }
 
     /** Which targets this tenant can appropriate to — for a caller that wants to offer a choice. */

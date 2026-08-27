@@ -113,6 +113,7 @@ a short file.
 | SPEC-021 `accountSheet` lines could not reach their own entry | ✅ **RESOLVED 2026-08-26** — `entryId` (the identity `journal` already publishes) plus `contraAccounts[]`, the accounts on the other side of the same entry, deduplicated and sorted. A list rather than a field, because a tax code puts two or more there and naming "the" counter account would invent a fact; the side is decided per line, so one entry reads differently from the two sheets it appears on. Additive — the runner compares subsets, so no fixture changed. Reported by the embedding app (its F-31), fixture `account-sheet-entry-reference` |
 | SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
+| IMPL-033 an appropriated year kept offering a phantom loss | ✅ **RESOLVED 2026-08-27** — `available` for a year was "earned through it minus everything appropriated", which goes negative as soon as a resolution reaches a later year's profit; the operation read −300 as an unappropriated *loss* and booked it, charging a pot that held 200 and appropriating one profit one-and-a-half times. The pot now decides direction and ceiling, the year figure only sizes it. Found while building `unappropriatedResult` (F-CORE-038), which is also what makes it visible: the figure had never been readable except as the detail of a refusal |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -124,6 +125,43 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### IMPL-033 — an appropriated year kept offering a phantom loss — RESOLVED
+
+**Found 2026-08-27** while building `unappropriatedResult`, the read side of `appropriateResult`
+(F-CORE-038). Not reported from outside, and it would not have been: the number it got wrong could
+not be read at all.
+
+**What was wrong.** What a year may still appropriate was "the result earned through that year, minus
+everything the `result_allocation` accounts carry". Both halves are deliberate — the allocations are
+counted over the *whole* journal rather than cut at the year boundary, because a resolution is dated
+after the year it appropriates, and cutting them would make every past appropriation invisible and
+let the same profit be appropriated twice.
+
+What the formula cannot notice is that it has run past the end. Two years earn 900 and 500; a
+resolution naming 2027 carries 1200 forward. 2026's figure is now 900 − 1200 = **−300**, and the
+operation reads a negative figure as an unappropriated **loss**: direction flips, `capacity` becomes
+300, and a resolution naming 2026 books up to 300 more against a pot that holds 200. One profit of
+1400, appropriated 1500.
+
+**The fix is one clamp, not a new formula.** The pot — everything earned, minus everything
+appropriated — decides the *direction* and the *ceiling*; the year figure only sizes it. A year
+pointing the other way is nothing to appropriate rather than a loss, and no year may exceed what is
+actually left. Where the year figure was already right, which is every case that does not run past
+the pot, nothing changes — the three shipped appropriation fixtures were green before and after.
+
+**Why it survived.** Every fixture appropriated the whole result of a single year in one go, which
+is what a resolution normally does and exactly the case where the year figure and the pot coincide.
+It took a *second* resolution over a *third* year's money to separate them, and nothing asked for
+that because nothing could see the two figures side by side. The projection is therefore not just
+where the defect was found; it is the shape that makes this class of defect findable, and
+`appropriation-pot-direction` now pins the case in both languages.
+
+**One thing worth carrying forward** about the fixture format: `expect.result` is reserved for the
+whole result of a step, so a projection with a top-level field named `result` cannot be pinned — the
+comparison silently compares a string against the entire object. The field is now
+`cumulativeResult`, which is the better name anyway, but the collision is a trap for the next
+projection that wants an obvious name.
 
 ### SPEC-020 — `actorIsAuthenticated` could only ever say `false` — RESOLVED
 

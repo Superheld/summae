@@ -39,7 +39,7 @@ const PROJECTIONS = [
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
   'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
-  'tenantConfiguration',
+  'tenantConfiguration', 'unappropriatedResult',
 ] as const;
 
 /**

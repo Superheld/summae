@@ -52,7 +52,7 @@ export const API_PROJECTIONS = [
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
   'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
-  'unfinalizedEntries', 'vatReturn',
+  'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**

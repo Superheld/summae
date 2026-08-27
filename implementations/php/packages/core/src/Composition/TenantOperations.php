@@ -22,6 +22,7 @@ use Summae\Core\Policies\Projection\AccountsProjection;
 use Summae\Core\Policies\Projection\CostingRunsProjection;
 use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
+use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TenantConfigurationProjection;
@@ -145,6 +146,7 @@ final readonly class TenantOperations
             'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers, $tenant->audit))
                 ->compute($params),
             'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
+            'unappropriatedResult' => (new UnappropriatedResultProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
                 ->compute($params),
             'trialBalance' => (new TrialBalanceProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))

@@ -61,7 +61,7 @@ final readonly class SystemDescriptionProjection
         'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
         'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
         'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
-        'unfinalizedEntries', 'vatReturn'
+        'unappropriatedResult', 'unfinalizedEntries', 'vatReturn'
     ];
 
     /**

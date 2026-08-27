@@ -103,6 +103,9 @@ final class ProjectionParameters
         'fiscalYears' => [
             'fiscalYear' => ['type' => 'integer'],
         ],
+        'unappropriatedResult' => [
+            'fiscalYear' => ['type' => 'integer'],
+        ],
         'cashJournal' => [
             'fiscalYear' => ['type' => 'integer', 'required' => true],
         ],

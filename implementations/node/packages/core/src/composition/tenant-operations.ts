@@ -20,6 +20,7 @@ import { EcSalesListProjection } from '../policies/projection/ec-sales-list.js';
 import { OpenItemsProjection } from '../policies/projection/open-items.js';
 import { AccountsProjection } from '../policies/projection/accounts.js';
 import { FiscalYearsProjection } from '../policies/projection/fiscal-years.js';
+import { UnappropriatedResultProjection } from '../policies/projection/unappropriated-result.js';
 import { JournalProjection } from '../policies/projection/journal.js';
 import { TrialBalanceProjection } from '../policies/projection/trial-balance.js';
 import { VatReturnProjection } from '../policies/projection/vat-return.js';
@@ -177,6 +178,8 @@ export class TenantOperations {
         return new JournalProjection(tenant.accounts, tenant.journal, tenant.vouchers, tenant.audit).compute(params);
       case 'fiscalYears':
         return new FiscalYearsProjection(tenant.fiscalYears).compute(params);
+      case 'unappropriatedResult':
+        return new UnappropriatedResultProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'accountSheet':
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':

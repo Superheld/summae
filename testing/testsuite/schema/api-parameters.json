@@ -688,6 +688,11 @@
         "type": "integer"
       }
     },
+    "unappropriatedResult": {
+      "fiscalYear": {
+        "type": "integer"
+      }
+    },
     "cashJournal": {
       "fiscalYear": {
         "type": "integer",

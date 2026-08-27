@@ -1085,12 +1085,13 @@ refused by name rather than guessed at.
 `result_allocation` account in debit and reaches its targets in credit; a loss
 does the same journey backwards. Amounts stay positive either way.
 
-**What may be appropriated** is the result *not yet appropriated*: the cumulative
-result of all fiscal years up to and including `fiscalYear`, minus what the
-`result_allocation` accounts already carry. That is the same figure `balanceSheet`
-reports in its `includesNetIncome` position, so the number on the screen and the
-number this refuses against cannot drift apart. Appropriating less than is
-available is fine — the rest stays where it is and can be appropriated later.
+**What may be appropriated** is the result *not yet appropriated* — ask for it
+with the `unappropriatedResult` projection rather than deriving it: that
+projection's `available` for a year is the very function this operation refuses
+against, so the number on the screen and the number in the refusal cannot drift
+apart. It is also the figure `balanceSheet` reports in its `includesNetIncome`
+position. Appropriating less than is available is fine — the rest stays where it
+is and can be appropriated later.
 
 Output: `{ "entry", "fiscalYear", "appropriated": [{ "target", "account", "money" }],
 "remaining" }`. The entry is a normal posting: correctable, reversible, audited
@@ -1741,6 +1742,44 @@ period does not close the year, `closeFiscalYear` does.
 { "fiscalYears": [ { "year": 2026, "start": "2025-07-01", "end": "2026-06-30", "status": "open",
   "periods": [ { "period": 1, "start": "2025-07-01", "end": "2025-07-31", "status": "closed" },
                { "period": 2, "start": "2025-08-01", "end": "2025-08-31", "status": "open" } ] } ] }
+```
+
+### unappropriatedResult — what a resolution may still appropriate
+
+`fiscalYear` (no, scopes `byFiscalYear` to one year). Output: `cumulativeResult`,
+`appropriated`, `unappropriated` and `byFiscalYear[]` with `fiscalYear`,
+`result`, `cumulativeResult` and `available`.
+
+This is the read side of `appropriateResult`, and until it existed the figure
+could only be obtained by doing something wrong: it left the library as the
+`available` detail of an `E_APPROPRIATION_EXCEEDS_RESULT` refusal, so an
+application pre-filling a resolution dialog had to provoke that error on purpose
+or read the balance-sheet position carrying `includesNetIncome` — which
+presupposes a mapping and knowing which position that is.
+
+**One pot, not one per year.** The `result_allocation` accounts carry what has
+been appropriated and nothing in them says which year's profit they consumed, so
+the three top-level figures describe the pot as a whole: `cumulativeResult` is
+everything earned, `appropriated` what the allocation accounts hold,
+`unappropriated` the difference. `byFiscalYear[]` says where the pot came from — `result` is that year
+alone, `cumulativeResult` everything through it.
+
+⚠ **`available` is the one field that is per year, and it is the contract.** It is
+exactly what `appropriateResult` will permit for a resolution naming that year —
+the same function, not a second implementation of it: what was earned through
+that year, minus everything already appropriated. Above, 2026's 900.00 is gone
+because the carry-forward consumed it; what is left was earned in 2027 and has to
+be resolved naming 2027. A year whose figure runs past the pot reports `0.00`
+rather than a phantom loss. Positive is a profit, negative a loss, as everywhere
+else.
+
+```json
+// params {}  — 2026 earned 900.00, 2027 earned 500.00, 900.00 already carried forward
+{ "cumulativeResult": "1400.00", "appropriated": "900.00", "unappropriated": "500.00",
+  "byFiscalYear": [ { "fiscalYear": 2026, "result": "900.00", "cumulativeResult": "900.00",
+                      "available": "0.00" },
+                    { "fiscalYear": 2027, "result": "500.00", "cumulativeResult": "1400.00",
+                      "available": "500.00" } ] }
 ```
 
 ### cashJournal — cash book (Kassenbuch)
