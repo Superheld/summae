@@ -262,3 +262,9 @@ in a library (and therefore the embedding app's, collected in the summae-app rep
 without it — never because the code looks right; and an open row is deleted only when it is built, never
 because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
 law — the litmus test applies here too.
+
+**The same census exists for personal data.** `docs/gdpr-conformance.md` is its twin, with the same
+three statuses and the same rule about ✅. Its §1 is an inventory of every field that can hold personal
+data, and that inventory is machine-checked against `format.schema.json` — a renamed field turns
+`GdprConformanceDocTest`/`gdpr-conformance-doc.test.ts` red rather than leaving a row that still reads
+correctly. Adding a field that can carry a name, an address or an identifier means adding its row.
