@@ -346,6 +346,11 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
       },
     },
   },
+  setEntityProfile: {
+    legalForm: { type: 'string', required: true },
+    sizeClass: { type: 'string' },
+    actor: { type: 'string' },
+  },
   setTaxProfile: {
     smallBusiness: {
       type: 'object',

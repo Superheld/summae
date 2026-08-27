@@ -1,5 +1,6 @@
 import { AssetService } from '../policies/expansion/assets/asset-service.js';
 import { ResultAppropriationService } from '../policies/expansion/result-appropriation-service.js';
+import { EntityProfileService, LegalFormRegistry } from '../policies/projection/legal-forms.js';
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
 import {
   InMemoryAccountRepository,
@@ -85,6 +86,13 @@ export class Tenant {
      * the running installation, not the books.
      */
     readonly actorAuthentication: { declared: boolean; method: string | null } | null = null,
+    /**
+     * Which legal forms the pack knows and which one this tenant is (F-CORE-039). Unlike
+     * `actorAuthentication` this one IS stored — it describes the entity whose books these are, not
+     * the installation running them, and changing it is an audited event with a date.
+     */
+    readonly legalForms: LegalFormRegistry = LegalFormRegistry.empty(),
+    readonly entityProfile: EntityProfileService | null = null,
   ) {}
 
   static inMemory(
@@ -219,6 +227,8 @@ export class Tenant {
       configStore,
     );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts);
+    const legalForms = new LegalFormRegistry();
+    const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
     return new Tenant(
       tenantId,
@@ -245,6 +255,8 @@ export class Tenant {
       packIdentity,
       configStore,
       actorAuthentication,
+      legalForms,
+      entityProfile,
     );
   }
 }

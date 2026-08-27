@@ -1,4 +1,5 @@
-import type { AccountRepository, JournalRepository } from '../../port.js';
+import type { AccountRepository, FiscalYearRepository, JournalRepository } from '../../port.js';
+import type { LegalFormRegistry } from './legal-forms.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import { isBalanceCarrying } from '../../substrate/types.js';
@@ -26,39 +27,38 @@ import { integerOrNull } from './parameters.js';
  *
  * The SAME shape lives in the PHP UnappropriatedResultProjection.
  */
-export class UnappropriatedResultProjection {
+export class UnappropriatedResult {
   constructor(
     private readonly baseCurrency: Currency,
     private readonly accounts: AccountRepository,
     private readonly journal: JournalRepository,
   ) {}
 
-  compute(params: Record<string, unknown>): Record<string, unknown> {
-    const wanted = integerOrNull(params.fiscalYear);
+  /**
+   * The pot and its composition, in one pass: every year's own result in ascending order, the
+   * cumulative result through each, and what a resolution naming each year may still take.
+   */
+  figures(): {
+    cumulativeResult: Money;
+    allocated: Money;
+    byFiscalYear: Array<{ fiscalYear: number; result: Money; cumulativeResult: Money; available: Money }>;
+  } {
     const scan = this.scan();
-
     const years = [...scan.perYear.keys()].sort((a, b) => a - b);
+
     let cumulative = Money.zero(this.baseCurrency);
-    const rows: Array<Record<string, unknown>> = [];
-
-    for (const year of years) {
-      cumulative = cumulative.add(scan.perYear.get(year) ?? Money.zero(this.baseCurrency));
-      if (wanted !== null && year !== wanted) continue;
-
-      rows.push({
+    const byFiscalYear = years.map((year) => {
+      const result = scan.perYear.get(year) ?? Money.zero(this.baseCurrency);
+      cumulative = cumulative.add(result);
+      return {
         fiscalYear: year,
-        result: (scan.perYear.get(year) ?? Money.zero(this.baseCurrency)).amountAsString(),
-        cumulativeResult: cumulative.amountAsString(),
-        available: this.availableFrom(cumulative, scan.result, scan.allocated).amountAsString(),
-      });
-    }
+        result,
+        cumulativeResult: cumulative,
+        available: this.availableFrom(cumulative, scan.result, scan.allocated),
+      };
+    });
 
-    return {
-      cumulativeResult: scan.result.amountAsString(),
-      appropriated: scan.allocated.amountAsString(),
-      unappropriated: scan.result.subtract(scan.allocated).amountAsString(),
-      byFiscalYear: rows,
-    };
+    return { cumulativeResult: scan.result, allocated: scan.allocated, byFiscalYear };
   }
 
   /**
@@ -134,5 +134,66 @@ export class UnappropriatedResultProjection {
     }
 
     return { perYear, result, allocated };
+  }
+}
+
+/**
+ * The report itself: the pot, where it came from, and when a resolution about it falls due.
+ *
+ * The deadline is the part only the pack can answer — a German GmbH has eight months from the year
+ * end, eleven if it is small; an AG eight; a sole proprietor passes no resolution at all — and only
+ * the tenant can say which form it is (`setEntityProfile`). Where either is missing the fields are
+ * `null` rather than a plausible default: an application must be able to tell "no deadline in this
+ * jurisdiction" from "nobody has said what this company is".
+ *
+ * Monitoring the date stays outside. summae reports what the data say; who gets reminded, and what
+ * happens when the date passes, is the embedding's workflow.
+ *
+ * The SAME shape lives in the PHP UnappropriatedResultProjection.
+ */
+export class UnappropriatedResultProjection {
+  constructor(
+    private readonly figures: UnappropriatedResult,
+    private readonly fiscalYears: FiscalYearRepository,
+    private readonly legalForms: LegalFormRegistry,
+  ) {}
+
+  compute(params: Record<string, unknown>): Record<string, unknown> {
+    const wanted = integerOrNull(params.fiscalYear);
+    const figures = this.figures.figures();
+    const declared = this.legalForms.declared();
+    const resolution = this.legalForms.resolution();
+
+    const rows = figures.byFiscalYear
+      .filter((row) => wanted === null || row.fiscalYear === wanted)
+      .map((row) => ({
+        fiscalYear: row.fiscalYear,
+        result: row.result.amountAsString(),
+        cumulativeResult: row.cumulativeResult.amountAsString(),
+        available: row.available.amountAsString(),
+        resolutionDueBy: this.dueBy(row.fiscalYear),
+      }));
+
+    return {
+      cumulativeResult: figures.cumulativeResult.amountAsString(),
+      appropriated: figures.allocated.amountAsString(),
+      unappropriated: figures.cumulativeResult.subtract(figures.allocated).amountAsString(),
+      legalForm: declared === null ? null : declared.legalForm,
+      resolutionRequired: resolution === null ? null : resolution.required,
+      resolutionBasis: resolution === null ? null : resolution.basis,
+      byFiscalYear: rows,
+    };
+  }
+
+  /**
+   * The due date needs the year's END, which only the fiscal-year record knows: a year running July
+   * to June is not eight months from 31 December. A year the journal knows and the record does not
+   * cannot happen through the API, and reports `null` rather than inventing a December.
+   */
+  private dueBy(fiscalYear: number): string | null {
+    const year = this.fiscalYears.byYear(fiscalYear);
+    if (year === null) return null;
+    const due = this.legalForms.resolutionDueBy(year.end);
+    return due === null ? null : due.iso;
   }
 }

@@ -9,9 +9,9 @@ use Summae\Core\Port\TenantRecordRepository;
 /**
  * Keeps a tenant's configuration where the books already live (SPEC-015).
  *
- * Five operations change configuration — `setTaxProfile`, `defineDimensionType`,
- * `defineDimensionValue`, `setAllocationScheme` and `importMapping` — and until this existed each
- * of them changed a live object and nothing else. They audited the change durably all the same,
+ * Six operations change configuration — `setTaxProfile`, `defineDimensionType`,
+ * `defineDimensionValue`, `setAllocationScheme`, `importMapping` and `setEntityProfile` — and until
+ * this existed each of them changed a live object and nothing else. They audited the change durably all the same,
  * which is the part that made it a defect rather than a limitation: the trail stated something the
  * books stopped carrying at the next restart.
  *
@@ -73,6 +73,15 @@ final class TenantConfigStore
         $config = $this->record->config;
         $config['dimensionTypes'] = $types;
         $config['dimensionValues'] = $values;
+        $this->record->config = $config;
+        $this->flush();
+    }
+
+    /** @param array{legalForm: string, sizeClass: string|null} $profile */
+    public function rememberEntityProfile(array $profile): void
+    {
+        $config = $this->record->config;
+        $config['entityProfile'] = $profile;
         $this->record->config = $config;
         $this->flush();
     }

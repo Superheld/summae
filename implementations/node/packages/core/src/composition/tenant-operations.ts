@@ -20,7 +20,7 @@ import { EcSalesListProjection } from '../policies/projection/ec-sales-list.js';
 import { OpenItemsProjection } from '../policies/projection/open-items.js';
 import { AccountsProjection } from '../policies/projection/accounts.js';
 import { FiscalYearsProjection } from '../policies/projection/fiscal-years.js';
-import { UnappropriatedResultProjection } from '../policies/projection/unappropriated-result.js';
+import { UnappropriatedResult, UnappropriatedResultProjection } from '../policies/projection/unappropriated-result.js';
 import { JournalProjection } from '../policies/projection/journal.js';
 import { TrialBalanceProjection } from '../policies/projection/trial-balance.js';
 import { VatReturnProjection } from '../policies/projection/vat-return.js';
@@ -82,6 +82,11 @@ export class TenantOperations {
         return { fiscalYear: ledger.closeFiscalYear(input).year, status: 'closed' };
       case 'appropriateResult':
         return this.tenant.resultAppropriation.appropriate(input);
+      case 'setEntityProfile': {
+        const service = this.tenant.entityProfile;
+        if (service === null) throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "setEntityProfile" is not defined');
+        return service.set(input);
+      }
       case 'createAccount':
         return serialize(ledger.createAccount(input));
       case 'defineDimensionType':
@@ -179,7 +184,11 @@ export class TenantOperations {
       case 'fiscalYears':
         return new FiscalYearsProjection(tenant.fiscalYears).compute(params);
       case 'unappropriatedResult':
-        return new UnappropriatedResultProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
+        return new UnappropriatedResultProjection(
+          new UnappropriatedResult(tenant.baseCurrency, tenant.accounts, tenant.journal),
+          tenant.fiscalYears,
+          tenant.legalForms,
+        ).compute(params);
       case 'accountSheet':
         return new AccountSheetProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'auditLog':
@@ -202,6 +211,9 @@ export class TenantOperations {
           tenant.costing.allocationScheme(),
           tenant.mappings,
           tenant.resultAppropriation.offeredTargets(),
+          tenant.legalForms.declared(),
+          tenant.legalForms.offered(),
+          tenant.legalForms.offeredSizeClasses(),
         ).compute(params);
       case 'costingRuns':
         return new CostingRunsProjection(tenant.costingRuns).compute(params);

@@ -133,6 +133,10 @@ export class DatabaseTenantFactory {
     if (config.allocationScheme !== null) {
       tenant.costing.restoreAllocationScheme(config.allocationScheme);
     }
+    // Same idea, and lenient on purpose (F-CORE-039): the catalogue itself arrives with the pack on
+    // every open, so what the record holds is only WHICH form was declared. A pack that has since
+    // dropped that form makes the rule stop applying, never the tenant stop opening.
+    tenant.legalForms.restore(config.entityProfile);
 
     return tenant;
   }

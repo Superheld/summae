@@ -20,7 +20,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -181,6 +181,7 @@ final class PackResolver
         /** @var array<mixed>|null $productionCost */
         $productionCost = null;
         $resultAppropriation = null;
+        $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
         $dimensionRules = [];
         /** @var array<mixed>|null $packPolicyModule */
@@ -235,6 +236,9 @@ final class PackResolver
                     break;
                 case 'productionCost':
                     $productionCost = $data;
+                    break;
+                case 'legalForms':
+                    $legalForms = $data;
                     break;
                 case 'resultAppropriation':
                     $resultAppropriation = $data;
@@ -317,6 +321,31 @@ final class PackResolver
                 }
             }
         }
+        // I9: the legal-form catalogue is usable — at least one form, and every form that requires a
+        // resolution says by when. A form declared without its deadline would report "a resolution is
+        // due" and no date, which is worse than saying nothing: an application cannot tell a missing
+        // rule from a form that genuinely has none.
+        if ($legalForms !== null) {
+            $forms = is_array($legalForms['forms'] ?? null) ? $legalForms['forms'] : [];
+            if ($forms === []) {
+                throw new DomainError('E_PACK_INCOHERENT', 'legalForms without a single form (I9)');
+            }
+            foreach ($forms as $name => $form) {
+                $resolution = is_array($form) && is_array($form['resolution'] ?? null) ? $form['resolution'] : null;
+                if ($resolution === null || !is_bool($resolution['required'] ?? null)) {
+                    throw new DomainError(
+                        'E_PACK_INCOHERENT',
+                        'legalForms.forms.' . (string) $name . ' without resolution.required (I9)',
+                    );
+                }
+                if ($resolution['required'] === true && !is_int($resolution['deadlineMonths'] ?? null)) {
+                    throw new DomainError(
+                        'E_PACK_INCOHERENT',
+                        'legalForms.forms.' . (string) $name . ' requires a resolution but names no deadline (I9)',
+                    );
+                }
+            }
+        }
         // I2: every mapping selector hits >= 1 account.
         $numbers = array_keys($accountNumbers);
         foreach ($mappings as $mapping) {
@@ -363,6 +392,7 @@ final class PackResolver
             'depreciation' => $depreciation,
             'productionCost' => $productionCost,
             'resultAppropriation' => $resultAppropriation,
+            'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
@@ -431,6 +461,9 @@ final class PackResolver
             // The appropriation plug: which account the resolution books against, and which targets
             // the jurisdiction offers. A pack that stays silent simply does not support the operation.
             'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,
+            // Which legal forms this jurisdiction knows, and what each obliges. A pack that stays
+            // silent has no catalogue, which is a legitimate answer for a jurisdiction-free one.
+            'legalForms' => is_array($pack['legalForms'] ?? null) ? $pack['legalForms'] : null,
             // The first constraint plug: which accounts may not be posted without which dimension.
             'dimensionRules' => is_array($pack['dimensionRules'] ?? null) ? array_values($pack['dimensionRules']) : [],
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],

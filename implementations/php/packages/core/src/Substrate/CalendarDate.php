@@ -93,6 +93,30 @@ final readonly class CalendarDate implements \JsonSerializable, \Stringable
         return (int) substr($this->iso, 5, 2);
     }
 
+    /**
+     * The same day-of-month `$months` later, clamped to the target month's last day (31 January plus
+     * one month is 28 February, never 3 March). Zoneless like everything else here: this is calendar
+     * arithmetic on three numbers, not a timestamp shifted by seconds.
+     *
+     * Written out rather than `->modify('+n months')`, which overflows exactly the way this must
+     * not: PHP would answer 3 March, and the Node side would not.
+     */
+    public function plusMonths(int $months): self
+    {
+        $zeroBased = $this->year() * 12 + ($this->month() - 1) + $months;
+        $year = intdiv($zeroBased, 12);
+        $month = $zeroBased - $year * 12;
+        if ($month < 0) {
+            --$year;
+            $month += 12;
+        }
+        ++$month;
+        $daysInMonth = (int) (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
+        $day = min((int) substr($this->iso, 8, 2), $daysInMonth);
+
+        return new self(sprintf('%04d-%02d-%02d', $year, $month, $day));
+    }
+
     public function lastDayOfMonth(): self
     {
         $date = new \DateTimeImmutable($this->iso);

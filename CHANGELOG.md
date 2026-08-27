@@ -10,6 +10,91 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.15.0 — unreleased
+
+**The number you could only get by doing it wrong.** `appropriateResult` has known since v0.4 how
+much of a result is still unappropriated — it refuses against that figure on every call — and there
+was no way to ask for it. It left the library as the `available` detail of an
+`E_APPROPRIATION_EXCEEDS_RESULT`, so an application pre-filling a resolution dialog had two routes:
+provoke the error on purpose, or read the balance-sheet position carrying `includesNetIncome`, which
+presupposes a mapping and knowing which position that is.
+
+`unappropriatedResult` publishes it. The top-level figures describe the pot as a whole — the
+`result_allocation` accounts say what was appropriated and never which year's profit it consumed —
+and `byFiscalYear` says where the pot came from:
+
+```json
+{ "cumulativeResult": "1400.00", "appropriated": "900.00", "unappropriated": "500.00",
+  "legalForm": "gmbh", "resolutionRequired": true, "resolutionBasis": "§ 42a Abs. 2 GmbHG",
+  "byFiscalYear": [ { "fiscalYear": 2026, "result": "900.00", "available": "0.00",
+                      "resolutionDueBy": "2027-11-30" }, … ] }
+```
+
+`available` is not a copy of the cap — the operation now asks the same projection, so the number on
+a screen and the number in a refusal cannot drift apart.
+
+### And when the resolution is due: `setEntityProfile` + the `legalForms` module kind
+
+A resolution has a deadline, and neither half of it is the core's business: *whether* one is owed and
+*by when* depend on the legal form as much as on the jurisdiction. So the pack carries a catalogue
+and the core carries the arithmetic.
+
+```
+summae op setEntityProfile --input '{"legalForm":"gmbh","sizeClass":"small"}'
+```
+
+- **`de` ships `de-rechtsformen`** — eight forms. GmbH and UG owe a resolution within eight months of
+  the year end and eleven when the entity is small (§ 42a Abs. 2 GmbHG), an AG within eight
+  (§ 175 Abs. 1 AktG), a registered cooperative within six (§ 48 Abs. 1 GenG); sole proprietorships
+  and partnerships owe none. The citation comes back untouched in `resolutionBasis`; nothing in the
+  core knows a statute, and `NoJurisdictionTextTest` / `no-jurisdiction-text` keeps it that way.
+- **`us` ships `us-legal-forms`** — five forms, none of which owes a statutory resolution, which is
+  precisely why the module is shipped rather than left out. `false` ("this form resolves nothing")
+  and `null` ("nobody has said what this company is") are different answers, and an application needs
+  the difference to decide between showing a deadline, showing nothing, and asking a question.
+- **`default` ships neither**, because a jurisdiction-free pack has no company law to ship, and says
+  so: `setEntityProfile` refuses with *this pack declares none* and `tenantConfiguration` answers the
+  same question with empty lists and no error at all.
+
+**The size class is declared, not computed.** § 267 measures balance-sheet total, revenue *and*
+average headcount — and no ledger holds a headcount. Say nothing and you get the regular deadline,
+which is the conservative one. **Watching the date stays yours**: "the data must…" is the package,
+"the user must by X…" is the app.
+
+The profile is **stored** with the tenant, unlike `actorAuthentication`: it describes the company
+whose books these are, not the installation running them, and the change is an audited event
+(`entityProfile/changed`) with a date. Reopening reads it leniently — a pack that drops a form makes
+the rule stop applying, never the tenant stop opening. `tenantConfiguration` reports it together with
+the catalogue, so a "Rechtsform" field can be built from the tenant instead of a hard-coded list.
+
+### Fixed: an appropriated year kept offering a phantom loss (IMPL-033)
+
+Found while building the projection, and it could not have been found otherwise — the number it got
+wrong was the one nobody could read. What a year may still appropriate was "the result earned through
+it, minus everything appropriated", which is right until a resolution reaches a later year's profit:
+appropriate 1200 of a 1400 profit naming 2027, and 2026's figure comes out at −300. The operation read
+a negative figure as an unappropriated **loss**, flipped direction and would book up to 300 more
+against a pot that held 200 — one profit of 1400, appropriated 1500.
+
+The pot now decides the direction and the ceiling; the year figure only sizes it. Every case that does
+not run past the pot is unchanged, and the three shipped appropriation fixtures were green before and
+after. `appropriation-pot-direction` pins it in both languages.
+
+### Also
+
+- `CalendarDate.plusMonths` in the substrate, clamping to the target month's last day. Written out
+  rather than handed to `DateTime::modify('+n months')`, which overflows 31 January into 3 March in
+  PHP and would have disagreed with Node.
+- **`io/system-description-invariants` is superseded** by `io/system-description-claims`. It pinned
+  the complete list of audited object types, so `systemDescription` could not admit to auditing a
+  sixteenth — the same census its own predecessor retired one level up for the capability list. What
+  it guarded is guarded better: the audit-trail contract test runs every state-changing operation and
+  compares what it writes against what the description claims, in both directions and both languages.
+- Four new fixtures for the legal form, one per pack plus a fictional one that pins the mechanism
+  (a fiscal year ending 30 November, where plain month arithmetic is a day short of the deadline).
+- `knowledge/50-spezifikation/datenformat.md` had drifted four module kinds behind the schema; the
+  row now names all ten and says which file is authoritative.
+
 ## 0.14.0 — 2026-08-26
 
 > Ships the 0.13.1 section below as well: the pack repair was written, gated and released-noted as

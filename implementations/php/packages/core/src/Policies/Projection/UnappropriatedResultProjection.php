@@ -4,40 +4,28 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
-use Summae\Core\Port\AccountRepository;
-use Summae\Core\Port\JournalRepository;
-use Summae\Core\Substrate\Currency;
-use Summae\Core\Substrate\Money;
-use Summae\Core\Substrate\Side;
+use Summae\Core\Port\FiscalYearRepository;
 
 /**
- * The result not yet appropriated (F-CORE-024/SF-25) — the read side of `appropriateResult`.
+ * The report itself: the pot, where it came from, and when a resolution about it falls due.
  *
- * Until this projection the figure existed but could not be *asked for*. It was computed on every
- * `appropriateResult` call and left the library only as the `available` detail of a refusal, so an
- * application that wanted to pre-fill a resolution dialog had two ways to learn it: provoke
- * `E_APPROPRIATION_EXCEEDS_RESULT` on purpose, or read the balance-sheet position carrying
- * `includesNetIncome` — which presupposes a mapping and knowledge of which position that is. A
- * number you can only obtain by doing it wrong is not published.
+ * The deadline is the part only the pack can answer — how many months a form has after the year
+ * end, whether a smaller entity has more, whether the form passes a resolution at all — and only
+ * the tenant can say which form it is (`setEntityProfile`). Where either is missing the fields are
+ * `null` rather than a plausible default: an application must be able to tell "no deadline in this
+ * jurisdiction" from "nobody has said what this company is".
  *
- * **One pot, not one per year.** `result_allocation` accounts carry what has been appropriated, and
- * nothing in them says which year's profit they consumed. So the top-level figures describe the pot
- * as a whole and `byFiscalYear` describes where it came from. Only `available` is per year, and it
- * is exactly what `appropriateResult` would permit for a resolution naming that year — the same
- * function, not a second implementation of it, so the number a user reads and the number the
- * operation refuses against cannot drift apart.
- *
- * Sign convention follows the books, as everywhere else: positive is a profit, negative a loss.
- * Years come from the journal, in ascending order.
+ * Monitoring the date stays outside. summae reports what the data say; who gets reminded, and what
+ * happens when the date passes, is the embedding's workflow.
  *
  * The SAME shape lives in the Node unappropriated-result.ts.
  */
 final readonly class UnappropriatedResultProjection
 {
     public function __construct(
-        private Currency $baseCurrency,
-        private AccountRepository $accounts,
-        private JournalRepository $journal,
+        private UnappropriatedResult $figures,
+        private FiscalYearRepository $fiscalYears,
+        private LegalFormRegistry $legalForms,
     ) {
     }
 
@@ -49,126 +37,48 @@ final readonly class UnappropriatedResultProjection
     public function compute(array $params): array
     {
         $wanted = Parameters::integerOrNull($params['fiscalYear'] ?? null);
-        ['perYear' => $perYear, 'result' => $result, 'allocated' => $allocated] = $this->scan();
+        $figures = $this->figures->figures();
+        $declared = $this->legalForms->declared();
+        $resolution = $this->legalForms->resolution();
 
-        $years = array_keys($perYear);
-        sort($years, SORT_NUMERIC);
-
-        $cumulative = Money::zero($this->baseCurrency);
         $rows = [];
-        foreach ($years as $year) {
-            $cumulative = $cumulative->add($perYear[$year]);
-            if ($wanted !== null && $year !== $wanted) {
+        foreach ($figures['byFiscalYear'] as $row) {
+            if ($wanted !== null && $row['fiscalYear'] !== $wanted) {
                 continue;
             }
-
             $rows[] = [
-                'fiscalYear' => $year,
-                'result' => $perYear[$year]->amountAsString(),
-                'cumulativeResult' => $cumulative->amountAsString(),
-                'available' => $this->availableFrom($cumulative, $result, $allocated)->amountAsString(),
+                'fiscalYear' => $row['fiscalYear'],
+                'result' => $row['result']->amountAsString(),
+                'cumulativeResult' => $row['cumulativeResult']->amountAsString(),
+                'available' => $row['available']->amountAsString(),
+                'resolutionDueBy' => $this->dueBy($row['fiscalYear']),
             ];
         }
 
         return [
-            'cumulativeResult' => $result->amountAsString(),
-            'appropriated' => $allocated->amountAsString(),
-            'unappropriated' => $result->subtract($allocated)->amountAsString(),
+            'cumulativeResult' => $figures['cumulativeResult']->amountAsString(),
+            'appropriated' => $figures['allocated']->amountAsString(),
+            'unappropriated' => $figures['cumulativeResult']->subtract($figures['allocated'])->amountAsString(),
+            'legalForm' => $declared === null ? null : $declared['legalForm'],
+            'resolutionRequired' => $resolution === null ? null : $resolution['required'],
+            'resolutionBasis' => $resolution === null ? null : $resolution['basis'],
             'byFiscalYear' => $rows,
         ];
     }
 
     /**
-     * What `appropriateResult` may book for a resolution naming `$fiscalYear`. Public because the
-     * expansion service asks it rather than computing its own.
+     * The due date needs the year's END, which only the fiscal-year record knows: a year running
+     * July to June is not eight months from 31 December. A year the journal knows and the record
+     * does not cannot happen through the API, and reports `null` rather than inventing a December.
      */
-    public function available(int $fiscalYear): Money
+    private function dueBy(int $fiscalYear): ?string
     {
-        ['perYear' => $perYear, 'result' => $result, 'allocated' => $allocated] = $this->scan();
-
-        $cumulative = Money::zero($this->baseCurrency);
-        foreach ($perYear as $year => $yearResult) {
-            if ($year <= $fiscalYear) {
-                $cumulative = $cumulative->add($yearResult);
-            }
+        $year = $this->fiscalYears->byYear($fiscalYear);
+        if ($year === null) {
+            return null;
         }
+        $due = $this->legalForms->resolutionDueBy($year->end);
 
-        return $this->availableFrom($cumulative, $result, $allocated);
-    }
-
-    /**
-     * The pot decides the direction, the named year caps the size (IMPL-033).
-     *
-     * The figure itself is unchanged and stays the obvious one: what was earned through year Y, minus
-     * everything the allocation accounts already carry. Allocations are deliberately not cut at the
-     * year boundary — a resolution is dated *after* the year it appropriates, so cutting them would
-     * make every past appropriation invisible and let the same profit be appropriated twice.
-     *
-     * What that figure could not do alone is notice when it has gone past the end. Appropriate 1200 of
-     * a 1400 profit naming 2027, and 2026's figure comes out at 900 − 1200 = −300; the operation read
-     * that as an unappropriated *loss* of 300 and would book it, charging the books against a pot that
-     * held 200. So the pot — everything earned minus everything appropriated — decides the direction
-     * and the ceiling: a year figure pointing the other way is nothing to appropriate rather than a
-     * loss, and none of them may exceed what is actually left. Where the year figure was already
-     * right, which is every case that does not run past the pot, this changes nothing.
-     */
-    private function availableFrom(Money $cumulativeThroughYear, Money $totalResult, Money $allocated): Money
-    {
-        $pot = $totalResult->subtract($allocated);
-        if ($pot->isZero()) {
-            return $pot;
-        }
-
-        $year = $cumulativeThroughYear->subtract($allocated);
-        $towardsPot = $pot->isNegative() ? $year->negate() : $year;
-        if (!$towardsPot->isPositive()) {
-            return Money::zero($this->baseCurrency);
-        }
-
-        $capped = $towardsPot->compareTo($pot->abs()) > 0 ? $pot->abs() : $towardsPot;
-
-        return $pot->isNegative() ? $capped->negate() : $capped;
-    }
-
-    /**
-     * One pass over the journal: the result of each fiscal year, and what the `result_allocation`
-     * accounts carry over the whole journal (see `availableFrom` for why the whole journal).
-     *
-     * @return array{perYear: array<int, Money>, result: Money, allocated: Money}
-     */
-    private function scan(): array
-    {
-        /** @var array<int, Money> $perYear */
-        $perYear = [];
-        $result = Money::zero($this->baseCurrency);
-        $allocated = Money::zero($this->baseCurrency);
-
-        foreach ($this->journal->all() as $entry) {
-            $year = $entry->periodRef->fiscalYear;
-            if (!isset($perYear[$year])) {
-                $perYear[$year] = Money::zero($this->baseCurrency);
-            }
-
-            foreach ($entry->lines() as $line) {
-                $account = $this->accounts->byId($line->accountId);
-                if ($account === null) {
-                    continue;
-                }
-
-                if (!$account->type->isBalanceCarrying()) {
-                    $signed = $line->side === Side::Credit ? $line->money : $line->money->negate();
-                    $perYear[$year] = $perYear[$year]->add($signed);
-                    $result = $result->add($signed);
-                    continue;
-                }
-                if ($account->subtype === 'result_allocation') {
-                    $allocated = $line->side === Side::Debit
-                        ? $allocated->add($line->money)
-                        : $allocated->subtract($line->money);
-                }
-            }
-        }
-
-        return ['perYear' => $perYear, 'result' => $result, 'allocated' => $allocated];
+        return $due?->iso;
     }
 }

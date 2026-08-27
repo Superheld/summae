@@ -8,7 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
 use Summae\Core\Port\AccountRepository;
-use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
+use Summae\Core\Policies\Projection\UnappropriatedResult;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Exception\InvalidValue;
@@ -81,7 +81,7 @@ final class ResultAppropriationService
         }
 
         $requested = $this->parseAppropriations($input['appropriations'] ?? null, $offered);
-        $available = (new UnappropriatedResultProjection($this->baseCurrency, $this->accounts, $this->journal))
+        $available = (new UnappropriatedResult($this->baseCurrency, $this->accounts, $this->journal))
             ->available($fiscalYear);
 
         // Nothing to appropriate is refused rather than posted as zero: an entry that moves nothing

@@ -7,6 +7,8 @@ namespace Summae\Laravel;
 use Illuminate\Database\ConnectionInterface;
 use Summae\Core\Policies\Expansion\Assets\AssetService;
 use Summae\Core\Policies\Expansion\ResultAppropriationService;
+use Summae\Core\Policies\Projection\EntityProfileService;
+use Summae\Core\Policies\Projection\LegalFormRegistry;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
@@ -105,6 +107,7 @@ final readonly class DatabaseTenantFactory
                     'dimensionValues' => $dimensionSeed['values'],
                     'allocationScheme' => null,
                     'mappings' => [],
+                    'entityProfile' => null,
                 ],
             ),
         );
@@ -191,6 +194,12 @@ final readonly class DatabaseTenantFactory
         if ($config['allocationScheme'] !== null) {
             $costing->restoreAllocationScheme($config['allocationScheme']);
         }
+        // Same idea, and lenient on purpose (F-CORE-039): the catalogue itself arrives with the pack
+        // on every open, so what the record holds is only WHICH form was declared. A pack that has
+        // since dropped that form makes the rule stop applying, never the tenant stop opening.
+        $legalForms = new LegalFormRegistry();
+        $legalForms->restore($config['entityProfile']);
+        $entityProfile = new EntityProfileService($legalForms, $auditWriter, $tenantId, $configStore);
 
         return new Tenant(
             $tenantId,
@@ -217,6 +226,8 @@ final readonly class DatabaseTenantFactory
             $record->packIdentity,
             $configStore,
             $actorAuthentication,
+            $legalForms,
+            $entityProfile,
         );
     }
 }

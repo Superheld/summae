@@ -4,7 +4,7 @@ import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
 import type { Ledger } from '../../ledger/ledger.js';
 import type { AuditWriter } from '../../ledger/audit-writer.js';
-import { UnappropriatedResultProjection } from '../projection/unappropriated-result.js';
+import { UnappropriatedResult } from '../projection/unappropriated-result.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -67,7 +67,7 @@ export class ResultAppropriationService {
     }
 
     const requested = this.parseAppropriations(input.appropriations, plug);
-    const available = new UnappropriatedResultProjection(this.baseCurrency, this.accounts, this.journal).available(
+    const available = new UnappropriatedResult(this.baseCurrency, this.accounts, this.journal).available(
       fiscalYear,
     );
 

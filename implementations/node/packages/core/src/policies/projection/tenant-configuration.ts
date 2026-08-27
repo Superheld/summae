@@ -48,6 +48,16 @@ export class TenantConfigurationProjection {
      * Empty means the pack supports no appropriation at all.
      */
     private readonly appropriationTargets: string[],
+    /**
+     * What the entity IS, and what it could be. Same reason again: which legal forms exist is the
+     * *pack's* answer, and the tenant's own form is stored library state an embedding cannot derive
+     * — a screen offering "Rechtsform" would otherwise have to carry its own list and hope the two
+     * agree. `entityProfile` is null until `setEntityProfile` has been called; `legalForms` is empty
+     * for a pack that ships no catalogue.
+     */
+    private readonly entityProfile: { legalForm: string; sizeClass: string | null } | null,
+    private readonly legalForms: string[],
+    private readonly sizeClasses: string[],
   ) {}
 
   compute(_params: Record<string, unknown>): Record<string, unknown> {
@@ -61,6 +71,9 @@ export class TenantConfigurationProjection {
       allocationScheme: this.allocationScheme,
       mappings: this.mappings.summaries(),
       appropriationTargets: [...this.appropriationTargets],
+      entityProfile: this.entityProfile,
+      legalForms: [...this.legalForms],
+      sizeClasses: [...this.sizeClasses],
     };
   }
 }

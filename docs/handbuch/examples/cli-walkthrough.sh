@@ -107,4 +107,9 @@ s report datevExport     --params '{"fiscalYear":2026}' | jq -c '{kind, rows: (.
 s report auditDataExport --params '{"fiscalYear":2026}' | jq -c '{standard, journals: (.journals | length)}'
 s report auditLog        --params '{}' | jq -c '{records: (.records | length)}'
 
+echo "== 10. what the entity IS, and when a resolution on the result is due ==" >&2
+s op setEntityProfile --input '{"legalForm":"gmbh","sizeClass":"small"}' | jq -c .
+s report unappropriatedResult --params '{}' | jq -c \
+  '{unappropriated, resolutionRequired, resolutionBasis, dueBy: .byFiscalYear[0].resolutionDueBy}'
+
 echo "== done ==" >&2
