@@ -19,6 +19,12 @@ the **PHP implementation is the reference**, Node mirrors it name-for-name.
 > therefore yours). Read the third group first: those are the ones nobody's green
 > test suite will remind you about.
 
+> **Storing customer names?** [GDPR conformance](../gdpr-conformance.md) inventories every
+> field in which personal data can end up, states where the right to erasure collides with
+> the retention duty and which one wins, and lists what a library cannot answer for you.
+> summae is not a processor: it runs inside your process and sends nothing anywhere — which
+> is precisely why almost everything on that page is yours.
+
 **Contents**
 
 1. [Overview & mental model](#1-overview--mental-model)

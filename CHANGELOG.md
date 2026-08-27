@@ -43,6 +43,39 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### Added: a GDPR census, because there was not one word
+
+`docs/gdpr-conformance.md`, the twin of the GoBD document, with the same three statuses. It exists
+because a search of this repository for *DSGVO*, *GDPR*, *Datenschutz*, *personal data* returned
+nothing at all — in a library that stores `partner.name`, `partner.address` and `vatId`, records
+which person performed every state change in `auditRecord.actor`, and exports all of it in
+`journalExport`. The legal position is comfortable; the silence was not. A library whose selling
+point is a written account of what it does and does not do had a census for one regulation and no
+sentence for the other.
+
+What it says, in short: **you are the controller and summae is not a processor** — it runs inside
+your process, opens no connection, and nobody here ever holds your data, so no DPA is owed to us.
+The right to erasure loses against the retention duty (Art. 17(3)(b) GDPR against § 147 AO), which
+means the append-only journal is the technical form of a legal obligation rather than a problem to
+solve. §1 inventories every field where personal data can end up, which is the part an Art. 30
+record needs and the part most likely to be read in a hurry.
+
+**Three open rows, honestly stated.** There is no `deletePartner` at all — right for a partner the
+books reference, wrong for one created by a typo that no entry ever touched, where no retention duty
+applies and the right to erasure is undiminished. `partner.address` is declared `{"type": "object"}`
+with no properties, so the format cannot support data minimisation for a field whose contents it
+does not know. And there is no generated Art. 30 building block, though `systemDescription` shows
+the shape one would take — with a clean split along summae's own axis: *where* identifying fields
+sit is jurisdiction-free mechanism, *whether* a field counts as personal data is answered
+differently by the GDPR and the CCPA, so it is pack data.
+
+**The document is gated like every other.** `GdprConformanceDocTest` / `gdpr-conformance-doc.test.ts`
+check that every fixture it cites exists and still runs, that every requirement it names is really
+covered, and that its status markers stay the three defined ones. One check the GoBD twin does not
+need: every `record.field` in the §1 inventory is resolved against `format.schema.json`, so a
+renamed field turns the build red instead of leaving a row that still reads correctly and is quietly
+wrong. Both guards went red on a deliberately mistyped field name before being trusted.
+
 ### Also
 
 - **The `branch-alias` trap is caught now.** RELEASING.md recorded that
