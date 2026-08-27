@@ -10,6 +10,48 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.15.1 — unreleased
+
+### Fixed: both CLIs reported the version they had at 0.1.0 (IMPL-035)
+
+`summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP. Both literals were written at the
+first release and never again — the number had been wrong since 0.2.0 and stayed wrong through
+fifteen releases, on a disk whose `package.json` said 0.15.0.
+
+The stale number is the smaller half. The two implementations were stale *differently*, so the same
+question put to the two CLIs got two different answers — the equivalence policy broken on the first
+surface anybody touches. No cross-test could reach it: that test drives `journalExport` over a shared
+database, and `--version` never opens a book.
+
+Both constants are now asserted against the newest **dated** heading in this file
+(`## X.Y.Z — YYYY-MM-DD`). Dating a section is what makes a release — `release-notes.yml` refuses to
+publish without it — so the guard goes red inside the release commit, when the bumps are due. An
+undated `unreleased` section deliberately does not move the anchor: between releases both CLIs keep
+naming the last version that shipped, exactly as the published `package.json` does.
+
+`ReleaseVersionTest` / `release-version.test.ts` pin it in both languages, and they went red on the
+real values before the fix.
+
+**It was not unguarded — it was guarded by the wrong test.** `SmokeTest::testAllPackagesAutoload`,
+written at JOB-000 to prove the three packages autoload, reached the package markers through
+`assertSame('0.1.0-dev', …)`. So the constants could not be bumped without turning red a test whose
+stated subject is autoloading, and the red would have looked like a regression rather than a job.
+That is the more useful half of this finding: a stale value survived fifteen releases *because*
+something asserted it. The smoke test now asserts that the classes load, which is what it is for.
+
+`CorePackage::VERSION` was stale the same way and had no reader at all besides that smoke test. It
+is bumped and held to the same anchor rather than left standing as the stale twin of the constant
+next to it. Nothing prints it; it is the declared version of a published package all the same.
+
+### Also
+
+- **The `branch-alias` trap is caught now.** RELEASING.md recorded that
+  `extra.branch-alias.dev-main` must be bumped by hand in all three `composer.json`, that it was
+  missed at 0.8.0, and that "nothing catches it". Same class of defect — a version string with no
+  reader — so the same guard closes it: the PHP test derives `X.Y.x-dev` from the changelog and
+  compares all three. The Node half does the same for the three published `package.json` versions,
+  which `pnpm -r publish` all ships. The note in RELEASING.md was corrected.
+
 ## 0.15.0 — 2026-08-27
 
 **The number you could only get by doing it wrong.** `appropriateResult` has known since v0.4 how

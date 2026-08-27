@@ -16,9 +16,11 @@ A git tag `vX.Y.Z` marks a release. Before tagging:
 - **PHP:** no `version` fields — Composer derives them from the tag. But the three
   `composer.json` files carry `extra.branch-alias.dev-main`, and **that one does not follow
   the tag**: it has to be bumped to `X.Y.x-dev` by hand, in all three. It was missed at
-  0.8.0 (still read `0.7.x-dev` after the release) and nothing catches it, because it
-  affects only how Composer resolves `dev-main` for someone tracking the branch — never the
-  released tags, and never a test.
+  0.8.0 (still read `0.7.x-dev` after the release), because it affects only how Composer
+  resolves `dev-main` for someone tracking the branch — never the released tags. Since 0.15.1
+  a test does catch it: `ReleaseVersionTest` derives the alias from the newest dated CHANGELOG
+  heading and compares all three, and its Node twin does the same for the three `package.json`
+  versions and for what `summae --version` prints (IMPL-035).
 
 > **Run `pnpm build` locally before tagging.** It is the one step of the release that
 > `typecheck`, `lint`, `test` and `fixtures` cannot stand in for, and it broke silently once

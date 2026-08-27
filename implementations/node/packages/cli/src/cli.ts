@@ -3,6 +3,7 @@ import { DomainError, TenantOperations } from '@superheld/summae-core';
 import { Command } from 'commander';
 import { exitCodeFor } from './exit-codes.js';
 import { defaultPackLibraryDir, packToRules } from './pack-library.js';
+import { CLI_VERSION } from './version.js';
 import { Workspace } from './workspace.js';
 
 function parseJson(raw: string): Record<string, unknown> {
@@ -62,7 +63,7 @@ interface InitOptions extends CommonOptions {
 /** Builds the CLI (init/op/report) — counterpart to PHP's Symfony Console app. */
 export function buildProgram(): Command {
   const program = new Command();
-  program.name('summae').description('summae — accounting via JSON input/output').version('0.1.0');
+  program.name('summae').description('summae — accounting via JSON input/output').version(CLI_VERSION);
 
   program
     .command('init')
