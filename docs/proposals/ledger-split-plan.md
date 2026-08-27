@@ -1,18 +1,37 @@
-> **Merged 2026-08-27 for preservation.** These were tracking branches that carried the memo
-> and nothing else; the branches are gone, the open decisions are not. Written before the
-> pack library and the knowledge base moved into this repository (2026-08-26), so anything
-> here about `make sync` or an external store has been corrected, not left standing.
+# Surgery B — split `ledger.ts` (#22) — ✅ DONE
 
-# Surgery B — split `ledger.ts` (#22) — plan for a go/leave decision
+> **Decided "go" and executed. Verified against the code on 2026-08-27.** This page is kept for the
+> reasoning, not as an open question — do not re-ask it.
+>
+> `ledger.ts` is a facade today, in **both** languages, and `core/src/CLAUDE.md` describes the result
+> as the current state. What was actually built differs from the proposal below in one deliberate
+> way: `post` and its line parsing **stayed in the facade** rather than moving into a `PostingService`,
+> and the lifecycle methods went to a `FiscalPeriodService` rather than a `LifecycleService`.
+>
+> | Proposed below | Built |
+> |---|---|
+> | `PostingService` | — `post`/`correct`/`finalize`/`reverse` and the shared line parsing stayed in `ledger.ts` |
+> | `SettlementService` | `settlement-service.ts` / `SettlementService.php` |
+> | `LifecycleService` | `fiscal-period-service.ts` / `FiscalPeriodService.php` |
+> | `ChartAdminService` | `chart-admin-service.ts` / `ChartAdminService.php` |
+> | (not proposed) | `audit-writer.ts` / `AuditWriter.php`, `lookups.ts` / `Lookups.php` — the shared helpers the "Against" section below worried about |
+>
+> `ledger.ts` went from 725 lines to 579 (PHP: 749). The shared-helper problem the proposal named as
+> the main argument against turned out to have its own answer — a writer and a lookup module — rather
+> than blurring the new seams.
+
+---
+
 
 `ledger.ts` (Node, 725 lines) / `Ledger.php` (~900) is the orchestrator: it fuses `post`
 (substrate), `settle`/`reverse` (expansion) and `closePeriod`/`closeFiscalYear` (constraint)
 into one class. The directory split (slices 1–4) is done; this is the **method-level**
 disentanglement. It is a **pure-structure, byte-identical** refactor — no behavior change.
 
-> Tracking/proposal branch, not merged. This is the information to decide **go or leave** — I did
-> not perform the split, because it's high-churn with zero functional benefit and reasonable
-> engineers differ on whether a working orchestrator should be broken up.
+> *Original framing, kept as written:* tracking/proposal branch, not merged. This is the information
+> to decide **go or leave** — I did not perform the split, because it's high-churn with zero
+> functional benefit and reasonable engineers differ on whether a working orchestrator should be
+> broken up.
 
 ## Proposed decomposition (by responsibility / policy kind)
 

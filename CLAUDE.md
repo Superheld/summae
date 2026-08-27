@@ -20,7 +20,11 @@ Repo layout:
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
 - `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules), authored here since 2026-08-26 (the last mirror, retired); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
-- `Makefile`, `compose.yaml`, `docker/` — Docker toolchain (currently drives the PHP side).
+- `Makefile`, `compose.yaml`, `docker/` — the toolchain. `make check` = the PHP gate (in Docker),
+  `make check-node` = the Node gate (local pnpm), `make check-all` = both plus the cross-test.
+  Node reached parity here on 2026-08-27: its gate used to exist only as a list of commands in
+  `implementations/node/CLAUDE.md`, and that list was short by the database-subject run CI does
+  perform — a gate that is easier to run on one side gets run more on that side.
 
 ## Scope: capabilities, not workflows
 
