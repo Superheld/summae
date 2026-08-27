@@ -114,6 +114,7 @@ a short file.
 | SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 | IMPL-033 an appropriated year kept offering a phantom loss | ✅ **RESOLVED 2026-08-27** — `available` for a year was "earned through it minus everything appropriated", which goes negative as soon as a resolution reaches a later year's profit; the operation read −300 as an unappropriated *loss* and booked it, charging a pot that held 200 and appropriating one profit one-and-a-half times. The pot now decides direction and ceiling, the year figure only sizes it. Found while building `unappropriatedResult` (F-CORE-038), which is also what makes it visible: the figure had never been readable except as the detail of a refusal |
+| IMPL-034 the pack manifests were documented as products that do not exist | ✅ **RESOLVED 2026-08-27** — `manifest-de-complete.md` and `manifest-us-complete.md` described packs `de-complete`/`us-complete` at version 2026.1 bundling eight modules under ids that were renamed long ago, so a reader who copied from them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's defect in the half its guard did not reach: the guard checked modules, and the manifest documents sat beside them unchecked. Rewritten from the real manifests, `default` got the one it never had, and `PackDocsTest`/`pack-docs.test.ts` grew a fourth rule over manifest documents |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -125,6 +126,34 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### IMPL-034 — the pack manifests were documented as products that do not exist — RESOLVED
+
+**Found 2026-08-27** while adding the `legalForms` module to the two shipped packs, which meant
+opening the pack documentation folder and noticing what was *not* a module document.
+
+**What was wrong.** `knowledge/99-pack-docs/de-pack/manifest-de-complete.md` opened with
+`packs/de-complete.json · version: 2026.1` and listed eight modules — `de-konten-2026`,
+`de-ust-2026`, `de-hgb-bilanz-266`, `de-anlage-euer-2026`, `afa-de`, `de-asset-accounts`, `de-eur`.
+None of that exists. The pack is `de`, it was at 2026.6, it bundles ten modules and not one of the
+listed ids is among them. `manifest-us-complete.md` was the same document with the same defect. A
+reader who followed either — and this folder is the reference work a pack author reads *first* —
+would call `createTenant(de-complete)` and get `E_PROFILE_UNKNOWN` for a pack that has been called
+something else for months. The `default` pack had no manifest document at all.
+
+**Why the previous repair missed it.** IMPL-031 went through this folder a day earlier and fixed
+every module document, then built a guard so the class could not come back. The guard iterates the
+manifest's *modules* and requires one document each. The manifest documents are not modules, so
+nothing looked at them, and the repair pass did not look either — it was following the guard's
+shape. That is the useful part of this finding: a guard does not only prove what it checks, it also
+tells the next reader where to stop looking. Its boundary becomes the boundary of attention.
+
+**Fixed** by regenerating all three from the real manifests (id, version, full module list, tax-code
+selection, `defaults`/`packPolicy`, the versioning rule), including the `default` pack's first — and
+by extending the guard with a fourth rule: every pack has exactly one document carrying `pack:` in
+its header, that id and version are the manifest's, and every bundled module id appears in it. It
+went red on all three packs before the documents were written, which is the only evidence that a new
+rule is worth anything.
 
 ### IMPL-033 — an appropriated year kept offering a phantom loss — RESOLVED
 

@@ -80,6 +80,19 @@ The pot now decides the direction and the ceiling; the year figure only sizes it
 not run past the pot is unchanged, and the three shipped appropriation fixtures were green before and
 after. `appropriation-pot-direction` pins it in both languages.
 
+### Fixed: the pack manifests were documented as products that do not exist (IMPL-034)
+
+`manifest-de-complete.md` and `manifest-us-complete.md` described packs called `de-complete` and
+`us-complete` at version 2026.1, bundling eight modules under ids renamed months ago. Copy from
+either and you called `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's
+defect in the half its guard did not reach — the guard walks the manifest's *modules*, the manifest
+documents are not modules, and the repair pass followed the guard's shape rather than the folder's.
+A guard does not only prove what it checks; it marks where the next reader stops looking.
+
+All three are regenerated from the real manifests, `default` has the one it never had, and the guard
+grew a fourth rule over manifest documents. It went red on all three packs before the documents were
+written.
+
 ### Also
 
 - `CalendarDate.plusMonths` in the substrate, clamping to the target month's last day. Written out
