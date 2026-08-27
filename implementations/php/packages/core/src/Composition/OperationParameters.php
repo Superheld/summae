@@ -354,6 +354,11 @@ final class OperationParameters
                 ],
             ],
         ],
+        'setEntityProfile' => [
+            'legalForm' => ['type' => 'string', 'required' => true],
+            'sizeClass' => ['type' => 'string'],
+            'actor' => ['type' => 'string'],
+        ],
         'setTaxProfile' => [
             'smallBusiness' => [
                 'type' => 'object',

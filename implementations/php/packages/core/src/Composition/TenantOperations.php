@@ -22,6 +22,8 @@ use Summae\Core\Policies\Projection\AccountsProjection;
 use Summae\Core\Policies\Projection\CostingRunsProjection;
 use Summae\Core\Policies\Projection\JournalProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
+use Summae\Core\Policies\Projection\UnappropriatedResult;
+use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TenantConfigurationProjection;
@@ -92,6 +94,8 @@ final readonly class TenantOperations
             'reactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'active')),
             'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
             'appropriateResult' => $tenant->resultAppropriation->appropriate($input),
+            'setEntityProfile' => $tenant->entityProfile?->set($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "setEntityProfile" is not defined'),
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
@@ -145,6 +149,11 @@ final readonly class TenantOperations
             'journal' => (new JournalProjection($tenant->accounts, $tenant->journal, $tenant->vouchers, $tenant->audit))
                 ->compute($params),
             'fiscalYears' => (new FiscalYearsProjection($tenant->fiscalYears))->compute($params),
+            'unappropriatedResult' => (new UnappropriatedResultProjection(
+                new UnappropriatedResult($tenant->baseCurrency, $tenant->accounts, $tenant->journal),
+                $tenant->fiscalYears,
+                $tenant->legalForms,
+            ))->compute($params),
             'openItems' => (new OpenItemsProjection($tenant->openItems, $tenant->vouchers, $tenant->journal, $tenant->partners))
                 ->compute($params),
             'trialBalance' => (new TrialBalanceProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))
@@ -167,6 +176,9 @@ final readonly class TenantOperations
                 $tenant->costing->allocationScheme(),
                 $tenant->mappings,
                 $tenant->resultAppropriation->offeredTargets(),
+                $tenant->legalForms->declared(),
+                $tenant->legalForms->offered(),
+                $tenant->legalForms->offeredSizeClasses(),
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),

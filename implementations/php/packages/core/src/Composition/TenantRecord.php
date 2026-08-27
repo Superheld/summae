@@ -21,6 +21,7 @@ namespace Summae\Core\Composition;
  *   dimensionValues: list<array{typeCode: string, code: string}>,
  *   allocationScheme: array<string, mixed>|null,
  *   mappings: list<array<string, mixed>>,
+ *   entityProfile: array{legalForm: string, sizeClass: string|null}|null,
  * }
  */
 final class TenantRecord
@@ -51,6 +52,7 @@ final class TenantRecord
             'dimensionValues' => [],
             'allocationScheme' => null,
             'mappings' => [],
+            'entityProfile' => null,
         ];
     }
 }

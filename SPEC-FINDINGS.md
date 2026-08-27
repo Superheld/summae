@@ -24,14 +24,18 @@ two places and drifted (SPEC-014 did, in the open).
 
 ## Nothing open
 
-As of 2026-08-26 there is no undecided finding. That is a state, not an achievement: this register
+As of 2026-08-27 there is no undecided finding. That is a state, not an achievement: this register
 is empty roughly as often as it is full, and the useful reading of an empty one is *"the last pass
 closed what it opened"*, never *"there is nothing to find."*
 
-The five that were here — IMPL-030, IMPL-031, IMPL-032, SPEC-020 and SPEC-021 — are in
-[`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Four of the
-five came **from outside**, reported by an application embedding the library, and the fifth was found
-while fixing one of them. That is the pattern worth noticing: our own suite was green through all of
-it, and each fix came with the guard that would have caught it.
+The seven that were here — IMPL-030 to IMPL-034, SPEC-020 and SPEC-021 — are in
+[`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Four of them
+came **from outside**, reported by an application embedding the library, and the other two were found
+while building what those reports asked for. That is the pattern worth noticing: our own suite was
+green through all of it, and each fix came with the guard that would have caught it. IMPL-033 sharpens
+the point — it was found by publishing a number that until then existed only inside a refusal, which
+is the general shape: a figure nobody can read is a figure nobody can check. IMPL-034 is the same
+lesson from the other side — it sat in the half of a folder that the guard built for IMPL-031 did not
+reach, and nobody looked there, because a guard quietly marks where attention stops.
 
 The next one goes here.

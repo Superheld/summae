@@ -20,7 +20,7 @@ import { canonicalJson } from '../substrate/canonical-json.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -70,6 +70,7 @@ export interface ResolvedPack {
   depreciation: Record<string, unknown> | null;
   productionCost: Record<string, unknown> | null;
   resultAppropriation: Record<string, unknown> | null;
+  legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
@@ -193,6 +194,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let depreciation: Record<string, unknown> | null = null;
   let productionCost: Record<string, unknown> | null = null;
   let resultAppropriation: Record<string, unknown> | null = null;
+  let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
   let packPolicyModule: Record<string, unknown> | null = null;
 
@@ -237,6 +239,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'resultAppropriation':
         resultAppropriation = m.data;
+        break;
+      case 'legalForms':
+        legalForms = m.data;
         break;
       case 'constraint':
         // Constraints add up rather than replace: two modules may each contribute rules, and a later
@@ -312,6 +317,25 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       }
     }
   }
+  // I9: the legal-form catalogue is usable — at least one form, and every form that requires a
+  // resolution says by when. A form declared without its deadline would report "a resolution is due"
+  // and no date, which is worse than saying nothing: an application cannot tell a missing rule from
+  // a form that genuinely has none.
+  if (legalForms !== null) {
+    const forms = isRecord(legalForms.forms) ? legalForms.forms : {};
+    if (Object.keys(forms).length === 0) {
+      throw new DomainError('E_PACK_INCOHERENT', 'legalForms without a single form (I9)');
+    }
+    for (const [name, form] of Object.entries(forms)) {
+      const resolution = isRecord(form) && isRecord(form.resolution) ? form.resolution : null;
+      if (resolution === null || typeof resolution.required !== 'boolean') {
+        throw new DomainError('E_PACK_INCOHERENT', `legalForms.forms.${name} without resolution.required (I9)`);
+      }
+      if (resolution.required && typeof resolution.deadlineMonths !== 'number') {
+        throw new DomainError('E_PACK_INCOHERENT', `legalForms.forms.${name} requires a resolution but names no deadline (I9)`);
+      }
+    }
+  }
   // I2: every mapping selector hits >= 1 account; fires only on a fully empty selector.
   for (const mapping of mappings) {
     checkMappingSelectors(mapping, accountNumbers);
@@ -351,6 +375,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     depreciation,
     productionCost,
     resultAppropriation,
+    legalForms,
     dimensionRules,
     packPolicy: effectivePolicy,
     profile,
@@ -383,6 +408,9 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // The appropriation plug: which account the resolution books against, and which targets the
     // jurisdiction offers. A pack that stays silent simply does not support the operation.
     resultAppropriation: isRecord(pack.resultAppropriation) ? pack.resultAppropriation : null,
+    // Which legal forms this jurisdiction knows, and what each obliges. A pack that stays silent
+    // has no catalogue, which is a legitimate answer for a jurisdiction-free one.
+    legalForms: isRecord(pack.legalForms) ? pack.legalForms : null,
     // The first constraint plug: which accounts may not be posted without which dimension.
     dimensionRules: Array.isArray(pack.dimensionRules) ? pack.dimensionRules : [],
     packPolicy: pack.packPolicy,

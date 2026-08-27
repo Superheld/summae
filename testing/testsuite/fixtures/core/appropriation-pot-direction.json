@@ -1,0 +1,264 @@
+{
+  "fixture": "appropriation-pot-direction",
+  "description": "IMPL-033: what a year figure cannot notice on its own is that it has run past the end. `available` for a year is what was earned through it minus everything the allocation accounts carry, and the allocations are deliberately not cut at the year boundary — a resolution is dated after the year it appropriates, so cutting them would make every past appropriation invisible and let the same profit be appropriated twice. But appropriate 1200 of a 1400 profit naming 2027, and 2026's figure comes out at 900 − 1200 = −300: the operation read that as an unappropriated LOSS of 300 and booked it quite happily, charging the books against a pot that held 200 and turning one profit into an appropriation of 1500. So the pot decides the direction and the ceiling; a year figure pointing the other way is nothing to appropriate rather than a loss. The last two steps pin the other end: the 200 that IS left may still be resolved, naming the year that earned it, and once the pot is empty every further resolution is refused.",
+  "covers": [
+    "F-CORE-024",
+    "F-CORE-038",
+    "SF-25"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Verwendung GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "2100",
+        "name": "Gewinnvortrag",
+        "type": "equity"
+      },
+      {
+        "number": "2300",
+        "name": "Ergebnisverwendung",
+        "type": "equity",
+        "subtype": "result_allocation"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2026-01-01",
+            "end": "2026-12-31"
+          }
+        ]
+      },
+      {
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2027-01-01",
+            "end": "2027-12-31"
+          }
+        ]
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-1",
+        "voucherDate": "2026-06-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "AR-2",
+        "voucherDate": "2027-06-01"
+      },
+      {
+        "id": "$V3",
+        "voucherNumber": "BESCHLUSS-1",
+        "voucherDate": "2027-12-30",
+        "kind": "internal"
+      }
+    ],
+    "ruleModules": {
+      "resultAppropriation": {
+        "allocationAccount": "2300",
+        "targets": {
+          "carryForward": {
+            "account": "2100",
+            "label": "Gewinnvortrag"
+          }
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01",
+        "voucherId": "$V1",
+        "text": "Erlös 2026",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-06-01",
+        "voucherId": "$V2",
+        "text": "Erlös 2027",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "comment": "A resolution naming 2027 reaches everything earned through it — both years.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2027,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "1200.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "fiscalYear": 2027,
+          "remaining": "200.00"
+        }
+      }
+    },
+    {
+      "comment": "2026's figure is now −300. It is not a loss to appropriate; it is a year whose profit is gone.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    },
+    {
+      "comment": "What is genuinely left is still reachable under the year that earned it.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2027,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "fiscalYear": 2027,
+          "remaining": "0.00"
+        }
+      }
+    },
+    {
+      "comment": "Pot empty: refused rather than posted as a zero-effect entry claiming a resolution took effect.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2027,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "Everything earned has been appropriated exactly once — 1400, not 1500.",
+      "name": "unappropriatedResult",
+      "params": {},
+      "expect": {
+        "cumulativeResult": "1400.00",
+        "appropriated": "1400.00",
+        "unappropriated": "0.00",
+        "byFiscalYear": [
+          {
+            "fiscalYear": 2026,
+            "result": "900.00",
+            "cumulativeResult": "900.00",
+            "available": "0.00"
+          },
+          {
+            "fiscalYear": 2027,
+            "result": "500.00",
+            "cumulativeResult": "1400.00",
+            "available": "0.00"
+          }
+        ]
+      }
+    }
+  ]
+}

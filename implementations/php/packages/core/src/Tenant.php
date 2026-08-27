@@ -6,6 +6,8 @@ namespace Summae\Core;
 
 use Summae\Core\Policies\Expansion\Assets\AssetService;
 use Summae\Core\Policies\Expansion\ResultAppropriationService;
+use Summae\Core\Policies\Projection\EntityProfileService;
+use Summae\Core\Policies\Projection\LegalFormRegistry;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\InMemory\InMemoryAccountRepository;
 use Summae\Core\InMemory\InMemoryAssetRepository;
@@ -91,6 +93,13 @@ final readonly class Tenant
          * @var array{declared: bool, method: string|null}|null
          */
         public ?array $actorAuthentication = null,
+        /**
+         * Which legal forms the pack knows and which one this tenant is (F-CORE-039). Unlike
+         * `actorAuthentication` this one IS stored — it describes the entity whose books these are,
+         * not the installation running them, and changing it is an audited event with a date.
+         */
+        public LegalFormRegistry $legalForms = new LegalFormRegistry(),
+        public ?EntityProfileService $entityProfile = null,
     ) {
     }
 
@@ -170,6 +179,8 @@ final readonly class Tenant
             $configStore,
         );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
+        $legalForms = new LegalFormRegistry();
+        $entityProfile = new EntityProfileService($legalForms, $auditWriter, $tenantId, $configStore);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
         $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);
         $costing = new CostingService(
@@ -208,6 +219,8 @@ final readonly class Tenant
             $packIdentity,
             $configStore,
             $actorAuthentication,
+            $legalForms,
+            $entityProfile,
         );
     }
 }

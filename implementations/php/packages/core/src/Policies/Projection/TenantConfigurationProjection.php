@@ -60,6 +60,20 @@ final readonly class TenantConfigurationProjection
          * @var list<string>
          */
         private array $appropriationTargets,
+        /**
+         * What the entity IS, and what it could be. Same reason again: which legal forms exist is the
+         * *pack's* answer, and the tenant's own form is stored library state an embedding cannot derive
+         * — a screen offering "Rechtsform" would otherwise have to carry its own list and hope the two
+         * agree. `entityProfile` is null until `setEntityProfile` has been called; `legalForms` is empty
+         * for a pack that ships no catalogue.
+         *
+         * @var array{legalForm: string, sizeClass: string|null}|null
+         */
+        private ?array $entityProfile,
+        /** @var list<string> */
+        private array $legalForms,
+        /** @var list<string> */
+        private array $sizeClasses,
     ) {
     }
 
@@ -82,6 +96,9 @@ final readonly class TenantConfigurationProjection
             'allocationScheme' => $this->allocationScheme,
             'mappings' => $this->mappings->summaries(),
             'appropriationTargets' => $this->appropriationTargets,
+            'entityProfile' => $this->entityProfile,
+            'legalForms' => $this->legalForms,
+            'sizeClasses' => $this->sizeClasses,
         ];
     }
 }

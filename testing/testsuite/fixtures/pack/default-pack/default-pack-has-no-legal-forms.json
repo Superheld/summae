@@ -1,0 +1,61 @@
+{
+  "fixture": "default-pack-has-no-legal-forms",
+  "description": "The third answer, and the one the `default` pack has to give: it ships no legal-form catalogue, because a jurisdiction-free pack has no forms to ship — a legal form is always somebody's company law, exactly like the balance-sheet gliederung it also does not ship (IMPL-032). So `setEntityProfile` refuses everything, and the refusal says *this pack declares none* rather than *you named the wrong one*; `tenantConfiguration` answers the same question with two empty lists and no error at all, which is the route an application should take. `unappropriatedResult` then reports `resolutionRequired: null` — not `false`: nothing here has said that no resolution is owed, only that nobody can say.",
+  "covers": [
+    "F-CORE-039"
+  ],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "Neutral Ltd",
+        "baseCurrency": "EUR",
+        "pack": "default",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1",
+          "pack": {
+            "id": "default"
+          }
+        }
+      }
+    },
+    {
+      "op": "setEntityProfile",
+      "input": {
+        "tenant": "$T1",
+        "legalForm": "gmbh"
+      },
+      "expect": {
+        "error": "E_INPUT_INVALID"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "tenantConfiguration",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "entityProfile": null,
+        "legalForms": [],
+        "sizeClasses": []
+      }
+    },
+    {
+      "name": "unappropriatedResult",
+      "params": {
+        "tenant": "$T1"
+      },
+      "expect": {
+        "legalForm": null,
+        "resolutionRequired": null,
+        "resolutionBasis": null
+      }
+    }
+  ]
+}

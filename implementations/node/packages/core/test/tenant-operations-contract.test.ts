@@ -30,7 +30,7 @@ const OPERATIONS = [
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
   'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
   'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
-  'appropriateResult',
+  'appropriateResult', 'setEntityProfile',
 ] as const;
 
 const PROJECTIONS = [
@@ -39,7 +39,7 @@ const PROJECTIONS = [
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
   'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
-  'tenantConfiguration',
+  'tenantConfiguration', 'unappropriatedResult',
 ] as const;
 
 /**

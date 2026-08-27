@@ -40,6 +40,7 @@ neuer Packs.
 | 8 | `modul-8-policy-de-eur.md` | `policy` | `de-policy` | 2026.1 |
 | 9 | `modul-9-result-appropriation.md` | `resultAppropriation` | `de-ergebnisverwendung` | 2026.1 |
 | 10 | `modul-10-production-cost-de.md` | `productionCost` | `de-herstellungskosten` | 2026.1 |
+| 11 | `modul-11-legal-forms-de.md` | `legalForms` | `de-rechtsformen` | 2026.1 |
 
 Dazu:
 

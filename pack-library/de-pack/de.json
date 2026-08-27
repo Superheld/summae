@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.6",
+  "version": "2026.7",
   "modules": [
     {
       "kind": "accounts",
@@ -52,6 +52,11 @@
     {
       "kind": "productionCost",
       "id": "de-herstellungskosten",
+      "version": "2026.1"
+    },
+    {
+      "kind": "legalForms",
+      "id": "de-rechtsformen",
       "version": "2026.1"
     }
   ],

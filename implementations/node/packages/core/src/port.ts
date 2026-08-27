@@ -166,6 +166,8 @@ export interface TenantRecordData {
     dimensionValues: Array<{ typeCode: string; code: string }>;
     allocationScheme: Record<string, unknown> | null;
     mappings: Record<string, unknown>[];
+    /** What the entity IS — legal form and, where a jurisdiction knows one, size class (F-CORE-039). */
+    entityProfile: { legalForm: string; sizeClass: string | null } | null;
   };
 }
 

@@ -854,6 +854,17 @@ export class DatabaseTenantRecordRepository implements TenantRecordRepository {
           : [],
         allocationScheme: H.isRecord(config.allocationScheme) ? config.allocationScheme : null,
         mappings: Array.isArray(config.mappings) ? config.mappings.filter(H.isRecord) : [],
+        // Read leniently on purpose (F-CORE-039): the books outlive a pack version, so a form the
+        // current pack no longer declares comes back as it was stored and simply stops resolving to
+        // a rule — the alternative is a tenant that cannot be opened.
+        entityProfile:
+          H.isRecord(config.entityProfile) && typeof config.entityProfile.legalForm === 'string'
+            ? {
+                legalForm: config.entityProfile.legalForm,
+                sizeClass:
+                  typeof config.entityProfile.sizeClass === 'string' ? config.entityProfile.sizeClass : null,
+              }
+            : null,
       },
     };
   }

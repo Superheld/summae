@@ -1,0 +1,18 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-legal-forms",
+  "kind": "legalForms",
+  "version": "2026.1",
+  "name": "US legal forms (no statutory appropriation deadline)",
+  "contributes": ["legalForms"],
+  "data": {
+    "sizeClasses": [],
+    "forms": {
+      "soleProprietorship": { "label": "Sole proprietorship", "resolution": { "required": false } },
+      "partnership": { "label": "Partnership", "resolution": { "required": false } },
+      "llc": { "label": "Limited liability company", "resolution": { "required": false } },
+      "sCorporation": { "label": "S corporation", "resolution": { "required": false } },
+      "cCorporation": { "label": "C corporation", "resolution": { "required": false } }
+    }
+  }
+}

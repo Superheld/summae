@@ -96,3 +96,32 @@ describe('CalendarDate — day difference without the host Date', () => {
     expect(CalendarDate.of(later).daysSince(CalendarDate.of(earlier))).toBe(days);
   });
 });
+
+describe('plusMonths', () => {
+  // Month arithmetic on three numbers, not on a timestamp. The clamping rule is the point: the
+  // deadline a pack declares as "n months" is measured from a fiscal year end, and those land on
+  // 31 December, 30 June and 30 November far more often than on the 15th.
+  //
+  // The SAME cases live in the PHP CalendarDateTest.
+  const cases = [
+    { from: '2026-12-31', months: 8, to: '2027-08-31' }, // day 31 survives where the month has one
+    { from: '2026-06-30', months: 8, to: '2027-02-28' }, // clamped, and not 3 March
+    { from: '2024-01-31', months: 1, to: '2024-02-29' }, // clamped to a leap day
+    { from: '2023-01-31', months: 1, to: '2023-02-28' },
+    { from: '2026-11-30', months: 8, to: '2027-07-30' }, // plain arithmetic; lastDayOfMonth takes it to the 31st
+    { from: '2026-01-15', months: 0, to: '2026-01-15' },
+    { from: '2026-01-15', months: 12, to: '2027-01-15' },
+    { from: '2026-01-15', months: -1, to: '2025-12-15' }, // backwards across the year boundary
+    { from: '2026-03-31', months: -1, to: '2026-02-28' },
+  ] as const;
+
+  it.each(cases)('$from plus $months months = $to', ({ from, months, to }) => {
+    expect(CalendarDate.of(from).plusMonths(months).iso).toBe(to);
+  });
+
+  it('reaches the end of the nth month, which is what a deadline means', () => {
+    // "within the first eight months of the following financial year" for a year ending 30 November
+    // runs to 31 July — one day later than plain month arithmetic, and the wrong side to be wrong on.
+    expect(CalendarDate.of('2026-11-30').plusMonths(8).lastDayOfMonth().iso).toBe('2027-07-31');
+  });
+});

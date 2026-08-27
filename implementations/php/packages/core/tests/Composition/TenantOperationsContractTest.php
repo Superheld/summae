@@ -33,7 +33,7 @@ final class TenantOperationsContractTest extends TestCase
         'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
         'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
         'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
-        'appropriateResult',
+        'appropriateResult', 'setEntityProfile',
     ];
 
     /** @var list<string> */
@@ -43,7 +43,7 @@ final class TenantOperationsContractTest extends TestCase
         'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
         'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
-        'tenantConfiguration',
+        'tenantConfiguration', 'unappropriatedResult',
     ];
 
     private function freshOps(): TenantOperations

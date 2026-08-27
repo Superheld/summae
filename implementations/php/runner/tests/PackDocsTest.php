@@ -20,12 +20,21 @@ use PHPUnit\Framework\TestCase;
  * A reference work that is wrong is worse than none: it is believed. So the parts a machine can
  * check are checked, and the prose is left alone.
  *
- * Three rules, each narrow enough that a pack author can satisfy it without guessing:
+ * Four rules, each narrow enough that a pack author can satisfy it without guessing:
  *  1. every module the manifest lists has exactly one document, found by its own `id:` header;
  *  2. that header states the module's real `kind`, `id` and `version` — so a version bump cannot
  *     land without the document being opened;
  *  3. a mapping document's table names every position of its module, and each row carries the
- *     account selection that position really has.
+ *     account selection that position really has;
+ *  4. every pack has exactly one MANIFEST document (`pack:` in its header) naming the pack's real id
+ *     and version, and listing every module the manifest bundles.
+ *
+ * Rule 4 came a release later than the other three, and the gap it left is the reason it exists:
+ * the module documents were repaired on 2026-08-26 and the two manifest documents beside them were
+ * not even looked at — they described packs called `de-complete` and `us-complete` at version
+ * 2026.1 with eight modules each, none of which has existed since the packs were renamed. A reader
+ * following them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN` (IMPL-034). The
+ * guard reached modules and stopped exactly where the folder stopped being checked.
  *
  * Deliberately NOT checked: labels and prose. A document may call a position something clearer
  * than the module's own label, and should.
@@ -119,6 +128,79 @@ final class PackDocsTest extends TestCase
             $violations,
             "The header is what a reader trusts before reading anything else, and a version bump\n"
                 . "that leaves it behind makes the whole document undatable:\n"
+                . implode("\n", $violations),
+        );
+    }
+
+    public function testEveryPackHasAManifestDocumentNamingWhatItReallyBundles(): void
+    {
+        $violations = [];
+
+        foreach ($this->packs() as $pack => $dir) {
+            $manifest = $this->manifestOf($dir);
+            if ($manifest === null) {
+                continue;
+            }
+            $id = is_string($manifest['id'] ?? null) ? $manifest['id'] : '';
+            $docs = [];
+            foreach ($this->docsIn($this->docsDir($pack)) as $candidate) {
+                if (isset($candidate['header']['pack'])) {
+                    $docs[] = $candidate;
+                }
+            }
+
+            if ($docs === []) {
+                $violations[] = sprintf('%s: no manifest document (a document with `pack: %s` in its header)', $pack, $id);
+                continue;
+            }
+            if (count($docs) > 1) {
+                $violations[] = sprintf(
+                    '%s: %d manifest documents: %s',
+                    $pack,
+                    count($docs),
+                    implode(', ', array_map(static fn (array $d): string => (string) $d['file'], $docs)),
+                );
+                continue;
+            }
+
+            $doc = $docs[0];
+            $header = $doc['header'];
+            if ($header['pack'] !== $id) {
+                $violations[] = sprintf(
+                    '%s (%s): says pack %s, the manifest says %s',
+                    $pack,
+                    (string) $doc['file'],
+                    $header['pack'],
+                    $id,
+                );
+            }
+            if (isset($header['version']) && $header['version'] !== ($manifest['version'] ?? null)) {
+                $violations[] = sprintf(
+                    '%s (%s): says version %s, the manifest says %s',
+                    $pack,
+                    (string) $doc['file'],
+                    (string) $header['version'],
+                    is_string($manifest['version'] ?? null) ? $manifest['version'] : '',
+                );
+            }
+            foreach (is_array($manifest['modules'] ?? null) ? $manifest['modules'] : [] as $ref) {
+                $refId = is_array($ref) && is_string($ref['id'] ?? null) ? $ref['id'] : null;
+                if ($refId !== null && !str_contains((string) $doc['text'], $refId)) {
+                    $violations[] = sprintf(
+                        '%s (%s): does not mention the bundled module "%s"',
+                        $pack,
+                        (string) $doc['file'],
+                        $refId,
+                    );
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $violations,
+            "The manifest document is what a reader copies from — a pack id it names has to be one\n"
+                . "that resolves, and a module the pack bundles has to appear in the bundle it describes:\n"
                 . implode("\n", $violations),
         );
     }
@@ -253,7 +335,7 @@ final class PackDocsTest extends TestCase
             $header = [];
             if (preg_match('/```[\s\S]*?```/', $text, $fence) === 1) {
                 foreach (preg_split('/[·\n]/u', $fence[0]) ?: [] as $part) {
-                    if (preg_match('/^\s*(kind|id|version|formatVersion)\s*:\s*([A-Za-z0-9._-]+)/', $part, $m) === 1) {
+                    if (preg_match('/^\s*(kind|id|pack|version|formatVersion)\s*:\s*([A-Za-z0-9._-]+)/', $part, $m) === 1) {
                         $header[$m[1]] = $m[2];
                     }
                 }

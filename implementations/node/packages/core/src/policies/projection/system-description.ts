@@ -43,7 +43,7 @@ export const API_OPERATIONS = [
    'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setTaxProfile', 'settle',
+   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile', 'settle',
    'unlockAccount', 'updatePartner', 'writeDownAsset',
 ] as const;
 
@@ -52,7 +52,7 @@ export const API_PROJECTIONS = [
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
   'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
-  'unfinalizedEntries', 'vatReturn',
+  'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
 /**
@@ -135,6 +135,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'fiscalYear', actions: ['created', 'closed'] },
   { objectType: 'period', actions: ['closed', 'reopened'] },
   { objectType: 'taxProfile', actions: ['changed'] },
+  { objectType: 'entityProfile', actions: ['changed'] },
   { objectType: 'mapping', actions: ['imported'] },
   { objectType: 'allocationScheme', actions: ['changed'] },
   { objectType: 'asset', actions: ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown'] },

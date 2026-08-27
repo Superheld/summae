@@ -49,6 +49,7 @@ final readonly class DatabaseTenantRecordRepository implements TenantRecordRepos
                 'dimensionValues' => self::valueList($config['dimensionValues'] ?? null),
                 'allocationScheme' => self::block($config['allocationScheme'] ?? null),
                 'mappings' => self::mappingList($config['mappings'] ?? null),
+                'entityProfile' => self::entityProfile($config['entityProfile'] ?? null),
             ],
         );
     }
@@ -100,6 +101,25 @@ final readonly class DatabaseTenantRecordRepository implements TenantRecordRepos
         }
 
         return $out;
+    }
+
+    /**
+     * A stored entity profile, or null. Read leniently on purpose (F-CORE-039): the books outlive a
+     * pack version, so a form the current pack no longer declares comes back as it was stored and
+     * simply stops resolving to a rule — the alternative is a tenant that cannot be opened.
+     *
+     * @return array{legalForm: string, sizeClass: string|null}|null
+     */
+    private static function entityProfile(mixed $value): ?array
+    {
+        if (!is_array($value) || !is_string($value['legalForm'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'legalForm' => $value['legalForm'],
+            'sizeClass' => is_string($value['sizeClass'] ?? null) ? $value['sizeClass'] : null,
+        ];
     }
 
     /** @return array<string, mixed>|null */

@@ -1,0 +1,239 @@
+{
+  "fixture": "unappropriated-result",
+  "description": "The read side of `appropriateResult` (F-CORE-024/SF-25). Until this projection existed the figure could only be obtained by doing something wrong: it left the library as the `available` detail of an `E_APPROPRIATION_EXCEEDS_RESULT` refusal, so an application pre-filling a resolution dialog had to provoke that error on purpose, or read the balance-sheet position carrying `includesNetIncome` — which presupposes a mapping and knowing which position that is. Two years earn 900 and 500; a resolution naming 2026 carries 300 forward. The three top-level figures then describe the pot as a whole — `result_allocation` accounts say what was appropriated, never which year's profit it consumed — while `byFiscalYear` says where the pot came from. The field that is the contract is `available`: it is not a second implementation of the cap, it IS the function the operation refuses against, which is why the last step's refusal and the projection's 600.00 are the same number. That refusal is also the year scope made visible: 700.00 is there in the books, but it was earned in 2027 and cannot be resolved under a 2026 resolution.",
+  "covers": [
+    "F-CORE-024",
+    "F-CORE-038",
+    "SF-25"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Verwendung GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "2100",
+        "name": "Gewinnvortrag",
+        "type": "equity"
+      },
+      {
+        "number": "2300",
+        "name": "Ergebnisverwendung",
+        "type": "equity",
+        "subtype": "result_allocation"
+      },
+      {
+        "number": "8400",
+        "name": "Erlöse",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2026-01-01",
+            "end": "2026-12-31"
+          }
+        ]
+      },
+      {
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31",
+        "periods": [
+          {
+            "period": 1,
+            "start": "2027-01-01",
+            "end": "2027-12-31"
+          }
+        ]
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AR-1",
+        "voucherDate": "2026-06-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "AR-2",
+        "voucherDate": "2027-06-01"
+      },
+      {
+        "id": "$V3",
+        "voucherNumber": "BESCHLUSS-1",
+        "voucherDate": "2027-12-30",
+        "kind": "internal"
+      }
+    ],
+    "ruleModules": {
+      "resultAppropriation": {
+        "allocationAccount": "2300",
+        "targets": {
+          "carryForward": {
+            "account": "2100",
+            "label": "Gewinnvortrag"
+          }
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-06-01",
+        "voucherId": "$V1",
+        "text": "Erlös 2026",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-06-01",
+        "voucherId": "$V2",
+        "text": "Erlös 2027",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "8400",
+            "side": "credit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "comment": "Part of 2026's result carried forward; `remaining` is what a second resolution naming 2026 could still take.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "fiscalYear": 2026,
+          "remaining": "600.00"
+        }
+      }
+    },
+    {
+      "comment": "The other 700.00 exists — but it was earned in 2027. A resolution naming 2026 cannot reach it.",
+      "op": "appropriateResult",
+      "input": {
+        "fiscalYear": 2026,
+        "entryDate": "2027-12-30",
+        "voucherId": "$V3",
+        "appropriations": [
+          {
+            "target": "carryForward",
+            "money": {
+              "amount": "700.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "error": "E_APPROPRIATION_EXCEEDS_RESULT"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "comment": "The pot as a whole, and where it came from. 2026's own figure is 900 − 300 already appropriated; 2027's is everything through it, minus the same 300.",
+      "name": "unappropriatedResult",
+      "params": {},
+      "expect": {
+        "cumulativeResult": "1400.00",
+        "appropriated": "300.00",
+        "unappropriated": "1100.00",
+        "byFiscalYear": [
+          {
+            "fiscalYear": 2026,
+            "result": "900.00",
+            "cumulativeResult": "900.00",
+            "available": "600.00"
+          },
+          {
+            "fiscalYear": 2027,
+            "result": "500.00",
+            "cumulativeResult": "1400.00",
+            "available": "1100.00"
+          }
+        ]
+      }
+    },
+    {
+      "comment": "`fiscalYear` scopes the rows, never the pot: the totals still describe the whole book, because the allocation accounts do not know about years.",
+      "name": "unappropriatedResult",
+      "params": {
+        "fiscalYear": 2027
+      },
+      "expect": {
+        "cumulativeResult": "1400.00",
+        "appropriated": "300.00",
+        "unappropriated": "1100.00",
+        "byFiscalYear": [
+          {
+            "fiscalYear": 2027,
+            "result": "500.00",
+            "cumulativeResult": "1400.00",
+            "available": "1100.00"
+          }
+        ]
+      }
+    }
+  ]
+}

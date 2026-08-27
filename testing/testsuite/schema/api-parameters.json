@@ -340,6 +340,11 @@
         }
       }
     },
+    "setEntityProfile": {
+      "legalForm": { "type": "string", "required": true },
+      "sizeClass": { "type": "string" },
+      "actor": { "type": "string" }
+    },
     "setTaxProfile": {
       "smallBusiness": {
         "type": "object",
@@ -684,6 +689,11 @@
       }
     },
     "fiscalYears": {
+      "fiscalYear": {
+        "type": "integer"
+      }
+    },
+    "unappropriatedResult": {
       "fiscalYear": {
         "type": "integer"
       }

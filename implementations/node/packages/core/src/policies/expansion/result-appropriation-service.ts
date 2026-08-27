@@ -2,9 +2,9 @@ import { DomainError, rejectedValue } from '../../domain-error.js';
 import type { AccountRepository, JournalRepository } from '../../port.js';
 import type { Currency } from '../../substrate/currency.js';
 import { Money } from '../../substrate/money.js';
-import { isBalanceCarrying } from '../../substrate/types.js';
 import type { Ledger } from '../../ledger/ledger.js';
 import type { AuditWriter } from '../../ledger/audit-writer.js';
+import { UnappropriatedResult } from '../projection/unappropriated-result.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -29,14 +29,10 @@ function asString(value: unknown): string | null {
  * an application guesses, and a guessed account number is a wrong posting rather than an error
  * message. Here a wrong target is refused by name and a wrong amount by the books.
  *
- * **What may be appropriated** is the result *not yet appropriated*: the cumulative result of all
- * fiscal years up to and including the one named, minus the balance of the `result_allocation`
- * accounts over the whole journal. That is deliberately the same figure the balance sheet reports
- * in its `includesNetIncome` position, so the number a user reads and the number this refuses
- * against cannot drift apart. The allocation accounts are counted over the whole journal and not
- * only up to the named year, because a resolution is dated *after* the year it appropriates —
- * cutting them at the year boundary would make every past appropriation invisible and let the same
- * profit be appropriated twice.
+ * **What may be appropriated** is the result *not yet appropriated*, and that figure is not computed
+ * here: `unappropriatedResult` publishes it and this operation asks the same projection, so the
+ * number a user reads and the number this refuses against cannot drift apart. It is also the figure
+ * the balance sheet reports in its `includesNetIncome` position.
  *
  * A loss appropriates the other way round (allocation account in credit), and the amounts stay
  * positive in the input either way: the direction follows from the books, not from a sign the
@@ -71,7 +67,9 @@ export class ResultAppropriationService {
     }
 
     const requested = this.parseAppropriations(input.appropriations, plug);
-    const available = this.unappropriated(fiscalYear);
+    const available = new UnappropriatedResult(this.baseCurrency, this.accounts, this.journal).available(
+      fiscalYear,
+    );
 
     // Nothing to appropriate is refused rather than posted as zero: an entry that moves nothing
     // would sit in the books claiming a resolution took effect.
@@ -219,34 +217,6 @@ export class ResultAppropriationService {
       });
     }
     return money;
-  }
-
-  /**
-   * The result of every year up to and including `fiscalYear`, minus what the result-allocation
-   * accounts already carry — the figure the balance sheet publishes as "not yet appropriated".
-   */
-  private unappropriated(fiscalYear: number): Money {
-    let result = Money.zero(this.baseCurrency);
-    let allocated = Money.zero(this.baseCurrency);
-
-    for (const entry of this.journal.all()) {
-      const withinYear = entry.periodRef.fiscalYear <= fiscalYear;
-      for (const line of entry.lines()) {
-        const account = this.accounts.byId(line.accountId);
-        if (account === null) continue;
-
-        if (!isBalanceCarrying(account.type)) {
-          if (!withinYear) continue;
-          result = line.side === 'credit' ? result.add(line.money) : result.subtract(line.money);
-          continue;
-        }
-        if (account.subtype === 'result_allocation') {
-          allocated = line.side === 'debit' ? allocated.add(line.money) : allocated.subtract(line.money);
-        }
-      }
-    }
-
-    return result.subtract(allocated);
   }
 
   /** Which targets this tenant can appropriate to — for a caller that wants to offer a choice. */

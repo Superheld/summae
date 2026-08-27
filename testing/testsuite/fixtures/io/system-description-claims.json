@@ -1,0 +1,118 @@
+{
+  "fixture": "system-description-claims",
+  "description": "F-IO-007, carried forward once more — and this time the audited-event census goes the way the capability census went. The technical system description is the block of a Verfahrensdokumentation a library can actually produce (GoBD Rz. 151 ff.): what the engine enforces, how the journal behaves, what is audited, and what it deliberately does NOT do. All of that is still pinned here. What is NOT pinned any more is the full `auditTrail.events` list. That expectation read `summae audits exactly these fifteen object types` — a census of the product's surface, so no operation could start writing a trail without this fixture going red, which is what happened the moment `setEntityProfile` did. And it is the same case as the capability list the predecessor already retired: what it guarded is guarded better elsewhere. `audit-trail-contract.test.ts` / `AuditTrailContractTest` run every state-changing operation for real and compare what it writes against what `systemDescription` claims, in BOTH directions and in both languages — a claimed event no operation produces fails as loudly as an operation that writes an unclaimed one. A hand-written list in a fixture can only repeat that, and it charges a fixture generation for every new audited event. What stays pinned is what the list cannot say for itself: that the trail is reported at all, that `actorIsAuthenticated` is false, and that `actorAuthentication` reports the embedding's declaration as a declaration.",
+  "covers": [
+    "F-IO-007"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": []
+  },
+  "steps": [],
+  "projections": [
+    {
+      "name": "systemDescription",
+      "params": {},
+      "expect": {
+        "tenant": {
+          "name": "Fixture GmbH",
+          "baseCurrency": "EUR"
+        },
+        "pack": null,
+        "journal": {
+          "appendOnly": true,
+          "ordering": "sequenceNumber",
+          "lifecycle": [
+            "entered",
+            "finalized"
+          ],
+          "correction": "reversal with back-reference (`reverses` / `reversedBy`)",
+          "dates": {
+            "voucherDate": "date on the voucher",
+            "entryDate": "bookkeeping date, zoneless",
+            "recordedAt": "moment of recording, canonical UTC timestamp"
+          }
+        },
+        "invariants": [
+          {
+            "id": "balanced-posting",
+            "statement": "Every posting balances: the sum of its lines is zero.",
+            "enforcedBy": "Rejected on write with E_ENTRY_UNBALANCED; never checked on read."
+          },
+          {
+            "id": "append-only-journal",
+            "statement": "The journal is append-only. Nothing is deleted, nothing is overwritten.",
+            "enforcedBy": "No delete or update path exists on the journal repository."
+          },
+          {
+            "id": "immutable-after-finalization",
+            "statement": "A finalized posting cannot be changed; a correction is a reversal that references the original.",
+            "enforcedBy": "JournalEntry refuses the change itself (E_ENTRY_FINALIZED); reverse writes a new entry carrying `reverses`."
+          },
+          {
+            "id": "gapless-numbering",
+            "statement": "Journal numbers are gapless; the number is assigned atomically while posting.",
+            "enforcedBy": "Number assignment is the serialization point of `post` in the persistence adapter."
+          },
+          {
+            "id": "mandatory-voucher",
+            "statement": "No posting without exactly one voucher reference.",
+            "enforcedBy": "voucherId is not nullable; an unknown one is E_VOUCHER_UNKNOWN."
+          },
+          {
+            "id": "closed-periods",
+            "statement": "A closed period accepts no further postings; periods close in order.",
+            "enforcedBy": "E_PERIOD_CLOSED on every write into a closed period."
+          },
+          {
+            "id": "projections-not-stored-balances",
+            "statement": "Every balance, trial balance, balance sheet, income statement and VAT return is recomputed from the journal.",
+            "enforcedBy": "No balance is stored anywhere; there is no second source to diverge from."
+          },
+          {
+            "id": "exact-money",
+            "statement": "Amounts are exact decimals, never floating point. Rounding is commercial half-up, away from zero.",
+            "enforcedBy": "Money is built on a decimal library (brick/math in PHP, big.js in Node)."
+          },
+          {
+            "id": "determinism",
+            "statement": "The same input produces a byte-identical result, in every implementation.",
+            "enforcedBy": "Injectable Clock and IdGenerator, canonical JSON (RFC 8785), sorting by Unicode code point; the conformance suite runs twice and compares."
+          },
+          {
+            "id": "audit-trail",
+            "statement": "Every state-changing operation writes an audit record with actor, timestamp, object and before/after values.",
+            "enforcedBy": "Enumerating contract test over all state-changing operations, in both implementations."
+          },
+          {
+            "id": "zoneless-dates",
+            "statement": "Posting and voucher dates carry no time zone, so no shift can move a posting into another period.",
+            "enforcedBy": "CalendarDate stores an ISO date and does its arithmetic without the host date type."
+          }
+        ],
+        "auditTrail": {
+          "actorIsAuthenticated": false
+        },
+        "comment": "Alles, was die Software über sich selbst behaupten muss — Invarianten samt Durchsetzungsstelle, auditierte Ereignisse, die Journal-Beschreibung und die Abgrenzung. Die Fähigkeitslisten prüft der Contract-Test gegen die Routing-Tabelle, nicht diese Fixture gegen eine Abschrift."
+      }
+    }
+  ]
+}
