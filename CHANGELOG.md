@@ -10,7 +10,7 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
-## 0.15.0 — unreleased
+## 0.15.0 — 2026-08-27
 
 **The number you could only get by doing it wrong.** `appropriateResult` has known since v0.4 how
 much of a result is still unappropriated — it refuses against that figure on every call — and there
