@@ -10,7 +10,13 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
-## 0.15.1 — unreleased
+## 0.16.0 — unreleased
+
+> **Minor, not a patch, and the number was wrong before this line was written.** The work below
+> moves the data format 0.7 → 0.8, adds two projections (`auditTrailIntegrity`, `gdpduExport`) and
+> changes the shipped `de` pack's behaviour — a posting that reduces a taxable consideration without
+> its VAT correction is now refused where it used to go through. Under 0.x a minor may break, and
+> this one does, for a tenant that was booking incompletely.
 
 ### The Z3 data carrier an auditor actually receives (F-IO-012)
 
