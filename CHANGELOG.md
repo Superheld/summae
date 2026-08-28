@@ -12,6 +12,44 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.15.1 — unreleased
 
+### The Z3 data carrier an auditor actually receives (F-IO-012)
+
+`journalExport` has always produced the *self-describing data set* — streams, content hashes, field
+catalogue — which is what machine evaluability under GoBD Z3 requires. What a German tax auditor
+receives on the medium is a different shape: **flat files plus an `index.xml`** written to the
+*Beschreibungsstandard für die Datenträgerüberlassung*, which is what the audit software IDEA
+imports. That mapping was not in the package, and `docs/gobd-conformance.md` §10 carried it as its
+last open row.
+
+**`gdpduExport` produces it**, written against **standard version 1.6 of 1 March 2019**, DTD
+`gdpdu-01-03-2019.dtd`. Five tables — journal, accounts, vouchers, partners (only when there are any)
+and the audit log — each with its columns typed and described in `index.xml`.
+
+- **The journal is flattened to one row per posting line.** A CSV cannot nest, and an auditor's first
+  act is to sum debit and credit per account, which needs the line rather than the entry.
+- **Keys are declared**, primary and foreign, so IDEA can join the five files instead of receiving
+  them unrelated. That is the difference between a data set and five dumps.
+- **The fixture pins the exact bytes** in both languages. The DTD fixes element order — `Table` is
+  `(URL, Name?, Description?, Validity?, …)` and an importer rejects a shuffled file — so a subset
+  expectation would let a reordering pass unnoticed.
+- **Conformance was established, not assumed:** the output was validated against the published DTD
+  with a negative control (a `Table` whose `Name` and `Description` are swapped is rejected, so
+  "valid" meant something). `GdpduIndexStructureTest` / `gdpdu-index-structure.test.ts` then state the
+  DTD's content models as assertions, so the reason lives in the repository rather than in a memo.
+
+**Three things stay yours**, and the response says so in `notProvided`: writing the files (summae
+owns no file system), placing `gdpdu-01-03-2019.dtd` on the medium (a normative document we name
+rather than redistribute), and supplying the voucher images.
+
+**This reverses a documented scope decision, and the reversal is recorded where the decision stood.**
+The root `CLAUDE.md` and `out-of-scope.md` listed the mapping as deliberately out of scope — "don't
+start it by accident". The reasoning was never wrong about the facts; it was wrong about what it
+implied. "We ship the mapping's *input*" and "the books are auditable" are different claims, and an
+audit asking for a data carrier does not care which one was meant. The justification that aged worst
+is the old entry's own closing line — *"nothing in the test suite fails because of this, which is
+exactly why it is written down here"*. In hindsight that is the warning, not the defence: a scope
+decision that survives only because nothing tests it is one to re-read periodically.
+
 ### The six us-pack sign-offs are decided — and the product does not move
 
 Open since 2026-06-23, they kept the `us` pack from being recommended for production. Five confirm

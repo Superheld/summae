@@ -675,6 +675,16 @@
     "personalDataDescription": {},
     "systemDescription": {},
     "auditTrailIntegrity": {},
+    "gdpduExport": {
+      "fiscalYear": {
+        "type": "integer",
+        "$comment": "Absent means the whole ledger. An audit usually asks for one year, and handing over more than was asked for is its own problem."
+      },
+      "mediaName": {
+        "type": "string",
+        "$comment": "The <Media><Name> in index.xml. Defaults to Disk1, which is what the standard's own examples use; set it when a data set spans several media."
+      }
+    },
     "accounts": {},
     "journal": {
       "fiscalYear": {

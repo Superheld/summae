@@ -2304,12 +2304,67 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.7"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.8"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
 SHA-256 over RFC-8785-canonicalized rows per stream. The audit trail is always
 part of the export.
+
+### gdpduExport — the Z3 data carrier an auditor's IDEA import expects
+
+`fiscalYear` (no; absent means the whole ledger), `mediaName` (no; default `"Disk1"`). Output:
+`standard`, `dtd`, `indexXml`, `tables[]` (`url`, `name`, `rowCount`, `content`) and `notProvided[]`.
+
+**What this is, next to [`journalExport`](#journalexport--gobd-z3-export).** `journalExport` gives
+you the *self-describing data set* — JSON streams plus a field catalogue plus content hashes — which
+is what a machine-evaluable handover under GoBD Z3 requires. What a German tax auditor actually
+receives on the medium is different in shape: **flat files plus an `index.xml`** written to the
+*Beschreibungsstandard für die Datenträgerüberlassung*, which is what the audit software IDEA
+imports. `gdpduExport` produces exactly that. It is a **mapping and not a second truth**: every value
+in it already exists in the books.
+
+Written against **standard version 1.6 of 1 March 2019**, DTD `gdpdu-01-03-2019.dtd`.
+
+**The tables**, each with its columns typed and described in `index.xml`:
+
+| File | Content | Primary key |
+|---|---|---|
+| `journal.csv` | one row **per posting line**, entry header repeated | `entryId` + `lineNumber` |
+| `accounts.csv` | chart of accounts | `number` |
+| `vouchers.csv` | voucher master data (never the images) | `voucherId` |
+| `partners.csv` | debtors/creditors — **only when the tenant has any** | `partnerId` |
+| `auditLog.csv` | the change history incl. both chain hashes | `recordId` |
+
+The journal is flattened to line level because a CSV cannot nest and because the first thing an
+auditor does is sum debit and credit per account, which needs the line. `index.xml` declares foreign
+keys from `journal.csv` to `accounts.csv` and `vouchers.csv`, so IDEA can join the five files rather
+than treat them as unrelated.
+
+**Three things you must do yourself**, and they are repeated in the response's `notProvided`:
+
+1. **Write the files.** summae is a library and owns no file system. `indexXml` and every table come
+   back as content; you write them into one folder, `index.xml` at its root.
+2. **Put `gdpdu-01-03-2019.dtd` beside `index.xml`.** The standard requires it on the medium. summae
+   names the version it wrote against but does not ship the file — it is the standard publisher's
+   normative document, and a library that quietly redistributed it would be making a promise about
+   its version that it cannot keep.
+3. **Supply the voucher images** from your archive. The carrier holds the bookkeeping data and the
+   voucher *reference*, as everywhere else in summae.
+
+Amounts are written the way summae stores them — dot as the decimal symbol, no digit grouping — and
+`index.xml` declares that per table, because the standard's own defaults are the German ones and
+would read `1234.56` as one million. Dates are ISO (`YYYY-MM-DD`), declared explicitly for the same
+reason. Encoding is UTF-8, columns are `;`-delimited, values are quoted only where they have to be.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "standard": "Beschreibungsstandard für die Datenträgerüberlassung 1.6 (2019-03-01)",
+  "dtd": "gdpdu-01-03-2019.dtd",
+  "indexXml": "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>…",
+  "tables": [ { "url": "journal.csv", "name": "Journal", "rowCount": 12, "content": "entryId;lineNumber;…" } ],
+  "notProvided": [ "gdpdu-01-03-2019.dtd itself — …", "Writing the files. …", "Document images. …" ] }
+```
 
 ### auditDataExport — AICPA Audit Data Standard (US)
 

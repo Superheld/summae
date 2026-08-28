@@ -121,6 +121,10 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
     fiscalYear: { type: 'integer', required: true },
     format: { type: 'string' },
   },
+  gdpduExport: {
+    fiscalYear: { type: 'integer' },
+    mediaName: { type: 'string' },
+  },
   datevExport: {
     kind: { type: 'string' },
     fiscalYear: { type: 'integer' },

@@ -11,6 +11,7 @@ use Summae\Core\Policies\Projection\AssetRegisterProjection;
 use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
 use Summae\Core\Policies\Projection\AuditTrailIntegrityProjection;
+use Summae\Core\Policies\Projection\GdpduExportProjection;
 use Summae\Core\Policies\Projection\BalanceSheetProjection;
 use Summae\Core\Policies\Projection\CashBasisProjection;
 use Summae\Core\Policies\Projection\CashJournalProjection;
@@ -171,6 +172,17 @@ final readonly class TenantOperations
                 $tenant->audit,
             ))->compute($params),
             'auditTrailIntegrity' => (new AuditTrailIntegrityProjection($tenant->audit))->run(),
+            'gdpduExport' => (new GdpduExportProjection(
+                $tenant->id,
+                $tenant->name,
+                $tenant->baseCurrency,
+                $tenant->journal,
+                $tenant->accounts,
+                $tenant->vouchers,
+                $tenant->partners,
+                $tenant->audit,
+                $tenant->clock,
+            ))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection(
                 $tenant->id,
                 $tenant->name,

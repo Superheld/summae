@@ -91,6 +91,10 @@ final class ProjectionParameters
         'personalDataDescription' => [],
         'systemDescription' => [],
         'auditTrailIntegrity' => [],
+        'gdpduExport' => [
+            'fiscalYear' => ['type' => 'integer'],
+            'mediaName' => ['type' => 'string'],
+        ],
         // Takes no parameters either, and the reason is the same shape: the chart is what it is. A
         // filter would only save the caller a `filter()` while making "which accounts exist" a
         // question with more than one answer.

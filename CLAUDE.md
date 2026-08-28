@@ -33,15 +33,22 @@ summae provides **capabilities** (GoBD-compliant posting, reports, exports); leg
 user must by X…*" = app. Library, not an app: **no UI, no server, no forced DB**
 (persistence behind an interface), multi-tenant at the data level. Deliberately **out of scope**
 (not „not yet built" — don't start it by accident): UI/frontend · ELSTER / authority submission ·
-e-invoice creation/parsing (XRechnung/ZUGFeRD) · **the GoBD Z3 `index.xml` mapping** (the
-self-describing data set incl. field catalogue is `journalExport`; turning it into the
-DTD-conforming data carrier is the app's — `datenformat.md`: "a mapping, not an invention", and
-no test goes red for its absence) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+e-invoice creation/parsing (XRechnung/ZUGFeRD) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
 are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
 *posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax) ·
 **cost-accounting steering instruments** (planned-cost/variance, activity-based, contribution-margin — decided
 2026-08-23; the *balance-sheet* part of cost accounting, production cost per § 255 Abs. 2 HGB for inventory
 valuation, is deliberately **in** scope and simply not built yet).
+
+> **One line left this list on 2026-08-28, and that is worth recording rather than quietly
+> deleting.** The **GoBD Z3 `index.xml` mapping** stood here as deliberately out of scope: the
+> self-describing data set was `journalExport`, and turning it into the DTD-conforming data carrier
+> was said to be the app's. The reasoning was never wrong about the facts — `datenformat.md` still
+> says the export is "a mapping, not an invention" — but "we ship the mapping's *input*" and "the
+> books are auditable" are not the same claim, and an audit asking for a data carrier does not care
+> which of the two we meant. It is now built (`gdpduExport`, F-IO-008, Beschreibungsstandard 1.6).
+> A scope decision that survives only because nothing tests it is worth re-reading now and then;
+> this one did not survive the re-read.
 
 ## Architecture (the big picture)
 

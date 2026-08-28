@@ -30,7 +30,7 @@
 4. **Daten/Zeiten:** ISO 8601; Datum `"2026-06-07"`, Zeitstempel mit Zone `"2026-06-07T14:30:00+02:00"`.
 5. **Versionierung:** jede Datei/jeder Datensatzstrom trägt `formatVersion` (semver). Migrationspfade n→n+1 sind Teil künftiger Spec-Versionen.
 6. **Append-only-freundlich:** Journal als fortlaufende, unveränderliche Einträge; alles Abgeleitete ist nicht Teil des Formats (Projektionen werden berechnet, nie ausgetauscht).
-7. **Selbstbeschreibend für GoBD Z3:** Feldkatalog (Name, Typ, Bedeutung) ist Bestandteil dieser Spec → Export nach Beschreibungsstandard ist eine Abbildung, keine Erfindung.
+7. **Selbstbeschreibend für GoBD Z3:** Feldkatalog (Name, Typ, Bedeutung) ist Bestandteil dieser Spec → Export nach Beschreibungsstandard ist eine Abbildung, keine Erfindung. **Seit 2026-08-28 macht summae diese Abbildung selbst** (`gdpduExport`, F-IO-012): Flachdateien + `index.xml` nach Beschreibungsstandard **1.6 (01.03.2019)**, DTD `gdpdu-01-03-2019.dtd`. Der Satz stimmte immer — er wurde nur jahrelang als Begründung gelesen, die Abbildung *nicht* zu liefern.
 
 ## Kernobjekte
 
