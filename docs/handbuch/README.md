@@ -1986,6 +1986,47 @@ decide what happens.
   "entries": [ { "sequenceNumber": 7, "entryDate": "2026-01-16", "ageInDays": 74, "text": "Miete Januar" } ] }
 ```
 
+### duplicateVouchers — the same document entered twice
+
+No parameters. Output: `count` (groups), `voucherCount` (vouchers involved) and
+`duplicates[]` with `voucherNumber`, `partnerId`, `partnerName`, `issuer`, `count`,
+`stillPosted` and `vouchers[]` — each with `voucherId`, `voucherDate`, `postedTotal` (Money)
+and `entries[]` (`entryId`, `sequenceNumber`, `fiscalYear`, `entryDate`, `status`,
+`reverses`, `reversedBy`).
+
+**What it is for.** `voucherNumber` is a free string and summae enforces no uniqueness on it,
+so the same incoming invoice booked twice gives you two vouchers, two balanced entries and
+**two input-tax deductions** — with every invariant satisfied. The entries balance, both carry
+a voucher, both sit in an open period, the trial balance adds up. Nothing anywhere looks
+wrong; the money is simply claimed twice. This projection is the only place that says so.
+
+**Grouping is by document identity, not by number.** The key is the issuer plus the number:
+`partnerId` where the voucher names a partner, otherwise the free-text `issuer`, otherwise
+neither (those group among themselves). Two suppliers may both send their invoice number 1,
+and a tenant using supplier numbers as its own will meet that in its first year — which is why
+this is a **report and not a refusal**. A uniqueness rule would be wrong in a way you could not
+work around. Same line as [`vatReturn`](#vatreturn--vat-return)'s `gapWarnings`.
+
+**Three things are deliberately not reported**, because a warning list with noise in it stops
+being read: a voucher with an empty `voucherNumber` (nothing to compare), a voucher flagged
+`recurring` (a standing document repeating its number is what the flag means), and — per
+voucher — entries that are a reversal or have been reversed. `postedTotal` counts only what
+still moves the books, so a duplicate you already corrected reads `0.00` and stays in the list
+**with its history** rather than vanishing; `stillPosted` is how many of the group still count.
+
+**No parameters, and a date window least of all.** An invoice entered in December and again in
+January is exactly the case this exists for, and any window on the voucher date hides it at the
+boundary.
+
+```json
+// params { }
+{ "count": 1, "voucherCount": 2,
+  "duplicates": [ { "voucherNumber": "RE-4711", "partnerName": "Lieferant Nord GmbH",
+                    "count": 2, "stillPosted": 2,
+                    "vouchers": [ { "voucherDate": "2026-02-03", "postedTotal": { "amount": "595.00", "currency": "EUR" } },
+                                  { "voucherDate": "2026-02-17", "postedTotal": { "amount": "595.00", "currency": "EUR" } } ] } ] }
+```
+
 ### openItems — open-item list
 
 `asOf` (no, cutoff date), `kind` (no, `receivable`/`payable`), `partnerId` (no).

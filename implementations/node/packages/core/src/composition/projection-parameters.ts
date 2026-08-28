@@ -97,6 +97,10 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   personalDataDescription: {},
   systemDescription: {},
   auditTrailIntegrity: {},
+  // No parameters, and a date window in particular is refused on purpose: an invoice entered
+  // in December and again in January is the case this exists for, and any window on the
+  // voucher date hides it exactly at the boundary.
+  duplicateVouchers: {},
   // Takes no parameters either, and the reason is the same shape: the chart is what it is. A
   // filter would only save the caller a `filter()` while making "which accounts exist" a question
   // with more than one answer.

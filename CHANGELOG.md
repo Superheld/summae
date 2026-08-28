@@ -12,6 +12,32 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### `duplicateVouchers` — the same document entered twice (F-CORE-044)
+
+`voucherNumber` is a free string with no uniqueness of any kind, and `postVoucher` substitutes
+`''` when none is supplied. An incoming invoice booked a second time therefore produced a second
+voucher, a second balanced entry and a **second input-tax deduction** — with every invariant the
+library has satisfied: the entries balance, both carry a voucher, both sit in an open period, the
+trial balance adds up. Nothing looked wrong anywhere. The money was simply claimed twice, and no
+projection said so.
+
+**Grouping is by document identity, not by number:** the issuer (`partnerId` where the voucher
+names a partner, the free-text `issuer` otherwise) plus the number. Two suppliers legitimately
+send the same invoice number, which is why this is **a report and not a refusal** — a uniqueness
+rule on `voucherNumber` would be wrong rather than merely strict, and the only thing worse than a
+missing check is one that blocks correct bookkeeping. Same line `vatReturn.gapWarnings` draws.
+
+Three exclusions, each because including it would produce noise instead of findings: an empty
+`voucherNumber`, a `recurring` voucher (a standing document repeating its number is what the flag
+means), and — per voucher — entries that are a reversal or have been reversed. `postedTotal`
+counts only what still moves the books, so a duplicate already corrected reads `0.00` and stays in
+the list *with its history*; `stillPosted` says how many of a group still count.
+
+**No parameters, and a date window least of all:** an invoice entered in December and again in
+January is exactly the case this exists for, and a window on the voucher date hides it at the
+boundary. Fixture `core/duplicate-vouchers`; `docs/gobd-conformance.md` §4 gains a row that is ✅
+for *detectable* and explicitly says nothing about prevention.
+
 ### The `de` pack now also says *no* — a small business's revenue may not show VAT (`de@2026.9`)
 
 The constraint socket has had two predicates since 0.16.0, and the shipped packs used exactly one of
