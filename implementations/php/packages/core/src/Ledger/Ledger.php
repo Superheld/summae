@@ -168,6 +168,10 @@ final readonly class Ledger
         $entryDate = Lookups::parseEntryDate($input['entryDate'] ?? null);
         [$fiscalYear, $period] = $this->openPeriodFor($entryDate);
 
+        // 4b. The accounts' validity window, which can only be judged once the date is known —
+        // deliberately AFTER the period check, so no input that is refused today changes its code.
+        $this->assertAccountsValidOn($lines, $entryDate);
+
         $text = is_string($input['text'] ?? null) ? $input['text'] : '';
 
         $entry = new JournalEntry(
@@ -310,6 +314,10 @@ final readonly class Ledger
 
             $lines = $this->resolveLines($parsed);
             $this->assertBalanced($lines);
+            // The corrected entry keeps its own date, so that is the date the window is judged
+            // against — a correction must not be able to move a posting onto an account that was
+            // not open for business when the posting happened.
+            $this->assertAccountsValidOn($lines, $entry->entryDate);
 
             $changes['lines'] = [
                 'from' => array_map(static fn (EntryLine $line): array => $line->jsonSerialize(), $entry->lines()),
@@ -711,6 +719,36 @@ final readonly class Ledger
         ));
 
         return $lines;
+    }
+
+    /**
+     * An account may be posted to only inside its validity window (F-CORE-045).
+     *
+     * Judged against the ENTRY DATE, not against today: that is the whole difference from a lock.
+     * An account retired at a year end keeps taking a late correction for December and refuses
+     * January, which is what retiring an account actually means; a lock would refuse both.
+     *
+     * @param list<EntryLine> $lines
+     */
+    private function assertAccountsValidOn(array $lines, CalendarDate $entryDate): void
+    {
+        foreach ($lines as $line) {
+            $account = $this->accounts->byId($line->accountId);
+            if ($account === null || $account->isValidOn($entryDate)) {
+                continue;
+            }
+
+            throw new DomainError('E_ACCOUNT_NOT_VALID_AT_DATE', sprintf(
+                'Account %s may not be posted to on %s',
+                $account->number->value,
+                $entryDate->iso,
+            ), [
+                'number' => $account->number->value,
+                'entryDate' => $entryDate->iso,
+                'validFrom' => $account->validFrom?->iso,
+                'validTo' => $account->validTo?->iso,
+            ]);
+        }
     }
 
     /** @param list<EntryLine> $lines */

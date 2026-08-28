@@ -115,6 +115,38 @@ final class HydratorAndSchemaTest extends AdapterTestCase
         self::assertFalse($builder->hasTable(SchemaInstaller::PREFIX . 'accounts'));
     }
 
+    public function testAnExistingTableGainsANullableColumnInsteadOfBreakingOnTheNextInsert(): void
+    {
+        // The upgrade path, simulated the only way it can be: drop the table and recreate it in the
+        // shape it had BEFORE the validity window existed, then run the installer again. `ensure`
+        // alone would have left it exactly as it is here and the next `add()` would have failed on
+        // an unknown column — which is what "by hand" meant in practice.
+        $builder = $this->schema();
+        $table = SchemaInstaller::PREFIX . 'accounts';
+
+        $builder->drop($table);
+        $builder->create($table, static function (\Illuminate\Database\Schema\Blueprint $blueprint): void {
+            $blueprint->uuid('id')->primary();
+            $blueprint->uuid('tenant_id')->index();
+            $blueprint->string('number', 64);
+            $blueprint->string('name');
+            $blueprint->string('type', 16);
+            $blueprint->string('subtype', 32)->nullable();
+            $blueprint->string('status', 16)->default('active');
+            $blueprint->unique(['tenant_id', 'number']);
+        });
+        self::assertFalse($builder->hasColumn($table, 'valid_from'), 'precondition: the old shape');
+
+        SchemaInstaller::create($builder);
+
+        self::assertTrue($builder->hasColumn($table, 'valid_from'));
+        self::assertTrue($builder->hasColumn($table, 'valid_to'));
+
+        // Idempotent: running it a third time must not try to add them again.
+        SchemaInstaller::create($builder);
+        self::assertTrue($builder->hasColumn($table, 'valid_to'));
+    }
+
     public function testTheAccountNumberIsUniquePerTenantAndNotGlobally(): void
     {
         // The unique index is (tenant_id, number): two tenants must both be able to run a "1200".

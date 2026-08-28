@@ -12,6 +12,41 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### An account's validity window is real now (F-CORE-045)
+
+`validFrom` and `validTo` were declared on `account` in the normative format schema and **no
+implementation read or wrote them**. `importChartOfAccounts` dropped them without a word, so an
+account carrying `validTo: 2025-12-31` accepted a posting dated 2026-06-01 exactly as if the field
+had never been there. A field the schema declares and the engine ignores is the mirror image of the
+rule this project already had for the other direction ("a field the engine reads but the schema does
+not declare is a finding"), and worse in one respect: whoever set it believed it did something.
+Removing it from the normative format would have been the other honest closure and the more
+expensive one — so it is built.
+
+**It is a window, not a lock, and both have to exist.** `lockAccount` is unconditional and about
+*now*: it refuses every posting including a late correction dated before the lock, which is exactly
+wrong for an account retired at a year end. The window is judged against the **posting's own date**,
+so an account valid to `2026-12-31` keeps taking its December correction booked in February and
+refuses January — `E_ACCOUNT_NOT_VALID_AT_DATE`, a code of its own because "unlock the account" and
+"fix your date" are opposite corrections. **Writes only:** an account outside its window keeps every
+figure ever posted to it in every report and carries its balance forward. A `validTo` before its
+`validFrom` is refused at the master data (`E_INPUT_INVALID`) rather than at the first posting.
+
+`createAccount` and `importChartOfAccounts` accept both fields, `accounts` reports them (so a picker
+can be filtered by the chosen date), the audit trail records them when set, and both adapters
+persist them.
+
+> **Upgrading an existing workspace needs nothing.** The schema installer now also adds a **missing
+> nullable column** to a table that already exists, in both languages — until now it only ever
+> created missing *tables*, and its own docblock called the column case "by hand". The first change
+> that needed it showed why that was not good enough: an existing workspace kept the old table and
+> failed on the next insert. Pinned by `testAnExistingTableGainsANullableColumnInsteadOfBreakingOnTheNextInsert`
+> / `gives an existing table a nullable column instead of breaking on the next insert`. Type changes
+> and rewrites still need a real migration, which neither language has.
+
+New error code `E_ACCOUNT_NOT_VALID_AT_DATE` (`fehlerkatalog.md` + both exit-code tables), fixture
+`core/account-validity`, and a row in `docs/gobd-conformance.md` §6.
+
 ### `duplicateVouchers` — the same document entered twice (F-CORE-044)
 
 `voucherNumber` is a free string with no uniqueness of any kind, and `postVoucher` substitutes

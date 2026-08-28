@@ -98,6 +98,10 @@ final class ExitCodes
         // "you have one line too many" call for opposite corrections.
         'E_COMBINATION_REQUIRED',
         'E_COMBINATION_FORBIDDEN',
+        // Appended 2026-08-28 (F-CORE-045). Not a lock: this one is about the POSTING's date, so a
+        // caller can tell "unlock the account" from "your date is wrong" — the two need opposite
+        // corrections, which is the same argument the two combination codes were split for.
+        'E_ACCOUNT_NOT_VALID_AT_DATE',
     ];
 
     private function __construct()

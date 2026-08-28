@@ -98,6 +98,7 @@ distinction matters for an audit.
 | Obligation | Status | Proof |
 |---|---|---|
 | Systematic recording (account assignment) | ✅ | `F-CORE-005`/`F-CORE-007`, chart of accounts as versioned pack data, own accounts creatable within the systematics. |
+| An account can be retired without falsifying its past | ✅ **since 2026-08-28** | `F-CORE-045`, fixture `core/account-validity` — `validFrom`/`validTo` on the account bound what may be posted, judged against the **posting's** date, and a posting outside is `E_ACCOUNT_NOT_VALID_AT_DATE`. This is Ordnung rather than Unveränderbarkeit: a chart position that stops applying at a year end had only `lockAccount` before, and a lock is unconditional and about *now* — it refuses the late December correction along with the January posting, so the choice was between an account that accepts what it should not and books that cannot be corrected. **Writes only:** an account outside its window keeps every figure ever posted to it in every report and carries its balance forward, because a window that hid past figures would make the books say less than the journal does. Mechanism, not German law — no jurisdiction answers "may I post to an account that did not exist yet" differently. |
 | Periods close in order; postings into closed periods are refused | ✅ | `F-CORE-004`, fixtures `core/period-ordering`, `core/finalize-reverse-period` — `E_PERIOD_CLOSED`. |
 | Separation of cash / non-cash | ✅ | Same as section 5: `cashJournal` presents it, and flags any negative cash balance. |
 

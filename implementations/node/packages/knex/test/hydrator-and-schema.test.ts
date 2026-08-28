@@ -165,6 +165,38 @@ describe('schema installer', () => {
     expect(db.all(db.table(`${TABLE_PREFIX}accounts`))).toHaveLength(1);
   });
 
+  it('gives an existing table a nullable column instead of breaking on the next insert', () => {
+    // The upgrade path, simulated the only way it can be: drop the table and recreate it in the
+    // shape it had BEFORE the validity window existed, then install again. The create loop alone
+    // would have left it exactly as it is here and the next insert would have failed on an unknown
+    // column — which is what "by hand" meant in practice. PHP twin:
+    // `testAnExistingTableGainsANullableColumnInsteadOfBreakingOnTheNextInsert`.
+    const table = `${TABLE_PREFIX}accounts`;
+    db.schema((schema) => schema.dropTable(table));
+    db.schema((schema) =>
+      schema.createTable(table, (t) => {
+        t.uuid('id').primary();
+        t.uuid('tenant_id').index();
+        t.string('number', 64);
+        t.string('name');
+        t.string('type', 16);
+        t.string('subtype', 32).nullable();
+        t.string('status', 16).defaultTo('active');
+        t.unique(['tenant_id', 'number']);
+      }),
+    );
+    expect(db.hasColumn(table, 'valid_from'), 'precondition: the old shape').toBe(false);
+
+    installSchema(db);
+
+    expect(db.hasColumn(table, 'valid_from')).toBe(true);
+    expect(db.hasColumn(table, 'valid_to')).toBe(true);
+
+    // Idempotent: a third run must not try to add them again.
+    installSchema(db);
+    expect(db.hasColumn(table, 'valid_to')).toBe(true);
+  });
+
   it('makes the account number unique per tenant and not globally', () => {
     // The unique index is (tenant_id, number): two tenants must both be able to run a "1200",
     // and one tenant must not be able to run it twice.
