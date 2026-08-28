@@ -672,6 +672,7 @@
         "type": "integer"
       }
     },
+    "personalDataDescription": {},
     "systemDescription": {},
     "accounts": {},
     "journal": {

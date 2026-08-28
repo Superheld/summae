@@ -88,6 +88,7 @@ final class ProjectionParameters
             'fiscalYear' => ['type' => 'integer'],
         ],
         // Takes no parameters: the description is a property of the software, not of a query.
+        'personalDataDescription' => [],
         'systemDescription' => [],
         // Takes no parameters either, and the reason is the same shape: the chart is what it is. A
         // filter would only save the caller a `filter()` while making "which accounts exist" a

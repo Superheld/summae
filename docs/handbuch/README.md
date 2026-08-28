@@ -2396,6 +2396,48 @@ verified. Binding it to an authenticated identity is your application's job.
   "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
 ```
 
+### personalDataDescription — where operator-supplied text can sit
+
+No parameters. Output: `formatVersion`, `fields[]` (`holder`, `field`, `freeText`, `required`,
+`present`, and `mirrors` where a field copies another), `addressKeys[]`, `counts`
+(`partners`, `vouchers`, `distinctActors`) and `classification`.
+
+**The counterpart to `systemDescription`, for people instead of events.** That projection answers
+*what does this system record, and about what*; this one answers *where can a name, an address or
+an identifier come to rest in these books, and how much of it is actually here*. If you are
+assembling a record of processing activities, this is the inventory — and it is generated, so it
+cannot quietly stop describing the software the way a hand-written list does.
+
+**It does not classify, and says so in the payload.** `classification` is the literal string
+*"none"* plus the reason. Whether a field counts as personal data is answered differently by
+different jurisdictions — a company identifier is personal data for a sole trader and not for a
+corporation — so summae reports the *mechanism* (this field holds free text summae neither
+constrains nor interprets) and leaves the legal reading to you. summae's own reading for the
+German/EU case is [GDPR conformance](../gdpr-conformance.md) §1.
+
+**It reports shape, never content.** `present` is how many partners carry an address, not what any
+address says. `addressKeys` is which keys occur across the tenant, not their values. A projection
+built to help with a privacy obligation must not become the convenient way to read everybody's data
+out — for the records themselves you already have `journalExport`.
+
+`present: null` on two rows is deliberate: a posting text and an audit diff exist per record rather
+than per holder, and a count there would be a number nobody could act on.
+
+⚠ **`addressKeys` is the row worth reading.** The data format declares a recommended address shape
+(`line1`, `line2`, `postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2) and does **not**
+forbid other keys — books written before that shape existed carry whatever they carry, and refusing
+them would make an export of lawful data invalid. So the declaration says what to *write*, and
+`addressKeys` says what is actually *there*. If it lists something you did not expect, that is an
+application putting data into the ledger that nobody planned for — which is exactly the thing a
+hand-written inventory never catches.
+
+```json
+{ "addressKeys": ["city", "country", "line1", "postalCode"],
+  "counts": { "partners": 2, "vouchers": 1, "distinctActors": 2 },
+  "fields": [ { "holder": "partner", "field": "address", "freeText": true,
+                "required": false, "present": 1 }, … ] }
+```
+
 ### tenantConfiguration — what this tenant is set up as
 
 No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:

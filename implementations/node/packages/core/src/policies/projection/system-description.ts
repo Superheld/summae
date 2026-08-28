@@ -50,7 +50,7 @@ export const API_OPERATIONS = [
 export const API_PROJECTIONS = [
   'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
-  'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
+  'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'personalDataDescription', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
   'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
 ] as const;

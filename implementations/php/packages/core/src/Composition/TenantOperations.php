@@ -25,6 +25,7 @@ use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\UnappropriatedResult;
 use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
+use Summae\Core\Policies\Projection\PersonalDataDescriptionProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TenantConfigurationProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
@@ -163,6 +164,11 @@ final readonly class TenantOperations
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock, $tenant->audit))->compute($params),
+            'personalDataDescription' => (new PersonalDataDescriptionProjection(
+                $tenant->partners,
+                $tenant->vouchers,
+                $tenant->audit,
+            ))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection(
                 $tenant->id,
                 $tenant->name,
