@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://netmechanics.de/rechnungswesen/format/0.7/format.schema.json",
+  "$id": "https://netmechanics.de/rechnungswesen/format/0.8/format.schema.json",
   "title": "Rechnungswesen-Datenformat v0.6",
   "$defs": {
     "uuid": {
@@ -1187,7 +1187,8 @@
           "type": "string"
         },
         "objectType": {
-          "type": "string"
+          "type": "string",
+          "description": "Der reservierte Wert 'redacted' kennzeichnet die Huelle eines geloeschten Satzes (F-CORE-040): actor, objectType, action tragen 'redacted', objectId zeigt auf den Satz selbst, changes ist leer, und BEIDE Hashes bleiben erhalten — sonst waere eine rechtmaessige Loeschung von einer Manipulation nicht zu unterscheiden."
         },
         "objectId": {
           "$ref": "#/$defs/uuid"
@@ -1205,6 +1206,20 @@
             },
             "additionalProperties": false
           }
+        },
+        "previousRecordHash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Hash-Kette (v0.8): SHA-256 des VORGAENGER-Satzes ueber kanonisches JSON (RFC 8785). null beim ersten Satz und bei jedem Satz, der vor 0.8 geschrieben wurde — der Unterschied zwischen 'unverkettet' und 'gebrochen' ist der Grund, warum das Feld nullable ist und nicht fehlt."
+        },
+        "recordHash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Hash-Kette (v0.8): SHA-256 dieses Satzes ueber kanonisches JSON OHNE dieses Feld selbst, previousRecordHash eingeschlossen — deshalb entwertet jede Aenderung an einem frueheren Satz alle spaeteren Glieder. null nur bei Saetzen von vor 0.8. Geprueft ueber die Projektion auditTrailIntegrity. NICHT zu verwechseln mit previousEntryHash an der Buchung: das Feld bleibt reserviert, Writer duerfen es in v0.x nicht belegen (SPEC-022)."
         }
       },
       "additionalProperties": false

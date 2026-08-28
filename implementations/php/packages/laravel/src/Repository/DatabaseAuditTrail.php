@@ -19,16 +19,43 @@ final readonly class DatabaseAuditTrail implements AuditTrail
     ) {
     }
 
+    /**
+     * Appends the record linked behind the trail's current head (format 0.8).
+     *
+     * The head is read here rather than kept in the process, because the store is the only thing
+     * that knows it: a second process appending to the same tenant would otherwise link behind a
+     * head that had already moved. Two truly concurrent appends can still read the same head and
+     * both link to it; that fork is reported as a break by auditTrailIntegrity rather than hidden,
+     * because from the data alone a fork and a removal are the same picture. Serialising writes
+     * stays the embedding's, like every other write here.
+     */
     public function append(AuditRecord $record): void
     {
-        $data = $record->jsonSerialize();
+        $chained = $record->chainedTo($this->head());
+        $data = $chained->jsonSerialize();
         $data['changes'] = $data['changes'] instanceof \stdClass ? [] : $data['changes'];
 
         $this->table()->insert([
-            'id' => $record->id->value,
+            'id' => $chained->id->value,
             'tenant_id' => $this->tenantId->value,
             'payload' => Hydrator::encode($data),
         ]);
+    }
+
+    private function head(): ?string
+    {
+        $row = $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->orderByDesc('seq')
+            ->first();
+        if ($row === null) {
+            return null;
+        }
+
+        /** @var object{payload: string} $row */
+        $hash = Hydrator::decode($row->payload)['recordHash'] ?? null;
+
+        return is_string($hash) ? $hash : null;
     }
 
     public function all(): array
@@ -57,15 +84,36 @@ final readonly class DatabaseAuditTrail implements AuditTrail
      * extracts them the way the filter does. Tenant-scoped, like everything else here. The count is
      * what delete() reports, which is the number of rows that actually went.
      */
+    /**
+     * F-CORE-040 — and since format 0.8 no longer a delete.
+     *
+     * The rows have to stay, because each one carries a link of the hash chain. Deleting them would
+     * break the chain at the successor for good, and every later verification would report a
+     * manipulation that never happened — a warning that is always on is a warning nobody reads. What
+     * goes is the content; what stays is the shell and its two hashes.
+     */
     public function eraseFor(string $objectType, Uuid $objectId): int
     {
         $postgres = $this->isPostgres();
+        $matching = $this->hydrate(
+            $this->table()
+                ->where('tenant_id', $this->tenantId->value)
+                ->whereRaw(AuditSql::equals($postgres, 'objectType'), [$objectType])
+                ->whereRaw(AuditSql::equals($postgres, 'objectId'), [$objectId->value])
+                ->orderBy('seq')
+                ->get(),
+        );
 
-        return $this->table()
-            ->where('tenant_id', $this->tenantId->value)
-            ->whereRaw(AuditSql::equals($postgres, 'objectType'), [$objectType])
-            ->whereRaw(AuditSql::equals($postgres, 'objectId'), [$objectId->value])
-            ->delete();
+        foreach ($matching as $record) {
+            $data = $record->redactedShell()->jsonSerialize();
+            $data['changes'] = $data['changes'] instanceof \stdClass ? [] : $data['changes'];
+            $this->table()
+                ->where('tenant_id', $this->tenantId->value)
+                ->where('id', $record->id->value)
+                ->update(['payload' => Hydrator::encode($data)]);
+        }
+
+        return count($matching);
     }
 
     public function find(array $criteria): array
@@ -167,6 +215,11 @@ final readonly class DatabaseAuditTrail implements AuditTrail
                 Uuid::fromString(is_string($data['objectId'] ?? null) ? $data['objectId'] : ''),
                 is_string($data['action'] ?? null) ? $data['action'] : '',
                 $changes,
+                // null for anything written before format 0.8 — the difference between a record that
+                // has no hash and one whose hash does not match is what auditTrailIntegrity reports
+                // as unchained rather than broken.
+                is_string($data['previousRecordHash'] ?? null) ? $data['previousRecordHash'] : null,
+                is_string($data['recordHash'] ?? null) ? $data['recordHash'] : null,
             );
         }
 

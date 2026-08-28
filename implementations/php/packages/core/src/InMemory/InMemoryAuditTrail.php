@@ -16,7 +16,10 @@ final class InMemoryAuditTrail implements AuditTrail
 
     public function append(AuditRecord $record): void
     {
-        $this->records[] = $record;
+        // The head is the last record's hash — a redacted shell keeps its own, so an erasure does
+        // not move the chain's tip and every later link still resolves.
+        $last = $this->records === [] ? null : $this->records[count($this->records) - 1];
+        $this->records[] = $record->chainedTo($last?->recordHash);
     }
 
     public function all(): array
@@ -31,13 +34,18 @@ final class InMemoryAuditTrail implements AuditTrail
 
     public function eraseFor(string $objectType, Uuid $objectId): int
     {
-        $before = count($this->records);
-        $this->records = array_values(array_filter(
-            $this->records,
-            static fn (AuditRecord $record): bool => $record->objectType !== $objectType
-                || $record->objectId->value !== $objectId->value,
-        ));
+        $erased = 0;
+        foreach ($this->records as $i => $record) {
+            if ($record->objectType !== $objectType || $record->objectId->value !== $objectId->value) {
+                continue;
+            }
+            // Replaced by its shell, not removed: a deleted row would break the chain at the
+            // successor and leave every later verification reporting a manipulation that never
+            // happened.
+            $this->records[$i] = $record->redactedShell();
+            ++$erased;
+        }
 
-        return $before - count($this->records);
+        return $erased;
     }
 }

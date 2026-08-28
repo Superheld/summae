@@ -96,6 +96,7 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   // Takes no parameters: the description is a property of the software, not of a query.
   personalDataDescription: {},
   systemDescription: {},
+  auditTrailIntegrity: {},
   // Takes no parameters either, and the reason is the same shape: the chart is what it is. A
   // filter would only save the caller a `filter()` while making "which accounts exist" a question
   // with more than one answer.

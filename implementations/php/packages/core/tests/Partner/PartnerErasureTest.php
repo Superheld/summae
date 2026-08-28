@@ -61,11 +61,44 @@ final class PartnerErasureTest extends TestCase
 
         self::assertSame(2, $trail->eraseFor('partner', Uuid::fromString(self::PARTNER_A)));
 
+        // The erased records leave a shell behind rather than a hole: the row is what carries the
+        // hash chain's link, and deleting it would break the chain at the successor for good —
+        // every later verification would then report a manipulation that never happened. Nothing
+        // about the partner survives in the shell; `redacted` is a reserved objectType, so no filter
+        // about a real object can reach it.
         $left = array_map(
-            static fn (AuditRecord $entry): string => $entry->objectType . '/' . $entry->objectId->value,
+            static fn (AuditRecord $entry): string => $entry->objectType . '/' . $entry->action,
             $trail->all(),
         );
-        self::assertSame(['partner/' . self::PARTNER_B, 'journalEntry/' . self::ENTRY], $left);
+        self::assertSame(
+            ['redacted/redacted', 'redacted/redacted', 'partner/created', 'journalEntry/created'],
+            $left,
+        );
+        foreach ($trail->all() as $entry) {
+            if ($entry->isRedacted()) {
+                self::assertSame('redacted', $entry->actor);
+            }
+        }
+    }
+
+    public function testKeepsTheChainVerifiableAcrossTheErasure(): void
+    {
+        $trail = new InMemoryAuditTrail();
+        $trail->append($this->record('partner', self::PARTNER_A, 'created'));
+        $trail->append($this->record('partner', self::PARTNER_B, 'created'));
+        $trail->append($this->record('journalEntry', self::ENTRY, 'created'));
+        $before = array_map(static fn (AuditRecord $e): ?string => $e->recordHash, $trail->all());
+
+        $trail->eraseFor('partner', Uuid::fromString(self::PARTNER_A));
+
+        // Both hashes survive the erasure, so every link still resolves. That is the whole reason
+        // the shell exists — and the honest limit is that a shell's CONTENT can no longer be
+        // verified against its hash, because there is no content left. If it could, the erasure
+        // would not be one.
+        $after = $trail->all();
+        self::assertSame($before, array_map(static fn (AuditRecord $e): ?string => $e->recordHash, $after));
+        self::assertSame($before[0], $after[1]->previousRecordHash);
+        self::assertSame($before[1], $after[2]->previousRecordHash);
     }
 
     public function testErasesNothingAndSaysSoWhenTheObjectHasNoRecords(): void

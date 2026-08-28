@@ -674,6 +674,7 @@
     },
     "personalDataDescription": {},
     "systemDescription": {},
+    "auditTrailIntegrity": {},
     "accounts": {},
     "journal": {
       "fiscalYear": {

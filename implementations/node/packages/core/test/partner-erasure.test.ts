@@ -44,8 +44,31 @@ describe('erasing the trail about one object', () => {
 
     expect(trail.eraseFor('partner', PARTNER_A)).toBe(2);
 
-    const left = trail.all().map((entry) => `${entry.objectType}/${entry.objectId.value}`);
-    expect(left).toEqual([`partner/${PARTNER_B.value}`, `journalEntry/${ENTRY.value}`]);
+    // The erased records leave a shell behind rather than a hole: the row is what carries the hash
+    // chain's link, and deleting it would break the chain at the successor for good — every later
+    // verification would then report a manipulation that never happened. Nothing about the partner
+    // survives in the shell; `redacted` is a reserved objectType, so no filter about a real object
+    // can reach it.
+    const left = trail.all().map((entry) => `${entry.objectType}/${entry.action}`);
+    expect(left).toEqual(['redacted/redacted', 'redacted/redacted', 'partner/created', 'journalEntry/created']);
+    expect(trail.all().filter((entry) => entry.isRedacted()).every((entry) => entry.actor === 'redacted')).toBe(true);
+  });
+
+  it('keeps the chain verifiable across the erasure', () => {
+    const trail = new InMemoryAuditTrail();
+    trail.append(record('partner', PARTNER_A, 'created'));
+    trail.append(record('partner', PARTNER_B, 'created'));
+    trail.append(record('journalEntry', ENTRY, 'created'));
+    const before = trail.all().map((entry) => entry.recordHash);
+
+    trail.eraseFor('partner', PARTNER_A);
+
+    // Both hashes survive the erasure, so every link still resolves. That is the whole reason the
+    // shell exists — and the honest limit is that a shell's CONTENT can no longer be verified
+    // against its hash, because there is no content left. If it could, the erasure would not be one.
+    expect(trail.all().map((entry) => entry.recordHash)).toEqual(before);
+    expect(trail.all()[1]!.previousRecordHash).toBe(before[0]);
+    expect(trail.all()[2]!.previousRecordHash).toBe(before[1]);
   });
 
   it('erases nothing and says so when the object has no records', () => {

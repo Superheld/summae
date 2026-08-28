@@ -5,6 +5,7 @@ import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
+import { AuditTrailIntegrityProjection } from '../policies/projection/audit-trail-integrity.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
@@ -200,6 +201,8 @@ export class TenantOperations {
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
       case 'personalDataDescription':
         return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
+      case 'auditTrailIntegrity':
+        return new AuditTrailIntegrityProjection(tenant.audit).run();
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,

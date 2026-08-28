@@ -431,7 +431,7 @@
         "fiscalYear": 2026
       },
       "expect": {
-        "manifest.formatVersion": "0.7",
+        "manifest.formatVersion": "0.8",
         "manifest.hashAlgorithm": "sha256",
         "manifest.streams": [
           "journal",

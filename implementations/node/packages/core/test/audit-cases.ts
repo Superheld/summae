@@ -590,8 +590,23 @@ function allObservedRecords(buildTenant: TenantBuilder): Array<Record<string, un
   });
 }
 
+/**
+ * The (objectType, action) pairs an operation actually produced.
+ *
+ * A **redacted shell** is excluded, and the distinction is worth stating: it is not an event but
+ * the absence of one. An erasure replaces a record with a shell that keeps only its two hashes, so
+ * the trail's chain still resolves across it (F-CORE-040 + the 0.8 chain); calling that an "event"
+ * would put a line in `systemDescription` promising an operation that writes it, and there is none.
+ * That shells can appear at all is published in the description's `auditTrail` block instead.
+ */
 function pairsOf(records: Array<Record<string, unknown>>): string[] {
-  return [...new Set(records.map((r) => `${String(r.objectType)}/${String(r.action)}`))].sort();
+  return [
+    ...new Set(
+      records
+        .filter((r) => String(r.objectType) !== 'redacted')
+        .map((r) => `${String(r.objectType)}/${String(r.action)}`),
+    ),
+  ].sort();
 }
 
 /**

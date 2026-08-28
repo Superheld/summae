@@ -22,50 +22,21 @@ table there. Moving it is the entire bookkeeping — the split is by *state*, an
 once. That is also why this is not the old per-language split: that one duplicated the same text in
 two places and drifted (SPEC-014 did, in the open).
 
-## SPEC-022 — the audit hash chain cannot be built without amending a normative rule
-
-**Found 2026-08-28** while starting the hash-chain hardening that `docs/gobd-conformance.md` §14
-item 5c records as *deferred, not rejected*. It cannot be built as scoped, and the obstacle is not
-effort.
-
-`knowledge/50-spezifikation/datenformat.md`, section *Reservierte Felder*, is explicit and normative:
-
-> `previousEntryHash` (Buchung — Hash-Kette) … **Reader MÜSSEN diese Felder ignorieren, Writer
-> DÜRFEN sie in v0.x nicht belegen.**
-
-We are on format 0.7 and library 0.15. Populating the field would break that rule in both halves,
-and the second half is the one that matters: a conforming reader has been *instructed to ignore*
-the field, so a chain written today is tamper evidence **only for us**. An auditor's tool, another
-implementation, a future reader — all of them would be conforming precisely by ignoring it. Shipping
-it anyway buys the appearance of a guarantee and none of the guarantee.
-
-Bumping the format to 0.8 does not help: the rule says *v0.x*, and 0.8 is v0.x.
-
-**Two ways out, and both are product decisions rather than engineering ones:**
-
-1. **Amend the reserved-field rule** so that writers may populate `previousEntryHash` from format
-   0.8 on, and readers must verify it when present rather than ignore it. Cheap to write, and it
-   changes what the format promises to anyone already reading it under the old rule.
-2. **Take it to format 1.0**, where the reserved fields were always meant to become live. Honest to
-   the text as written, and a much larger statement about the format's stability than a hardening
-   deserves to force.
-
-**Built in the meantime: nothing, deliberately.** The conservative option here is not a partial
-chain — a chain that exists but is ignorable is worse than none, because it reads like protection.
-Manifest-level hashing (SHA-256 per stream, RFC 8785) is unaffected and still does what it always
-did. The rest of `docs/gdpr-conformance.md` and §14 item 5c stay accurate.
-
-**What would close this:** a decision on 1 or 2. Everything after it is ordinary work — the hash is
-over canonical JSON, which both languages already produce identically, and the cross-test already
-compares `journalExport` byte for byte.
-
 ## Nothing else open
 
-Apart from SPEC-022 above, there is no undecided finding as of 2026-08-28. That is a state, not an
+There is no undecided finding as of 2026-08-28. That is a state, not an
 achievement: this register is empty roughly as often as it is full, and the useful reading of an
 empty one is *"the last pass closed what it opened"*, never *"there is nothing to find."*
 
-The seven that were here — IMPL-030 to IMPL-034, SPEC-020 and SPEC-021 — are in
+SPEC-022 was here for a few hours on 2026-08-28 and is resolved; the short version is that its
+premise was wrong, and that is the useful part. It read the reserved-field rule as blocking *the*
+hash chain, when the rule reserves `previousEntryHash` on the **posting** and the obligation it was
+meant to serve (`docs/gobd-conformance.md` §14 item 5c) asks for tamper evidence on the **audit
+trail** — which carries no such reservation. Two different chains had collapsed into one word. The
+trail's chain is built (F-CORE-043); the posting's stays blocked, and the decision to leave it that
+way is in the resolved register with its reasoning.
+
+The seven others that were here — IMPL-030 to IMPL-034, SPEC-020 and SPEC-021 — are in
 [`SPEC-FINDINGS-RESOLVED.md`](SPEC-FINDINGS-RESOLVED.md) with what was decided and why. Four of them
 came **from outside**, reported by an application embedding the library, and the other two were found
 while building what those reports asked for. That is the pattern worth noticing: our own suite was

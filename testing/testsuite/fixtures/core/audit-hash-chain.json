@@ -1,0 +1,141 @@
+{
+  "fixture": "audit-hash-chain",
+  "description": "F-CORE-043: the audit trail stops being append-only merely BECAUSE NO CODE PATH DELETES FROM IT and becomes checkable. That distinction is the whole point — the old guarantee was a property of the procedure, so an auditor had to read the source or trust the deployment, and docs/gobd-conformance.md §13 says plainly that a direct UPDATE against a summae_* table left no trace at all. Since format 0.8 every record carries the hash of its predecessor over canonical JSON (RFC 8785), and `auditTrailIntegrity` walks the chain. WHY THE TRAIL AND NOT THE JOURNAL: a chain over the postings would need `previousEntryHash`, which datenformat.md reserves — writers must not populate it in v0.x and readers MUST ignore it, so a chain there would be evidence for nobody (SPEC-022). THE ERASURE IS THE HARD PART and the reason the last steps exist: a record erased under a privacy right leaves a SHELL that keeps both hashes, never a hole. Deleting the row would break the link at its successor for good, so every later verification would report a manipulation that never happened — and a warning that is always on is a warning nobody reads. The shell's own content can no longer be verified against its hash, which is exactly what an erasure means; `redacted` counts them so nobody reads the difference as a silent pass. This fixture also runs against the DATABASE subject, which is where it earns its keep: the adapter chains at append and rewrites shells at erasure, and until it did, in-memory and persisted trails disagreed while every other fixture stayed green.",
+  "covers": [
+    "F-CORE-043",
+    "F-CORE-014",
+    "F-CORE-020",
+    "F-CORE-040"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Kette GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "6000",
+        "name": "Bürobedarf",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "ER-1",
+          "voucherDate": "2026-02-01"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "voucherId": "$V1",
+        "entryDate": "2026-02-01",
+        "text": "Bürobedarf",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "119.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "119.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1"
+        }
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Muster GmbH",
+        "kind": "customer",
+        "actor": "bruce"
+      },
+      "expect": {
+        "result": {
+          "id": "$P1"
+        }
+      }
+    },
+    {
+      "op": "erasePartner",
+      "input": {
+        "partnerId": "$P1",
+        "actor": "datenschutz@example.test"
+      },
+      "expect": {
+        "comment": "One record went — and it went by being replaced, not removed.",
+        "result": {
+          "id": "$P1",
+          "erasedAuditRecords": 1
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditTrailIntegrity",
+      "params": {},
+      "expect": {
+        "comment": "`intact` is the answer an auditor wants; the three counts are why it is that answer. `unchained: 0` because this tenant was born at 0.8 — a trail carried over from an older format would report its pre-0.8 records here and NOT as breaks, which is the distinction that keeps the check usable after an upgrade. `redacted: 1` is published rather than folded into `chained`, so a shell is never mistaken for a verified record.",
+        "unchained": 0,
+        "redacted": 1,
+        "intact": true,
+        "breaks": []
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": {
+        "objectType": "partner",
+        "objectId": "$P1"
+      },
+      "expect": {
+        "comment": "The shell does not leak into the change history: it carries the reserved objectType `redacted`, so a question about a partner cannot reach it. What remains about this partner is the erasure itself.",
+        "count": 1,
+        "records": [
+          {
+            "objectType": "partner",
+            "action": "erased",
+            "actor": "datenschutz@example.test"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -48,7 +48,7 @@ export const API_OPERATIONS = [
 ] as const;
 
 export const API_PROJECTIONS = [
-  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
+  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
   'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'personalDataDescription', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
@@ -233,6 +233,22 @@ export class SystemDescriptionProjection {
           // auditor.
           declaredByEmbedding: this.actorAuthentication === null ? null : this.actorAuthentication.declared,
           method: this.actorAuthentication === null ? null : this.actorAuthentication.method,
+        },
+        // What makes the trail checkable rather than merely trusted (format 0.8). Published here
+        // because an auditor reads this block to learn what the trail is; a chain nobody is told
+        // about protects nobody.
+        hashChain: {
+          algorithm: 'sha256-over-canonical-json',
+          field: 'previousRecordHash',
+          verifiedBy: 'auditTrailIntegrity',
+          note:
+            'Each record carries the hash of its predecessor, computed over canonical JSON (RFC 8785). '
+            + 'Changing or removing a record breaks the link at its successor. Records erased under a '
+            + 'privacy right leave a shell that keeps both hashes, so a lawful erasure stays distinguishable '
+            + 'from a manipulation; a shell\'s own content can no longer be verified, which is what an erasure '
+            + 'means. Records written before format 0.8 carry no hash and are reported as unchained, never as '
+            + 'broken. A chain cannot notice records dropped from the END of the trail — compare the published '
+            + 'head against one you kept.',
         },
         note:
           'The actor is recorded as supplied by the caller; summae authenticates nobody, which is what '

@@ -12,6 +12,64 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.15.1 — unreleased
 
+### The audit trail is now *checkable*, not merely append-only (F-CORE-043, format 0.8)
+
+Until now the trail was append-only **because no code path updates or deletes it** — the port offers
+`append` and `all` and nothing else. That is a property of the procedure, not of the data: an auditor
+could read the source, or trust the deployment, and `docs/gobd-conformance.md` §13 said plainly that
+a direct `UPDATE` against a `summae_*` table left no trace at all.
+
+Every audit record now carries `previousRecordHash` and `recordHash` (SHA-256 over canonical JSON,
+RFC 8785), and the new projection **`auditTrailIntegrity`** walks the chain. Both languages compute
+the same bytes; `make cross` proves it rather than assuming it.
+
+Read the four counts apart, because collapsing them is how a check like this becomes useless:
+
+- **`chained`** — verified: hashes to its own value and links to its predecessor.
+- **`unchained`** — written before 0.8, so it has no hash. Explicitly **not** a break: a library that
+  cried tampering over its own upgrade would be ignored within a week. They can only sit at the
+  front; one appearing after a chained record is an insertion and *is* reported.
+- **`redacted`** — see below.
+- **`breaks[]`** — the rest, each with a named reason.
+
+**Two limits are published rather than papered over.** No chain notices records dropped from the
+**end** — hence `head`, to be kept outside summae and compared. And two concurrent appends can read
+the same head and both link to it; that fork is reported as a break, truthfully, because from the
+data alone a fork and a removal are the same picture.
+
+### An erased audit record leaves a shell, not a hole
+
+The trail has one deliberate erasure hole (`erasePartner`, F-CORE-040). A naive chain would make a
+**lawful erasure indistinguishable from a manipulation** — and worse, break the chain there for good,
+so every later verification would report tampering that never happened. A warning that is always on
+is a warning nobody reads.
+
+An erased record therefore keeps its row and both hashes and loses everything else: `actor`,
+`objectType` and `action` carry the reserved value `redacted`, `objectId` points at the record
+itself, `changes` is empty. Linkage stays provable; the shell's own content does not — which is
+exactly what an erasure means, and why shells are counted separately instead of folded into
+`chained`.
+
+### Fixed: neither persistence adapter chained the trail
+
+`knex` and `laravel` inserted records unchained and **deleted** rows on erasure, so an in-memory
+trail and a persisted one disagreed while the whole suite stayed green — no fixture reached the
+chain. `core/audit-hash-chain` now does, in both subjects, and it goes red without the adapter change
+(checked by reverting it). Same shape as the missing `AuditWriter` of 0.12.0: what the adapters leave
+out is invisible to tests that run against fakes.
+
+### SPEC-022 is resolved by correcting its premise
+
+It recorded the chain as blocked by a normative rule and offered two product decisions. The rule
+reserves `previousEntryHash` on the **posting**; the obligation it was meant to serve asks for
+tamper evidence on the **audit trail**. Two different chains had collapsed into one word. Nothing had
+to be amended: the trail's chain is built, and the posting's field stays reserved until format 1.0 —
+a chain every conforming reader is *instructed to ignore* would be evidence for nobody, and 1.0 is a
+statement about stability that a hardening has no business forcing.
+
+`datenformat.md` also gains its **0.7** section, which was never written: the schema shipped that
+version while the normative document still described 0.6.
+
 ### The `de` pack now enforces the VAT correction on a reduced consideration (A-13, `de@2026.8`)
 
 § 17 Abs. 1 UStG says a reduced consideration corrects the tax owed, and sentence 2 says the input-tax
