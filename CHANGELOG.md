@@ -10,7 +10,7 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
-## 0.16.0 — unreleased
+## 0.16.0 — 2026-08-28
 
 > **Minor, not a patch, and the number was wrong before this line was written.** The work below
 > moves the data format 0.7 → 0.8, adds two projections (`auditTrailIntegrity`, `gdpduExport`) and

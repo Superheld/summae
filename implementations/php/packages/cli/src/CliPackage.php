@@ -10,7 +10,7 @@ namespace Summae\Cli;
  */
 final class CliPackage
 {
-    public const string VERSION = '0.15.0';
+    public const string VERSION = '0.16.0';
 
     private function __construct()
     {
