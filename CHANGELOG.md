@@ -12,6 +12,141 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.15.1 — unreleased
 
+### The six us-pack sign-offs are decided — and the product does not move
+
+Open since 2026-06-23, they kept the `us` pack from being recommended for production. Five confirm
+what already ships; one is a deliberate **non**-change. Full reasoning:
+[`docs/proposals/us-pack-signoffs.md`](docs/proposals/us-pack-signoffs.md).
+
+- **Account numbers** — approved as shipped. `1xxx`–`6xxx` is *the* US block convention, so a US
+  accountant reads the chart without being taught it.
+- **`USETAX`** — approved. Cost plus liability is right rather than a compromise: US use tax carries
+  no input credit, so the tax **is** a cost. No dedicated `use_tax` mechanism — identical code under
+  a nicer label, and the repertoire is closed for cross-language reasons.
+- **`accrual` default** — confirmed, and the reason is the sales tax, not GAAP: the liability
+  generally arises on the date of the sale. Where a state allows cash-basis reporting it is an
+  election, which is exactly what a per-tenant `taxationMethod` is.
+- **Multi-state** — one rate per tenant stays the scope; nexus and rate lookup are the application's.
+  Now stated where somebody choosing the pack will hit it (`pack-library/us-pack/README.md`) instead
+  of only in a decisions memo.
+- **`EXEMPT`** — closed, and it had been **built since 0.5.0**. The memo asked for a decision that
+  had already been made and shipped, and nothing noticed for two months.
+- **Naming** — `us` and `us-accounts-2026` confirmed. **`SALETAX` stays**, and this is the
+  interesting one: US usage is "sales tax" without exception, so it reads like a typo, and this
+  sign-off item existed to catch exactly that. Nine conformance fixtures *drive* the code as input
+  while proving the shipped pack, so renaming it would leave nine behaviour-pinning fixtures
+  describing a product that no longer exists — and those are argued with, never retired. **The lesson
+  is the keeper:** an identifier under an open sign-off should not be pinned by a fixture until it is
+  signed off, or the sign-off is theatre.
+
+`knowledge/99-pack-docs/us-pack/offene-entscheidungen.md` was wrong about its own product — it
+proposed six account numbers the pack never shipped and described `EXEMPT` emitting a `0.00` line and
+the pack having no fixtures. Pre-build notes nobody reconciled afterwards; corrected.
+
+### The audit trail is now *checkable*, not merely append-only (F-CORE-043, format 0.8)
+
+Until now the trail was append-only **because no code path updates or deletes it** — the port offers
+`append` and `all` and nothing else. That is a property of the procedure, not of the data: an auditor
+could read the source, or trust the deployment, and `docs/gobd-conformance.md` §13 said plainly that
+a direct `UPDATE` against a `summae_*` table left no trace at all.
+
+Every audit record now carries `previousRecordHash` and `recordHash` (SHA-256 over canonical JSON,
+RFC 8785), and the new projection **`auditTrailIntegrity`** walks the chain. Both languages compute
+the same bytes; `make cross` proves it rather than assuming it.
+
+Read the four counts apart, because collapsing them is how a check like this becomes useless:
+
+- **`chained`** — verified: hashes to its own value and links to its predecessor.
+- **`unchained`** — written before 0.8, so it has no hash. Explicitly **not** a break: a library that
+  cried tampering over its own upgrade would be ignored within a week. They can only sit at the
+  front; one appearing after a chained record is an insertion and *is* reported.
+- **`redacted`** — see below.
+- **`breaks[]`** — the rest, each with a named reason.
+
+**Two limits are published rather than papered over.** No chain notices records dropped from the
+**end** — hence `head`, to be kept outside summae and compared. And two concurrent appends can read
+the same head and both link to it; that fork is reported as a break, truthfully, because from the
+data alone a fork and a removal are the same picture.
+
+### An erased audit record leaves a shell, not a hole
+
+The trail has one deliberate erasure hole (`erasePartner`, F-CORE-040). A naive chain would make a
+**lawful erasure indistinguishable from a manipulation** — and worse, break the chain there for good,
+so every later verification would report tampering that never happened. A warning that is always on
+is a warning nobody reads.
+
+An erased record therefore keeps its row and both hashes and loses everything else: `actor`,
+`objectType` and `action` carry the reserved value `redacted`, `objectId` points at the record
+itself, `changes` is empty. Linkage stays provable; the shell's own content does not — which is
+exactly what an erasure means, and why shells are counted separately instead of folded into
+`chained`.
+
+### Fixed: neither persistence adapter chained the trail
+
+`knex` and `laravel` inserted records unchained and **deleted** rows on erasure, so an in-memory
+trail and a persisted one disagreed while the whole suite stayed green — no fixture reached the
+chain. `core/audit-hash-chain` now does, in both subjects, and it goes red without the adapter change
+(checked by reverting it). Same shape as the missing `AuditWriter` of 0.12.0: what the adapters leave
+out is invisible to tests that run against fakes.
+
+### SPEC-022 is resolved by correcting its premise
+
+It recorded the chain as blocked by a normative rule and offered two product decisions. The rule
+reserves `previousEntryHash` on the **posting**; the obligation it was meant to serve asks for
+tamper evidence on the **audit trail**. Two different chains had collapsed into one word. Nothing had
+to be amended: the trail's chain is built, and the posting's field stays reserved until format 1.0 —
+a chain every conforming reader is *instructed to ignore* would be evidence for nobody, and 1.0 is a
+statement about stability that a hardening has no business forcing.
+
+`datenformat.md` also gains its **0.7** section, which was never written: the schema shipped that
+version while the normative document still described 0.6.
+
+### The `de` pack now enforces the VAT correction on a reduced consideration (A-13, `de@2026.8`)
+
+§ 17 Abs. 1 UStG says a reduced consideration corrects the tax owed, and sentence 2 says the input-tax
+deduction is corrected with it. summae could not hold either, and the gap sat on the embedding
+application's obligation list as **A-13**. `accountCombinationRules` gave it a shape three days ago;
+what was still missing is that **no shipped pack declared such a rule**, and a capability nobody
+ships is not a guarantee.
+
+What made this worth building is that the incomplete entry is otherwise flawless: it balances, it has
+a voucher, it is in the right period, and every account and the trial balance read correctly. The
+only wrong figure is the one that gets filed — the one place nobody checks twice.
+
+- `4020` (granted discount) must be met by an output-VAT account, `5010` by an input-VAT account,
+  else `E_COMBINATION_REQUIRED`. Fixture `pack/de-pack/de-entgeltminderung-erzwungen` proves both
+  refusals, both correct postings, and — the edge that matters — that a discount on a **tax-free**
+  intra-community supply still goes through untouched.
+- The chart gained `5010 Erhaltene Skonti und Nachlässe (vorsteuerpflichtig)`: the input side had no
+  reduction account at all, so there was nothing for the obligation to hang on. `4020` was renamed to
+  say that it is the *taxable* one. **Migration:** a tax-free reduction booked on `4020` is now
+  refused and belongs on the revenue or expense account it reduces. The predicate sees one entry and
+  can never ask whether the original sale carried tax, so the account name is what makes the question
+  answerable — which is also why German charts have kept discount accounts per rate all along.
+
+### Fixed: the pack format rejected a constraint module carrying only the second predicate
+
+`format.schema.json` required `dimensionRules`, so a module with only `accountCombinationRules` did
+not validate — an oversight from adding the second predicate. The first pack that needed exactly that
+found it on the first run. A module now carries **at least one** of the two.
+
+### The GoBD census stops being able to describe a product that moved
+
+`docs/gobd-conformance.md` claimed the `de` pack lacked codes for the intra-community acquisition and
+the exempt export. Both were built on 2026-08-23 — *hours after the row was written* — and the row
+went on saying otherwise through five days of green builds, because nothing compared prose to
+product.
+
+The rows stay prose on purpose; a census reduced to a machine-readable list stops being readable by
+whoever has to defend it. But the **facts quoted inside them** move into a table (§15) that
+`GobdConformanceDocTest` / `gobd-conformance-doc.test.ts` holds against its sources: each pack's
+shipped tax codes, the engine's registered mechanisms and tax-base kinds, and the account-combination
+rule behind the A-13 ✅. Writing the table found the first defect immediately — the `us` code is
+`SALETAX`, not `SALESTAX`.
+
+`allTaxMechanisms()` / `allTaxBaseKinds()` are exported from the core for this; the PHP twins were
+always reachable, so this is symmetry rather than new surface.
+
 ### Fixed: both CLIs reported the version they had at 0.1.0 (IMPL-035)
 
 `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP. Both literals were written at the

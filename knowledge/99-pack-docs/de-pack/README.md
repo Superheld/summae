@@ -30,7 +30,7 @@ neuer Packs.
 
 | # | Datei | `kind` | `id` | Version |
 |---|---|---|---|---|
-| 1 | `modul-1-konten-de.md` | `accounts` | `de-konten` | 2026.3 |
+| 1 | `modul-1-konten-de.md` | `accounts` | `de-konten` | 2026.4 |
 | 2 | `modul-2-tax-de-ust-2026.md` | `tax` | `de-ust` | 2026.4 |
 | 3 | `modul-3-mapping-bilanz-hgb-266.md` | `mapping` | `de-bilanz` | 2026.3 |
 | 4 | `modul-4-mapping-guv-275.md` | `mapping` | `de-guv` | 2026.1 |
@@ -41,10 +41,11 @@ neuer Packs.
 | 9 | `modul-9-result-appropriation.md` | `resultAppropriation` | `de-ergebnisverwendung` | 2026.1 |
 | 10 | `modul-10-production-cost-de.md` | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | 11 | `modul-11-legal-forms-de.md` | `legalForms` | `de-rechtsformen` | 2026.1 |
+| 12 | `modul-12-constraint-entgeltminderung.md` | `constraint` | `de-entgeltminderung` | 2026.1 |
 
 Dazu:
 
-- `manifest-de-complete.md` — das Pack-Manifest, das diese Module bündelt.
+- `manifest-de.md` — das Pack-Manifest, das diese Module bündelt.
 - `vatreturn-mapping-frei.md` — warum die USt-VA **kein** Modul ist.
 - `offene-entscheidungen.md` — die menscheneigenen Sign-off-Punkte (Konto-Nummern,
   RC13b/Wertabgabe-Konten, fachliche RQ-1/RQ-2) + die Doku-Korrektur in `datenformat.md`.

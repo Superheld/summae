@@ -162,7 +162,10 @@ export class InMemoryAuditTrail implements AuditTrail {
   private readonly records: AuditRecord[] = [];
 
   append(record: AuditRecord): void {
-    this.records.push(record);
+    // The head is the last record's hash — a redacted shell keeps its own, so an erasure does not
+    // move the chain's tip and every later link still resolves.
+    const head = this.records.at(-1)?.recordHash ?? null;
+    this.records.push(record.chainedTo(head));
   }
 
   all(): AuditRecord[] {
@@ -170,14 +173,17 @@ export class InMemoryAuditTrail implements AuditTrail {
   }
 
   eraseFor(objectType: string, objectId: Uuid): number {
-    const before = this.records.length;
-    for (let i = this.records.length - 1; i >= 0; i -= 1) {
+    let erased = 0;
+    for (let i = 0; i < this.records.length; i += 1) {
       const record = this.records[i]!;
       if (record.objectType === objectType && record.objectId.value === objectId.value) {
-        this.records.splice(i, 1);
+        // Replaced by its shell, not removed: a deleted row would break the chain at the successor
+        // and leave every later verification reporting a manipulation that never happened.
+        this.records[i] = record.redactedShell();
+        erased += 1;
       }
     }
-    return before - this.records.length;
+    return erased;
   }
 
   find(criteria: AuditCriteria): { records: AuditRecord[]; count: number } {

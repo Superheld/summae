@@ -1,9 +1,9 @@
 # us-pack — United States
 
 The second complete jurisdiction pack: the United States. Selectable as
-`createTenant(pack: "us")`. **Current version: `2026.2`** — raised from `2026.1` when the
-tax module gained the exempt mechanism and the depreciation module gained `poolYears`
-(`null` here: the de-minimis route is an outright expense, not a pool). Modules version
+`createTenant(pack: "us")`. **Current version: `2026.6`.**
+(`2026.2` raised `2026.1` when the tax module gained the exempt mechanism and the depreciation module
+gained `poolYears` — `null` here: the de-minimis route is an outright expense, not a pool.) Modules version
 independently; the manifest pins the exact ones it wants. **Self-contained:** all modules live in this folder, no
 module shared with other packs (packs do not build on each other). **Own chart of
 accounts** — the US has no statutory chart (US-GAAP leaves the account structure free),
@@ -12,6 +12,29 @@ users expect: `1xxx` assets · `2xxx` liabilities · `3xxx` equity · `4xxx` rev
 COGS · `6xxx` expenses. (This is distinct from the de-pack's class scheme — the packs are
 self-contained and share no accounts; only the 4-digit idea is common.) Base currency **USD**
 is set when creating the tenant (the pack carries only rounding/granularity/scale, not a currency).
+
+## One sales-tax rate per tenant — read this before choosing the pack
+
+**The pack carries a single configurable sales-tax rate, and it does not know your nexus.** Which
+states you have nexus in, which rate applies to a given ship-to address, and how a return breaks down
+by jurisdiction are the **embedding application's** — in practice, a rate service's. This is the
+industry norm and not a gap to be filled later: US sales tax has on the order of thirteen thousand
+taxing jurisdictions whose rates and boundaries change continuously, and no accounting library
+carries that table. The packages that look like they do are calling a service.
+
+What the pack *does* give you is the bookkeeping half done right: the tax lands on the correct
+accounts, the base is tagged for the return (`TAXABLE_SALES`, `EXEMPT_SALES`,
+`PURCHASES_SUBJECT_TO_USE_TAX`), self-assessed use tax becomes cost plus liability rather than a
+recoverable credit, and `salesTaxReturn` totals it. Feeding it the right *rate* is yours.
+
+The `reportingKey`s are descriptive rather than bound to any one state's form. A real per-state
+filing needs a state-specific return mapping, which is a later, separate piece of work — the same
+boundary as the rate question. Both were signed off on 2026-08-28
+(`docs/proposals/us-pack-signoffs.md`).
+
+**Default `taxationMethod` is `accrual`**, and the reason is the sales tax rather than GAAP: the
+liability generally arises on the date of the sale, not on payment. Where a state permits cash-basis
+sales-tax reporting it is an election — set `taxationMethod` per tenant.
 
 ## What's inside (modules → the manifest `us.json` composes them)
 

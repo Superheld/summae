@@ -1,8 +1,8 @@
 # Manifest — `de` (Deutschland)
 
 ```
-pack: de · version: 2026.7 · formatVersion: 0.6
-Datei: pack-library/de-pack/de.json · 11 Module · frühere Fassungen in versions/
+pack: de · version: 2026.8 · formatVersion: 0.6
+Datei: pack-library/de-pack/de.json · 12 Module · frühere Fassungen in versions/
 ```
 
 ## Zweck
@@ -23,7 +23,7 @@ Bedeutung; der Resolver sortiert topologisch nach `dependsOn`.
 
 | `kind` | `id` | Version |
 |---|---|---|
-| `accounts` | `de-konten` | 2026.3 |
+| `accounts` | `de-konten` | 2026.4 |
 | `tax` | `de-ust` | 2026.4 |
 | `mapping` | `de-bilanz` | 2026.3 |
 | `mapping` | `de-guv` | 2026.1 |
@@ -34,8 +34,9 @@ Bedeutung; der Resolver sortiert topologisch nach `dependsOn`.
 | `resultAppropriation` | `de-ergebnisverwendung` | 2026.1 |
 | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | `legalForms` | `de-rechtsformen` | 2026.1 |
+| `constraint` | `de-entgeltminderung` | 2026.1 |
 
-Was jedes Modul enthält, steht in seinem eigenen Dokument (`modul-1` … `modul-11`, Übersicht im
+Was jedes Modul enthält, steht in seinem eigenen Dokument (`modul-1` … `modul-12`, Übersicht im
 [README](README.md)).
 
 ## Steuerschlüssel

@@ -1,7 +1,7 @@
 # Modul 1 — Konten DE (`accounts`)
 
 ```
-kind: accounts · id: de-konten · version: 2026.3 · formatVersion: 0.6
+kind: accounts · id: de-konten · version: 2026.4 · formatVersion: 0.6
 contributes: ["accounts"] · dependsOn: []
 data.accounts[]  (account-Objekte, § datenformat „account")
 ```
@@ -47,6 +47,7 @@ Nummern (keine SKR-Datenübernahme).
 | 4010 | Erlöse ermäßigter Satz (7 %) | revenue | — |
 | 4900 | Erträge aus Anlagenabgang | revenue | — |
 | 5000 | Wareneinsatz und Fremdleistungen | expense | — |
+| 5010 | Erhaltene Skonti und Nachlässe (vorsteuerpflichtig) | expense | Aufwandsminderung; trägt die Vorsteuerkorrektur (Modul 12) |
 | 6000 | Sonstiger betrieblicher Aufwand | expense | — |
 | 6300 | Löhne und Gehälter | expense | — |
 | 6310 | Soziale Aufwendungen (Arbeitgeberanteil) | expense | — |
@@ -62,7 +63,7 @@ die hier auf neutrale Lücken-Nummern umgesetzt werden).
 
 | Nr (Vorschlag) | Name | type | Warum eigenes Konto | Fixture-Beleg (SKR03) |
 |---|---|---|---|---|
-| 4020 | Gewährte Skonti / Erlösschmälerung | revenue | §17-Korrektur, keine Heimat im Basissatz | `core/settlement-discount` (8731) |
+| 4020 | Gewährte Skonti / Erlösschmälerung (umsatzsteuerpflichtig) | revenue | §17-Korrektur, keine Heimat im Basissatz; seit 2026.4 **erzwingt** das Konto sie ([Modul 12](modul-12-constraint-entgeltminderung.md)) | `core/settlement-discount` (8731) |
 | 4030 | Steuerfreie ig. Lieferungen (§4 Nr.1b) | revenue | steuerfrei, ≠ Regelerlös 4000 | `core/partner-and-ec-sales` (8125) |
 | 6010 | Bewirtungskosten, abziehbar (70 %) | expense | §4 Abs.7 EStG: getrennte Aufzeichnung | `core/entertainment-split` (4650) |
 | 6020 | Bewirtungskosten, nicht abziehbar (30 %) | expense | dito | `core/entertainment-split` (4654) |

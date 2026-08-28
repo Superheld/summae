@@ -35,7 +35,7 @@ the safety net, not the plan.
 
 | Module | kind | Content |
 |---|---|---|
-| `accounts/de-konten` | accounts | Own DE chart of accounts (standard + DE extras: 1250 current-asset securities · 4020 cash discount/revenue reduction · 4030 intra-community supplies · 4040 small-business revenue · 4050 deemed supply · 6010/6020 entertainment · 1900/3900 accruals/deferrals · 6030–6090 operating expenses) |
+| `accounts/de-konten` | accounts | Own DE chart of accounts (standard + DE extras: 1250 current-asset securities · 4020 taxable cash discount/revenue reduction · 5010 taxable received discount · 4030 intra-community supplies · 4040 small-business revenue · 4050 deemed supply · 6010/6020 entertainment · 1900/3900 accruals/deferrals · 6030–6090 operating expenses) |
 | `tax/de-ust` | tax | USt19, USt7, VSt19, VSt7, RC13b (§13b), igL (intra-community supply), IGE19/IGE7 (intra-community acquisition, Kz 89/93 with input tax on Kz 61), AUSFUHR (exempt export to a third country, Kz 43), USt19WA (deemed supply) — rates/codes, accounts on neutral numbers |
 | `mappings/de-bilanz` | mapping | Balance-sheet structure HGB §266 |
 | `mappings/de-guv` | mapping | Income-statement structure HGB §275 (total-cost method) |
@@ -43,6 +43,7 @@ the safety net, not the plan.
 | `depreciation/de-afa` | depreciation | Low-value-asset thresholds (§6 (2) EStG), useful lives |
 | `assets/de-assets` | assetAccounts | Asset contra-accounts (addition/depreciation/low-value/disposal) on neutral numbers |
 | `policy/de` | policy | EUR, half-up per voucher (`perVoucher`), scale 2; defaults: cash (EÜR), standard taxation, quarterly |
+| `constraint/de-entgeltminderung` | constraint | § 17 UStG: an entry on 4020 must carry its output-VAT correction, one on 5010 its input-VAT correction (`E_COMBINATION_REQUIRED`) |
 
 The German tax/HGB background (VAT §13b, intra-community supply, small business §19, deemed
 supply, EÜR, HGB balance sheet/P&L, depreciation) is maintained internally; the rules this pack
@@ -68,6 +69,7 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 | tax · AUSFUHR exempt export | F-TAX-007 / SF-04 | `de-ausfuhr` |
 | tax · VAT return | F-TAX-005 / SF-09 | `de-vat-return` |
 | de-konten · 4020 cash discount §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang` |
+| de-entgeltminderung · §17 correction enforced | F-CORE-042 | `de-entgeltminderung-erzwungen` |
 | de-konten · 6010/6020 entertainment §4(7) | SF-23 | `de-bewirtung` |
 | de-konten · 4040 small business §19 | F-TAX-004 / SF-11 | `de-kleinunternehmer` |
 | de-konten · 1900/3900 accruals/deferrals | HGB §266 | `de-jahresgang` |

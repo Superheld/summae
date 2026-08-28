@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Summae\Runner\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Summae\Core\Policies\Expansion\Tax\TaxBases;
+use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 use Summae\Runner\FixtureLoader;
 
 /**
@@ -220,5 +222,108 @@ final class GobdConformanceDocTest extends TestCase
 
         $unexpected = array_values(array_diff(array_unique($matches[0]), ['✅', '⚠', '➖']));
         self::assertSame([], $unexpected);
+    }
+
+    /**
+     * §15 of the document is a table of FACTS about the shipped product, and this reads it back.
+     *
+     * The rows above it are argued in prose on purpose — a compliance census reduced to a
+     * machine-readable list would stop being readable by the person who has to defend it. But the
+     * facts quoted inside that prose were checked by nobody, and on 2026-08-23 §4 named two tax
+     * codes as missing that were built the same day; the row stayed wrong through five green
+     * builds. So the facts moved into one table and the table is held against its sources.
+     *
+     * A row's value is its backtick-quoted tokens; `—` means the source is empty, which is itself
+     * an assertion.
+     *
+     * @return list<string>
+     */
+    private static function claimRow(string $claim): array
+    {
+        foreach (explode("\n", self::doc()) as $line) {
+            if (!str_starts_with($line, '|')) {
+                continue;
+            }
+            $cells = explode('|', $line);
+            if (count($cells) < 5) {
+                continue;
+            }
+            if (trim(str_replace('`', '', $cells[1])) !== $claim) {
+                continue;
+            }
+            if (trim($cells[3]) === '—') {
+                return [];
+            }
+            preg_match_all('/`([^`]+)`/u', $cells[3], $matches);
+
+            return $matches[1];
+        }
+
+        self::fail(sprintf('§15 has no row for the claim "%s"', $claim));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function packTaxCodes(string $pack, string $manifest): array
+    {
+        $raw = (string) file_get_contents(self::repoRoot() . '/pack-library/' . $pack . '/' . $manifest);
+        /** @var array<string, mixed> $parsed */
+        $parsed = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        $codes = $parsed['taxCodes'] ?? null;
+        if (!is_array($codes)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($codes as $code) {
+            $out[] = is_string($code) ? $code : '';
+        }
+
+        return $out;
+    }
+
+    public function testTaxCodeClaimsMatchTheShippedPacks(): void
+    {
+        self::assertSame(self::packTaxCodes('de-pack', 'de.json'), self::claimRow('de pack tax codes'));
+        self::assertSame(self::packTaxCodes('us-pack', 'us.json'), self::claimRow('us pack tax codes'));
+        self::assertSame(self::packTaxCodes('default-pack', 'default.json'), self::claimRow('default pack tax codes'));
+    }
+
+    public function testEngineRepertoireClaimsMatchWhatTheCoreRegisters(): void
+    {
+        self::assertSame(TaxMechanisms::all(), self::claimRow('engine tax mechanisms'));
+        self::assertSame(TaxBases::all(), self::claimRow('engine tax base kinds'));
+    }
+
+    /**
+     * The A-13 row is ✅ only because a SHIPPED pack declares the rule. If the rule changes its
+     * accounts, that ✅ describes something else — so the accounts are part of the claim.
+     */
+    public function testAccountCombinationClaimMatchesTheDePack(): void
+    {
+        $raw = (string) file_get_contents(
+            self::repoRoot() . '/pack-library/de-pack/constraint/de-entgeltminderung.json',
+        );
+        /** @var array<string, mixed> $parsed */
+        $parsed = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        /** @var array<string, mixed> $data */
+        $data = is_array($parsed['data'] ?? null) ? $parsed['data'] : [];
+        $rules = is_array($data['accountCombinationRules'] ?? null) ? $data['accountCombinationRules'] : [];
+
+        $actual = [];
+        foreach ($rules as $rule) {
+            if (!is_array($rule) || !is_array($rule['requireAccountIn'] ?? null) || !is_array($rule['whenAccountIn'] ?? null)) {
+                continue;
+            }
+            foreach ([$rule['whenAccountIn'], $rule['requireAccountIn']] as $range) {
+                foreach (['from', 'to'] as $edge) {
+                    $bound = $range[$edge] ?? null;
+                    $actual[] = is_string($bound) ? $bound : '';
+                }
+            }
+        }
+
+        self::assertSame($actual, self::claimRow('de pack account-combination rules'));
     }
 }

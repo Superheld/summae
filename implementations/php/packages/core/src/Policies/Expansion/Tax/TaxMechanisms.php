@@ -23,6 +23,18 @@ use Summae\Core\DomainError;
  */
 final class TaxMechanisms
 {
+    /**
+     * The registered repertoire, in registration order. Published because a *document* that names
+     * the mechanisms — docs/gobd-conformance.md does — is making a checkable claim, and a claim
+     * nothing checks is how that census came to describe a pack that had already moved on.
+     *
+     * @return list<string>
+     */
+    public static function all(): array
+    {
+        return ['standard', 'reverse_charge', 'intra_community_supply', 'exempt'];
+    }
+
     public static function mechanismFor(string $name): TaxMechanism
     {
         return match ($name) {
@@ -35,7 +47,7 @@ final class TaxMechanisms
             // pack fails at resolvePack/init rather than at the first posting.
             default => throw new DomainError('E_PACK_INCOHERENT', sprintf('Unknown tax mechanism: %s', $name), [
                 'mechanism' => $name,
-                'known' => ['standard', 'reverse_charge', 'intra_community_supply', 'exempt'],
+                'known' => self::all(),
             ]),
         };
     }

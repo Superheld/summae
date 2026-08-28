@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { supersededFixtures } from '../src/fixture-loader.js';
+import { allTaxBaseKinds, allTaxMechanisms } from '@superheld/summae-core';
 
 /**
  * Gate for `docs/gobd-conformance.md`.
@@ -73,6 +74,39 @@ function fixtureDirNames(): Set<string> {
 function citedRequirements(doc: string): string[] {
   const matches = doc.matchAll(/`(F-[A-Z]+-\d{3})`/g);
   return [...new Set([...matches].map((m) => m[1] as string))];
+}
+
+
+const PACK_LIBRARY = join(REPO_ROOT, 'pack-library');
+
+/**
+ * §15 of the document is a table of FACTS about the shipped product, and this reads it back.
+ *
+ * The rows above it are argued in prose on purpose — a compliance census that reduced itself to a
+ * machine-readable list would stop being readable by the person who has to defend it. But the facts
+ * quoted inside that prose were checked by nobody, and on 2026-08-23 §4 named two tax codes as
+ * missing that were built the same day. The row stayed wrong through five green builds. So the
+ * facts move into one table and the table is held against its sources.
+ *
+ * Values are backtick-quoted tokens in the third column; `—` means the source is empty, which is
+ * itself an assertion (the `default` pack ships no tax codes, and that is why it is the pack to
+ * start from).
+ */
+function claimRow(doc: string, claim: string): string[] {
+  const line = doc
+    .split('\n')
+    .filter((l) => l.startsWith('|') && l.split('|').length >= 5)
+    .find((l) => (l.split('|')[1] ?? '').replaceAll('`', '').trim() === claim);
+  if (line === undefined) throw new Error(`§15 has no row for the claim "${claim}"`);
+  const value = line.split('|')[3] ?? '';
+  if (value.trim() === '—') return [];
+  return [...value.matchAll(/`([^`]+)`/g)].map((m) => m[1] as string);
+}
+
+function packTaxCodes(pack: string, manifest: string): string[] {
+  const parsed: unknown = JSON.parse(readFileSync(join(PACK_LIBRARY, pack, manifest), 'utf8'));
+  const codes = (parsed as { taxCodes?: unknown }).taxCodes;
+  return Array.isArray(codes) ? codes.map(String) : [];
 }
 
 describe('docs/gobd-conformance.md keeps its promises', () => {
@@ -159,5 +193,37 @@ describe('docs/gobd-conformance.md keeps its promises', () => {
     const markers = [...inTables.matchAll(/[\u2705\u26A0\u2796\u274C\u2753]/gu)].map((m) => m[0]);
     const allowed = new Set(['\u2705', '\u26A0', '\u2796']);
     expect([...new Set(markers)].filter((m) => !allowed.has(m))).toEqual([]);
+  });
+
+  it('the tax codes §15 claims are the tax codes the packs ship', () => {
+    const doc = readDoc();
+    expect(claimRow(doc, 'de pack tax codes')).toEqual(packTaxCodes('de-pack', 'de.json'));
+    expect(claimRow(doc, 'us pack tax codes')).toEqual(packTaxCodes('us-pack', 'us.json'));
+    expect(claimRow(doc, 'default pack tax codes')).toEqual(packTaxCodes('default-pack', 'default.json'));
+  });
+
+  it('the engine repertoires §15 claims are the ones the core registers', () => {
+    const doc = readDoc();
+    expect(claimRow(doc, 'engine tax mechanisms')).toEqual([...allTaxMechanisms()]);
+    expect(claimRow(doc, 'engine tax base kinds')).toEqual([...allTaxBaseKinds()]);
+  });
+
+  /**
+   * The A-13 row is ✅ only because a SHIPPED pack declares the rule. If the rule changes its
+   * accounts, that ✅ is describing something else — so the accounts are part of the claim.
+   */
+  it('the account-combination rule §15 claims is the rule the de pack declares', () => {
+    const parsed: unknown = JSON.parse(
+      readFileSync(join(PACK_LIBRARY, 'de-pack', 'constraint', 'de-entgeltminderung.json'), 'utf8'),
+    );
+    type Range = { from: string; to: string };
+    const rules = ((parsed as { data?: { accountCombinationRules?: unknown } }).data?.accountCombinationRules ??
+      []) as Array<{ whenAccountIn?: Range; requireAccountIn?: Range }>;
+    const actual = rules.flatMap(({ whenAccountIn, requireAccountIn }) =>
+      whenAccountIn === undefined || requireAccountIn === undefined
+        ? []
+        : [whenAccountIn.from, whenAccountIn.to, requireAccountIn.from, requireAccountIn.to],
+    );
+    expect(claimRow(readDoc(), 'de pack account-combination rules')).toEqual(actual);
   });
 });

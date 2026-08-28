@@ -1743,6 +1743,48 @@ authenticated identity is your application's job, and
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
 ```
 
+### auditTrailIntegrity — is the trail still the trail?
+
+No parameters. Output: `records`, `chained`, `unchained`, `redacted`, `head`, `intact` and
+`breaks[]` with `recordId`, `at`, `reason` and `detail`.
+
+**What it answers, and why it did not exist before.** The audit trail has always been append-only
+because *no code path updates or deletes it* — the port offers `append` and `all` and nothing else.
+That is a property of the procedure, not of the data: an auditor could read the source or trust your
+deployment, and a direct `UPDATE` against a `summae_*` table left no trace at all. Since format 0.8
+every record carries the hash of its predecessor (SHA-256 over canonical JSON, RFC 8785), so
+changing, removing or inserting a record breaks the link at its successor. This projection walks the
+chain and reports what it finds.
+
+**Read the four counts as four different states, not as one number:**
+
+- **`chained`** — verified: the record hashes to the value it carries and links to its predecessor.
+- **`unchained`** — written before format 0.8 and carrying no hash. Not a break. They can only sit
+  at the front; one appearing *after* a chained record is an insertion and is reported as a break.
+- **`redacted`** — erased under a privacy right
+  ([`erasePartner`](#erasepartner--erase-a-partner-and-what-the-trail-says-about-them)). The shell
+  keeps both hashes so the chain still resolves across it; its content cannot be verified, because
+  there is none left. A lawful erasure and a manipulation must not look alike, and this is what keeps
+  them apart.
+- **`breaks[]`** — everything else, each with the reason: `contentMismatch` (the record no longer
+  hashes to its own value), `linkMismatch` (its link does not name the preceding record),
+  `unchainedAfterChained` (an insertion).
+
+**Two things it cannot do, and you need both.** A chain never notices records dropped from the
+**end** — that is what `head` is for: keep it somewhere summae cannot reach and compare it later.
+And two concurrent appends can read the same head and both link to it; that fork is reported as a
+break, truthfully, because from the data alone a fork and a removal are the same picture.
+
+This covers the **trail**, not the postings. A chain over the journal would need the reserved field
+`previousEntryHash`, which the data format forbids writers to populate while readers are instructed
+to ignore it — a chain every conforming reader is told to skip would be evidence for nobody.
+
+```json
+// params {}
+{ "records": 42, "chained": 40, "unchained": 0, "redacted": 2,
+  "head": "9f2c…", "intact": true, "breaks": [] }
+```
+
 ### journal — the journal, windowed and paged
 
 `fiscalYear` (**yes**), `fromDate` (no), `toDate` (no), `offset` (no, default

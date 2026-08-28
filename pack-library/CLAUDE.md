@@ -23,7 +23,7 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `policy` | **parameters** (rounding/scale via `packPolicy`) |
 | `resultAppropriation` | **expansion** — which account a resolution books against and which targets the jurisdiction offers (`appropriateResult`) |
 | `legalForms` | **projection** — which legal forms the jurisdiction knows and what each owes in a resolution on the result, with its deadline and citation (`unappropriatedResult`). The only kind with **no** `dependsOn`: it names no accounts |
-| `constraint` | **constraint** — today one predicate: `dimensionRules` (which accounts may not be posted without which dimension). Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
+| `constraint` | **constraint** — two predicates, and a module carries at least one of them, not necessarily both: `dimensionRules` (which accounts may not be posted without which dimension) and `accountCombinationRules` (which accounts must, or must not, meet in **one** entry — `whenAccountIn` plus exactly one of `requireAccountIn`/`forbidAccountIn`). Both see one entry: no deadlines, no reach across entries, no rule about a settlement. Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
   **fails loudly** on missing/incoherent references (`E_PACK_UNRESOLVED_REF` / `E_PACK_INCOHERENT`).

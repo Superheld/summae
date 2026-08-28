@@ -112,6 +112,7 @@ a short file.
 | IMPL-032 the `default` pack cannot produce a statement, and did not say so | ✅ **RESOLVED 2026-08-26** — it ships no mapping module on purpose (a jurisdiction-free chart has no lawful gliederung to bring), but the caller learned it from `balanceSheet requires the parameter "mapping"`, which reads as *you forgot something*. The refusal now names the situation and carries `available` — empty for this pack — and points at `importMapping`; `tenantConfiguration.mappings` answers the same question without an error, and `default-pack-has-no-mappings` pins that the two agree. Documented where a reader looks: the manual's pack list and the pack's own README |
 | SPEC-021 `accountSheet` lines could not reach their own entry | ✅ **RESOLVED 2026-08-26** — `entryId` (the identity `journal` already publishes) plus `contraAccounts[]`, the accounts on the other side of the same entry, deduplicated and sorted. A list rather than a field, because a tax code puts two or more there and naming "the" counter account would invent a fact; the side is decided per line, so one entry reads differently from the two sheets it appears on. Additive — the runner compares subsets, so no fixture changed. Reported by the embedding app (its F-31), fixture `account-sheet-entry-reference` |
 | SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
+| SPEC-022 the audit hash chain looked blocked by a normative rule | ✅ **RESOLVED 2026-08-28** — the premise was wrong, which is the finding. The reserved field `previousEntryHash` sits on the **posting**; the obligation (GoBD census §14 item 5c) asks for tamper evidence on the **audit trail**, which carries no reservation. Two chains had collapsed into one word. Built on the trail (F-CORE-043, format 0.8, `auditTrailIntegrity`); the posting's field stays reserved until 1.0, deliberately. The build found what the finding could not: an erased record must leave a **shell keeping both hashes**, or a lawful erasure is indistinguishable from tampering and breaks the chain for good — and neither persistence adapter chained at all until it was changed |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 | IMPL-033 an appropriated year kept offering a phantom loss | ✅ **RESOLVED 2026-08-27** — `available` for a year was "earned through it minus everything appropriated", which goes negative as soon as a resolution reaches a later year's profit; the operation read −300 as an unappropriated *loss* and booked it, charging a pot that held 200 and appropriating one profit one-and-a-half times. The pot now decides direction and ceiling, the year figure only sizes it. Found while building `unappropriatedResult` (F-CORE-038), which is also what makes it visible: the figure had never been readable except as the detail of a refusal |
 | IMPL-034 the pack manifests were documented as products that do not exist | ✅ **RESOLVED 2026-08-27** — `manifest-de-complete.md` and `manifest-us-complete.md` described packs `de-complete`/`us-complete` at version 2026.1 bundling eight modules under ids that were renamed long ago, so a reader who copied from them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's defect in the half its guard did not reach: the guard checked modules, and the manifest documents sat beside them unchecked. Rewritten from the real manifests, `default` got the one it never had, and `PackDocsTest`/`pack-docs.test.ts` grew a fourth rule over manifest documents |
@@ -311,6 +312,47 @@ two entries for exactly that reason.
 Cheap in the end, and cheaper than it looked: the runner compares **subsets**, so a new field on an
 object turns no existing fixture red. What the report called the second, optional half turned out to
 be the half only the library can supply.
+
+### SPEC-022 — the hash chain: the premise was wrong, and the correction is the finding
+
+**Opened and closed 2026-08-28.** Recorded as blocked; it was not.
+
+**What it claimed.** That tamper evidence on the audit trail could not be built without amending a
+normative rule, quoting `knowledge/50-spezifikation/datenformat.md`:
+
+> `previousEntryHash` (Buchung — Hash-Kette) … **Reader MÜSSEN diese Felder ignorieren, Writer
+> DÜRFEN sie in v0.x nicht belegen.**
+
+It then offered two ways out, both product decisions: amend the rule for format 0.8, or take the
+format to 1.0.
+
+**Why that was wrong.** The reserved field sits on the **Buchung** — the posting. The obligation it
+was written to serve, `docs/gobd-conformance.md` §14 item 5c, asks for something else: *"Tamper
+evidence on the audit trail itself … a hash chain (each record carrying its predecessor's hash)
+would turn it into something checkable."* **Record**, not posting. Two different chains had
+collapsed into one word, and the reservation on one was read as a reservation on both. The trail's
+records carry no such rule, so nothing had to be amended and nobody had to decide anything.
+
+**Decided, and built: the chain goes on the trail; the posting's field stays reserved.**
+
+- **Built** (F-CORE-043, format 0.8): every audit record carries `previousRecordHash` and
+  `recordHash`, SHA-256 over canonical JSON (RFC 8785), verified by the `auditTrailIntegrity`
+  projection. Both languages compute the same bytes, which `make cross` proves rather than assumes.
+- **Not built, deliberately:** `previousEntryHash` on the posting. A chain every conforming reader
+  is *instructed to ignore* is evidence for nobody, and neither escape route earns its cost today —
+  amending the rule changes what the format promises to everyone already reading it under the old
+  one, and 1.0 is a statement about stability that a hardening has no business forcing. It becomes
+  ordinary work the day the format goes to 1.0, and the trail's chain covers the obligation that was
+  actually open in the meantime.
+
+**Two things the build found that the finding could not have.** The audit trail has an erasure hole
+(`eraseFor`, F-CORE-040, the right to be forgotten), and a naive chain makes a **lawful erasure
+indistinguishable from a manipulation** — worse, it breaks the chain permanently at that point, so
+every later verification reports tampering that never happened. An erased record therefore leaves a
+**shell** that keeps both hashes and nothing else. And the `knex`/`laravel` adapters did not chain
+at all until they were changed: the conformance suite ran green against the database subject because
+no fixture reached the chain. `core/audit-hash-chain` does, in both subjects, and it fails without
+the adapter change — checked by reverting it.
 
 ### IMPL-032 — the `default` pack cannot produce a statement, and did not say so — RESOLVED
 
