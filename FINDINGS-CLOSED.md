@@ -124,7 +124,7 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-036 an existing table did not gain a nullable column | ✅ **RESOLVED 2026-08-28** — the documented upgrade path for a new persisted field was "add the column by hand", which is a step nobody performs on a library upgrade; `validFrom`/`validTo` would have broken the next insert against an existing store. Both schema installers now add a missing nullable column instead of assuming the table is current, with a named test each (`HydratorAndSchemaTest` / `hydrator-and-schema.test.ts`). Recorded here late: it was issued and fixed inside the F-CORE-045 work without a register entry of its own, which is the small version of the same drift IMPL-039 is about |
 | IMPL-037 the normative data-format document lags the format | ✅ **RESOLVED 2026-08-28** — and it had already drifted again while the finding was being written: the document said v0.8, the schema and both `FORMAT_VERSION` constants said 0.9. `DataFormatDocTest`/`data-format-doc.test.ts` now hold three narrow claims in both languages — title and `$id` line equal `FORMAT_VERSION`, no `## v0.x` missing between the oldest documented version and the current one, every `$defs` key named in the document. Writing 0.9 up exposed the second half: 0.3, 0.5 and 0.7 had never had a section either, and nine of 23 `$defs` keys appeared nowhere because the prose calls them something else. Both are now written, the second as an index from schema key to section |
 | IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
-| IMPL-039 nothing holds `covers` and the requirement lists together | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-039 nothing holds `covers` and the requirement lists together | ✅ **RESOLVED 2026-08-28** — `CoversContractTest`/`covers-contract.test.ts` hold the two sets against each other in both directions and both languages, with two reasoned exception lists that are themselves guarded in reverse; an excuse naming substitute fixtures must name ones that exist and still run. `F-AST-007` was decided **not** to be merged into F-AST-002/005 — that would falsify the list to fit a string — and stands in the exception list with its four fixtures named. The guard found nothing new, which was the point: it is the drift *detector* that was missing, not the current instances. Its limit is written down where it will be read (root `CLAUDE.md`): it checks that an ID is declared, never that the fixture proves it (IMPL-043) |
 | IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
 | IMPL-042 F-IO-008 (DATEV import) is not built | ✅ **DECIDED 2026-08-28 — deferred, with the blocker named and verifiable in the shipped pack.** The way back needs BU key → `taxCode`, and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu` at all, and `USt19`/`USt19WA` both carry `3`. The inverse is neither total nor unique, so an import would guess — and what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real batch to verify the format against; until then the way back is the app's, the same line CAMT and XRechnung already sit on |
@@ -2438,3 +2438,45 @@ then the way back is the embedding app's, which is the line CAMT and XRechnung a
 F-IO-008 was built found a shipped capability under its number and moved on. A wrong ID in the
 most-read file is worth more than a wrong ID anywhere else, because it is the one that gets trusted
 without checking.
+
+## IMPL-039 — nothing holds `covers` and the requirement lists together — ✅ RESOLVED 2026-08-28
+
+The register entry as it stood is above the line; what follows is what closing it produced.
+
+**Three rules, both languages** (`CoversContractTest` / `covers-contract.test.ts`, beside the two
+census guards and the format-document guard):
+
+1. every `covers` entry is a declared requirement ID, or stands in `LEGACY_COVERS` with a reason —
+   eleven entries, all Gate-1 resolver drafts citing error codes, invariants `I1`–`I4` and bare
+   words, none of them correctable because a fixture is append-only;
+2. every declared requirement is named by a **live** fixture, or stands in `NOT_FIXTURE_BACKED` with
+   a reason — ten entries: two cross-language (`F-IO-004`, `SF-15`, proven by `make cross`), four
+   architectural or dedicated per-implementation tests (`NF-4`…`NF-7`, `F-IO-010`), two unbuilt on
+   record (`F-IO-008`, `F-KLR-002` — IMPL-042, IMPL-041) and `F-AST-007`;
+3. `validate.py` counts no `SF-` that `lieferumfang.md` does not declare — the shape SF-27 was found
+   in, kept as its own check rather than folded into rule 1.
+
+**Retired fixtures do not count as coverage**, which is the same lesson the GoBD census learned: a
+superseded fixture stays on disk byte-identical by design, so existence is the wrong question.
+
+**Both exception lists are guarded in reverse.** An entry whose requirement gains a real fixture
+fails; a legacy entry no fixture uses any more fails. And an excuse that names substitute fixtures
+must name ones that exist *and still run* — otherwise "covered under another ID" ages into a claim
+nobody can reproduce.
+
+**`F-AST-007` was decided, not deferred.** The finding guessed the repair was to merge it into
+F-AST-002/005. That would have been wrong: a declining-balance plan is neither the GWG switch nor
+the asset register, and folding a requirement into two foreign ones so that a string matches makes
+the list false rather than complete. Writing a fixture whose only purpose is to carry the string was
+the other wrong artefact. It stands in the exception list with its four fixtures named — and rule
+(3) above checks them, so the excuse is a claim the build verifies rather than a note.
+
+**The guard found no new instance**, and that is the expected result: the current ones had been
+repaired by hand the day before. What was missing was the detector, so the *next* one does not need
+a year and an inventory to surface.
+
+**Its limit is now written down where it will be read** (root `CLAUDE.md`, same paragraph):
+the guard checks that an ID is *declared*, never that the fixture behind it *proves* the
+requirement. `F-KLR-005` reads green while its three fixtures are about production cost, the one
+case that requirement excludes — recorded separately as IMPL-043 rather than hidden behind a green
+check.

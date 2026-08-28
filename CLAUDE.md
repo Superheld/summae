@@ -195,9 +195,14 @@ defect nobody could repair without leaving the repository first.
   `override`). The families are now declared, because a requirement that 21 fixtures prove exists;
   the rest is legacy and stays, because a fixture is append-only and its `covers` cannot be edited.
   **For anything new: name declared requirement IDs and nothing else.** PACK and RP were added by
-  writing down what was already being tested, not by inventing a scope — and the reason the drift
-  went unnoticed for a year is that nothing holds `covers` against the requirement lists. That is a
-  known gap, deliberately not closed with a test yet (`FINDINGS-OPEN.md`).
+  writing down what was already being tested, not by inventing a scope. The drift went unnoticed for
+  a year because nothing held `covers` against the requirement lists; since 2026-08-28
+  `CoversContractTest`/`covers-contract.test.ts` do, in both languages and in both directions — every
+  `covers` entry is a declared ID, every declared requirement is named by a live fixture, and the two
+  exception lists (Gate-1 legacy · not-fixture-backed, each with a reason and its substitute fixtures
+  named) fail when an entry outlives its reason. **What that guard cannot say** is whether the fixture
+  behind an ID *proves* the requirement: `F-KLR-005` is cited by three fixtures about production cost,
+  the one case it excludes (IMPL-043). Green there means "declared", not "proven".
 
 Language-specific conventions, build and test commands: in
 `implementations/<language>/CLAUDE.md`.

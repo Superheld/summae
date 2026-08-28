@@ -65,41 +65,6 @@ it gains three rows, the two export fixtures are superseded, and a test holds th
 the serialised shape so it cannot drift again) or a *selected* one (then it says so in its own
 `meaning` text, and the same test is not wanted). The first reading is the one an auditor takes.
 
-## IMPL-039 — nothing holds `covers` and the requirement lists together
-
-**Found 2026-08-28** while taking an inventory of every list in the repo that no gate touches.
-
-The root `CLAUDE.md` said "fixtures name only requirements in `covers`". It was not true and had not
-been true for about a year: **21 fixtures cited a `F-PACK-*` / `F-RP-*` family that no requirements
-file declared**, using two area words (PACK, RP) that were not among the five the same paragraph
-listed. `SF-27` was in the same state from the other side — five fixtures covered it and
-`validate.py` counted it, while `lieferumfang.md` ended at SF-26, so a standard case existed only in
-the arithmetic.
-
-**Repaired for the instances, not for the class.** PACK and RP are now declared, with text
-reconstructed from the fixtures that prove them; SF-27 is written down. What is *not* built is
-anything that would have caught it, or will catch the next one. The comparison that makes this a
-finding rather than a chore: the error catalogue and the exit-code tables are held against each
-other **as sets, in both directions, in both languages**, so half the work fails the build. The
-requirement lists — the thing the whole quality gate is defined in terms of — are held by nobody.
-
-**The remaining instance, left open deliberately:** `F-AST-007` (declining-balance depreciation with
-the automatic switch, plus § 7g) is **built and behaviourally covered** by
-`declining-balance-depreciation`, `declining-balance-asset-class`, `special-depreciation` and
-`asset-register-special-depreciation` — all of which name `F-AST-002` / `F-AST-005`. The honest
-repair is probably to **merge** F-AST-007 into those two rather than to add a fixture whose only
-purpose is to carry a string, and that is a decision about the requirement list, not a gap in the
-tests.
-
-**What would close it.** A guard beside `GobdConformanceDocTest` / `gobd-conformance-doc.test.ts`,
-in both languages, with three narrow rules: every `covers` entry is a declared ID (with a named
-exception list for the Gate-1 resolver drafts, which cite error codes and invariant shorthands and
-cannot be edited because fixtures are append-only); every declared requirement is named by some
-`covers` **or** stands in that exception list with a reason; and `validate.py` counts no `SF-` that
-`lieferumfang.md` does not declare. Deliberately **not built yet** — a guard was explicitly not
-wanted in this pass, and half a guard would mark where attention stops, which is the lesson IMPL-034
-already taught.
-
 ## IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is a catalogue code with nothing behind it
 
 **Confirmed 2026-08-28** (older than that; it has been carried in the pack-gate backlog).
