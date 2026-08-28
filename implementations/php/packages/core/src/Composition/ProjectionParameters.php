@@ -91,6 +91,10 @@ final class ProjectionParameters
         'personalDataDescription' => [],
         'systemDescription' => [],
         'auditTrailIntegrity' => [],
+        // No parameters, and a date window in particular is refused on purpose: an invoice
+        // entered in December and again in January is the case this exists for, and any
+        // window on the voucher date hides it exactly at the boundary.
+        'duplicateVouchers' => [],
         'gdpduExport' => [
             'fiscalYear' => ['type' => 'integer'],
             'mediaName' => ['type' => 'string'],

@@ -194,3 +194,4 @@ audit-hash-chain
 gdpdu-data-carrier
 de-kleinunternehmer-ust-verboten
 xx-10-constraint-rules-readable
+duplicate-vouchers

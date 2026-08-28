@@ -1,0 +1,730 @@
+{
+  "fixture": "duplicate-vouchers",
+  "description": "F-CORE-044: the same document entered twice is the one bookkeeping defect summae could not see at all. `voucherNumber` is a free string with no uniqueness of any kind, so an incoming invoice booked a second time produces a second voucher, a second balanced entry and a SECOND INPUT-TAX DEDUCTION — and every invariant holds: the entries balance, both carry a voucher, both sit in an open period, the trial balance adds up. Nothing looked wrong anywhere; the money was simply claimed twice. WHY A PROJECTION AND NOT A REFUSAL, because that is the decision this fixture pins as much as the numbers: duplicate voucher numbers are legitimate across sources — two suppliers may both send their invoice number 1, and step 5 books exactly that — so the grouping is by DOCUMENT IDENTITY (issuer plus number) and even then the answer is a report. A uniqueness rule would be wrong in a way nobody could work around, and the only thing worse than a missing check is one that blocks correct bookkeeping; `vatReturn.gapWarnings` draws the same line. Three things are proven not to be findings: a different supplier with the same number (one voucher under its own identity, so no group), a `recurring` voucher repeating its number (a Dauerbeleg is what the flag means), and a duplicate that was already CORRECTED — its entry is reversed, so `postedTotal` reads 0.00 and `stillPosted` says one of the two still moves the books. The corrected one stays visible with its history rather than dropping out, because a list somebody reads to decide whether it was corrected must show that it was. The third group has no partner at all and is held together by `issuer`: the master record is the identity where there is one, the typed string where there is not.",
+  "covers": [
+    "F-CORE-044"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Doppelbeleg GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1500",
+        "name": "Vorsteuer",
+        "type": "asset",
+        "subtype": "tax_in"
+      },
+      {
+        "number": "3000",
+        "name": "Verbindlichkeiten",
+        "type": "liability",
+        "subtype": "ap"
+      },
+      {
+        "number": "6000",
+        "name": "Sonstiger betrieblicher Aufwand",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": []
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Lieferant Nord GmbH",
+        "kind": "supplier"
+      },
+      "expect": {
+        "result": {
+          "id": "$P1"
+        }
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Lieferant Sued GmbH",
+        "kind": "supplier"
+      },
+      "expect": {
+        "result": {
+          "id": "$P2"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-4711",
+          "voucherDate": "2026-02-03",
+          "partnerId": "$P1"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-03",
+        "voucherId": "$V1",
+        "text": "Eingangsrechnung Nord",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1500",
+            "side": "debit",
+            "money": {
+              "amount": "95.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "595.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-4711",
+          "voucherDate": "2026-02-17",
+          "partnerId": "$P1"
+        }
+      },
+      "expect": {
+        "comment": "The same invoice a fortnight later — a second scan, a second batch, nobody notices. Accepted without a word, which is the defect this fixture exists for.",
+        "result": {
+          "id": "$V2"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-17",
+        "voucherId": "$V2",
+        "text": "Eingangsrechnung Nord (nochmals)",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "500.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1500",
+            "side": "debit",
+            "money": {
+              "amount": "95.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "595.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E2"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-4712",
+          "voucherDate": "2026-03-02",
+          "partnerId": "$P1"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V3"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-02",
+        "voucherId": "$V3",
+        "text": "Zweite Rechnung Nord",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1500",
+            "side": "debit",
+            "money": {
+              "amount": "38.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "238.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E3"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-4712",
+          "voucherDate": "2026-03-09",
+          "partnerId": "$P1"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V4"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-03-09",
+        "voucherId": "$V4",
+        "text": "Zweite Rechnung Nord (nochmals)",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "200.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1500",
+            "side": "debit",
+            "money": {
+              "amount": "38.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "238.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E4"
+        }
+      }
+    },
+    {
+      "op": "reverse",
+      "input": {
+        "entryId": "$E4",
+        "entryDate": "2026-03-10"
+      },
+      "expect": {
+        "comment": "This one was caught and corrected the GoBD way — reversal, not deletion. The group must still be reported, with the corrected voucher at 0.00 and `stillPosted` down to one: a list read to decide whether something was corrected has to show that it was.",
+        "result": {
+          "id": "$E5"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-4711",
+          "voucherDate": "2026-02-20",
+          "partnerId": "$P2"
+        }
+      },
+      "expect": {
+        "comment": "The same number from a different supplier. This is why a uniqueness rule on `voucherNumber` would be wrong rather than merely strict — and why the identity is the issuer plus the number.",
+        "result": {
+          "id": "$V5"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-20",
+        "voucherId": "$V5",
+        "text": "Eingangsrechnung Sued",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "300.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E6"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "SW-9",
+          "voucherDate": "2026-04-01",
+          "issuer": "Stadtwerke"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V6"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-01",
+        "voucherId": "$V6",
+        "text": "Stromabschlag",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E7"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "SW-9",
+          "voucherDate": "2026-04-08",
+          "issuer": "Stadtwerke"
+        }
+      },
+      "expect": {
+        "comment": "No partner record anywhere, so the identity falls back to the typed issuer. Without that fallback the commonest case in a small set of books — a supplier nobody bothered to create — would be the one the projection cannot see.",
+        "result": {
+          "id": "$V7"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-04-08",
+        "voucherId": "$V7",
+        "text": "Stromabschlag (nochmals)",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "3000",
+            "side": "credit",
+            "money": {
+              "amount": "100.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E8"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "MIETE-2026",
+          "voucherDate": "2026-01-05",
+          "recurring": true
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V8"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-05",
+        "voucherId": "$V8",
+        "text": "Miete Januar",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E9"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "MIETE-2026",
+          "voucherDate": "2026-02-05",
+          "recurring": true
+        }
+      },
+      "expect": {
+        "comment": "A Dauerbeleg repeating its number is exactly what `recurring` is for. Reporting it would train the reader to ignore the list, which is how a warning stops being one.",
+        "result": {
+          "id": "$V9"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-02-05",
+        "voucherId": "$V9",
+        "text": "Miete Februar",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "1000.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E10"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "duplicateVouchers",
+      "params": {},
+      "expect": {
+        "comment": "Three groups and six vouchers out of nine. The three that are NOT here are the finding as much as the three that are: a same number from another supplier, and a Dauerbeleg posted twice.",
+        "count": 3,
+        "voucherCount": 6,
+        "duplicates": [
+          {
+            "voucherNumber": "RE-4711",
+            "partnerId": "$P1",
+            "partnerName": "Lieferant Nord GmbH",
+            "issuer": null,
+            "count": 2,
+            "stillPosted": 2,
+            "vouchers": [
+              {
+                "voucherId": "$V1",
+                "voucherDate": "2026-02-03",
+                "postedTotal": {
+                  "amount": "595.00",
+                  "currency": "EUR"
+                },
+                "entries": [
+                  {
+                    "entryId": "$E1",
+                    "sequenceNumber": 1,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-02-03",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": null
+                  }
+                ]
+              },
+              {
+                "voucherId": "$V2",
+                "voucherDate": "2026-02-17",
+                "postedTotal": {
+                  "amount": "595.00",
+                  "currency": "EUR"
+                },
+                "entries": [
+                  {
+                    "entryId": "$E2",
+                    "sequenceNumber": 2,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-02-17",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "voucherNumber": "RE-4712",
+            "partnerId": "$P1",
+            "partnerName": "Lieferant Nord GmbH",
+            "issuer": null,
+            "count": 2,
+            "stillPosted": 1,
+            "vouchers": [
+              {
+                "voucherId": "$V3",
+                "voucherDate": "2026-03-02",
+                "postedTotal": {
+                  "amount": "238.00",
+                  "currency": "EUR"
+                },
+                "entries": [
+                  {
+                    "entryId": "$E3",
+                    "sequenceNumber": 3,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-03-02",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": null
+                  }
+                ]
+              },
+              {
+                "voucherId": "$V4",
+                "voucherDate": "2026-03-09",
+                "postedTotal": {
+                  "amount": "0.00",
+                  "currency": "EUR"
+                },
+                "comment": "Already corrected: the reversal sits on the SAME voucher, so the history is in one place, and postedTotal says the voucher no longer moves the books.",
+                "entries": [
+                  {
+                    "entryId": "$E4",
+                    "sequenceNumber": 4,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-03-09",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": "$E5"
+                  },
+                  {
+                    "entryId": "$E5",
+                    "sequenceNumber": 5,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-03-10",
+                    "status": "entered",
+                    "reverses": "$E4",
+                    "reversedBy": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "voucherNumber": "SW-9",
+            "partnerId": null,
+            "partnerName": null,
+            "issuer": "Stadtwerke",
+            "count": 2,
+            "stillPosted": 2,
+            "vouchers": [
+              {
+                "voucherId": "$V6",
+                "voucherDate": "2026-04-01",
+                "postedTotal": {
+                  "amount": "100.00",
+                  "currency": "EUR"
+                },
+                "entries": [
+                  {
+                    "entryId": "$E7",
+                    "sequenceNumber": 7,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-04-01",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": null
+                  }
+                ]
+              },
+              {
+                "voucherId": "$V7",
+                "voucherDate": "2026-04-08",
+                "postedTotal": {
+                  "amount": "100.00",
+                  "currency": "EUR"
+                },
+                "entries": [
+                  {
+                    "entryId": "$E8",
+                    "sequenceNumber": 8,
+                    "fiscalYear": 2026,
+                    "entryDate": "2026-04-08",
+                    "status": "entered",
+                    "reverses": null,
+                    "reversedBy": null
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "comment": "Every figure here is what the books say after the double entry — and nothing in it looks wrong. That is the whole argument for the projection: the duplicated 595.00 is in 6000 and 1500 twice, and no invariant notices.",
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "-2000.00"
+          },
+          {
+            "account": "1500",
+            "balance": "228.00"
+          },
+          {
+            "account": "3000",
+            "balance": "-1928.00"
+          },
+          {
+            "account": "6000",
+            "balance": "3700.00"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -675,6 +675,7 @@
     "personalDataDescription": {},
     "systemDescription": {},
     "auditTrailIntegrity": {},
+    "duplicateVouchers": {},
     "gdpduExport": {
       "fiscalYear": {
         "type": "integer",
