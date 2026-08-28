@@ -226,7 +226,7 @@ export class Tenant {
       auditWriter,
       configStore,
     );
-    const partnerService = new PartnerService(partners, audit, clock, ids, accounts);
+    const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const legalForms = new LegalFormRegistry();
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 

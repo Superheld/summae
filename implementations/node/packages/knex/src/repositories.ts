@@ -550,6 +550,11 @@ export class DatabasePartnerRepository implements PartnerRepository {
     return row === null ? null : this.hydrate(row);
   }
 
+  /** F-CORE-040 — tenant-scoped like every other statement here, so one tenant cannot erase another's. */
+  remove(id: Uuid): void {
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', id.value).delete());
+  }
+
   all(): Partner[] {
     return this.db
       .all(this.table().where('tenant_id', this.tenantId.value).orderBy('rowid'))
@@ -728,6 +733,38 @@ export class DatabaseAuditTrail implements AuditTrail {
 
   all(): AuditRecord[] {
     return this.hydrate(this.table().where('tenant_id', this.tenantId.value).orderBy('seq'));
+  }
+
+  /**
+   * F-CORE-040 — the only statement in this adapter that removes a row from the trail.
+   *
+   * `objectType`/`objectId` live inside the JSON payload rather than in columns (see `find` below
+   * for why), so the delete extracts them the same way the filter does. Tenant-scoped, like
+   * everything else here.
+   */
+  eraseFor(objectType: string, objectId: Uuid): number {
+    // Counted before the delete rather than read back from it: `SyncDb.run` returns nothing, and
+    // widening that contract for one caller would put a driver detail into every repository. Both
+    // statements carry the same predicate, so the number is the number that went.
+    const matching = this.db.all(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .whereRaw("json_extract(payload, '$.objectType') = ?", [objectType])
+        .whereRaw("json_extract(payload, '$.objectId') = ?", [objectId.value])
+        .select('id'),
+    ).length;
+
+    if (matching > 0) {
+      this.db.run(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .whereRaw("json_extract(payload, '$.objectType') = ?", [objectType])
+          .whereRaw("json_extract(payload, '$.objectId') = ?", [objectId.value])
+          .delete(),
+      );
+    }
+
+    return matching;
   }
 
   /**

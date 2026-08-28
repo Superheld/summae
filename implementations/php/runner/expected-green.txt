@@ -160,6 +160,7 @@ parameter-effect-current
 partner-status
 voucher-net-line-dimensions
 partner-account-link-validated
+partner-erasure
 tax-profile-input-validation
 de-euer-surplus
 asset-register-special-depreciation

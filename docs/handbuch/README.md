@@ -1268,9 +1268,13 @@ you send is what the partner has afterwards. Both were create-only until 0.11,
 which made a wrong account link permanent — the only way back was a new partner
 under a new id, while every open item stayed on the old one.
 
-There is deliberately **no `deletePartner`**: books keep what they referenced,
-and an id that open items point at must not vanish. What a partner does have is
-a status — see `deactivatePartner`.
+A partner the books reference is **kept**: an id that open items point at must
+not vanish, and the retention duty (§ 147 AO / § 257 HGB) outranks the right to
+erasure for everything in the books — Art. 17(3)(b) GDPR says so in as many
+words. What such a partner has instead is a status; see `deactivatePartner`.
+
+A partner the books have **never** referenced is a different question with a
+different answer, and it is `erasePartner`.
 
 #### deactivatePartner / reactivatePartner
 
@@ -1285,6 +1289,41 @@ records the fact, the application decides what follows from it. That is the
 difference to `lockAccount`, which does refuse postings, and the two words are
 different on purpose. The status is part of the partner record and of the
 `journalExport` partner stream (data format 0.7).
+
+#### erasePartner
+
+`partnerId` (yes), `actor`. Output: `{ "id": "…", "erasedAuditRecords": n }`.
+Errors: `E_PARTNER_UNKNOWN`, `E_PARTNER_IN_USE`.
+
+**The Art. 17 GDPR case, and the only operation in summae that removes
+anything.** `deactivatePartner` says *we no longer trade with them*;
+`erasePartner` says *this personal data must not be here at all*. Only the
+second is ever a legal obligation, and it applies to exactly one situation: a
+partner that no voucher and no open item has ever named. A record created by a
+typo has no retention duty behind it, so keeping it forever was never a
+compliance decision.
+
+**It refuses loudly when the books do reference the partner.**
+`E_PARTNER_IN_USE` — deliberately not `E_PARTNER_UNKNOWN`, because the partner
+exists and is kept on purpose. `details` carries `vouchers` and `openItems`, so
+you can answer a data subject with a reason and a retention basis instead of a
+bare no.
+
+**It also erases the trail's records about that partner, and this is the point.**
+`createPartner` writes the name and, if you gave one, the address into the audit
+record's `changes`. Removing only the partner row would move the personal data to
+the place nobody looks rather than remove it. So the records *about this partner*
+go, `erasedAuditRecords` tells you how many, and one new record takes their place:
+id, actor, moment, and `existed: true → false` as its diff — no personal payload
+at all. The trail keeps the fact that an erasure happened, which is what an audit
+asks of it.
+
+⚠ **This is the one hole in "the trail is append-only because no code path
+deletes from it".** It is reachable from this operation and from nowhere else:
+the journal, the entries, and the trail's records about them cannot be touched by
+any API summae offers. See [GDPR conformance](../gdpr-conformance.md) for the
+whole picture and [GoBD conformance](../gobd-conformance.md) §13 for why the two
+do not conflict.
 
 ### 6.4 Assets & cost accounting
 

@@ -43,6 +43,63 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### Added: `erasePartner` — the one place summae was doing something wrong (F-CORE-040)
+
+The GDPR census listed three open rows; this closes the first, and it is the only one where summae
+did not merely fail to *offer* something but actively kept data it had no basis to keep. A partner
+that no voucher and no open item has ever named — one created by a typo — is outside every retention
+duty, and the right to erasure applies to it undiminished. There was no way to remove it.
+
+```
+summae op erasePartner --input '{"partnerId":"…","actor":"datenschutz@example.test"}'
+→ { "id": "…", "erasedAuditRecords": 1 }
+```
+
+**The scoping in the census row was wrong, and the way it was wrong is the interesting part.** It
+proposed refusing when *any* record referenced the id, audit records included — and `createPartner`
+always writes one, so the operation could never have succeeded. Worse, the naive version would have
+erased nothing: that creation record holds the name and, if given, the address in `changes`, so
+removing the partner row alone moves personal data to where nobody looks. The operation therefore
+takes the trail's records **about that partner** with it, reports how many in `erasedAuditRecords`,
+and appends a single record in their place — id, actor, moment, and `existed: true → false` as its
+diff, with no personal payload at all. The trail keeps the fact that an erasure happened, which is
+what an audit asks of it.
+
+That last shape was **forced by a test rather than chosen**: the audit-trail contract requires every
+record to carry a before/after diff, so an empty `changes` failed. The refusal was right — a diff
+about existence is truthful, costs nothing and reveals nothing, while an exception would have been
+the first record in the system exempt from a published invariant.
+
+`E_PARTNER_IN_USE` when the books do reference the partner — deliberately not `E_PARTNER_UNKNOWN`,
+because the partner exists and is kept on purpose — and `details` carries `vouchers`/`openItems` so
+an application can give a data subject a reason rather than a bare no.
+
+**This is the one hole in "the trail is append-only because no code path deletes from it",** and it
+is reachable from this operation and nowhere else. `AuditTrail.eraseFor` and `PartnerRepository.remove`
+are the only removing methods in the core; the journal, the entries and the trail's records about
+them cannot be touched by any API summae offers.
+
+**The jurisdiction guard caught the first draft.** The core comments cited § 147 AO and Art. 17(3)(b)
+GDPR, and `NoJurisdictionTextTest` / `no-jurisdiction-text` went red — correctly. The line the core
+knows is *referenced by the books or not*; which rule puts a record on which side of it, and under
+what name, is documented in `docs/gdpr-conformance.md` and asserted nowhere in the substrate. The
+litmus test worked on code written the same day by someone who had just re-read it.
+
+Fixture `partner-erasure` in both languages, plus `PartnerErasureTest` / `partner-erasure.test.ts`
+for what a fixture cannot reach: that `eraseFor` takes the records about one object and leaves every
+other record standing, and that the refusal's details name what keeps the record.
+
+### Also, found while building it
+
+- **`--strict` never checked what the Makefile said it checked.** The target's comment claimed a
+  newly green fixture without an entry in `runner/expected-green.txt` is an error. It is not:
+  `--strict` means every fixture green plus a byte-identical double run, and the expected-green list
+  is a regression guard consumed by a unit test, which nothing fails for omitting. Comment corrected;
+  the new fixture added to both lists.
+- **There is no way to read the partner list.** `partners` is not a projection, so an Art. 15 access
+  request cannot be answered from the published surface without going through `journalExport`. Noted
+  in the GDPR census rather than fixed here.
+
 ### Added: a GDPR census, because there was not one word
 
 `docs/gdpr-conformance.md`, the twin of the GoBD document, with the same three statuses. It exists

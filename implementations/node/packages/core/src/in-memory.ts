@@ -169,6 +169,17 @@ export class InMemoryAuditTrail implements AuditTrail {
     return [...this.records];
   }
 
+  eraseFor(objectType: string, objectId: Uuid): number {
+    const before = this.records.length;
+    for (let i = this.records.length - 1; i >= 0; i -= 1) {
+      const record = this.records[i]!;
+      if (record.objectType === objectType && record.objectId.value === objectId.value) {
+        this.records.splice(i, 1);
+      }
+    }
+    return before - this.records.length;
+  }
+
   find(criteria: AuditCriteria): { records: AuditRecord[]; count: number } {
     return applyAuditCriteria(this.records, criteria);
   }
@@ -185,6 +196,10 @@ export class InMemoryPartnerRepository implements PartnerRepository {
 
   byId(id: Uuid): Partner | null {
     return this.byIdMap.get(id.value) ?? null;
+  }
+
+  remove(id: Uuid): void {
+    this.byIdMap.delete(id.value);
   }
 
   all(): Partner[] {

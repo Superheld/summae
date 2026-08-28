@@ -27,6 +27,11 @@ final class InMemoryPartnerRepository implements PartnerRepository
         return $this->byId[$id->value] ?? null;
     }
 
+    public function remove(Uuid $id): void
+    {
+        unset($this->byId[$id->value]);
+    }
+
     public function all(): array
     {
         $partners = array_values($this->byId);

@@ -78,6 +78,10 @@ const CODES: readonly string[] = [
   // is answered by configuration, the second only by posting differently.
   'E_APPROPRIATION_UNSUPPORTED',
   'E_APPROPRIATION_EXCEEDS_RESULT',
+  // Erasure of a partner (v0.15.1, F-CORE-040). Not "unknown partner" — the partner exists and is
+  // kept on purpose, because a voucher or an open item names it and the retention duty outranks the
+  // right to erasure. A caller that cannot tell the two apart cannot tell the data subject why.
+  'E_PARTNER_IN_USE',
 ];
 
 export function exitCodeFor(errorCode: string): number {

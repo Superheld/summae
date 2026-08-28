@@ -93,6 +93,7 @@ final readonly class TenantOperations
             'deactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'inactive')),
             'reactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'active')),
             'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
+            'erasePartner' => $tenant->partnerService->erase($input),
             'appropriateResult' => $tenant->resultAppropriation->appropriate($input),
             'setEntityProfile' => $tenant->entityProfile?->set($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "setEntityProfile" is not defined'),

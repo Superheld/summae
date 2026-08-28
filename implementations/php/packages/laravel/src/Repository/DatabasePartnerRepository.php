@@ -45,6 +45,14 @@ final readonly class DatabasePartnerRepository implements PartnerRepository
         return $row === null ? null : $this->hydrate($row);
     }
 
+    /** F-CORE-040 — tenant-scoped like every other statement here, so one tenant cannot erase another's. */
+    public function remove(Uuid $id): void
+    {
+        $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->where('id', $id->value)->delete();
+    }
+
     public function all(): array
     {
         $partners = [];

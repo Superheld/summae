@@ -50,6 +50,24 @@ final readonly class DatabaseAuditTrail implements AuditTrail
      * with `->>`. Different SQL, identical rows — `seq` still decides the order, and the adapter
      * suite drives the same criteria through this and through the in-memory filter and compares.
      */
+    /**
+     * F-CORE-040 — the only statement in this adapter that removes a row from the trail.
+     *
+     * Same dialect split as find(): objectType/objectId live in the JSON payload, so the delete
+     * extracts them the way the filter does. Tenant-scoped, like everything else here. The count is
+     * what delete() reports, which is the number of rows that actually went.
+     */
+    public function eraseFor(string $objectType, Uuid $objectId): int
+    {
+        $postgres = $this->isPostgres();
+
+        return $this->table()
+            ->where('tenant_id', $this->tenantId->value)
+            ->whereRaw(AuditSql::equals($postgres, 'objectType'), [$objectType])
+            ->whereRaw(AuditSql::equals($postgres, 'objectId'), [$objectId->value])
+            ->delete();
+    }
+
     public function find(array $criteria): array
     {
         $query = $this->table()->where('tenant_id', $this->tenantId->value);

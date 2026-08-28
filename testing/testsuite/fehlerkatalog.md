@@ -115,6 +115,7 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_PARTNER_UNKNOWN` | partnerId am Beleg existiert nicht | partner-and-ec-sales |
+| `E_PARTNER_IN_USE` | `erasePartner` auf einen Partner, den ein Beleg oder ein offener Posten nennt — Aufbewahrungspflicht schlaegt Loeschrecht (v0.15.1, F-CORE-040). `details` nennt `vouchers`/`openItems` | partner-erasure |
 | `E_FISCALYEAR_OVERLAP` | createFiscalYear überschneidet bestehendes Jahr | fiscal-year-management |
 
 ## E_TAX
