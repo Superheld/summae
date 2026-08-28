@@ -1,0 +1,324 @@
+{
+  "fixture": "xx-8-constraint-account-combination-current",
+  "description": "F-CORE-042: the constraint socket gets a SECOND predicate, and that is the point of this fixture more than the rule it carries. The constraint kind is the one of the three policy kinds that exists to let a jurisdiction say NO, and it could express exactly one thought — this account may not be posted without that dimension. Everything else a jurisdiction forbids had to go somewhere else or nowhere; docs/gobd-conformance.md §14 item 6 has said so since the socket was built: the shape is settled, the vocabulary is not. A socket with one predicate is not visibly a socket, it might be a feature with a data file. `accountCombinationRules` says which accounts must, or must not, appear in ONE entry together: `whenAccountIn` plus exactly one of `requireAccountIn` / `forbidAccountIn`, because a rule saying both would be two rules under one name. THE REQUIRE CASE IS A-13, the obligation the app list carried because summae could not: a granted discount reduces the consideration and must carry its tax correction. Note where its lines sit — the discount is a debit and so is the VAT correction, with the receivable on the credit — so a predicate about the OTHER SIDE would have missed the very case it was built for. `somewhere in the same entry` is also the weaker claim, and a weaker claim is what a pack can reason about without knowing how an application splits its lines. WHAT IT STILL CANNOT DO is stated as plainly: it sees one entry, so no deadlines, no reach across entries, and no rule about a settlement — `settle` records an allocation and posts nothing, so there is no entry there to constrain. A-13 is reached through the posting the application makes, which is where the books actually change.",
+  "covers": [
+    "F-CORE-042",
+    "F-PACK-POLICY-001"
+  ],
+  "setup": {
+    "pack": {
+      "manifest": {
+        "formatVersion": "0.6",
+        "id": "xx-combination-conformance",
+        "name": "Fiktive Jurisdiktion XX (Kombinationsregeln)",
+        "version": "2026.1",
+        "modules": [
+          {
+            "kind": "accounts",
+            "id": "xx-skonto-konten",
+            "version": "2026.1"
+          },
+          {
+            "kind": "constraint",
+            "id": "xx-kombinationen",
+            "version": "2026.1"
+          }
+        ],
+        "overrides": [],
+        "defaults": {
+          "taxationMethod": "accrual"
+        },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      "modules": [
+        {
+          "formatVersion": "0.6",
+          "id": "xx-skonto-konten",
+          "kind": "accounts",
+          "version": "2026.1",
+          "name": "XX Kontenrahmen (Skonto und Steuerkorrektur)",
+          "contributes": [
+            "accounts"
+          ],
+          "dependsOn": [],
+          "data": {
+            "accounts": [
+              {
+                "number": "100",
+                "name": "Bank",
+                "type": "asset",
+                "subtype": "bank"
+              },
+              {
+                "number": "140",
+                "name": "Forderungen",
+                "type": "asset",
+                "subtype": "ar"
+              },
+              {
+                "number": "177",
+                "name": "Umsatzsteuer",
+                "type": "liability",
+                "subtype": "tax_out"
+              },
+              {
+                "number": "300",
+                "name": "Eigenkapital",
+                "type": "equity",
+                "subtype": "opening_balance"
+              },
+              {
+                "number": "400",
+                "name": "Erloese",
+                "type": "revenue"
+              },
+              {
+                "number": "873",
+                "name": "Gewaehrte Skonti",
+                "type": "expense"
+              },
+              {
+                "number": "900",
+                "name": "Privatentnahme",
+                "type": "equity"
+              }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "xx-kombinationen",
+          "kind": "constraint",
+          "version": "2026.1",
+          "name": "XX Kombinationsregeln",
+          "contributes": [
+            "constraint"
+          ],
+          "dependsOn": [],
+          "data": {
+            "dimensionRules": [
+              {
+                "accountRange": {
+                  "from": "600",
+                  "to": "699"
+                },
+                "requiredDimension": "costCenter",
+                "note": "unbenutzt hier — nur damit die erste Vokabel neben der zweiten steht"
+              }
+            ],
+            "accountCombinationRules": [
+              {
+                "whenAccountIn": {
+                  "from": "873",
+                  "to": "873"
+                },
+                "requireAccountIn": {
+                  "from": "177",
+                  "to": "177"
+                },
+                "note": "A-13: ein gewaehrtes Skonto mindert das Entgelt und muss seine Steuerkorrektur tragen"
+              },
+              {
+                "whenAccountIn": {
+                  "from": "900",
+                  "to": "900"
+                },
+                "forbidAccountIn": {
+                  "from": "400",
+                  "to": "400"
+                },
+                "note": "Privatentnahme darf nicht direkt gegen Erloese gebucht werden"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "XX Kombination GmbH",
+        "baseCurrency": "EUR",
+        "pack": "xx-combination-conformance",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "BEL-1",
+          "voucherDate": "2026-01-31"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-01-31",
+        "voucherId": "$V1",
+        "text": "Skonto ohne Steuerkorrektur",
+        "lines": [
+          {
+            "account": "873",
+            "side": "debit",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "140",
+            "side": "credit",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comment": "A-13, and the reason this predicate exists. The discount reduces the consideration, so the tax has to move with it — and until now no pack could say so: the constraint vocabulary was dimensions only. Note that both required lines sit on the SAME side in the correct booking, which is why the predicate is about the entry and not about the opposite side.",
+        "error": "E_COMBINATION_REQUIRED"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-01-31",
+        "voucherId": "$V1",
+        "text": "Skonto mit Steuerkorrektur",
+        "lines": [
+          {
+            "account": "873",
+            "side": "debit",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "177",
+            "side": "debit",
+            "money": {
+              "amount": "1.90",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "140",
+            "side": "credit",
+            "money": {
+              "amount": "11.90",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comment": "The same booking with the correction it owes goes through untouched. The rule adds a requirement; it does not change a single amount.",
+        "result": {
+          "id": "$E1"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": {
+          "voucherNumber": "BEL-2",
+          "voucherDate": "2026-02-01"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V2"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-02-01",
+        "voucherId": "$V2",
+        "text": "Privatentnahme gegen Erloese",
+        "lines": [
+          {
+            "account": "900",
+            "side": "debit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "400",
+            "side": "credit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comment": "The other half of the vocabulary: a prohibition rather than a requirement. Two codes and not one with a flag — a script branching on the exit code has to take opposite corrective actions for `you are missing a line` and `you have one line too many`.",
+        "error": "E_COMBINATION_FORBIDDEN"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "tenant": "$T1",
+        "entryDate": "2026-02-01",
+        "voucherId": "$V2",
+        "text": "Privatentnahme gegen Bank",
+        "lines": [
+          {
+            "account": "900",
+            "side": "debit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "100",
+            "side": "credit",
+            "money": {
+              "amount": "50.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comment": "Outside the forbidden range, so nothing fires. A constraint that refused more than it was asked to would be worse than none.",
+        "result": {
+          "id": "$E2"
+        }
+      }
+    }
+  ]
+}

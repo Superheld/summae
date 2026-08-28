@@ -512,13 +512,36 @@ Validation runs in the test runners, so the core stays framework-free.
 | `accounts[].number` | string | yes | account number (codepoint comparison, leading zeros significant) |
 | `accounts[].name` | string | yes | account label |
 | `accounts[].type` | string (enum) | yes | `asset`, `liability`, `equity`, `expense`, `revenue` |
-| `accounts[].subtype` | string\|null | — | free marker; among other things drives the open-item automation |
+| `accounts[].subtype` | string (enum)\|null | — | canonical subtype, a **closed** repertoire (see below); among other things drives the open-item automation |
 
 `type` determines the balance mechanics: `asset`/`liability`/`equity` are
 balance-carrying (carry forward across years), `expense`/`revenue` are per
-fiscal year. `subtype` is a free string in the code (no enum check); used in
-fixtures: `bank`, `cash`, `ar`, `ap`, `tax_in`, `tax_out`, `fixed_asset`,
-`opening_balance`, `transit`.
+fiscal year.
+
+`subtype` is a **closed repertoire** since format 0.9 — eleven values, and anything else is
+refused rather than stored:
+
+| Value | Read by the engine for |
+|---|---|
+| `bank` | payment account; profit-neutral movement in the cash-basis projection |
+| `cash` | the cash journal (`cashJournal`), cash-basis |
+| `transit` | money in transit — not a profit event |
+| `ar` | a debit opens a **receivable** |
+| `ap` | a credit opens a **payable** |
+| `tax_in` | VAT return (input side), cash-basis, DATEV export |
+| `tax_out` | VAT return (output side), cash-basis, DATEV export |
+| `result_allocation` | where an appropriated result lands |
+| `fixed_asset` | *annotation only* — the asset expansion uses its own module |
+| `opening_balance` | *annotation only* — the chart's opening-balance account |
+| `private` | *annotation only* — owner's drawings and contributions |
+
+It used to be a free string, and that was a real defect rather than a loose end: a chart that wrote
+`tax-out` instead of `tax_out` produced an account that **looked** annotated and behaved like an
+unannotated one — the VAT return skipped it and nothing in the output said a tax account had gone
+missing. A pack with an unknown subtype now fails at `resolvePack` (`E_PACK_INCOHERENT`);
+`createAccount` refuses with `E_INPUT_INVALID` and `importChartOfAccounts` with
+`E_COA_FORMAT_INVALID` naming the row. **Absent is not unknown** — most accounts in most charts
+carry no subtype at all, and nothing here applies to them.
 
 ```json
 "chartsOfAccounts": [
@@ -992,7 +1015,14 @@ asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
 `active`/`locked`), `validFrom` (no, date), `validTo` (no, date). Output: serialized account.
 Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `validTo` before
 its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
-would be created dead).
+would be created dead; or a `subtype` outside the repertoire).
+
+**`subtype` is a closed repertoire** — one of the eleven canonical values listed under
+`chartsOfAccounts[]`, or absent. A value outside it is `E_INPUT_INVALID` with the offending value
+and the known list in `details`, rather than being stored: before format 0.9 a hyphen for an
+underscore created a liability account that no VAT return would ever count, and the only way to
+notice was to compare the return against the ledger. Absent is not unknown — most accounts carry
+no subtype and nothing here applies to them.
 
 **`validFrom`/`validTo` are the window in which the account may be posted to**, and both are
 unbounded when absent, which is what almost every account will be. It is **not** a lock, and the
@@ -1036,8 +1066,10 @@ Atomic chart-of-accounts import: validate everything first, then create. `rows`
 (yes, non-empty; each row carries `number`, `name`, `type`, `subtype`, `status`, `validFrom` and
 `validTo` — the same fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in
 the core). Output: `{ "importedCount": <int> }`. Errors:
-`E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
-batch).
+`E_COA_FORMAT_INVALID` (an unparsable row — including a `subtype` outside the repertoire —
+naming the row index), `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
+batch). The import is atomic, so one bad row creates none of the others: half a chart of accounts
+is worse than none.
 
 #### lockAccount
 
@@ -1853,7 +1885,9 @@ is `trialBalance`), no movements (`accountSheet`), no hashes.
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
 cash box, which receivables and payables — and it is what an application should
-use to preselect a counter account. Reading the **pack** instead is the trap: the
+use to preselect a counter account. It is one of eleven canonical values or
+`null` (the repertoire is listed under `chartsOfAccounts[]`), so a caller may switch on it
+exhaustively rather than defensively. Reading the **pack** instead is the trap: the
 pack is the chart the tenant *started* from, and one `createAccount` later it is
 a guess. **`status`** is the read side of `lockAccount`; a locked account stays
 in the list, because it is still part of the chart and merely refuses postings.
@@ -2369,7 +2403,7 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.8"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.9"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =

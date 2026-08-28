@@ -11,6 +11,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\Account;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\AccountStatus;
+use Summae\Core\Substrate\AccountSubtype;
 use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\IdGenerator;
@@ -273,6 +274,15 @@ final readonly class ChartAdminService
         }
 
         $subtype = is_string($input['subtype'] ?? null) ? $input['subtype'] : null;
+        if ($subtype !== null && !AccountSubtype::isKnown($subtype)) {
+            // Closed repertoire: an unknown subtype used to be stored and then read by nobody, so
+            // the account looked annotated and behaved like an unannotated one.
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'Account %s: unknown subtype "%s"',
+                $number,
+                $subtype,
+            ), ['number' => $number, 'subtype' => $subtype, 'known' => AccountSubtype::all()]);
+        }
         $status = ($input['status'] ?? null) === AccountStatus::Locked->value
             ? AccountStatus::Locked
             : AccountStatus::Active;

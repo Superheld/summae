@@ -1,0 +1,177 @@
+{
+  "fixture": "xx-11-account-subtype-repertoire",
+  "description": "The account `subtype` repertoire is CLOSED (format 0.9). THE DEFECT IT ENDS is not a wrong figure but an inert one: `subtype` is the field through which the chart tells the engine what an account IS — which movement is profit-neutral, which account is a tax account and on which side its tax stands, which posting opens a receivable — and it was a free string. A pack that wrote `tax-out` instead of `tax_out` produced an account that LOOKED annotated and behaved like an unannotated one: the VAT return skipped it, the cash-basis projection did not treat it as tax, and nothing anywhere said a tax account had gone missing. This is the third time the project has met that shape and answered it the same way — the tax mechanisms were closed in v0.8.0 after `reverse-charge` fell back to plain VAT under the ordinary reporting key, and `PartnerKind` was closed after `custommer` turned out to be a partner kind like any other. TWO ENFORCEMENT POINTS, and they are the two places a subtype is AUTHORED: a pack fails at resolution (`E_PACK_INCOHERENT`, like every other coherence check, so a composed pack fails at `resolvePack` and not at the first posting), and the runtime chart API fails at the call (`E_INPUT_INVALID`, or `E_COA_FORMAT_INVALID` inside an import, whose contract is that a row is refused with its index). WHERE IT IS DELIBERATELY NOT ENFORCED, and this is the reason the check does not sit in the `Account` constructor where it would be shortest: hydrating a stored account runs through that same constructor, so a database written before this repertoire existed would stop loading. A validation that refuses to read back what it once wrote is a worse failure than the one it prevents. THE REPERTOIRE HAS TWO TIERS AND ONE LIST: eight values the engine reads and branches on, plus `fixed_asset`, `opening_balance` and `private`, which are annotation that every shipped pack carries and no code consults — they are in the list because the packs use them, and a repertoire holding only the eight would refuse all three shipped charts.",
+  "covers": ["F-CORE-046"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.9",
+        "id": "xx-subtype-konten",
+        "kind": "accounts",
+        "version": "2026.1",
+        "name": "XX Kontenrahmen (kanonische Subtypen)",
+        "contributes": ["accounts"],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "140", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "177", "name": "Umsatzsteuer", "type": "liability", "subtype": "tax_out" },
+            { "number": "400", "name": "Erloese", "type": "revenue" }
+          ]
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-subtype-konten-vertippt",
+        "kind": "accounts",
+        "version": "2026.1",
+        "name": "XX Kontenrahmen mit vertipptem Subtyp",
+        "contributes": ["accounts"],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "140", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+            { "number": "177", "name": "Umsatzsteuer", "type": "liability", "subtype": "tax-out" },
+            { "number": "400", "name": "Erloese", "type": "revenue" }
+          ]
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-subtype-policy",
+        "kind": "policy",
+        "version": "2026.1",
+        "name": "XX Policy",
+        "contributes": ["policy"],
+        "dependsOn": [],
+        "data": {
+          "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero",
+            "taxRoundingGranularity": "perVoucher",
+            "currencyScale": 2
+          }
+        }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.9",
+        "id": "xx-subtype-gut",
+        "name": "Fiktive Jurisdiktion XX (kanonische Subtypen)",
+        "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-subtype-konten", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-subtype-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-subtype-vertippt",
+        "name": "Fiktive Jurisdiktion XX (vertippter Subtyp)",
+        "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-subtype-konten-vertippt", "version": "2026.1" },
+          { "kind": "policy", "id": "xx-subtype-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      }
+    ]
+  },
+  "steps": [
+    { "op": "resolvePack",
+      "input": { "manifest": { "id": "xx-subtype-vertippt", "version": "2026.1" } },
+      "expect": {
+        "comment": "One character, and before this the pack resolved cleanly: account 177 entered the chart with a subtype nothing reads, so the tenant had no output-tax account and its VAT return quietly reported nothing on it. The refusal names the account and the value, because `unknown subtype` without either is a message that sends the reader to grep.",
+        "error": "E_PACK_INCOHERENT"
+      } },
+
+    { "op": "resolvePack",
+      "input": { "manifest": { "id": "xx-subtype-gut", "version": "2026.1" } },
+      "expect": {
+        "comment": "The same chart with the canonical value resolves exactly as it always did. The repertoire refuses what is unknown and changes nothing about what is known — every account here would have been accepted before format 0.9 too.",
+        "result": { "id": "xx-subtype-gut", "version": "2026.1", "accountCount": 4 }
+      } },
+
+    { "op": "createTenant",
+      "input": { "name": "XX Subtypen GmbH", "baseCurrency": "EUR", "pack": "xx-subtype-gut", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1" } } },
+
+    { "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "178", "name": "Umsatzsteuer 7 Prozent", "type": "liability", "subtype": "tax-out" },
+      "expect": {
+        "comment": "THE OTHER AUTHORING BOUNDARY, and the one an embedding application actually touches. A pack is written once and reviewed; accounts are added by users, from a form, at a keyboard. A hyphen for an underscore used to create a liability account that no VAT return would ever count, and the user had no way to find out short of comparing the return against the ledger.",
+        "error": "E_INPUT_INVALID"
+      } },
+
+    { "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "178", "name": "Umsatzsteuer 7 Prozent", "type": "liability", "subtype": "tax_out" },
+      "expect": {
+        "comment": "Corrected, and the same number is free — the refusal above created nothing. An account refused for its subtype must not leave its number taken, or the correction would collide with the mistake.",
+        "result": { "number": "178" }
+      } },
+
+    { "op": "createAccount",
+      "input": { "tenant": "$T1", "number": "179", "name": "Konto ohne Subtyp", "type": "liability" },
+      "expect": {
+        "comment": "Absent is not unknown. Most accounts in most charts carry no subtype at all, and the repertoire has nothing to say about them.",
+        "result": { "number": "179" }
+      } },
+
+    { "op": "importChartOfAccounts",
+      "input": {
+        "tenant": "$T1",
+        "rows": [
+          { "number": "200", "name": "Kasse", "type": "asset", "subtype": "cash" },
+          { "number": "210", "name": "Geldtransit", "type": "asset", "subtype": "transitt" }
+        ]
+      },
+      "expect": {
+        "comment": "An import is atomic and refuses the whole batch by row, which is its own contract (E_COA_FORMAT_INVALID, not E_INPUT_INVALID) — so the doubled letter in row 1 also stops row 0 from being created. That is the behaviour an import needs: half a chart of accounts is worse than none.",
+        "error": "E_COA_FORMAT_INVALID"
+      } },
+
+    { "op": "importChartOfAccounts",
+      "input": {
+        "tenant": "$T1",
+        "rows": [
+          { "number": "200", "name": "Kasse", "type": "asset", "subtype": "cash" },
+          { "number": "210", "name": "Geldtransit", "type": "asset", "subtype": "transit" }
+        ]
+      },
+      "expect": {
+        "comment": "And the corrected batch goes through whole, which proves the refusal above rolled back rather than half-applied.",
+        "result": { "importedCount": 2 }
+      } }
+  ],
+  "projections": [
+    { "name": "accounts", "params": { "tenant": "$T1" },
+      "expect": {
+        "comment": "What survived: the pack's four, the two accounts created by hand, and the two imported ones. Nothing carries a subtype outside the repertoire, which is the whole claim — and 178 appears exactly once, though it was asked for twice.",
+        "accounts": [
+          { "number": "100", "subtype": "bank" },
+          { "number": "140", "subtype": "ar" },
+          { "number": "177", "subtype": "tax_out" },
+          { "number": "178", "subtype": "tax_out" },
+          { "number": "179", "subtype": null },
+          { "number": "200", "subtype": "cash" },
+          { "number": "210", "subtype": "transit" },
+          { "number": "400", "subtype": null }
+        ]
+      } }
+  ]
+}

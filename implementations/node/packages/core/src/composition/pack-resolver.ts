@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { DomainError } from '../domain-error.js';
 import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
 import { canonicalJson } from '../substrate/canonical-json.js';
+import { ACCOUNT_SUBTYPES, isAccountSubtype } from '../substrate/types.js';
 
 /**
  * Pack resolver (`resolvePack`) — pure, side-effect-free resolution of a
@@ -209,6 +210,18 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
             throw new DomainError('E_PACK_INCOHERENT', `Duplicate account number: ${number}`);
           }
           accountNumbers.add(number);
+          const subtype = asString(account.subtype);
+          if (subtype !== null && !isAccountSubtype(subtype)) {
+            // Closed repertoire (substrate/types.ts): a misspelled subtype used to resolve into a
+            // chart where the engine read nothing from it. E_PACK_INCOHERENT because that is what
+            // it is — the modules resolve, the bundle asks for something that does not exist — and
+            // here rather than at the first posting, like every other coherence check.
+            throw new DomainError(
+              'E_PACK_INCOHERENT',
+              `Unknown account subtype "${subtype}" on account ${number}`,
+              { account: number, subtype, known: [...ACCOUNT_SUBTYPES] },
+            );
+          }
           accounts.push(account);
         }
         break;

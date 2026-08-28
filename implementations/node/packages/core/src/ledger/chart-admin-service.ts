@@ -4,7 +4,7 @@ import { Account } from '../substrate/account.js';
 import { AccountNumber } from '../substrate/account-number.js';
 import { CalendarDate } from '../substrate/calendar-date.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
-import { isAccountType } from '../substrate/types.js';
+import { ACCOUNT_SUBTYPES, isAccountSubtype, isAccountType } from '../substrate/types.js';
 import type { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import type { Uuid } from '../substrate/uuid.js';
 import type { AuditWriter } from './audit-writer.js';
@@ -213,6 +213,15 @@ export class ChartAdminService {
     }
 
     const subtype = asString(input.subtype);
+    if (subtype !== null && !isAccountSubtype(subtype)) {
+      // Closed repertoire: an unknown subtype used to be stored and then read by nobody, so the
+      // account looked annotated and behaved like an unannotated one.
+      throw new DomainError('E_INPUT_INVALID', `Account ${number}: unknown subtype "${subtype}"`, {
+        number,
+        subtype,
+        known: [...ACCOUNT_SUBTYPES],
+      });
+    }
     const status = input.status === 'locked' ? 'locked' : 'active';
 
     const rawFrom = asString(input.validFrom);

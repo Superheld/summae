@@ -175,8 +175,8 @@ entry-author
 consideration-reduction
 input-structure-contract
 xx-7-pack-declares-filing-periods
-xx-8-constraint-account-combination
-xx-9-tax-base-inclusive
+xx-8-constraint-account-combination-current
+xx-9-tax-base-inclusive-current
 de-appropriate-result
 result-appropriation-guards
 de-profit-appropriation
@@ -194,5 +194,6 @@ audit-hash-chain
 gdpdu-data-carrier
 de-kleinunternehmer-ust-verboten
 xx-10-constraint-rules-readable
+xx-11-account-subtype-repertoire
 duplicate-vouchers
 account-validity

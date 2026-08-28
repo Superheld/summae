@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://netmechanics.de/rechnungswesen/format/0.8/format.schema.json",
-  "title": "Rechnungswesen-Datenformat v0.6",
+  "$id": "https://netmechanics.de/rechnungswesen/format/0.9/format.schema.json",
+  "title": "Rechnungswesen-Datenformat v0.9",
   "$defs": {
     "uuid": {
       "type": "string",
@@ -252,7 +252,20 @@
           ]
         },
         "subtype": {
-          "type": "string"
+          "enum": [
+            "bank",
+            "cash",
+            "transit",
+            "ar",
+            "ap",
+            "tax_in",
+            "tax_out",
+            "result_allocation",
+            "fixed_asset",
+            "opening_balance",
+            "private"
+          ],
+          "description": "Kanonischer Subtyp \u2014 seit 0.9 ein GESCHLOSSENES Repertoire. Bis dahin ein freier String, und genau das war der Defekt: subtype ist das Feld, durch das der Kontenrahmen der Engine sagt, WAS ein Konto ist (welche Bewegung erfolgsneutral ist, welches Konto ein Steuerkonto ist und auf welcher Seite, welche Buchung eine Forderung er\u00f6ffnet). Ein Pack, das tax-out statt tax_out schrieb, erzeugte ein Konto, das annotiert aussah und inert war \u2014 die USt-Voranmeldung \u00fcbersprang es, und nichts in der Ausgabe sagte, dass ein Steuerkonto fehlte. Dieselbe Fehlerform, f\u00fcr die v0.8.0 die Steuermechanismen geschlossen hat (reverse-charge fiel auf normale USt zur\u00fcck) und f\u00fcr die PartnerKind geschlossen wurde (custommer war eine Partnerart wie jede andere). Acht der elf Werte liest die Engine und verzweigt darauf; fixed_asset, opening_balance und private sind Annotation, die jedes ausgelieferte Pack tr\u00e4gt und kein Code konsultiert \u2014 sie stehen im Repertoire, weil die Packs sie benutzen."
         },
         "status": {
           "enum": [

@@ -12,6 +12,47 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### The account subtype repertoire is closed (F-CORE-046, format 0.9)
+
+`subtype` is the field through which a chart of accounts tells the engine what an account **is** —
+which movement is profit-neutral, which account is a tax account and on which side its tax stands,
+which posting opens a receivable — and it was a free string that took anything. The defect that
+follows is not a wrong figure but an **inert** one: a chart writing `tax-out` instead of `tax_out`
+produced an account that *looked* annotated and behaved like an unannotated one. The VAT return
+skipped it, the cash-basis projection did not treat it as tax, and nothing in any output said a tax
+account had gone missing. The only way to notice was to compare the return against the ledger.
+
+This is the third time the project has met that shape and the third identical answer: v0.8.0 closed
+the tax mechanisms after `reverse-charge` fell back to plain VAT under the ordinary reporting key,
+and `PartnerKind` was closed after `custommer` turned out to be a partner kind like any other.
+
+**Eleven values, two tiers, one list.** Eight the engine reads and branches on (`bank`, `cash`,
+`transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`); `fixed_asset`, `opening_balance`
+and `private` are annotation that every shipped pack carries and no code consults. They are in the
+repertoire because the packs use them — a list holding only the eight would refuse all three
+shipped charts.
+
+**Enforced where a subtype is authored, and nowhere else.** A pack fails at resolution
+(`E_PACK_INCOHERENT`, like every other coherence check, so at `resolvePack` rather than at the first
+posting); `createAccount` refuses with `E_INPUT_INVALID` and `importChartOfAccounts` with
+`E_COA_FORMAT_INVALID` naming the row. It is deliberately **not** checked in the `Account`
+constructor, where it would be shortest — hydrating a stored account runs through that constructor,
+so a database written before this repertoire existed would stop loading, and a validation that
+refuses to read back what it once wrote is a worse failure than the one it prevents. Existing data
+is therefore untouched; only new authoring is constrained.
+
+**Two fixtures were retired for it, and the register gained a second reason.** `xx-8` and `xx-9`
+carried `subtype: "vat"` on an account 177 — a value neither engine has ever read, copied from one
+fixture into the other before anyone noticed, which is the argument for closing a vocabulary rather
+than reviewing its uses. Their expectations were never wrong and are carried into
+`xx-8-…-current` / `xx-9-…-current` unchanged; what could not survive format 0.9 was their
+*setup*. `superseded.json` now says so explicitly, with the guard that keeps it narrow: if a
+successor's expectation differs by so much as a figure, it is a behaviour change and therefore a
+new fixture, not a retirement.
+
+Format version moves to **0.9**.
+
+
 ### An account's validity window is real now (F-CORE-045)
 
 `validFrom` and `validTo` were declared on `account` in the normative format schema and **no

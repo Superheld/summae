@@ -132,7 +132,7 @@
       "report": "journalExport",
       "params": { "fiscalYear": 2026 },
       "expect": {
-        "manifest.formatVersion": "0.8",
+        "manifest.formatVersion": "0.9",
         "manifest.streams": ["journal", "accounts", "vouchers", "auditLog"],
         "journal.allFinalized": true
       }

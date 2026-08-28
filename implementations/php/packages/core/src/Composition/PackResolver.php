@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
+use Summae\Core\Substrate\AccountSubtype;
 use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 use Summae\Core\Substrate\CanonicalJson;
 
@@ -202,6 +203,19 @@ final class PackResolver
                             throw new DomainError('E_PACK_INCOHERENT', 'Duplicate account number: ' . $number);
                         }
                         $accountNumbers[$number] = true;
+                        $subtype = self::str($account['subtype'] ?? null);
+                        if ($subtype !== null && !AccountSubtype::isKnown($subtype)) {
+                            // Closed repertoire (Substrate/AccountSubtype): a misspelled subtype
+                            // used to resolve into a chart where the engine read nothing from it.
+                            // E_PACK_INCOHERENT because that is what it is — the modules resolve,
+                            // the bundle asks for something that does not exist — and here rather
+                            // than at the first posting, like every other coherence check.
+                            throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                                'Unknown account subtype "%s" on account %s',
+                                $subtype,
+                                $number,
+                            ), ['account' => $number, 'subtype' => $subtype, 'known' => AccountSubtype::all()]);
+                        }
                         $accounts[] = $account;
                     }
                     break;
