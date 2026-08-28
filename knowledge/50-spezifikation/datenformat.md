@@ -336,6 +336,21 @@ Struktur, nur in den Modul-Umschlag gelegt — keine erfundenen Felder):**
   nutzt `taxAccount`. **Kein** `side`-Feld — die Seite folgt aus `mechanism`.
   `taxAccount` (und `inputTaxAccount`) referenzieren ein Konto **per `number`** im via
   `dependsOn` gewählten Kontenrahmen.
+  Seit v0.15.1 zusätzlich **`taxBase`** (F-TAX-010), die *zweite Naht* der Steuer-Expansion:
+  `net` (Default — der übergebene Betrag IST die Bemessungsgrundlage, `Steuer = Betrag × Satz / 100`)
+  oder `inclusive` (der übergebene Betrag ist der **Brutto**, Steuer bereits enthalten:
+  `Steuer = Betrag × Satz / (100 + Satz)`, Basis ist der Rest — **und die Nettozeile wandert mit**,
+  denn genau diese Aufteilung kann der Aufrufer nicht selbst leisten). Gerundet wird **einmal**, auf
+  die Steuer; die Basis entsteht durch Subtraktion, weil in einem Brutto-Regime der Brutto die
+  Tatsache ist und die Aufteilung die Rechnung. Bei mehreren Zeilen eines Codes wird die
+  Gruppenbasis per **Largest Remainder** auf die Zeilen verteilt statt je Zeile neu gerechnet.
+  Anders als `mechanism` ist `taxBase` ein **geschlossenes Enum**: ein unbekannter Wert wird mit
+  `E_TAXCODE_INVALID` abgelehnt, nicht auf `net` zurückgefallen — eine verschriebene Basis wäre eine
+  falsche Zahl in den Büchern, kein fehlendes Feature.
+  **Was diese Naht bewusst nicht erreicht:** zusammengesetzte Basen (PST auf GST-inklusiver Basis)
+  brauchen das Ergebnis eines anderen Codes und damit eine Reihenfolge, die diese Funktion nicht
+  sieht; Besteuerung bei Zahlung ist eine Zeit-, keine Basisfrage; Margenbesteuerung braucht den
+  Einkaufspreis, der nicht in der Buchung steht.
 - `mapping` → `data.mapping` = ein `mapping`-Objekt (§ `mapping`; fachliches `kind` ∈
   `balance-sheet|cash-basis-categories|income-statement`, in `data.mapping.kind`).
   Die USt-VA ist **mapping-frei** (Kennzahl = `taxCodeVersion.reportingKey`); der im

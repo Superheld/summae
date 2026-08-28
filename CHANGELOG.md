@@ -43,6 +43,45 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### The tax expansion gets its second seam (F-TAX-010)
+
+`core/src/CLAUDE.md` has carried this since the mechanism repertoire was closed on 2026-08-16, and it
+was written as a diagnosis rather than a plan: the mechanism seam covers only *line assembly* — it
+receives an already-computed, already-rounded tax amount — while **the variance that actually differs
+between jurisdictions sits before it and had no socket at all**. `base × rate / 100` was written twice
+inside `TaxService`, once per rounding granularity, and no pack could reach it. Every tax system that
+quotes prices with the tax already inside was therefore inexpressible, and that is most of them.
+
+A tax code version now carries `taxBase`:
+
+- **`net`** — the amount handed in is the base. What every shipped pack means, and the default when a
+  code says nothing, so nothing in `de`, `us` or `default` changes. All 183 existing fixtures stayed
+  green through the change.
+- **`inclusive`** — the amount handed in is the **gross**. `tax = amount × rate / (100 + rate)`.
+
+**What makes it more than a division.** With an inclusive base the **net line moves too**: the split
+is precisely what the caller could not do for themselves, and handing their gross back as a net line
+would post the tax twice. Rounding happens **once**, on the tax, and the base is what remains — the
+other order lets base and tax fail to add up to the amount actually posted, and in an inclusive
+régime the gross is the fact while the split is arithmetic. Across several lines of one code the
+group base is **allocated by largest remainder** rather than recomputed per line: two lines each
+rounding half a cent up would otherwise produce a group a cent too large.
+
+Unlike `mechanism`, which is deliberately an open string, `taxBase` is a **closed enum**. An unknown
+value is refused with `E_TAXCODE_INVALID` rather than falling back to `net` — a misspelled base is a
+wrong number in the books, not a missing feature.
+
+**This does not reopen the closed-repertoire decision, and the reason is the useful part.** What
+remains is not a base *function* at all: a **compound** base (Canadian PST on a GST-inclusive amount)
+needs another code's result and therefore an ordering between codes, which a function handed one
+amount and one rate cannot see; **tax at payment time** (withholding, split payment) is a timing
+question; a **margin scheme** needs the purchase price of the thing sold, which is not in the posting.
+A mechanism is still not describable as pure data, so `core/src/CLAUDE.md` keeps its "settled" — with
+the paragraph rewritten to say which half moved.
+
+`xx-9-tax-base-inclusive` pins all of it in both languages, including the rounding case that
+distinguishes allocation from recomputation.
+
 ### The constraint socket gets a second word (F-CORE-042)
 
 `docs/gobd-conformance.md` §14 item 6 has carried a ⚠️ since the constraint socket was built, and the

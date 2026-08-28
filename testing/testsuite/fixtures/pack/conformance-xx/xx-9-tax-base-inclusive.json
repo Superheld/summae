@@ -1,0 +1,302 @@
+{
+  "fixture": "xx-9-tax-base-inclusive",
+  "description": "F-TAX-010: the tax expansion gets its SECOND seam — how a taxable amount splits into base and tax. core/src/CLAUDE.md has said since 2026-08-16 that the mechanism seam covers only LINE ASSEMBLY (it receives an already-computed, already-rounded tax amount) and that the variance which actually differs between jurisdictions sits before it with no socket at all: `base x rate / 100` was written twice inside TaxService and a pack could not reach it. Every tax system that quotes prices with the tax already inside was therefore inexpressible, and that is most of them. A tax code version now carries `taxBase`: `net` (the default, what every shipped pack means, so nothing changes for them) or `inclusive` (the amount handed in is the GROSS). WHAT MAKES IT MORE THAN A DIVISION: with an inclusive base the NET LINE moves too, because the split is exactly what the caller could not do themselves — handing their gross back as a net line would post the tax twice. Rounding happens ONCE, on the tax, and the base is what remains; the other order lets base and tax fail to add up to the amount actually posted, and in an inclusive regime the gross is the fact while the split is arithmetic. Across several lines of one code the group base is ALLOCATED by largest remainder rather than recomputed per line — two lines each rounding half a cent up would otherwise produce a group a cent too large. WHAT THIS SEAM STILL DOES NOT REACH, stated because a socket's limits are its contract: a compound base (PST on a GST-inclusive amount) needs another code's result and therefore an ordering this function cannot see; tax at payment time is a timing question, not a base one; and a margin scheme needs the purchase price of the thing sold, which is not in the posting. The closed-repertoire decision is therefore NOT reopened by this change.",
+  "covers": [
+    "F-TAX-010",
+    "F-PACK-POLICY-001"
+  ],
+  "setup": {
+    "pack": {
+      "manifest": {
+        "formatVersion": "0.6",
+        "id": "xx-inclusive-conformance",
+        "name": "Fiktive Jurisdiktion XX (Bruttopreise)",
+        "version": "2026.1",
+        "modules": [
+          {
+            "kind": "accounts",
+            "id": "xx-inclusive-konten",
+            "version": "2026.1"
+          },
+          {
+            "kind": "tax",
+            "id": "xx-inclusive-steuern",
+            "version": "2026.1"
+          }
+        ],
+        "overrides": [],
+        "defaults": {
+          "taxationMethod": "accrual"
+        },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      "modules": [
+        {
+          "formatVersion": "0.6",
+          "id": "xx-inclusive-konten",
+          "kind": "accounts",
+          "version": "2026.1",
+          "name": "XX Kontenrahmen (inklusive Preise)",
+          "contributes": [
+            "accounts"
+          ],
+          "dependsOn": [],
+          "data": {
+            "accounts": [
+              {
+                "number": "100",
+                "name": "Bank",
+                "type": "asset",
+                "subtype": "bank"
+              },
+              {
+                "number": "140",
+                "name": "Forderungen",
+                "type": "asset",
+                "subtype": "ar"
+              },
+              {
+                "number": "177",
+                "name": "Umsatzsteuer",
+                "type": "liability",
+                "subtype": "vat"
+              },
+              {
+                "number": "300",
+                "name": "Eigenkapital",
+                "type": "equity",
+                "subtype": "opening_balance"
+              },
+              {
+                "number": "400",
+                "name": "Erloese",
+                "type": "revenue"
+              }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "xx-inclusive-steuern",
+          "kind": "tax",
+          "version": "2026.1",
+          "name": "XX Steuersaetze (Bruttopreise)",
+          "contributes": [
+            "taxCodes"
+          ],
+          "dependsOn": [
+            {
+              "kind": "accounts",
+              "id": "xx-inclusive-konten"
+            }
+          ],
+          "data": {
+            "taxCodes": [
+              {
+                "code": "INKL20",
+                "versions": [
+                  {
+                    "validFrom": "2020-01-01",
+                    "rate": "20",
+                    "taxAccount": "177",
+                    "reportingKey": "81",
+                    "mechanism": "standard",
+                    "taxBase": "inclusive",
+                    "validTo": null
+                  }
+                ]
+              },
+              {
+                "code": "NETTO20",
+                "versions": [
+                  {
+                    "validFrom": "2020-01-01",
+                    "rate": "20",
+                    "taxAccount": "177",
+                    "reportingKey": "81",
+                    "mechanism": "standard",
+                    "validTo": null
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": {
+        "name": "XX Brutto GmbH",
+        "baseCurrency": "EUR",
+        "pack": "xx-inclusive-conformance",
+        "firstFiscalYear": 2026
+      },
+      "expect": {
+        "result": {
+          "id": "$T1"
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-03-01",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "400",
+            "money": {
+              "amount": "120.00",
+              "currency": "EUR"
+            },
+            "taxCode": "INKL20"
+          }
+        ]
+      },
+      "expect": {
+        "comment": "120.00 gross at 20 % inclusive: tax = 120 x 20 / 120 = 20.00, base = 100.00. The NET LINE moves, which is the whole point — returning the caller's 120.00 as a net line would post the tax twice. `grossTotal` stays 120.00, because the gross is the fact the caller actually holds.",
+        "result": {
+          "grossTotal": {
+            "amount": "120.00",
+            "currency": "EUR"
+          },
+          "netLines": [
+            {
+              "account": "400",
+              "side": "credit",
+              "money": {
+                "amount": "100.00",
+                "currency": "EUR"
+              }
+            }
+          ],
+          "taxLines": [
+            {
+              "account": "177",
+              "side": "credit",
+              "money": {
+                "amount": "20.00",
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-03-01",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "400",
+            "money": {
+              "amount": "120.00",
+              "currency": "EUR"
+            },
+            "taxCode": "NETTO20"
+          }
+        ]
+      },
+      "expect": {
+        "comment": "The same amount under a net code, for contrast: 120.00 IS the base, tax 24.00 on top, gross 144.00. Same rate, same account, same mechanism — only the seam differs, which is what makes it a seam.",
+        "result": {
+          "grossTotal": {
+            "amount": "144.00",
+            "currency": "EUR"
+          },
+          "netLines": [
+            {
+              "account": "400",
+              "side": "credit",
+              "money": {
+                "amount": "120.00",
+                "currency": "EUR"
+              }
+            }
+          ],
+          "taxLines": [
+            {
+              "account": "177",
+              "side": "credit",
+              "money": {
+                "amount": "24.00",
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "expandTax",
+      "input": {
+        "tenant": "$T1",
+        "date": "2026-03-01",
+        "direction": "output",
+        "netLines": [
+          {
+            "account": "400",
+            "money": {
+              "amount": "10.00",
+              "currency": "EUR"
+            },
+            "taxCode": "INKL20"
+          },
+          {
+            "account": "400",
+            "money": {
+              "amount": "10.01",
+              "currency": "EUR"
+            },
+            "taxCode": "INKL20"
+          }
+        ]
+      },
+      "expect": {
+        "comment": "The rounding case, and the reason the group base is ALLOCATED rather than recomputed per line. Group gross 20.01 -> tax 20.01 x 20 / 120 = 3.335 -> 3.34 half-up, base 16.67. Split by largest remainder over 10.00 and 10.01: 8.33 + 8.34 = 16.67 exactly. Two per-line recomputations would each round and could hand back a group a cent off the amount that was actually posted.",
+        "result": {
+          "grossTotal": {
+            "amount": "20.01",
+            "currency": "EUR"
+          },
+          "netLines": [
+            {
+              "account": "400",
+              "money": {
+                "amount": "8.33",
+                "currency": "EUR"
+              }
+            },
+            {
+              "account": "400",
+              "money": {
+                "amount": "8.34",
+                "currency": "EUR"
+              }
+            }
+          ],
+          "taxLines": [
+            {
+              "account": "177",
+              "money": {
+                "amount": "3.34",
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

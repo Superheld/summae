@@ -51,6 +51,10 @@ final readonly class TaxCodeRegistry
                     is_string($versionData['inputTaxAccount'] ?? null) ? $versionData['inputTaxAccount'] : null,
                     is_string($versionData['inputReportingKey'] ?? null) ? $versionData['inputReportingKey'] : null,
                     is_string($versionData['baseReportingKey'] ?? null) ? $versionData['baseReportingKey'] : null,
+                    // Unknown values are refused rather than defaulted: a pack that misspells its
+                    // base kind would otherwise silently get `net`, which is a wrong number in the
+                    // books rather than a missing feature.
+                    self::parseTaxBase($versionData['taxBase'] ?? null),
                 );
             }
 
@@ -62,6 +66,26 @@ final readonly class TaxCodeRegistry
         }
 
         return new self($codes);
+    }
+
+    /**
+     * A pack that misspells its base kind must not silently get `net` — that is a wrong number in
+     * the books rather than a missing feature.
+     */
+    private static function parseTaxBase(mixed $value): string
+    {
+        if ($value === null) {
+            return TaxBases::NET;
+        }
+        if (!is_string($value) || !TaxBases::isKind($value)) {
+            throw new DomainError(
+                'E_TAXCODE_INVALID',
+                sprintf('unknown taxBase "%s"', is_string($value) ? $value : gettype($value)),
+                ['taxBase' => is_string($value) ? $value : gettype($value)],
+            );
+        }
+
+        return $value;
     }
 
     /** @return list<TaxCodeVersion> all versions of all codes */
