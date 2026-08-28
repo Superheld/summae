@@ -15,6 +15,14 @@ interface PartnerRepository
 
     public function byId(Uuid $id): ?Partner;
 
-    /** @return list<Partner> sortiert nach Name, dann ID */
+    /** @return list<Partner> sorted by name, then ID */
     public function all(): array;
+
+    /**
+     * Remove a partner outright (F-CORE-040) — the only repository in the core that can forget.
+     *
+     * Guarded by PartnerService::erase, never called from the bookkeeping path. See
+     * AuditTrail::eraseFor for why the capability exists at all.
+     */
+    public function remove(Uuid $id): void;
 }

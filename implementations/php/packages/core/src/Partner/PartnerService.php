@@ -9,7 +9,9 @@ use Summae\Core\Records\AuditRecord;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\AccountNumber;
+use Summae\Core\Port\OpenItemRepository;
 use Summae\Core\Port\PartnerRepository;
+use Summae\Core\Port\VoucherRepository;
 use Summae\Core\Substrate\Clock;
 use Summae\Core\Substrate\Exception\InvalidValue;
 use Summae\Core\Substrate\IdGenerator;
@@ -33,6 +35,16 @@ final readonly class PartnerService
          * the state this check was added to end.
          */
         private AccountRepository $accounts,
+        /**
+         * The two places a partner is reachable from the books (F-CORE-040) — needed only by
+         * erase(), which must refuse while either still names it.
+         *
+         * A journal entry never names a partner directly; it reaches one through its voucher, which
+         * is why the journal is not consulted here and why an entry cannot orphan a reference this
+         * check would miss.
+         */
+        private VoucherRepository $vouchers,
+        private OpenItemRepository $openItems,
     ) {
     }
 
@@ -187,6 +199,77 @@ final readonly class PartnerService
         }
 
         return $partner;
+    }
+
+    /**
+     * Erase a partner and the trail's records about it (F-CORE-040).
+     *
+     * **Why this exists next to deactivate(), which reads like it should be enough.** It is not the
+     * same question. `inactive` says *we no longer trade with them* and is a state the books keep;
+     * erasure says *this record must not be here at all*. The mechanism is the same in every
+     * jurisdiction and the reason is not: wherever a retention rule applies it applies to what the
+     * books reference, and a partner the books have never referenced falls outside it. So the line
+     * this operation draws — referenced or not — is the only line the core knows. Which rule puts a
+     * record on which side of it, and under what name, is documented outside the core
+     * (docs/gdpr-conformance.md) and never asserted here.
+     *
+     * **Why it also erases the audit records about the partner.** createPartner writes the name
+     * and, if given, the address into `changes`. Removing the partner row while that record stands
+     * erases nothing — the personal data simply moves to the place nobody looks. So the records
+     * *about this partner* go with it, and a single new record is appended in their place naming
+     * the id, the actor and the moment, and carrying **no personal payload**. The trail keeps the
+     * fact that an erasure happened, which is what an audit asks of it, and stops keeping what the
+     * law says must go.
+     *
+     * **What it will not touch.** A voucher or an open item naming the partner is a bookkeeping
+     * record under retention, and the refusal is unconditional — E_PARTNER_IN_USE, with the counts,
+     * so a caller can say *why* rather than only *no*. Nothing here can reach a journal entry.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array{id: string, erasedAuditRecords: int}
+     */
+    public function erase(array $input): array
+    {
+        $partner = $this->require($input['partnerId'] ?? null);
+
+        $vouchers = 0;
+        foreach ($this->vouchers->all() as $voucher) {
+            if ($voucher->partnerId?->value === $partner->id->value) {
+                ++$vouchers;
+            }
+        }
+
+        $openItems = 0;
+        foreach ($this->openItems->all() as $item) {
+            if ($item->partnerId?->value === $partner->id->value) {
+                ++$openItems;
+            }
+        }
+
+        if ($vouchers > 0 || $openItems > 0) {
+            throw new DomainError(
+                'E_PARTNER_IN_USE',
+                sprintf(
+                    'Business partner %s is referenced by the books and is kept under the retention duty',
+                    $partner->id->value,
+                ),
+                ['partnerId' => $partner->id->value, 'vouchers' => $vouchers, 'openItems' => $openItems],
+            );
+        }
+
+        $erasedAuditRecords = $this->audit->eraseFor('partner', $partner->id);
+        $this->partners->remove($partner->id);
+        // Appended after the erasure, never before: the record that documents it must not be one of
+        // the records it removes.
+        // `existed`, not an empty diff. The published invariant says every record carries before/after
+        // values, and the contract test enforces it — which is the right pressure here rather than an
+        // exception: what changed IS the existence of the record, and saying so costs nothing and
+        // reveals nothing. A diff naming the erased fields would put the name back into the trail,
+        // which is the one thing this operation exists to prevent.
+        $this->recordAudit($input, 'erased', $partner->id, ['existed' => ['from' => true, 'to' => false]]);
+
+        return ['id' => $partner->id->value, 'erasedAuditRecords' => $erasedAuditRecords];
     }
 
     public function require(mixed $partnerId): Partner

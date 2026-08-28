@@ -10,6 +10,495 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## 0.16.0 — 2026-08-28
+
+> **Minor, not a patch, and the number was wrong before this line was written.** The work below
+> moves the data format 0.7 → 0.8, adds two projections (`auditTrailIntegrity`, `gdpduExport`) and
+> changes the shipped `de` pack's behaviour — a posting that reduces a taxable consideration without
+> its VAT correction is now refused where it used to go through. Under 0.x a minor may break, and
+> this one does, for a tenant that was booking incompletely.
+
+### The Z3 data carrier an auditor actually receives (F-IO-012)
+
+`journalExport` has always produced the *self-describing data set* — streams, content hashes, field
+catalogue — which is what machine evaluability under GoBD Z3 requires. What a German tax auditor
+receives on the medium is a different shape: **flat files plus an `index.xml`** written to the
+*Beschreibungsstandard für die Datenträgerüberlassung*, which is what the audit software IDEA
+imports. That mapping was not in the package, and `docs/gobd-conformance.md` §10 carried it as its
+last open row.
+
+**`gdpduExport` produces it**, written against **standard version 1.6 of 1 March 2019**, DTD
+`gdpdu-01-03-2019.dtd`. Five tables — journal, accounts, vouchers, partners (only when there are any)
+and the audit log — each with its columns typed and described in `index.xml`.
+
+- **The journal is flattened to one row per posting line.** A CSV cannot nest, and an auditor's first
+  act is to sum debit and credit per account, which needs the line rather than the entry.
+- **Keys are declared**, primary and foreign, so IDEA can join the five files instead of receiving
+  them unrelated. That is the difference between a data set and five dumps.
+- **The fixture pins the exact bytes** in both languages. The DTD fixes element order — `Table` is
+  `(URL, Name?, Description?, Validity?, …)` and an importer rejects a shuffled file — so a subset
+  expectation would let a reordering pass unnoticed.
+- **Conformance was established, not assumed:** the output was validated against the published DTD
+  with a negative control (a `Table` whose `Name` and `Description` are swapped is rejected, so
+  "valid" meant something). `GdpduIndexStructureTest` / `gdpdu-index-structure.test.ts` then state the
+  DTD's content models as assertions, so the reason lives in the repository rather than in a memo.
+
+**Three things stay yours**, and the response says so in `notProvided`: writing the files (summae
+owns no file system), placing `gdpdu-01-03-2019.dtd` on the medium (a normative document we name
+rather than redistribute), and supplying the voucher images.
+
+**This reverses a documented scope decision, and the reversal is recorded where the decision stood.**
+The root `CLAUDE.md` and `out-of-scope.md` listed the mapping as deliberately out of scope — "don't
+start it by accident". The reasoning was never wrong about the facts; it was wrong about what it
+implied. "We ship the mapping's *input*" and "the books are auditable" are different claims, and an
+audit asking for a data carrier does not care which one was meant. The justification that aged worst
+is the old entry's own closing line — *"nothing in the test suite fails because of this, which is
+exactly why it is written down here"*. In hindsight that is the warning, not the defence: a scope
+decision that survives only because nothing tests it is one to re-read periodically.
+
+### The six us-pack sign-offs are decided — and the product does not move
+
+Open since 2026-06-23, they kept the `us` pack from being recommended for production. Five confirm
+what already ships; one is a deliberate **non**-change. Full reasoning:
+[`docs/proposals/us-pack-signoffs.md`](docs/proposals/us-pack-signoffs.md).
+
+- **Account numbers** — approved as shipped. `1xxx`–`6xxx` is *the* US block convention, so a US
+  accountant reads the chart without being taught it.
+- **`USETAX`** — approved. Cost plus liability is right rather than a compromise: US use tax carries
+  no input credit, so the tax **is** a cost. No dedicated `use_tax` mechanism — identical code under
+  a nicer label, and the repertoire is closed for cross-language reasons.
+- **`accrual` default** — confirmed, and the reason is the sales tax, not GAAP: the liability
+  generally arises on the date of the sale. Where a state allows cash-basis reporting it is an
+  election, which is exactly what a per-tenant `taxationMethod` is.
+- **Multi-state** — one rate per tenant stays the scope; nexus and rate lookup are the application's.
+  Now stated where somebody choosing the pack will hit it (`pack-library/us-pack/README.md`) instead
+  of only in a decisions memo.
+- **`EXEMPT`** — closed, and it had been **built since 0.5.0**. The memo asked for a decision that
+  had already been made and shipped, and nothing noticed for two months.
+- **Naming** — `us` and `us-accounts-2026` confirmed. **`SALETAX` stays**, and this is the
+  interesting one: US usage is "sales tax" without exception, so it reads like a typo, and this
+  sign-off item existed to catch exactly that. Nine conformance fixtures *drive* the code as input
+  while proving the shipped pack, so renaming it would leave nine behaviour-pinning fixtures
+  describing a product that no longer exists — and those are argued with, never retired. **The lesson
+  is the keeper:** an identifier under an open sign-off should not be pinned by a fixture until it is
+  signed off, or the sign-off is theatre.
+
+`knowledge/99-pack-docs/us-pack/offene-entscheidungen.md` was wrong about its own product — it
+proposed six account numbers the pack never shipped and described `EXEMPT` emitting a `0.00` line and
+the pack having no fixtures. Pre-build notes nobody reconciled afterwards; corrected.
+
+### The audit trail is now *checkable*, not merely append-only (F-CORE-043, format 0.8)
+
+Until now the trail was append-only **because no code path updates or deletes it** — the port offers
+`append` and `all` and nothing else. That is a property of the procedure, not of the data: an auditor
+could read the source, or trust the deployment, and `docs/gobd-conformance.md` §13 said plainly that
+a direct `UPDATE` against a `summae_*` table left no trace at all.
+
+Every audit record now carries `previousRecordHash` and `recordHash` (SHA-256 over canonical JSON,
+RFC 8785), and the new projection **`auditTrailIntegrity`** walks the chain. Both languages compute
+the same bytes; `make cross` proves it rather than assuming it.
+
+Read the four counts apart, because collapsing them is how a check like this becomes useless:
+
+- **`chained`** — verified: hashes to its own value and links to its predecessor.
+- **`unchained`** — written before 0.8, so it has no hash. Explicitly **not** a break: a library that
+  cried tampering over its own upgrade would be ignored within a week. They can only sit at the
+  front; one appearing after a chained record is an insertion and *is* reported.
+- **`redacted`** — see below.
+- **`breaks[]`** — the rest, each with a named reason.
+
+**Two limits are published rather than papered over.** No chain notices records dropped from the
+**end** — hence `head`, to be kept outside summae and compared. And two concurrent appends can read
+the same head and both link to it; that fork is reported as a break, truthfully, because from the
+data alone a fork and a removal are the same picture.
+
+### An erased audit record leaves a shell, not a hole
+
+The trail has one deliberate erasure hole (`erasePartner`, F-CORE-040). A naive chain would make a
+**lawful erasure indistinguishable from a manipulation** — and worse, break the chain there for good,
+so every later verification would report tampering that never happened. A warning that is always on
+is a warning nobody reads.
+
+An erased record therefore keeps its row and both hashes and loses everything else: `actor`,
+`objectType` and `action` carry the reserved value `redacted`, `objectId` points at the record
+itself, `changes` is empty. Linkage stays provable; the shell's own content does not — which is
+exactly what an erasure means, and why shells are counted separately instead of folded into
+`chained`.
+
+### Fixed: neither persistence adapter chained the trail
+
+`knex` and `laravel` inserted records unchained and **deleted** rows on erasure, so an in-memory
+trail and a persisted one disagreed while the whole suite stayed green — no fixture reached the
+chain. `core/audit-hash-chain` now does, in both subjects, and it goes red without the adapter change
+(checked by reverting it). Same shape as the missing `AuditWriter` of 0.12.0: what the adapters leave
+out is invisible to tests that run against fakes.
+
+### SPEC-022 is resolved by correcting its premise
+
+It recorded the chain as blocked by a normative rule and offered two product decisions. The rule
+reserves `previousEntryHash` on the **posting**; the obligation it was meant to serve asks for
+tamper evidence on the **audit trail**. Two different chains had collapsed into one word. Nothing had
+to be amended: the trail's chain is built, and the posting's field stays reserved until format 1.0 —
+a chain every conforming reader is *instructed to ignore* would be evidence for nobody, and 1.0 is a
+statement about stability that a hardening has no business forcing.
+
+`datenformat.md` also gains its **0.7** section, which was never written: the schema shipped that
+version while the normative document still described 0.6.
+
+### The `de` pack now enforces the VAT correction on a reduced consideration (A-13, `de@2026.8`)
+
+§ 17 Abs. 1 UStG says a reduced consideration corrects the tax owed, and sentence 2 says the input-tax
+deduction is corrected with it. summae could not hold either, and the gap sat on the embedding
+application's obligation list as **A-13**. `accountCombinationRules` gave it a shape three days ago;
+what was still missing is that **no shipped pack declared such a rule**, and a capability nobody
+ships is not a guarantee.
+
+What made this worth building is that the incomplete entry is otherwise flawless: it balances, it has
+a voucher, it is in the right period, and every account and the trial balance read correctly. The
+only wrong figure is the one that gets filed — the one place nobody checks twice.
+
+- `4020` (granted discount) must be met by an output-VAT account, `5010` by an input-VAT account,
+  else `E_COMBINATION_REQUIRED`. Fixture `pack/de-pack/de-entgeltminderung-erzwungen` proves both
+  refusals, both correct postings, and — the edge that matters — that a discount on a **tax-free**
+  intra-community supply still goes through untouched.
+- The chart gained `5010 Erhaltene Skonti und Nachlässe (vorsteuerpflichtig)`: the input side had no
+  reduction account at all, so there was nothing for the obligation to hang on. `4020` was renamed to
+  say that it is the *taxable* one. **Migration:** a tax-free reduction booked on `4020` is now
+  refused and belongs on the revenue or expense account it reduces. The predicate sees one entry and
+  can never ask whether the original sale carried tax, so the account name is what makes the question
+  answerable — which is also why German charts have kept discount accounts per rate all along.
+
+### Fixed: the pack format rejected a constraint module carrying only the second predicate
+
+`format.schema.json` required `dimensionRules`, so a module with only `accountCombinationRules` did
+not validate — an oversight from adding the second predicate. The first pack that needed exactly that
+found it on the first run. A module now carries **at least one** of the two.
+
+### The GoBD census stops being able to describe a product that moved
+
+`docs/gobd-conformance.md` claimed the `de` pack lacked codes for the intra-community acquisition and
+the exempt export. Both were built on 2026-08-23 — *hours after the row was written* — and the row
+went on saying otherwise through five days of green builds, because nothing compared prose to
+product.
+
+The rows stay prose on purpose; a census reduced to a machine-readable list stops being readable by
+whoever has to defend it. But the **facts quoted inside them** move into a table (§15) that
+`GobdConformanceDocTest` / `gobd-conformance-doc.test.ts` holds against its sources: each pack's
+shipped tax codes, the engine's registered mechanisms and tax-base kinds, and the account-combination
+rule behind the A-13 ✅. Writing the table found the first defect immediately — the `us` code is
+`SALETAX`, not `SALESTAX`.
+
+`allTaxMechanisms()` / `allTaxBaseKinds()` are exported from the core for this; the PHP twins were
+always reachable, so this is symmetry rather than new surface.
+
+### Fixed: both CLIs reported the version they had at 0.1.0 (IMPL-035)
+
+`summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP. Both literals were written at the
+first release and never again — the number had been wrong since 0.2.0 and stayed wrong through
+fifteen releases, on a disk whose `package.json` said 0.15.0.
+
+The stale number is the smaller half. The two implementations were stale *differently*, so the same
+question put to the two CLIs got two different answers — the equivalence policy broken on the first
+surface anybody touches. No cross-test could reach it: that test drives `journalExport` over a shared
+database, and `--version` never opens a book.
+
+Both constants are now asserted against the newest **dated** heading in this file
+(`## X.Y.Z — YYYY-MM-DD`). Dating a section is what makes a release — `release-notes.yml` refuses to
+publish without it — so the guard goes red inside the release commit, when the bumps are due. An
+undated `unreleased` section deliberately does not move the anchor: between releases both CLIs keep
+naming the last version that shipped, exactly as the published `package.json` does.
+
+`ReleaseVersionTest` / `release-version.test.ts` pin it in both languages, and they went red on the
+real values before the fix.
+
+**It was not unguarded — it was guarded by the wrong test.** `SmokeTest::testAllPackagesAutoload`,
+written at JOB-000 to prove the three packages autoload, reached the package markers through
+`assertSame('0.1.0-dev', …)`. So the constants could not be bumped without turning red a test whose
+stated subject is autoloading, and the red would have looked like a regression rather than a job.
+That is the more useful half of this finding: a stale value survived fifteen releases *because*
+something asserted it. The smoke test now asserts that the classes load, which is what it is for.
+
+`CorePackage::VERSION` was stale the same way and had no reader at all besides that smoke test. It
+is bumped and held to the same anchor rather than left standing as the stale twin of the constant
+next to it. Nothing prints it; it is the declared version of a published package all the same.
+
+### The tax expansion gets its second seam (F-TAX-010)
+
+`core/src/CLAUDE.md` has carried this since the mechanism repertoire was closed on 2026-08-16, and it
+was written as a diagnosis rather than a plan: the mechanism seam covers only *line assembly* — it
+receives an already-computed, already-rounded tax amount — while **the variance that actually differs
+between jurisdictions sits before it and had no socket at all**. `base × rate / 100` was written twice
+inside `TaxService`, once per rounding granularity, and no pack could reach it. Every tax system that
+quotes prices with the tax already inside was therefore inexpressible, and that is most of them.
+
+A tax code version now carries `taxBase`:
+
+- **`net`** — the amount handed in is the base. What every shipped pack means, and the default when a
+  code says nothing, so nothing in `de`, `us` or `default` changes. All 183 existing fixtures stayed
+  green through the change.
+- **`inclusive`** — the amount handed in is the **gross**. `tax = amount × rate / (100 + rate)`.
+
+**What makes it more than a division.** With an inclusive base the **net line moves too**: the split
+is precisely what the caller could not do for themselves, and handing their gross back as a net line
+would post the tax twice. Rounding happens **once**, on the tax, and the base is what remains — the
+other order lets base and tax fail to add up to the amount actually posted, and in an inclusive
+régime the gross is the fact while the split is arithmetic. Across several lines of one code the
+group base is **allocated by largest remainder** rather than recomputed per line: two lines each
+rounding half a cent up would otherwise produce a group a cent too large.
+
+Unlike `mechanism`, which is deliberately an open string, `taxBase` is a **closed enum**. An unknown
+value is refused with `E_TAXCODE_INVALID` rather than falling back to `net` — a misspelled base is a
+wrong number in the books, not a missing feature.
+
+**This does not reopen the closed-repertoire decision, and the reason is the useful part.** What
+remains is not a base *function* at all: a **compound** base (Canadian PST on a GST-inclusive amount)
+needs another code's result and therefore an ordering between codes, which a function handed one
+amount and one rate cannot see; **tax at payment time** (withholding, split payment) is a timing
+question; a **margin scheme** needs the purchase price of the thing sold, which is not in the posting.
+A mechanism is still not describable as pure data, so `core/src/CLAUDE.md` keeps its "settled" — with
+the paragraph rewritten to say which half moved.
+
+`xx-9-tax-base-inclusive` pins all of it in both languages, including the rounding case that
+distinguishes allocation from recomputation.
+
+### The constraint socket gets a second word (F-CORE-042)
+
+`docs/gobd-conformance.md` §14 item 6 has carried a ⚠️ since the constraint socket was built, and the
+wording was exact: *the shape of the socket is settled, its vocabulary is not*. A pack could express
+one thought — this account may not be posted without that dimension — and nothing else a jurisdiction
+forbids. A socket with a single predicate is not visibly a socket; it might be a feature with a data
+file beside it.
+
+`accountCombinationRules` is the second word: which accounts must, or must not, appear in **one entry**
+together. Per rule, `whenAccountIn` plus exactly one of `requireAccountIn` / `forbidAccountIn` — a rule
+saying both would be two rules under one name. Violations are `E_COMBINATION_REQUIRED` and
+`E_COMBINATION_FORBIDDEN`, two codes rather than one with a flag, because a script branching on the
+exit code has to take opposite corrective actions for *you are missing a line* and *you have one line
+too many*.
+
+**The require case is A-13**, the obligation that has sat on the embedding application's list because
+summae could not express it: a granted discount reduces the consideration and must carry its tax
+correction. It is now declarable in a pack.
+
+**Why "the entry" and not "the other side", which is the part worth keeping.** In the correct booking
+the discount is a debit and so is the VAT correction, with the receivable on the credit — both required
+lines sit on the *same* side. A predicate about sides would have missed the very case it was built for.
+"Somewhere in the same entry" is also the weaker claim, and the weaker claim is the one a pack can
+reason about without knowing how an application splits its lines.
+
+**What it deliberately still cannot do**, stated because a socket's limits are part of its contract: it
+sees one entry. No deadlines (§5 keeps those ➖ on purpose — they are German rules with exceptions, and
+a hard block would make late but honest bookkeeping impossible). No reach across entries. And no rule
+about a *settlement*: `settle` records an allocation and posts nothing, so there is no entry there to
+constrain. A-13 is reached through the posting instead, which is where the books actually change — and
+the GoBD row moves from ➖ to ⚠️ rather than to ✅, because the shipped `de` pack does not declare such a
+rule yet. That is a product decision about accounts and reporting consequences, not a missing mechanism.
+
+`tenantConfiguration` reports the rules in force, for the same reason it reports the dimension rules:
+an embedding that offers a booking screen has to know which combinations will be refused.
+
+### Added: `personalDataDescription`, and the address shape it needed (F-CORE-041)
+
+The remaining two GDPR rows, closed together — and the second one not the way it was written.
+
+`personalDataDescription` is the counterpart to `systemDescription`: that projection answers *what
+does this system record, and about what*; this one answers *where can operator-supplied free text
+come to rest in these books, and how much of it is actually here*. `fields[]` names every holder and
+field with `freeText`/`required`/`present`, `addressKeys[]` says which address keys the tenant really
+uses, `counts` gives partners, vouchers and distinct actors. It is **generated**, which is the whole
+argument for it — §1 of the census is hand-written, and a hand-written inventory is the kind of list
+that goes stale in silence.
+
+**The axis held, and that is the reason this belongs in summae at all.** *Where* identifying fields
+sit is mechanism: the partner has a name, the trail records an actor, a posting carries text, and
+that is as true in the `us` pack as in the `de` pack. *Whether* a field counts as personal data is
+not mechanism — a company identifier is personal data for a sole trader and not for a corporation —
+so the projection **never classifies**, and says so in a `classification` field rather than letting a
+reader assume. It also reports shape and never content: `present` counts partners with an address,
+`addressKeys` names keys and not values. A tool built for a privacy obligation must not become the
+convenient way to read everybody's data out.
+
+**The address declaration went the other way from what the census proposed.** That row asked for the
+fields to be declared so the format could support data minimisation. They are — `line1`, `line2`,
+`postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2 — but `additionalProperties` stays
+**open**, deliberately. Closing it would make an export of lawful data invalid: books written before
+the shape existed carry whatever they carry, and a schema that rejects them turns a privacy
+improvement into a data-loss event. So the declaration says what to *write* and `addressKeys` says
+what is *there*, which is the half a declaration can never supply and the half an inventory needs.
+No street/houseNumber split — it does not survive contact with addresses outside the German-speaking
+world, and `line1`/`line2` do.
+
+### Not done: the audit hash chain, and why (SPEC-022)
+
+`docs/gobd-conformance.md` §14 item 5c records the per-entry hash chain as *deferred, not rejected*.
+Picking it up ran into something no amount of effort gets past: `datenformat.md` says of the reserved
+fields, normatively, that **readers must ignore them and writers must not populate them in v0.x**.
+`previousEntryHash` is one of them, and we are on format 0.7.
+
+Writing the chain anyway would break the rule in both halves, and the second is the one that counts:
+a conforming reader has been *instructed to ignore* the field, so a chain written today is tamper
+evidence for nobody but us — an auditor's tool, another implementation and a future reader would all
+be conforming precisely by ignoring it. Bumping the format to 0.8 does not help; 0.8 is still v0.x.
+
+So nothing was built, on purpose: a chain that exists but is ignorable is worse than none, because it
+reads like protection. The way out is a decision — amend the reserved-field rule for format 0.8, or
+take it to 1.0 where the reserved fields were always meant to go live — and that is a product call,
+not an engineering one. Recorded in full as SPEC-022, which is the first entry in the open register
+since it was emptied. Manifest-level hashing (SHA-256 per stream, RFC 8785) is untouched and still
+does what it always did.
+
+### The Node persistence suite caught up with the PHP one (IMPL-036)
+
+`implementations/node/CLAUDE.md` said the knex suite is the twin of `packages/laravel/tests` and
+that the two are to be kept in step. They were not, and the uneven part is the finding: the
+**hydrator and the schema installer had no Node tests at all** while having seven on the PHP side.
+That is the worst place for a gap to sit — the hydrator is where the *shared* data format is
+produced and consumed (PHP writes these documents, Node reads them, SF-15), and its defensive
+branches never fire on the happy path the conformance runner walks. A wrong default there does not
+crash; it silently drops data.
+
+`hydrator-and-schema.test.ts` closes it, named after its PHP twin on purpose so that "are these in
+step?" can be answered by listing both directories. Twelve cases: the money fallback, dimensions
+and tax tags surviving a line (including an incomplete dimension being dropped rather than guessed),
+the date half of a timestamp column, UTF-8 round-tripping unescaped, broken JSON refused instead of
+read as empty, the schema created and dropped and dropped again, and the account number unique per
+tenant rather than globally. Two more went into `adapter.test.ts`: `byId` refusing another tenant's
+row — checked for listings and writes but never for the single most likely call — and the stored
+JSON being the aggregate's own serialization rather than a shape the repository invented.
+
+Building it surfaced a real API gap: **PHP had `SchemaInstaller::drop` and Node had no way to drop
+the schema at all.** `dropSchema` now exists, idempotent, in reverse creation order.
+
+**A correction worth publishing, because the number was in a report.** This gap was first sized as
+"32 test methods against 15" by comparing PHP methods to a grep for `it(`. The real figures were 60
+against 76, and the first pair overstated it about fourfold: PHPUnit data providers turn one method
+into many cases, so counting across two frameworks measures the frameworks. Node is at 74 now.
+Counting was the wrong instrument; *which modules have no test at all* was the right one, and it is
+what found the hydrator.
+
+### Added: `erasePartner` — the one place summae was doing something wrong (F-CORE-040)
+
+The GDPR census listed three open rows; this closes the first, and it is the only one where summae
+did not merely fail to *offer* something but actively kept data it had no basis to keep. A partner
+that no voucher and no open item has ever named — one created by a typo — is outside every retention
+duty, and the right to erasure applies to it undiminished. There was no way to remove it.
+
+```
+summae op erasePartner --input '{"partnerId":"…","actor":"datenschutz@example.test"}'
+→ { "id": "…", "erasedAuditRecords": 1 }
+```
+
+**The scoping in the census row was wrong, and the way it was wrong is the interesting part.** It
+proposed refusing when *any* record referenced the id, audit records included — and `createPartner`
+always writes one, so the operation could never have succeeded. Worse, the naive version would have
+erased nothing: that creation record holds the name and, if given, the address in `changes`, so
+removing the partner row alone moves personal data to where nobody looks. The operation therefore
+takes the trail's records **about that partner** with it, reports how many in `erasedAuditRecords`,
+and appends a single record in their place — id, actor, moment, and `existed: true → false` as its
+diff, with no personal payload at all. The trail keeps the fact that an erasure happened, which is
+what an audit asks of it.
+
+That last shape was **forced by a test rather than chosen**: the audit-trail contract requires every
+record to carry a before/after diff, so an empty `changes` failed. The refusal was right — a diff
+about existence is truthful, costs nothing and reveals nothing, while an exception would have been
+the first record in the system exempt from a published invariant.
+
+`E_PARTNER_IN_USE` when the books do reference the partner — deliberately not `E_PARTNER_UNKNOWN`,
+because the partner exists and is kept on purpose — and `details` carries `vouchers`/`openItems` so
+an application can give a data subject a reason rather than a bare no.
+
+**This is the one hole in "the trail is append-only because no code path deletes from it",** and it
+is reachable from this operation and nowhere else. `AuditTrail.eraseFor` and `PartnerRepository.remove`
+are the only removing methods in the core; the journal, the entries and the trail's records about
+them cannot be touched by any API summae offers.
+
+**The jurisdiction guard caught the first draft.** The core comments cited § 147 AO and Art. 17(3)(b)
+GDPR, and `NoJurisdictionTextTest` / `no-jurisdiction-text` went red — correctly. The line the core
+knows is *referenced by the books or not*; which rule puts a record on which side of it, and under
+what name, is documented in `docs/gdpr-conformance.md` and asserted nowhere in the substrate. The
+litmus test worked on code written the same day by someone who had just re-read it.
+
+Fixture `partner-erasure` in both languages, plus `PartnerErasureTest` / `partner-erasure.test.ts`
+for what a fixture cannot reach: that `eraseFor` takes the records about one object and leaves every
+other record standing, and that the refusal's details name what keeps the record.
+
+### Also, found while building it
+
+- **`--strict` never checked what the Makefile said it checked.** The target's comment claimed a
+  newly green fixture without an entry in `runner/expected-green.txt` is an error. It is not:
+  `--strict` means every fixture green plus a byte-identical double run, and the expected-green list
+  is a regression guard consumed by a unit test, which nothing fails for omitting. Comment corrected;
+  the new fixture added to both lists.
+- **There is no way to read the partner list.** `partners` is not a projection, so an Art. 15 access
+  request cannot be answered from the published surface without going through `journalExport`. Noted
+  in the GDPR census rather than fixed here.
+
+### Added: a GDPR census, because there was not one word
+
+`docs/gdpr-conformance.md`, the twin of the GoBD document, with the same three statuses. It exists
+because a search of this repository for *DSGVO*, *GDPR*, *Datenschutz*, *personal data* returned
+nothing at all — in a library that stores `partner.name`, `partner.address` and `vatId`, records
+which person performed every state change in `auditRecord.actor`, and exports all of it in
+`journalExport`. The legal position is comfortable; the silence was not. A library whose selling
+point is a written account of what it does and does not do had a census for one regulation and no
+sentence for the other.
+
+What it says, in short: **you are the controller and summae is not a processor** — it runs inside
+your process, opens no connection, and nobody here ever holds your data, so no DPA is owed to us.
+The right to erasure loses against the retention duty (Art. 17(3)(b) GDPR against § 147 AO), which
+means the append-only journal is the technical form of a legal obligation rather than a problem to
+solve. §1 inventories every field where personal data can end up, which is the part an Art. 30
+record needs and the part most likely to be read in a hurry.
+
+**Three open rows, honestly stated.** There is no `deletePartner` at all — right for a partner the
+books reference, wrong for one created by a typo that no entry ever touched, where no retention duty
+applies and the right to erasure is undiminished. `partner.address` is declared `{"type": "object"}`
+with no properties, so the format cannot support data minimisation for a field whose contents it
+does not know. And there is no generated Art. 30 building block, though `systemDescription` shows
+the shape one would take — with a clean split along summae's own axis: *where* identifying fields
+sit is jurisdiction-free mechanism, *whether* a field counts as personal data is answered
+differently by the GDPR and the CCPA, so it is pack data.
+
+**The document is gated like every other.** `GdprConformanceDocTest` / `gdpr-conformance-doc.test.ts`
+check that every fixture it cites exists and still runs, that every requirement it names is really
+covered, and that its status markers stay the three defined ones. One check the GoBD twin does not
+need: every `record.field` in the §1 inventory is resolved against `format.schema.json`, so a
+renamed field turns the build red instead of leaving a row that still reads correctly and is quietly
+wrong. Both guards went red on a deliberately mistyped field name before being trusted.
+
+### The Node gate reached the Makefile, and stopped being shorter than CI
+
+`make check` ran the whole PHP gate in one word; the Node gate lived as five commands in a
+CLAUDE.md — and that list was short by exactly one run. CI has always executed
+`pnpm fixtures --subject=database --strict`; the documented local gate did not mention it, so
+anybody following the file checked less than CI and found out after pushing. The run is not
+redundant: adapters build the tenant themselves, and what they leave out is invisible to a test
+against fakes, which is how a missing `AuditWriter` once reached CI green from a green desk.
+
+`make check-node` now runs the Node gate, `make check-all` runs both plus the cross-test, and the
+Definition of Green in `implementations/node/CLAUDE.md` names the database subject. A gate that is
+easier to run on one side gets run more on that side.
+
+### Also
+
+- **`docs/proposals/` says on line one whether a memo is still a question.** Three decision memos
+  lived on unmerged tracking branches since June and are now in the repository. Two of them were
+  long since decided — the `ledger.ts` split was executed in both languages, the spec-vs-fixture
+  audit was run and came back clean — and both still read as open questions, which is how a settled
+  decision gets re-asked. The state is in each title, the differences between what was proposed and
+  what was built are recorded, and `docs/proposals/README.md` indexes all three. Only the us-pack
+  sign-offs are genuinely open.
+- **The last German in the Node build config is gone.** `eslint.config.js` (including the message a
+  developer sees when they breach the substrate boundary) and `packages/core/tsup.config.ts`, the
+  one of three tsup configs still written in German. The Makefile came along with them. The
+  remaining German comment in the suite quotes `api.md`, which is a German document, and stays.
+- **The `branch-alias` trap is caught now.** RELEASING.md recorded that
+  `extra.branch-alias.dev-main` must be bumped by hand in all three `composer.json`, that it was
+  missed at 0.8.0, and that "nothing catches it". Same class of defect — a version string with no
+  reader — so the same guard closes it: the PHP test derives `X.Y.x-dev` from the changelog and
+  compares all three. The Node half does the same for the three published `package.json` versions,
+  which `pnpm -r publish` all ships. The note in RELEASING.md was corrected.
+
 ## 0.15.0 — 2026-08-27
 
 **The number you could only get by doing it wrong.** `appropriateResult` has known since v0.4 how

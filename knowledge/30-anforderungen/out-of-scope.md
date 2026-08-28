@@ -9,12 +9,12 @@ Das Backend stellt **Fähigkeiten** bereit; rechtliche **Workflows** erfüllt di
 | GoBD-konformes Buchen, Festschreiben, Stornieren | Rechnungen schreiben und versenden |
 | Belegreferenz verwalten (**nicht** die Datei — Storage ist App-Sache, `lieferumfang.md`) | E-Rechnung empfangen/erzeugen/parsen (XRechnung, ZUGFeRD) |
 | Auswertungen und Kennzahlen liefern (USt-VA-Werte, Bilanz, EÜR) | Übermittlung (ELSTER & Co.), Fristen, Workflows |
-| Den **selbstbeschreibenden Datensatz** für GoBD Z3 erzeugen (`journalExport`: Streams, SHA-256 je Stream, Feldkatalog) + DATEV-Format | Die **Abbildung** dieses Datensatzes auf den Beschreibungsstandard (`index.xml`/DTD, IDEA-Import) · Aufbewahrungsorganisation, Archivsystem |
+| Den **selbstbeschreibenden Datensatz** für GoBD Z3 erzeugen (`journalExport`) **und seit 2026-08-28 auch die Datenträgerüberlassung selbst** (`gdpduExport`: Flachdateien + `index.xml` nach Beschreibungsstandard 1.6) + DATEV-Format | Das Schreiben der Dateien (Bibliothek ohne Dateisystem) · die `.dtd` selbst (fremdes normatives Dokument, nur benannt) · Belegbilder · Aufbewahrungsorganisation, Archivsystem |
 | Prüf- und Validierungsregeln durchsetzen | Nutzerführung, Berechtigungs-UI, Freigabeprozesse |
 
 Faustregel: Wenn eine Anforderung lautet „der Anwender muss bis zum X …", ist es App-Sache. Wenn sie lautet „die Daten müssen …", ist es unsere Sache.
 
-> **Die Z3-Zeile ist die, die am ehesten missverstanden wird**, deshalb ausgeschrieben: `datenformat.md` hält fest, dass der Export nach Beschreibungsstandard „eine **Abbildung**, keine Erfindung" ist — der Feldkatalog liegt bei, die `index.xml` nicht. Verlangt eine Prüfung eine Datenträgerüberlassung, erzeugt die App (oder ihr Werkzeug) diese Datei aus `journalExport`. **Kein Test von summae wird deshalb rot**, und genau deshalb steht es hier und nicht nur im Konformitätsdokument.
+> **Die Z3-Zeile stand hier jahrelang auf der rechten Seite und ist am 2026-08-28 nach links gewandert.** Sie lautete: `datenformat.md` hält fest, dass der Export nach Beschreibungsstandard „eine **Abbildung**, keine Erfindung" ist — der Feldkatalog liegt bei, die `index.xml` nicht; verlangt eine Prüfung eine Datenträgerüberlassung, erzeugt die App diese Datei aus `journalExport`. Der Satz war nie sachlich falsch, aber „wir liefern die *Eingabe* der Abbildung" und „die Bücher sind prüfbar" sind nicht dieselbe Zusage, und eine Prüfung fragt nicht nach, welche gemeint war. Der damals mitgelieferte Grund — **„kein Test wird deshalb rot"** — war rückblickend das Warnsignal und nicht die Rechtfertigung: eine Rahmen-Entscheidung, die nur überlebt, weil nichts sie prüft, gehört regelmäßig neu gelesen. Diese hat das Neulesen nicht überstanden. Was jetzt noch rechts steht, sind Dinge, die eine Bibliothek wirklich nicht kann: Dateien schreiben, ein fremdes normatives Dokument mitliefern, Belegbilder verwalten.
 
 ## Nicht Teil der Packages (v1)
 

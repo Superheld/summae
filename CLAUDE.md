@@ -20,7 +20,11 @@ Repo layout:
 - `implementations/php/` — PHP reference (packages `core`, `laravel`, `cli` + `runner/`). Commands/conventions: `implementations/php/CLAUDE.md`, depth in `docs/`.
 - `implementations/node/` — Node/TypeScript (packages `core`, `knex`, `cli` + `runner/`). Commands/conventions: `implementations/node/CLAUDE.md`.
 - `pack-library/` — shipped **pack library** (product data, *no* tests): **self-contained** packs (`pack-library/<pack>/` with manifest + own modules), authored here since 2026-08-26 (the last mirror, retired); **separate from `testing/testsuite/`**. Build a pack: `pack-library/CLAUDE.md`.
-- `Makefile`, `compose.yaml`, `docker/` — Docker toolchain (currently drives the PHP side).
+- `Makefile`, `compose.yaml`, `docker/` — the toolchain. `make check` = the PHP gate (in Docker),
+  `make check-node` = the Node gate (local pnpm), `make check-all` = both plus the cross-test.
+  Node reached parity here on 2026-08-27: its gate used to exist only as a list of commands in
+  `implementations/node/CLAUDE.md`, and that list was short by the database-subject run CI does
+  perform — a gate that is easier to run on one side gets run more on that side.
 
 ## Scope: capabilities, not workflows
 
@@ -29,15 +33,22 @@ summae provides **capabilities** (GoBD-compliant posting, reports, exports); leg
 user must by X…*" = app. Library, not an app: **no UI, no server, no forced DB**
 (persistence behind an interface), multi-tenant at the data level. Deliberately **out of scope**
 (not „not yet built" — don't start it by accident): UI/frontend · ELSTER / authority submission ·
-e-invoice creation/parsing (XRechnung/ZUGFeRD) · **the GoBD Z3 `index.xml` mapping** (the
-self-describing data set incl. field catalogue is `journalExport`; turning it into the
-DTD-conforming data carrier is the app's — `datenformat.md`: "a mapping, not an invention", and
-no test goes red for its absence) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
+e-invoice creation/parsing (XRechnung/ZUGFeRD) · banking (FinTS/PSD2/CAMT — `postVoucher`/`settle`
 are the attachment points for *parsed* transactions) · POS systems / TSE · payroll *accounting* (only the
 *posting* of the payroll voucher is included) · tax determination beyond VAT (income/corporate/trade tax) ·
 **cost-accounting steering instruments** (planned-cost/variance, activity-based, contribution-margin — decided
 2026-08-23; the *balance-sheet* part of cost accounting, production cost per § 255 Abs. 2 HGB for inventory
 valuation, is deliberately **in** scope and simply not built yet).
+
+> **One line left this list on 2026-08-28, and that is worth recording rather than quietly
+> deleting.** The **GoBD Z3 `index.xml` mapping** stood here as deliberately out of scope: the
+> self-describing data set was `journalExport`, and turning it into the DTD-conforming data carrier
+> was said to be the app's. The reasoning was never wrong about the facts — `datenformat.md` still
+> says the export is "a mapping, not an invention" — but "we ship the mapping's *input*" and "the
+> books are auditable" are not the same claim, and an audit asking for a data carrier does not care
+> which of the two we meant. It is now built (`gdpduExport`, F-IO-008, Beschreibungsstandard 1.6).
+> A scope decision that survives only because nothing tests it is worth re-reading now and then;
+> this one did not survive the re-read.
 
 ## Architecture (the big picture)
 
@@ -262,3 +273,9 @@ in a library (and therefore the embedding app's, collected in the summae-app rep
 without it — never because the code looks right; and an open row is deleted only when it is built, never
 because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
 law — the litmus test applies here too.
+
+**The same census exists for personal data.** `docs/gdpr-conformance.md` is its twin, with the same
+three statuses and the same rule about ✅. Its §1 is an inventory of every field that can hold personal
+data, and that inventory is machine-checked against `format.schema.json` — a renamed field turns
+`GdprConformanceDocTest`/`gdpr-conformance-doc.test.ts` red rather than leaving a row that still reads
+correctly. Adding a field that can carry a name, an address or an identifier means adding its row.

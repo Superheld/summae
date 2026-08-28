@@ -44,7 +44,7 @@ in den Lücken.
 
 Dazu:
 
-- `manifest-us-complete.md` — das Pack-Manifest, das diese Module bündelt.
+- `manifest-us.md` — das Pack-Manifest, das diese Module bündelt.
 - `salestaxreturn-mapping-frei.md` — warum die Sales-Tax-Erklärung **kein** Modul ist
   (und wo der US-Fall vom deutschen UStVA-Fall abweicht).
 - `offene-entscheidungen.md` — die menscheneigenen Sign-off-Punkte (Konto-Nummern,

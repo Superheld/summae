@@ -1,4 +1,5 @@
 import { DomainError } from '../../../domain-error.js';
+import { isTaxBaseKind, type TaxBaseKind } from './tax-bases.js';
 import { CalendarDate } from '../../../substrate/calendar-date.js';
 import { TaxCode } from './tax-code.js';
 import { TaxCodeVersion } from './tax-code-version.js';
@@ -8,6 +9,12 @@ function asString(value: unknown): string | null {
 }
 
 /** Loaded, validated form of the tax-code rule-module data. */
+function parseTaxBase(value: unknown): TaxBaseKind {
+  if (value === undefined || value === null) return 'net';
+  if (isTaxBaseKind(value)) return value;
+  throw new DomainError('E_TAXCODE_INVALID', `unknown taxBase "${String(value)}"`, { taxBase: String(value) });
+}
+
 export class TaxCodeRegistry {
   private constructor(private readonly codes: ReadonlyMap<string, TaxCode>) {}
 
@@ -37,6 +44,10 @@ export class TaxCodeRegistry {
             asString(v.inputTaxAccount),
             asString(v.inputReportingKey),
             asString(v.baseReportingKey),
+            // Unknown values are refused rather than defaulted: a pack that misspells its base kind
+            // would otherwise silently get `net`, which is a wrong number in the books rather than a
+            // missing feature.
+            parseTaxBase(v.taxBase),
           ),
         );
       }

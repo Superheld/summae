@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Summae\Core\Composition\TenantOperations;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
+use Summae\Core\Records\AuditRecord;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\DeterministicIdGenerator;
 use Summae\Core\Substrate\FixedClock;
@@ -190,6 +191,10 @@ class AuditTrailContractTest extends TestCase
         yield 'updatePartner' => ['updatePartner', 'partner', 'updated'];
         yield 'deactivatePartner' => ['deactivatePartner', 'partner', 'deactivated'];
         yield 'reactivatePartner' => ['reactivatePartner', 'partner', 'reactivated'];
+        // The one operation whose audit record is what SURVIVES it: `erased` names the id, the
+        // actor and the moment, and the records it replaced — including createPartner's, which
+        // held the name — are gone. See PartnerService::erase.
+        yield 'erasePartner' => ['erasePartner', 'partner', 'erased'];
         // --- vouchers, settlements, assets, costing --------------------------
         yield 'createVoucher' => ['createVoucher', 'voucher', 'created'];
         yield 'postVoucher' => ['postVoucher', 'voucher', 'created'];
@@ -374,6 +379,13 @@ class AuditTrailContractTest extends TestCase
                 $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
                 self::assertIsString($partner['id'] ?? null);
                 $ops->execute('deactivatePartner', ['partnerId' => $partner['id']]);
+
+                return;
+            case 'erasePartner':
+                /** @var array<string, mixed> $partner */
+                $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
+                self::assertIsString($partner['id'] ?? null);
+                $ops->execute('erasePartner', ['partnerId' => $partner['id']]);
 
                 return;
             case 'reactivatePartner':
@@ -610,11 +622,24 @@ class AuditTrailContractTest extends TestCase
         return $records;
     }
 
-    /** @param array<string, mixed> $record */
-    private static function pairOf(array $record): string
+    /**
+     * The (objectType, action) pair a record represents, or null for a **redacted shell**.
+     *
+     * The distinction is worth stating: a shell is not an event but the absence of one. An erasure
+     * replaces a record with a shell that keeps only its two hashes, so the trail's chain still
+     * resolves across it (F-CORE-040 + the 0.8 chain); calling that an "event" would put a line in
+     * systemDescription promising an operation that writes it, and there is none. That shells can
+     * appear at all is published in the description's auditTrail block instead.
+     *
+     * @param array<string, mixed> $record
+     */
+    private static function pairOf(array $record): ?string
     {
         $objectType = is_string($record['objectType'] ?? null) ? $record['objectType'] : '';
         $action = is_string($record['action'] ?? null) ? $record['action'] : '';
+        if ($objectType === AuditRecord::REDACTED) {
+            return null;
+        }
 
         return $objectType . '/' . $action;
     }
@@ -637,7 +662,10 @@ class AuditTrailContractTest extends TestCase
 
         $observed = [];
         foreach ($this->allObservedRecords() as $record) {
-            $observed[] = self::pairOf($record);
+            $pair = self::pairOf($record);
+            if ($pair !== null) {
+                $observed[] = $pair;
+            }
         }
 
         $published = array_unique($published);
@@ -670,8 +698,9 @@ class AuditTrailContractTest extends TestCase
         $empty = [];
         foreach ($this->allObservedRecords() as $record) {
             $changes = $record['changes'] ?? null;
-            if (!is_array($changes) || $changes === []) {
-                $empty[] = self::pairOf($record);
+            $pair = self::pairOf($record);
+            if ($pair !== null && (!is_array($changes) || $changes === [])) {
+                $empty[] = $pair;
             }
         }
 

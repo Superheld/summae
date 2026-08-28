@@ -184,6 +184,8 @@ final class PackResolver
         $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
         $dimensionRules = [];
+        /** @var list<array<mixed>> $accountCombinationRules */
+        $accountCombinationRules = [];
         /** @var array<mixed>|null $packPolicyModule */
         $packPolicyModule = null;
 
@@ -249,6 +251,11 @@ final class PackResolver
                     foreach (is_array($data['dimensionRules'] ?? null) ? array_values($data['dimensionRules']) : [] as $rule) {
                         if (is_array($rule)) {
                             $dimensionRules[] = $rule;
+                        }
+                    }
+                    foreach (is_array($data['accountCombinationRules'] ?? null) ? array_values($data['accountCombinationRules']) : [] as $rule) {
+                        if (is_array($rule)) {
+                            $accountCombinationRules[] = $rule;
                         }
                     }
                     break;
@@ -394,6 +401,7 @@ final class PackResolver
             'resultAppropriation' => $resultAppropriation,
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
+            'accountCombinationRules' => $accountCombinationRules,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
         ];
@@ -466,6 +474,7 @@ final class PackResolver
             'legalForms' => is_array($pack['legalForms'] ?? null) ? $pack['legalForms'] : null,
             // The first constraint plug: which accounts may not be posted without which dimension.
             'dimensionRules' => is_array($pack['dimensionRules'] ?? null) ? array_values($pack['dimensionRules']) : [],
+            'accountCombinationRules' => is_array($pack['accountCombinationRules'] ?? null) ? array_values($pack['accountCombinationRules']) : [],
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],
         ];
     }

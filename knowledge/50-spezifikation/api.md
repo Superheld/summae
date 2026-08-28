@@ -82,7 +82,7 @@ Mischbelege: `expandTax` akzeptiert den Steuercode **je Position** (`netLines[].
 ### v0.4-Ergänzungen (Buchhalter- + StB-Review)
 
 - **`expandTax` wählt die Regelversion nach dem Leistungsdatum** (`serviceDate`, Fallback voucherDate) — § 27 UStG. `vatReturn` ordnet bei Soll-Versteuerung nach Leistungsdatum zu.
-- **Partner-Operationen:** `createPartner` / `updatePartner` (Audit!); unbekannte `partnerId` am Beleg → `E_PARTNER_UNKNOWN`. Projektionen: `openItems` filtert nach `partnerId`; **`ecSalesList`** (ZM-Grundlage: ig. Umsätze je USt-IdNr. und Zeitraum).
+- **Partner-Operationen:** `createPartner` / `updatePartner` / `deactivatePartner` / `reactivatePartner` / **`erasePartner`** (alle mit Audit); unbekannte `partnerId` am Beleg → `E_PARTNER_UNKNOWN`. `erasePartner` (F-CORE-040) entfernt Partner **und** die Audit-Sätze über ihn und meldet `erasedAuditRecords`; nennt ihn ein Beleg oder ein offener Posten → `E_PARTNER_IN_USE` mit `vouchers`/`openItems` in `details`. Projektionen: `openItems` filtert nach `partnerId`; **`ecSalesList`** (ZM-Grundlage: ig. Umsätze je USt-IdNr. und Zeitraum).
 - **`createFiscalYear {year, start, end, periods?}`** (Buchhalter-M: fehlte als Operation); Überschneidung mit bestehendem Jahr → `E_FISCALYEAR_OVERLAP`.
 - **`trialBalance`-Zeilen verbindlich:** `openingBalance` (kumulierter Saldo vor dem GJ; 0 bei Erfolgskonten), `debitTotal`/`creditTotal` (Verkehrszahlen des Zeitraums), `balance` — die SuSa-Spalten der Praxis.
 - **`incomeStatement {fiscalYear, fromPeriod?, throughPeriod?}`** — Monats-/Quartalsauswertung (BWA-Grundlage, Buchhalter-G5); DATEV-BWA Form 01 ist ein Mapping-Regelmodul (Lieferaufgabe, kein Modellthema).

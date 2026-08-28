@@ -10,6 +10,8 @@ use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\AssetRegisterProjection;
 use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
+use Summae\Core\Policies\Projection\AuditTrailIntegrityProjection;
+use Summae\Core\Policies\Projection\GdpduExportProjection;
 use Summae\Core\Policies\Projection\BalanceSheetProjection;
 use Summae\Core\Policies\Projection\CashBasisProjection;
 use Summae\Core\Policies\Projection\CashJournalProjection;
@@ -25,6 +27,7 @@ use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\UnappropriatedResult;
 use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
 use Summae\Core\Policies\Projection\OpenItemsProjection;
+use Summae\Core\Policies\Projection\PersonalDataDescriptionProjection;
 use Summae\Core\Policies\Projection\SystemDescriptionProjection;
 use Summae\Core\Policies\Projection\TenantConfigurationProjection;
 use Summae\Core\Policies\Projection\TrialBalanceProjection;
@@ -93,6 +96,7 @@ final readonly class TenantOperations
             'deactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'inactive')),
             'reactivatePartner' => $this->serialize($tenant->partnerService->setStatus($input, 'active')),
             'updatePartner' => $this->serialize($tenant->partnerService->update($input)),
+            'erasePartner' => $tenant->partnerService->erase($input),
             'appropriateResult' => $tenant->resultAppropriation->appropriate($input),
             'setEntityProfile' => $tenant->entityProfile?->set($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "setEntityProfile" is not defined'),
@@ -162,6 +166,23 @@ final readonly class TenantOperations
                 ->compute($params),
             'auditLog' => (new AuditLogProjection($tenant->audit))->compute($params),
             'unfinalizedEntries' => (new UnfinalizedEntriesProjection($tenant->journal, $tenant->clock, $tenant->audit))->compute($params),
+            'personalDataDescription' => (new PersonalDataDescriptionProjection(
+                $tenant->partners,
+                $tenant->vouchers,
+                $tenant->audit,
+            ))->compute($params),
+            'auditTrailIntegrity' => (new AuditTrailIntegrityProjection($tenant->audit))->run(),
+            'gdpduExport' => (new GdpduExportProjection(
+                $tenant->id,
+                $tenant->name,
+                $tenant->baseCurrency,
+                $tenant->journal,
+                $tenant->accounts,
+                $tenant->vouchers,
+                $tenant->partners,
+                $tenant->audit,
+                $tenant->clock,
+            ))->compute($params),
             'systemDescription' => (new SystemDescriptionProjection(
                 $tenant->id,
                 $tenant->name,
@@ -179,6 +200,7 @@ final readonly class TenantOperations
                 $tenant->legalForms->declared(),
                 $tenant->legalForms->offered(),
                 $tenant->legalForms->offeredSizeClasses(),
+                $tenant->ledger->combinationRegistry(),
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),

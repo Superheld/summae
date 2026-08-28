@@ -115,6 +115,7 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_PARTNER_UNKNOWN` | partnerId am Beleg existiert nicht | partner-and-ec-sales |
+| `E_PARTNER_IN_USE` | `erasePartner` auf einen Partner, den ein Beleg oder ein offener Posten nennt — Aufbewahrungspflicht schlaegt Loeschrecht (v0.15.1, F-CORE-040). `details` nennt `vouchers`/`openItems` | partner-erasure |
 | `E_FISCALYEAR_OVERLAP` | createFiscalYear überschneidet bestehendes Jahr | fiscal-year-management |
 
 ## E_TAX
@@ -131,6 +132,8 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_DIMENSION_INVALID` | unbekannter Typ/Code oder Pflichtdimension fehlt (Regelmodul) | edge-errors |
+| `E_COMBINATION_REQUIRED` | Die Buchung beruehrt ein Konto aus `whenAccountIn`, aber keines aus `requireAccountIn` (constraint-Modul, v0.15.1, F-CORE-042). `details`: `account`, `requiredFrom`, `requiredTo` | xx-8-constraint-account-combination |
+| `E_COMBINATION_FORBIDDEN` | Die Buchung beruehrt ein Konto aus `whenAccountIn` und eines aus `forbidAccountIn` (constraint-Modul, v0.15.1, F-CORE-042). `details`: `account`, `forbidden` | xx-8-constraint-account-combination |
 
 ## E_DEPRECIATION / E_COSTING
 

@@ -88,6 +88,16 @@ final class ExitCodes
         // The first is answered by configuration, the second only by posting differently.
         'E_APPROPRIATION_UNSUPPORTED',
         'E_APPROPRIATION_EXCEEDS_RESULT',
+        // Erasure of a partner (v0.15.1, F-CORE-040). Not "unknown partner" — the partner exists
+        // and is kept on purpose, because a voucher or an open item names it and the retention duty
+        // outranks the right to erasure. A caller that cannot tell the two apart cannot tell the
+        // data subject why.
+        'E_PARTNER_IN_USE',
+        // The constraint socket's second predicate (v0.15.1, F-CORE-042). Two codes rather than one
+        // with a discriminator: a script branches on the exit code, and "you are missing a line" and
+        // "you have one line too many" call for opposite corrections.
+        'E_COMBINATION_REQUIRED',
+        'E_COMBINATION_FORBIDDEN',
     ];
 
     private function __construct()

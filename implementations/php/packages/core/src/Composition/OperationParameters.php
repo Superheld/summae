@@ -408,6 +408,10 @@ final class OperationParameters
             'address' => [ 'type' => 'object', 'opaque' => 'free-form master data; the engine stores it whole and interprets no key of it' ],
             'actor' => [ 'type' => 'string' ],
         ],
+        'erasePartner' => [
+            'partnerId' => [ 'type' => 'string', 'required' => true ],
+            'actor' => [ 'type' => 'string' ],
+        ],
         'acquireAsset' => [
             'name' => [ 'type' => 'string' ],
             'assetClass' => [ 'type' => 'string' ],

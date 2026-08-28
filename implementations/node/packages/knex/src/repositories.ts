@@ -550,6 +550,11 @@ export class DatabasePartnerRepository implements PartnerRepository {
     return row === null ? null : this.hydrate(row);
   }
 
+  /** F-CORE-040 — tenant-scoped like every other statement here, so one tenant cannot erase another's. */
+  remove(id: Uuid): void {
+    this.db.run(this.table().where('tenant_id', this.tenantId.value).where('id', id.value).delete());
+  }
+
   all(): Partner[] {
     return this.db
       .all(this.table().where('tenant_id', this.tenantId.value).orderBy('rowid'))
@@ -720,14 +725,64 @@ export class DatabaseAuditTrail implements AuditTrail {
     private readonly tenantId: Uuid,
   ) {}
 
+  /**
+   * Appends the record linked behind the trail's current head (format 0.8).
+   *
+   * The head is read here rather than kept in the process, because the store is the only thing that
+   * knows it: a second process appending to the same tenant would otherwise link behind a head that
+   * had already moved. Two truly concurrent appends can still read the same head and both link to
+   * it; that fork is reported as a break by `auditTrailIntegrity` rather than hidden, because from
+   * the data alone a fork and a removal are the same picture. Serialising writes stays the
+   * embedding's, like every other write here.
+   */
   append(record: AuditRecord): void {
+    const chained = record.chainedTo(this.head());
     this.db.run(
-      this.table().insert({ id: record.id.value, tenant_id: this.tenantId.value, payload: H.encode(record.toJSON()) }),
+      this.table().insert({ id: chained.id.value, tenant_id: this.tenantId.value, payload: H.encode(chained.toJSON()) }),
     );
+  }
+
+  private head(): string | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).orderBy('seq', 'desc').limit(1));
+    if (row === null) return null;
+    const hash = H.decode(row.payload).recordHash;
+    return typeof hash === 'string' ? hash : null;
   }
 
   all(): AuditRecord[] {
     return this.hydrate(this.table().where('tenant_id', this.tenantId.value).orderBy('seq'));
+  }
+
+  /**
+   * F-CORE-040 — the only statement in this adapter that removes a row from the trail.
+   *
+   * `objectType`/`objectId` live inside the JSON payload rather than in columns (see `find` below
+   * for why), so the delete extracts them the same way the filter does. Tenant-scoped, like
+   * everything else here.
+   */
+  eraseFor(objectType: string, objectId: Uuid): number {
+    // Read first, then written back as shells: the rows have to stay, because each one carries a
+    // link of the hash chain. Deleting them would break the chain at the successor for good, and
+    // every later verification would report a manipulation that never happened — a warning that is
+    // always on is a warning nobody reads.
+    const matching = this.hydrate(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .whereRaw("json_extract(payload, '$.objectType') = ?", [objectType])
+        .whereRaw("json_extract(payload, '$.objectId') = ?", [objectId.value])
+        .orderBy('seq'),
+    );
+
+    for (const record of matching) {
+      this.db.run(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .where('id', record.id.value)
+          .update({ payload: H.encode(record.redactedShell().toJSON()) }),
+      );
+    }
+
+    return matching.length;
   }
 
   /**
@@ -809,6 +864,11 @@ export class DatabaseAuditTrail implements AuditTrail {
         Uuid.fromString(str(data, 'objectId')),
         str(data, 'action'),
         changes,
+        // `null` for anything written before format 0.8 — the difference between a record that has
+        // no hash and one whose hash does not match is what `auditTrailIntegrity` reports as
+        // unchained rather than broken.
+        typeof data.previousRecordHash === 'string' ? data.previousRecordHash : null,
+        typeof data.recordHash === 'string' ? data.recordHash : null,
       );
     });
   }

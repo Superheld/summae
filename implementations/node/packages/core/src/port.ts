@@ -98,6 +98,20 @@ export interface AuditTrail {
    * Order stays capture order, which is the trail's own total order.
    */
   find(criteria: AuditCriteria): { records: AuditRecord[]; count: number };
+  /**
+   * Erase the trail's records about one object, and answer how many went (F-CORE-040).
+   *
+   * The one hole in "the trail is append-only because no code path deletes from it", and it is
+   * opened deliberately and narrowly. Where a record has to be removable at all — the master data
+   * a jurisdiction's privacy rules reach, never the books, which every retention rule protects —
+   * removing the record alone removes nothing: `createPartner`'s own audit entry still holds the
+   * name and the address in `changes`, so the data would only move to where nobody looks.
+   *
+   * It is reachable from exactly one operation (`erasePartner`), which refuses while any voucher
+   * or open item names the partner. Nothing in the bookkeeping path can call it: the journal, the
+   * entries and the trail's records about them stay untouchable, which is what GoBD asks for.
+   */
+  eraseFor(objectType: string, objectId: Uuid): number;
 }
 
 export interface AssetRepository {
@@ -177,4 +191,11 @@ export interface PartnerRepository {
   byId(id: Uuid): Partner | null;
   /** sorted by name, then ID */
   all(): Partner[];
+  /**
+   * Remove a partner outright (F-CORE-040) — the only repository in the core that can forget.
+   *
+   * Guarded by `PartnerService.erase`, never called from the bookkeeping path. See
+   * `AuditTrail.eraseFor` for why the capability exists at all.
+   */
+  remove(id: Uuid): void;
 }

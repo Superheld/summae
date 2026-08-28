@@ -112,9 +112,11 @@ a short file.
 | IMPL-032 the `default` pack cannot produce a statement, and did not say so | ✅ **RESOLVED 2026-08-26** — it ships no mapping module on purpose (a jurisdiction-free chart has no lawful gliederung to bring), but the caller learned it from `balanceSheet requires the parameter "mapping"`, which reads as *you forgot something*. The refusal now names the situation and carries `available` — empty for this pack — and points at `importMapping`; `tenantConfiguration.mappings` answers the same question without an error, and `default-pack-has-no-mappings` pins that the two agree. Documented where a reader looks: the manual's pack list and the pack's own README |
 | SPEC-021 `accountSheet` lines could not reach their own entry | ✅ **RESOLVED 2026-08-26** — `entryId` (the identity `journal` already publishes) plus `contraAccounts[]`, the accounts on the other side of the same entry, deduplicated and sorted. A list rather than a field, because a tax code puts two or more there and naming "the" counter account would invent a fact; the side is decided per line, so one entry reads differently from the two sheets it appears on. Additive — the runner compares subsets, so no fixture changed. Reported by the embedding app (its F-31), fixture `account-sheet-entry-reference` |
 | SPEC-020 `actorIsAuthenticated` could only ever say `false` | ✅ **RESOLVED 2026-08-26** — the field was right and unusable: a generated Verfahrensdokumentation printed it as "Urheber geprüft: nein" about an installation that had grown a login. `auditTrail.actorAuthentication` now carries `byLibrary` (false, and it can never go stale) plus the embedding's own `declaredByEmbedding`/`method`, declared in `summae.json` and passed on every open — **never stored**, because it describes the running installation and not the books. `null` survives as `null`: not declared is not a denial. Reported by the embedding app (its F-30); `ActorAuthenticationTest`/`actor-authentication.test.ts`, five cases in both languages |
+| SPEC-022 the audit hash chain looked blocked by a normative rule | ✅ **RESOLVED 2026-08-28** — the premise was wrong, which is the finding. The reserved field `previousEntryHash` sits on the **posting**; the obligation (GoBD census §14 item 5c) asks for tamper evidence on the **audit trail**, which carries no reservation. Two chains had collapsed into one word. Built on the trail (F-CORE-043, format 0.8, `auditTrailIntegrity`); the posting's field stays reserved until 1.0, deliberately. The build found what the finding could not: an erased record must leave a **shell keeping both hashes**, or a lawful erasure is indistinguishable from tampering and breaks the chain for good — and neither persistence adapter chained at all until it was changed |
 | IMPL-030 both shipped packs hid the appropriation entry from the balance sheet | ✅ **RESOLVED 2026-08-26** — `de-bilanz` claimed 2000–2499 wholesale and `us-gaap-balance-sheet` 3000–3999, so each swallowed its own `result_allocation` account next to retained earnings and the two lines of a correct resolution cancelled inside one position. The balance sheet did not move and kept reporting the prior year's result as this year's. Ranges cut, labels stopped promising "this year", guard in `PackCompletenessTest`/`pack-completeness.test.ts` plus fixture `de-profit-appropriation` over the shipped pack. Found by the embedding app (its F-32) |
 | IMPL-033 an appropriated year kept offering a phantom loss | ✅ **RESOLVED 2026-08-27** — `available` for a year was "earned through it minus everything appropriated", which goes negative as soon as a resolution reaches a later year's profit; the operation read −300 as an unappropriated *loss* and booked it, charging a pot that held 200 and appropriating one profit one-and-a-half times. The pot now decides direction and ceiling, the year figure only sizes it. Found while building `unappropriatedResult` (F-CORE-038), which is also what makes it visible: the figure had never been readable except as the detail of a refusal |
 | IMPL-034 the pack manifests were documented as products that do not exist | ✅ **RESOLVED 2026-08-27** — `manifest-de-complete.md` and `manifest-us-complete.md` described packs `de-complete`/`us-complete` at version 2026.1 bundling eight modules under ids that were renamed long ago, so a reader who copied from them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's defect in the half its guard did not reach: the guard checked modules, and the manifest documents sat beside them unchecked. Rewritten from the real manifests, `default` got the one it never had, and `PackDocsTest`/`pack-docs.test.ts` grew a fourth rule over manifest documents |
+| IMPL-035 both CLIs reported the version they had at 0.1.0 | ✅ **RESOLVED 2026-08-27** — `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP: frozen since the first release, wrong from the second, and not even equal to each other, which is the equivalence policy broken on the surface a user reads first. Nothing compared the constants to anything, because a version string is not behaviour — no fixture touches it and the suite stayed green through fifteen releases. Both now name the newest dated heading in `CHANGELOG.md`, asserted by `ReleaseVersionTest`/`release-version.test.ts`; the same anchor also holds `CorePackage::VERSION` (stale the same way), the three npm `version` fields and the three `branch-alias` values that RELEASING.md recorded as uncaught. The sharper half: they were not unguarded but guarded *wrongly* — `SmokeTest::testAllPackagesAutoload` pinned the literal `0.1.0-dev`, so a correct bump turned red a test about autoloading, and the drift was defended rather than caught |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -126,6 +128,57 @@ tests stop: every asset fixture until now either disposed before the yearly run 
 the two, so the suite was green on an ordering that put a credit balance on an asset account. The
 other findings that arrived with it are tracked as requirements rather than findings, because they
 ask for a capability the library does not have yet rather than reporting one that misbehaves.
+
+### IMPL-035 — both CLIs reported the version they had at 0.1.0 — RESOLVED
+
+**Found 2026-08-27** while releasing 0.15.0, by reading the CLI sources for anything else the bump
+should have touched. `implementations/node/packages/cli/src/cli.ts` passed a literal `'0.1.0'` to
+commander, and `CliPackage::VERSION` held `'0.1.0-dev'`. Both were written once, at the first
+release, and never again: `summae --version` had been wrong since 0.2.0 and stayed wrong through
+fifteen releases, in a build whose `package.json` said 0.15.0 on the same disk.
+
+**Two defects, and the second is the worse one.** A stale number is a nuisance — a bug report that
+names the wrong version costs one round trip. But the two implementations were stale *differently*,
+`0.1.0` against `0.1.0-dev`, so the same question asked of the two CLIs got two answers. That is the
+top quality policy broken on the first surface anybody touches, and no cross-test could have caught
+it: the cross-test drives `journalExport` over a shared database, and `--version` writes to stdout
+without opening a book.
+
+**Why nothing went red — and this is the part worth keeping.** The first answer is the ordinary
+one: the suite is organised around behaviour, a version string is not behaviour, no fixture names it
+and the walkthroughs call `init`/`op`/`report` but never `--version`. The second answer is better.
+The constants were **not** unguarded. `SmokeTest::testAllPackagesAutoload`, written at JOB-000 to
+prove the three packages autoload, reached both package markers through
+`assertSame('0.1.0-dev', …)` — so bumping either one turned red a test whose stated subject is
+autoloading, and the red would have read as a regression rather than as the job it actually was.
+A wrong assertion in a test that is about something else does not merely fail to catch drift; it
+*defends* the drift, and it does so from a file nobody would think to look in. The smoke test now
+asserts that the classes load, which is what it was for.
+
+**A third constant, found the same way.** `CorePackage::VERSION` was `'0.1.0-dev'` too, with no
+reader anywhere except that smoke test. It is bumped and held to the same anchor rather than left as
+the stale twin of the constant beside it. Deleting it would arguably be cleaner — an unused version
+marker is exactly the thing that goes stale — but it is a public constant of a published package,
+and removing it is a decision of its own, not a side effect of correcting a number.
+
+**The anchor is the changelog, not the manifest.** Both constants are now asserted against the newest
+*dated* heading in `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD`). Dating that heading is what makes a
+release — `release-notes.yml` refuses to publish without it — so the guard goes red inside the
+release commit, at the moment the bumps are due, rather than afterwards. An undated `unreleased`
+section deliberately does not move the anchor: between releases both CLIs keep naming the last
+version that shipped, which is what the published `package.json` says too. Node's `package.json`
+would have been the closer source for Node alone, and that is the point against it — PHP has no
+`version` field to read (Composer derives it from the tag), so a per-language anchor would have left
+the two free to disagree again, which was half the defect.
+
+**One more thing fell out of the same anchor.** RELEASING.md recorded that
+`extra.branch-alias.dev-main` "has to be bumped by hand, in all three", that it was missed at 0.8.0,
+and that "nothing catches it, because it affects only how Composer resolves `dev-main` for someone
+tracking the branch — never the released tags, and never a test." It is the same class of defect —
+a version string with no reader — and the same anchor closes it: `ReleaseVersionTest` derives
+`X.Y.x-dev` from the changelog and compares all three. The note in RELEASING.md was corrected rather
+than left standing; a document that says nothing catches this is worse than useless once something
+does.
 
 ### IMPL-034 — the pack manifests were documented as products that do not exist — RESOLVED
 
@@ -259,6 +312,47 @@ two entries for exactly that reason.
 Cheap in the end, and cheaper than it looked: the runner compares **subsets**, so a new field on an
 object turns no existing fixture red. What the report called the second, optional half turned out to
 be the half only the library can supply.
+
+### SPEC-022 — the hash chain: the premise was wrong, and the correction is the finding
+
+**Opened and closed 2026-08-28.** Recorded as blocked; it was not.
+
+**What it claimed.** That tamper evidence on the audit trail could not be built without amending a
+normative rule, quoting `knowledge/50-spezifikation/datenformat.md`:
+
+> `previousEntryHash` (Buchung — Hash-Kette) … **Reader MÜSSEN diese Felder ignorieren, Writer
+> DÜRFEN sie in v0.x nicht belegen.**
+
+It then offered two ways out, both product decisions: amend the rule for format 0.8, or take the
+format to 1.0.
+
+**Why that was wrong.** The reserved field sits on the **Buchung** — the posting. The obligation it
+was written to serve, `docs/gobd-conformance.md` §14 item 5c, asks for something else: *"Tamper
+evidence on the audit trail itself … a hash chain (each record carrying its predecessor's hash)
+would turn it into something checkable."* **Record**, not posting. Two different chains had
+collapsed into one word, and the reservation on one was read as a reservation on both. The trail's
+records carry no such rule, so nothing had to be amended and nobody had to decide anything.
+
+**Decided, and built: the chain goes on the trail; the posting's field stays reserved.**
+
+- **Built** (F-CORE-043, format 0.8): every audit record carries `previousRecordHash` and
+  `recordHash`, SHA-256 over canonical JSON (RFC 8785), verified by the `auditTrailIntegrity`
+  projection. Both languages compute the same bytes, which `make cross` proves rather than assumes.
+- **Not built, deliberately:** `previousEntryHash` on the posting. A chain every conforming reader
+  is *instructed to ignore* is evidence for nobody, and neither escape route earns its cost today —
+  amending the rule changes what the format promises to everyone already reading it under the old
+  one, and 1.0 is a statement about stability that a hardening has no business forcing. It becomes
+  ordinary work the day the format goes to 1.0, and the trail's chain covers the obligation that was
+  actually open in the meantime.
+
+**Two things the build found that the finding could not have.** The audit trail has an erasure hole
+(`eraseFor`, F-CORE-040, the right to be forgotten), and a naive chain makes a **lawful erasure
+indistinguishable from a manipulation** — worse, it breaks the chain permanently at that point, so
+every later verification reports tampering that never happened. An erased record therefore leaves a
+**shell** that keeps both hashes and nothing else. And the `knex`/`laravel` adapters did not chain
+at all until they were changed: the conformance suite ran green against the database subject because
+no fixture reached the chain. `core/audit-hash-chain` does, in both subjects, and it fails without
+the adapter change — checked by reverting it.
 
 ### IMPL-032 — the `default` pack cannot produce a statement, and did not say so — RESOLVED
 

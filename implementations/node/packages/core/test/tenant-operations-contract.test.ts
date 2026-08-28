@@ -30,16 +30,17 @@ const OPERATIONS = [
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
   'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
   'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
-  'appropriateResult', 'setEntityProfile',
+  'appropriateResult', 'setEntityProfile', 'erasePartner',
 ] as const;
 
 const PROJECTIONS = [
-  'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'unfinalizedEntries', 'assetRegister',
+  'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'auditTrailIntegrity', 'gdpduExport', 'unfinalizedEntries', 'assetRegister',
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
   'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
   'tenantConfiguration', 'unappropriatedResult',
+  'personalDataDescription',
 ] as const;
 
 /**

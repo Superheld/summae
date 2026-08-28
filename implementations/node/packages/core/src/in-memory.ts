@@ -162,11 +162,28 @@ export class InMemoryAuditTrail implements AuditTrail {
   private readonly records: AuditRecord[] = [];
 
   append(record: AuditRecord): void {
-    this.records.push(record);
+    // The head is the last record's hash — a redacted shell keeps its own, so an erasure does not
+    // move the chain's tip and every later link still resolves.
+    const head = this.records.at(-1)?.recordHash ?? null;
+    this.records.push(record.chainedTo(head));
   }
 
   all(): AuditRecord[] {
     return [...this.records];
+  }
+
+  eraseFor(objectType: string, objectId: Uuid): number {
+    let erased = 0;
+    for (let i = 0; i < this.records.length; i += 1) {
+      const record = this.records[i]!;
+      if (record.objectType === objectType && record.objectId.value === objectId.value) {
+        // Replaced by its shell, not removed: a deleted row would break the chain at the successor
+        // and leave every later verification reporting a manipulation that never happened.
+        this.records[i] = record.redactedShell();
+        erased += 1;
+      }
+    }
+    return erased;
   }
 
   find(criteria: AuditCriteria): { records: AuditRecord[]; count: number } {
@@ -185,6 +202,10 @@ export class InMemoryPartnerRepository implements PartnerRepository {
 
   byId(id: Uuid): Partner | null {
     return this.byIdMap.get(id.value) ?? null;
+  }
+
+  remove(id: Uuid): void {
+    this.byIdMap.delete(id.value);
   }
 
   all(): Partner[] {

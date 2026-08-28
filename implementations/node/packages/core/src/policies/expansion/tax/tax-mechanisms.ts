@@ -128,12 +128,21 @@ const REGISTRY: Record<string, TaxMechanism> = {
  * mechanism that does not exist. The resolver calls this too, so a composed pack fails at
  * `resolvePack`/`init` rather than at the first posting.
  */
+/**
+ * The registered repertoire, in registration order. Published because a *document* that names the
+ * mechanisms — `docs/gobd-conformance.md` does — is making a checkable claim, and a claim nothing
+ * checks is how that census came to describe a pack that had already moved on.
+ */
+export function allTaxMechanisms(): readonly string[] {
+  return Object.keys(REGISTRY);
+}
+
 export function mechanismFor(name: string): TaxMechanism {
   const mechanism = REGISTRY[name];
   if (mechanism === undefined) {
     throw new DomainError('E_PACK_INCOHERENT', `Unknown tax mechanism: ${name}`, {
       mechanism: name,
-      known: Object.keys(REGISTRY),
+      known: allTaxMechanisms(),
     });
   }
 

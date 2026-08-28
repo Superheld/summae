@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Core\Port;
 
 use Summae\Core\Records\AuditRecord;
+use Summae\Core\Substrate\Uuid;
 
 /**
  * The audit trail is part of the format (datenformat.md v0.3, review G3):
@@ -40,4 +41,19 @@ interface AuditTrail
      * @return array{records: list<AuditRecord>, count: int}
      */
     public function find(array $criteria): array;
+
+    /**
+     * Erase the trail's records about one object, and answer how many went (F-CORE-040).
+     *
+     * The one hole in "the trail is append-only because no code path deletes from it", and it is
+     * opened deliberately and narrowly. Where a record has to be removable at all — the master data
+     * a jurisdiction's privacy rules reach, never the books, which every retention rule protects —
+     * removing the record alone removes nothing: createPartner's own audit entry still holds the
+     * name and the address in `changes`, so the data would only move to where nobody looks.
+     *
+     * It is reachable from exactly one operation (`erasePartner`), which refuses while any voucher
+     * or open item names the partner. Nothing in the bookkeeping path can call it: the journal, the
+     * entries and the trail's records about them stay untouchable, which is what GoBD asks for.
+     */
+    public function eraseFor(string $objectType, Uuid $objectId): int;
 }

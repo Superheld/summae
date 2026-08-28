@@ -175,7 +175,7 @@ final readonly class DatabaseTenantFactory
             $auditWriter,
             $configStore,
         );
-        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts, $vouchers, $openItems);
         $assetService = new AssetService($baseCurrency, $assets, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
         $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);
         $costing = new CostingService(

@@ -40,7 +40,7 @@ import type { Uuid } from '../../substrate/uuid.js';
 export const API_OPERATIONS = [
    'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
    'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
-   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
+   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
    'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile', 'settle',
@@ -48,9 +48,9 @@ export const API_OPERATIONS = [
 ] as const;
 
 export const API_PROJECTIONS = [
-  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'balanceSheet',
+  'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'ecSalesList',
-  'fiscalYears', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'overheadRates',
+  'fiscalYears', 'gdpduExport', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'personalDataDescription', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
   'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
 ] as const;
@@ -131,7 +131,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'voucher', actions: ['created'] },
   { objectType: 'account', actions: ['created', 'locked', 'unlocked'] },
   { objectType: 'openItem', actions: ['settled', 'cancelled'] },
-  { objectType: 'partner', actions: ['created', 'updated', 'deactivated', 'reactivated'] },
+  { objectType: 'partner', actions: ['created', 'updated', 'deactivated', 'reactivated', 'erased'] },
   { objectType: 'fiscalYear', actions: ['created', 'closed'] },
   { objectType: 'period', actions: ['closed', 'reopened'] },
   { objectType: 'taxProfile', actions: ['changed'] },
@@ -233,6 +233,22 @@ export class SystemDescriptionProjection {
           // auditor.
           declaredByEmbedding: this.actorAuthentication === null ? null : this.actorAuthentication.declared,
           method: this.actorAuthentication === null ? null : this.actorAuthentication.method,
+        },
+        // What makes the trail checkable rather than merely trusted (format 0.8). Published here
+        // because an auditor reads this block to learn what the trail is; a chain nobody is told
+        // about protects nobody.
+        hashChain: {
+          algorithm: 'sha256-over-canonical-json',
+          field: 'previousRecordHash',
+          verifiedBy: 'auditTrailIntegrity',
+          note:
+            'Each record carries the hash of its predecessor, computed over canonical JSON (RFC 8785). '
+            + 'Changing or removing a record breaks the link at its successor. Records erased under a '
+            + 'privacy right leave a shell that keeps both hashes, so a lawful erasure stays distinguishable '
+            + 'from a manipulation; a shell\'s own content can no longer be verified, which is what an erasure '
+            + 'means. Records written before format 0.8 carry no hash and are reported as unchained, never as '
+            + 'broken. A chain cannot notice records dropped from the END of the trail — compare the published '
+            + 'head against one you kept.',
         },
         note:
           'The actor is recorded as supplied by the caller; summae authenticates nobody, which is what '

@@ -1,0 +1,159 @@
+{
+  "fixture": "de-entgeltminderung-erzwungen",
+  "description": "A-13, and the reason this fixture exists rather than only `xx-8`: the constraint socket having a second predicate is a CAPABILITY, and a capability nobody ships is not a guarantee. `xx-8` proves the mechanism against a pack it brings itself; this proves that the SHIPPED `de` pack declares the rule, so a German tenant gets the refusal without configuring anything. § 17 Abs. 1 UStG says a reduced consideration corrects the tax owed, and sentence 2 says the input-tax deduction is corrected with it — both halves are here, because getting the input side wrong means deducting VAT that was never owed, which is the same defect pointing the other way. WHAT THE RULE CANNOT SEE is why 4020 and 5010 are declared as the taxable reduction accounts and a tax-free reduction is booked against the revenue or expense account it reduces: the predicate sees one entry, never the original sale, so it cannot ask whether THAT sale carried tax. Naming the obligation in the ACCOUNT is what makes the question answerable at all — and the last two steps prove the other edge, that a reduction of an intra-community supply goes through untouched. A constraint that refused more than it was asked to would be worse than none.",
+  "covers": ["F-CORE-042", "F-TAX-008", "SF-18"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Entgeltminderung GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-400", "voucherDate": "2026-03-02" },
+        "entryDate": "2026-03-02", "text": "Ausgangsrechnung 1000 netto, 2 % Skonto",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "1190.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } },
+          { "account": "3100", "side": "credit", "money": { "amount": "190.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "1000.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "openItemsCreated": [ { "id": "$OP1", "money": { "amount": "1190.00", "currency": "EUR" } } ] } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-400-FALSCH", "voucherDate": "2026-03-10" },
+        "entryDate": "2026-03-10", "text": "Zahlung abzgl. Skonto, Steuerkorrektur vergessen",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1170.00", "currency": "EUR" } },
+          { "account": "4020", "side": "debit", "money": { "amount": "20.00", "currency": "EUR" } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The entry BALANCES and every other invariant holds — that is the whole danger. Without the rule this posts, the accounts look right, the trial balance looks right, and the only thing that is wrong is the figure that gets filed. Now it is refused where the books would have gone wrong.",
+        "error": "E_COMBINATION_REQUIRED"
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-400", "voucherDate": "2026-03-10" },
+        "entryDate": "2026-03-10", "text": "Zahlung abzgl. 2 % Skonto mit USt-Korrektur",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1166.20", "currency": "EUR" } },
+          { "account": "4020", "side": "debit", "money": { "amount": "20.00", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "3100", "side": "debit", "money": { "amount": "3.80", "currency": "EUR" },
+            "taxTag": { "code": "USt19", "appliedVersion": "2024-01-01", "reportingKey": "81", "baseMoney": { "amount": "-20.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "1190.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The same payment with the correction it owes. The rule adds a requirement and changes not one amount.",
+        "result": { "entry": { "id": "$E2" } }
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-400", "voucherDate": "2026-03-04" },
+        "entryDate": "2026-03-04", "text": "Eingangsrechnung 500 netto",
+        "lines": [
+          { "account": "5000", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1500", "side": "debit", "money": { "amount": "95.00", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "500.00", "currency": "EUR" } } },
+          { "account": "3000", "side": "credit", "money": { "amount": "595.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "id": "$E3" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-401-FALSCH", "voucherDate": "2026-03-12" },
+        "entryDate": "2026-03-12", "text": "Zahlung an Lieferant abzgl. Skonto, Vorsteuer nicht berichtigt",
+        "lines": [
+          { "account": "3000", "side": "debit", "money": { "amount": "595.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "585.00", "currency": "EUR" } },
+          { "account": "5010", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The mirror defect, and the more expensive one: too much input tax stays deducted. Same code, because it is the same missing line seen from the other side.",
+        "error": "E_COMBINATION_REQUIRED"
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-401", "voucherDate": "2026-03-12" },
+        "entryDate": "2026-03-12", "text": "Zahlung an Lieferant abzgl. 2 % Skonto mit Vorsteuerkorrektur",
+        "lines": [
+          { "account": "3000", "side": "debit", "money": { "amount": "595.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "583.10", "currency": "EUR" } },
+          { "account": "5010", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "-10.00", "currency": "EUR" } } },
+          { "account": "1500", "side": "credit", "money": { "amount": "1.90", "currency": "EUR" },
+            "taxTag": { "code": "VSt19", "appliedVersion": "2024-01-01", "reportingKey": "66", "baseMoney": { "amount": "-10.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "entry": { "id": "$E4" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-401", "voucherDate": "2026-03-05" },
+        "entryDate": "2026-03-05", "text": "Innergemeinschaftliche Lieferung, steuerfrei",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "800.00", "currency": "EUR" } },
+          { "account": "4030", "side": "credit", "money": { "amount": "800.00", "currency": "EUR" },
+            "taxTag": { "code": "igL", "appliedVersion": "2024-01-01", "reportingKey": "41", "baseMoney": { "amount": "800.00", "currency": "EUR" } } }
+        ]
+      },
+      "expect": { "result": { "entry": { "id": "$E5" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ZAHLUNG-402", "voucherDate": "2026-03-14" },
+        "entryDate": "2026-03-14", "text": "Zahlung abzgl. 2 % Skonto auf steuerfreie Lieferung",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "784.00", "currency": "EUR" } },
+          { "account": "4030", "side": "debit", "money": { "amount": "16.00", "currency": "EUR" },
+            "taxTag": { "code": "igL", "appliedVersion": "2024-01-01", "reportingKey": "41", "baseMoney": { "amount": "-16.00", "currency": "EUR" } } },
+          { "account": "1400", "side": "credit", "money": { "amount": "800.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Nothing to correct, so nothing fires: the reduction of a tax-free supply is booked against the revenue account it reduces and never reaches 4020. That is why 4020 carries the obligation in its NAME — the entry alone can never tell whether the original sale was taxable.",
+        "result": { "entry": { "id": "$E6" } }
+      } }
+  ],
+  "projections": [
+    { "name": "tenantConfiguration", "params": { "tenant": "$T1" },
+      "expect": {
+        "comment": "A rule that refuses a posting has to be readable, or the refusal is unexplainable from inside the library.",
+        "accountCombinationRules": [
+          { "whenAccountIn": { "from": "4020", "to": "4020" }, "requireAccountIn": { "from": "3100", "to": "3110" } },
+          { "whenAccountIn": { "from": "5010", "to": "5010" }, "requireAccountIn": { "from": "1500", "to": "1510" } }
+        ]
+      } },
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "1367.10" },
+        { "account": "1400", "balance": "0.00" },
+        { "account": "1500", "balance": "93.10" },
+        { "account": "3000", "balance": "0.00" },
+        { "account": "3100", "balance": "-186.20" },
+        { "account": "4000", "balance": "-1000.00" },
+        { "account": "4020", "balance": "20.00" },
+        { "account": "4030", "balance": "-784.00" },
+        { "account": "5000", "balance": "500.00" },
+        { "account": "5010", "balance": "-10.00" }
+      ] } }
+  ]
+}

@@ -10,6 +10,7 @@ import { Currency } from '../substrate/currency.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
+import { AccountCombinationRegistry, type AccountCombinationRuleData } from '../policies/constraint/account-combination-registry.js';
 import { DimensionRegistry, type DimensionRuleData } from '../policies/constraint/dimension-registry.js';
 import { Tenant } from './tenant.js';
 
@@ -81,6 +82,10 @@ export class TenantFactory {
     // now no pack could: the registry was built with nothing at all.
     const dimensionRules = (Array.isArray(this.ruleModules.dimensionRules) ? this.ruleModules.dimensionRules : [])
       .filter((rule): rule is DimensionRuleData => isRecord(rule));
+    // The socket's second predicate (F-CORE-042) — which accounts may not, or must not, meet in one
+    // entry. Threaded exactly like the first: pack data in, registry out, nothing law-shaped here.
+    const accountCombinationRules = (Array.isArray(this.ruleModules.accountCombinationRules) ? this.ruleModules.accountCombinationRules : [])
+      .filter((rule): rule is AccountCombinationRuleData => isRecord(rule));
 
     const tenant = Tenant.inMemory(
       asString(input.name) ?? 'Tenant',
@@ -93,6 +98,8 @@ export class TenantFactory {
       mappings,
       taxRoundingGranularity,
       this.packIdentity(),
+      null,
+      AccountCombinationRegistry.fromData(accountCombinationRules),
     );
 
     let accountCount = 0;

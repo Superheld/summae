@@ -160,6 +160,8 @@ parameter-effect-current
 partner-status
 voucher-net-line-dimensions
 partner-account-link-validated
+partner-erasure
+personal-data-description
 tax-profile-input-validation
 de-euer-surplus
 asset-register-special-depreciation
@@ -173,6 +175,8 @@ entry-author
 consideration-reduction
 input-structure-contract
 xx-7-pack-declares-filing-periods
+xx-8-constraint-account-combination
+xx-9-tax-base-inclusive
 de-appropriate-result
 result-appropriation-guards
 de-profit-appropriation
@@ -185,3 +189,6 @@ entity-profile-and-deadline
 de-resolution-deadline
 us-no-resolution-deadline
 default-pack-has-no-legal-forms
+de-entgeltminderung-erzwungen
+audit-hash-chain
+gdpdu-data-carrier

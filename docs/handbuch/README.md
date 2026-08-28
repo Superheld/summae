@@ -19,6 +19,12 @@ the **PHP implementation is the reference**, Node mirrors it name-for-name.
 > therefore yours). Read the third group first: those are the ones nobody's green
 > test suite will remind you about.
 
+> **Storing customer names?** [GDPR conformance](../gdpr-conformance.md) inventories every
+> field in which personal data can end up, states where the right to erasure collides with
+> the retention duty and which one wins, and lists what a library cannot answer for you.
+> summae is not a processor: it runs inside your process and sends nothing anywhere — which
+> is precisely why almost everything on that page is yours.
+
 **Contents**
 
 1. [Overview & mental model](#1-overview--mental-model)
@@ -1262,9 +1268,13 @@ you send is what the partner has afterwards. Both were create-only until 0.11,
 which made a wrong account link permanent — the only way back was a new partner
 under a new id, while every open item stayed on the old one.
 
-There is deliberately **no `deletePartner`**: books keep what they referenced,
-and an id that open items point at must not vanish. What a partner does have is
-a status — see `deactivatePartner`.
+A partner the books reference is **kept**: an id that open items point at must
+not vanish, and the retention duty (§ 147 AO / § 257 HGB) outranks the right to
+erasure for everything in the books — Art. 17(3)(b) GDPR says so in as many
+words. What such a partner has instead is a status; see `deactivatePartner`.
+
+A partner the books have **never** referenced is a different question with a
+different answer, and it is `erasePartner`.
 
 #### deactivatePartner / reactivatePartner
 
@@ -1279,6 +1289,41 @@ records the fact, the application decides what follows from it. That is the
 difference to `lockAccount`, which does refuse postings, and the two words are
 different on purpose. The status is part of the partner record and of the
 `journalExport` partner stream (data format 0.7).
+
+#### erasePartner
+
+`partnerId` (yes), `actor`. Output: `{ "id": "…", "erasedAuditRecords": n }`.
+Errors: `E_PARTNER_UNKNOWN`, `E_PARTNER_IN_USE`.
+
+**The Art. 17 GDPR case, and the only operation in summae that removes
+anything.** `deactivatePartner` says *we no longer trade with them*;
+`erasePartner` says *this personal data must not be here at all*. Only the
+second is ever a legal obligation, and it applies to exactly one situation: a
+partner that no voucher and no open item has ever named. A record created by a
+typo has no retention duty behind it, so keeping it forever was never a
+compliance decision.
+
+**It refuses loudly when the books do reference the partner.**
+`E_PARTNER_IN_USE` — deliberately not `E_PARTNER_UNKNOWN`, because the partner
+exists and is kept on purpose. `details` carries `vouchers` and `openItems`, so
+you can answer a data subject with a reason and a retention basis instead of a
+bare no.
+
+**It also erases the trail's records about that partner, and this is the point.**
+`createPartner` writes the name and, if you gave one, the address into the audit
+record's `changes`. Removing only the partner row would move the personal data to
+the place nobody looks rather than remove it. So the records *about this partner*
+go, `erasedAuditRecords` tells you how many, and one new record takes their place:
+id, actor, moment, and `existed: true → false` as its diff — no personal payload
+at all. The trail keeps the fact that an erasure happened, which is what an audit
+asks of it.
+
+⚠ **This is the one hole in "the trail is append-only because no code path
+deletes from it".** It is reachable from this operation and from nowhere else:
+the journal, the entries, and the trail's records about them cannot be touched by
+any API summae offers. See [GDPR conformance](../gdpr-conformance.md) for the
+whole picture and [GoBD conformance](../gobd-conformance.md) §13 for why the two
+do not conflict.
 
 ### 6.4 Assets & cost accounting
 
@@ -1696,6 +1741,48 @@ authenticated identity is your application's job, and
 { "count": 2, "offset": 0, "limit": 50,
   "records": [ { "objectType": "journalEntry", "action": "corrected",
   "changes": { "text": { "from": "Office supplies", "to": "Office supplies January" } } } ] }
+```
+
+### auditTrailIntegrity — is the trail still the trail?
+
+No parameters. Output: `records`, `chained`, `unchained`, `redacted`, `head`, `intact` and
+`breaks[]` with `recordId`, `at`, `reason` and `detail`.
+
+**What it answers, and why it did not exist before.** The audit trail has always been append-only
+because *no code path updates or deletes it* — the port offers `append` and `all` and nothing else.
+That is a property of the procedure, not of the data: an auditor could read the source or trust your
+deployment, and a direct `UPDATE` against a `summae_*` table left no trace at all. Since format 0.8
+every record carries the hash of its predecessor (SHA-256 over canonical JSON, RFC 8785), so
+changing, removing or inserting a record breaks the link at its successor. This projection walks the
+chain and reports what it finds.
+
+**Read the four counts as four different states, not as one number:**
+
+- **`chained`** — verified: the record hashes to the value it carries and links to its predecessor.
+- **`unchained`** — written before format 0.8 and carrying no hash. Not a break. They can only sit
+  at the front; one appearing *after* a chained record is an insertion and is reported as a break.
+- **`redacted`** — erased under a privacy right
+  ([`erasePartner`](#erasepartner--erase-a-partner-and-what-the-trail-says-about-them)). The shell
+  keeps both hashes so the chain still resolves across it; its content cannot be verified, because
+  there is none left. A lawful erasure and a manipulation must not look alike, and this is what keeps
+  them apart.
+- **`breaks[]`** — everything else, each with the reason: `contentMismatch` (the record no longer
+  hashes to its own value), `linkMismatch` (its link does not name the preceding record),
+  `unchainedAfterChained` (an insertion).
+
+**Two things it cannot do, and you need both.** A chain never notices records dropped from the
+**end** — that is what `head` is for: keep it somewhere summae cannot reach and compare it later.
+And two concurrent appends can read the same head and both link to it; that fork is reported as a
+break, truthfully, because from the data alone a fork and a removal are the same picture.
+
+This covers the **trail**, not the postings. A chain over the journal would need the reserved field
+`previousEntryHash`, which the data format forbids writers to populate while readers are instructed
+to ignore it — a chain every conforming reader is told to skip would be evidence for nobody.
+
+```json
+// params {}
+{ "records": 42, "chained": 40, "unchained": 0, "redacted": 2,
+  "head": "9f2c…", "intact": true, "breaks": [] }
 ```
 
 ### journal — the journal, windowed and paged
@@ -2217,12 +2304,67 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.7"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.8"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
 SHA-256 over RFC-8785-canonicalized rows per stream. The audit trail is always
 part of the export.
+
+### gdpduExport — the Z3 data carrier an auditor's IDEA import expects
+
+`fiscalYear` (no; absent means the whole ledger), `mediaName` (no; default `"Disk1"`). Output:
+`standard`, `dtd`, `indexXml`, `tables[]` (`url`, `name`, `rowCount`, `content`) and `notProvided[]`.
+
+**What this is, next to [`journalExport`](#journalexport--gobd-z3-export).** `journalExport` gives
+you the *self-describing data set* — JSON streams plus a field catalogue plus content hashes — which
+is what a machine-evaluable handover under GoBD Z3 requires. What a German tax auditor actually
+receives on the medium is different in shape: **flat files plus an `index.xml`** written to the
+*Beschreibungsstandard für die Datenträgerüberlassung*, which is what the audit software IDEA
+imports. `gdpduExport` produces exactly that. It is a **mapping and not a second truth**: every value
+in it already exists in the books.
+
+Written against **standard version 1.6 of 1 March 2019**, DTD `gdpdu-01-03-2019.dtd`.
+
+**The tables**, each with its columns typed and described in `index.xml`:
+
+| File | Content | Primary key |
+|---|---|---|
+| `journal.csv` | one row **per posting line**, entry header repeated | `entryId` + `lineNumber` |
+| `accounts.csv` | chart of accounts | `number` |
+| `vouchers.csv` | voucher master data (never the images) | `voucherId` |
+| `partners.csv` | debtors/creditors — **only when the tenant has any** | `partnerId` |
+| `auditLog.csv` | the change history incl. both chain hashes | `recordId` |
+
+The journal is flattened to line level because a CSV cannot nest and because the first thing an
+auditor does is sum debit and credit per account, which needs the line. `index.xml` declares foreign
+keys from `journal.csv` to `accounts.csv` and `vouchers.csv`, so IDEA can join the five files rather
+than treat them as unrelated.
+
+**Three things you must do yourself**, and they are repeated in the response's `notProvided`:
+
+1. **Write the files.** summae is a library and owns no file system. `indexXml` and every table come
+   back as content; you write them into one folder, `index.xml` at its root.
+2. **Put `gdpdu-01-03-2019.dtd` beside `index.xml`.** The standard requires it on the medium. summae
+   names the version it wrote against but does not ship the file — it is the standard publisher's
+   normative document, and a library that quietly redistributed it would be making a promise about
+   its version that it cannot keep.
+3. **Supply the voucher images** from your archive. The carrier holds the bookkeeping data and the
+   voucher *reference*, as everywhere else in summae.
+
+Amounts are written the way summae stores them — dot as the decimal symbol, no digit grouping — and
+`index.xml` declares that per table, because the standard's own defaults are the German ones and
+would read `1234.56` as one million. Dates are ISO (`YYYY-MM-DD`), declared explicitly for the same
+reason. Encoding is UTF-8, columns are `;`-delimited, values are quoted only where they have to be.
+
+```json
+// params { "fiscalYear": 2026 }
+{ "standard": "Beschreibungsstandard für die Datenträgerüberlassung 1.6 (2019-03-01)",
+  "dtd": "gdpdu-01-03-2019.dtd",
+  "indexXml": "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>…",
+  "tables": [ { "url": "journal.csv", "name": "Journal", "rowCount": 12, "content": "entryId;lineNumber;…" } ],
+  "notProvided": [ "gdpdu-01-03-2019.dtd itself — …", "Writing the files. …", "Document images. …" ] }
+```
 
 ### auditDataExport — AICPA Audit Data Standard (US)
 
@@ -2349,6 +2491,48 @@ verified. Binding it to an authenticated identity is your application's job.
   "invariants": [ { "id": "append-only-journal", "statement": "The journal is append-only. …",
                     "enforcedBy": "No delete or update path exists on the journal repository." } ],
   "capabilities": { "operations": ["acquireAsset", "…"], "projections": ["accountSheet", "…"] } }
+```
+
+### personalDataDescription — where operator-supplied text can sit
+
+No parameters. Output: `formatVersion`, `fields[]` (`holder`, `field`, `freeText`, `required`,
+`present`, and `mirrors` where a field copies another), `addressKeys[]`, `counts`
+(`partners`, `vouchers`, `distinctActors`) and `classification`.
+
+**The counterpart to `systemDescription`, for people instead of events.** That projection answers
+*what does this system record, and about what*; this one answers *where can a name, an address or
+an identifier come to rest in these books, and how much of it is actually here*. If you are
+assembling a record of processing activities, this is the inventory — and it is generated, so it
+cannot quietly stop describing the software the way a hand-written list does.
+
+**It does not classify, and says so in the payload.** `classification` is the literal string
+*"none"* plus the reason. Whether a field counts as personal data is answered differently by
+different jurisdictions — a company identifier is personal data for a sole trader and not for a
+corporation — so summae reports the *mechanism* (this field holds free text summae neither
+constrains nor interprets) and leaves the legal reading to you. summae's own reading for the
+German/EU case is [GDPR conformance](../gdpr-conformance.md) §1.
+
+**It reports shape, never content.** `present` is how many partners carry an address, not what any
+address says. `addressKeys` is which keys occur across the tenant, not their values. A projection
+built to help with a privacy obligation must not become the convenient way to read everybody's data
+out — for the records themselves you already have `journalExport`.
+
+`present: null` on two rows is deliberate: a posting text and an audit diff exist per record rather
+than per holder, and a count there would be a number nobody could act on.
+
+⚠ **`addressKeys` is the row worth reading.** The data format declares a recommended address shape
+(`line1`, `line2`, `postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2) and does **not**
+forbid other keys — books written before that shape existed carry whatever they carry, and refusing
+them would make an export of lawful data invalid. So the declaration says what to *write*, and
+`addressKeys` says what is actually *there*. If it lists something you did not expect, that is an
+application putting data into the ledger that nobody planned for — which is exactly the thing a
+hand-written inventory never catches.
+
+```json
+{ "addressKeys": ["city", "country", "line1", "postalCode"],
+  "counts": { "partners": 2, "vouchers": 1, "distinctActors": 2 },
+  "fields": [ { "holder": "partner", "field": "address", "freeText": true,
+                "required": false, "present": 1 }, … ] }
 ```
 
 ### tenantConfiguration — what this tenant is set up as

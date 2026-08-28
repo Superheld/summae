@@ -1,0 +1,116 @@
+{
+  "fixture": "gdpdu-data-carrier",
+  "description": "F-IO-012: the Z3 DATA CARRIER — flat files plus the index.xml that describes them, written to the Beschreibungsstandard für die Datenträgerüberlassung 1.6 (2019-03-01), DTD gdpdu-01-03-2019.dtd. THIS IS THE OTHER HALF OF `journalExport`, and the difference is worth knowing: journalExport produces the self-describing data SET (JSON streams + field catalogue + content hashes), which is what machine evaluability under GoBD Z3 requires; what a German auditor actually receives on the medium is flat files plus index.xml, which is what the audit software IDEA imports. datenformat.md always said this export is `a mapping, not an invention`, and until 2026-08-28 the mapping was simply not in the package — docs/gobd-conformance.md §10 carried it as its last open row and the root CLAUDE.md listed it as out of scope. WHY THE WHOLE index.xml IS PINNED HERE rather than a few fields: these are the exact bytes an auditor receives, both languages must produce them identically, and the DTD fixes ELEMENT ORDER — `Table` is (URL, Name?, Description?, Validity?, codepage?, (DecimalSymbol, DigitGroupingSymbol)?, …) and an importer rejects the file if they are shuffled. A subset expectation would let a reordering pass. Initial DTD conformance was verified on 2026-08-28 by validating this output against the published DTD with a negative control (a deliberately reordered Table is rejected); what this fixture then guards is that it stays that way. THE JOURNAL IS FLATTENED to one row per posting line because a CSV cannot nest and an auditor's first act is to sum debit and credit per account — and the text carries a semicolon and a double quote on purpose, because the delimiter and the encapsulator are exactly what a naive writer gets wrong.",
+  "covers": [
+    "F-IO-012",
+    "SF-14"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Pruefer GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "6000",
+        "name": "Bürobedarf; \"gemischt\"",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "ER-1",
+          "voucherDate": "2026-02-01"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "voucherId": "$V1",
+        "entryDate": "2026-02-01",
+        "text": "Test; mit \"Zeichen\"",
+        "lines": [
+          {
+            "account": "6000",
+            "side": "debit",
+            "money": {
+              "amount": "119.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "119.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$E1"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "gdpduExport",
+      "params": {
+        "fiscalYear": 2026
+      },
+      "expect": {
+        "standard": "Beschreibungsstandard für die Datenträgerüberlassung 1.6 (2019-03-01)",
+        "dtd": "gdpdu-01-03-2019.dtd",
+        "indexXml": "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>\n<!DOCTYPE DataSet SYSTEM \"gdpdu-01-03-2019.dtd\">\n<DataSet>\n  <Version>1.0</Version>\n  <DataSupplier>\n    <Name>Pruefer GmbH</Name>\n    <Location>019ea186-6500-7000-8000-000000000001</Location>\n    <Comment>summae, exportiert 2026-06-07T10:00:00.000Z</Comment>\n  </DataSupplier>\n  <Media>\n    <Name>Disk1</Name>\n    <Table>\n      <URL>journal.csv</URL>\n      <Name>Journal</Name>\n      <Description>Buchungssätze, eine Zeile je Buchungsposition (Journalfunktion)</Description>\n      <UTF8 />\n      <DecimalSymbol>.</DecimalSymbol>\n      <DigitGroupingSymbol>,</DigitGroupingSymbol>\n      <VariableLength>\n        <ColumnDelimiter>;</ColumnDelimiter>\n        <RecordDelimiter>&#13;&#10;</RecordDelimiter>\n        <TextEncapsulator>\"</TextEncapsulator>\n        <VariablePrimaryKey>\n          <Name>entryId</Name>\n          <Description>Eindeutige Buchungs-ID (UUIDv7)</Description>\n          <AlphaNumeric />\n        </VariablePrimaryKey>\n        <VariablePrimaryKey>\n          <Name>lineNumber</Name>\n          <Description>Position innerhalb der Buchung, ab 1</Description>\n          <Numeric>\n            <Accuracy>0</Accuracy>\n          </Numeric>\n        </VariablePrimaryKey>\n        <VariableColumn>\n          <Name>sequenceNumber</Name>\n          <Description>Lückenlose Journalnummer je Geschäftsjahr</Description>\n          <Numeric>\n            <Accuracy>0</Accuracy>\n          </Numeric>\n        </VariableColumn>\n        <VariableColumn>\n          <Name>entryDate</Name>\n          <Description>Buchungsdatum (zonenlos)</Description>\n          <Date>\n            <Format>YYYY-MM-DD</Format>\n          </Date>\n        </VariableColumn>\n        <VariableColumn>\n          <Name>voucherId</Name>\n          <Description>Belegreferenz (Pflicht)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>voucherNumber</Name>\n          <Description>Belegnummer des referenzierten Belegs</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>text</Name>\n          <Description>Buchungstext</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>accountNumber</Name>\n          <Description>Kontonummer (führende Nullen signifikant)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>accountName</Name>\n          <Description>Kontobezeichnung zum Zeitpunkt des Exports</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>side</Name>\n          <Description>debit|credit (Soll/Haben)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>amount</Name>\n          <Description>Betrag in Belegwährung, Vorzeichen positiv</Description>\n          <Numeric>\n            <Accuracy>2</Accuracy>\n          </Numeric>\n        </VariableColumn>\n        <VariableColumn>\n          <Name>currency</Name>\n          <Description>ISO-4217-Code</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>taxCode</Name>\n          <Description>Steuerschlüssel des Packs, leer wenn ungetaggt</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>taxReportingKey</Name>\n          <Description>Meldeschlüssel (z. B. UStVA-Kennzahl)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>status</Name>\n          <Description>entered|finalized (Festschreibung)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>reverses</Name>\n          <Description>Bei Storno: ID der stornierten Buchung</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>reversedBy</Name>\n          <Description>Bei stornierter Buchung: ID der Stornobuchung</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>recordedAt</Name>\n          <Description>Erfassungszeitpunkt (kanonisch, UTC)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <ForeignKey>\n          <Name>accountNumber</Name>\n          <References>accounts.csv</References>\n        </ForeignKey>\n        <ForeignKey>\n          <Name>voucherId</Name>\n          <References>vouchers.csv</References>\n        </ForeignKey>\n      </VariableLength>\n    </Table>\n    <Table>\n      <URL>accounts.csv</URL>\n      <Name>Konten</Name>\n      <Description>Kontenplan (Kontenfunktion)</Description>\n      <UTF8 />\n      <DecimalSymbol>.</DecimalSymbol>\n      <DigitGroupingSymbol>,</DigitGroupingSymbol>\n      <VariableLength>\n        <ColumnDelimiter>;</ColumnDelimiter>\n        <RecordDelimiter>&#13;&#10;</RecordDelimiter>\n        <TextEncapsulator>\"</TextEncapsulator>\n        <VariablePrimaryKey>\n          <Name>number</Name>\n          <Description>Kontonummer</Description>\n          <AlphaNumeric />\n        </VariablePrimaryKey>\n        <VariableColumn>\n          <Name>name</Name>\n          <Description>Kontobezeichnung</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>type</Name>\n          <Description>asset|liability|equity|expense|revenue</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>subtype</Name>\n          <Description>Kanonischer Subtyp (bank, cash, ar, ap, tax_in, …)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>status</Name>\n          <Description>active|locked</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n      </VariableLength>\n    </Table>\n    <Table>\n      <URL>vouchers.csv</URL>\n      <Name>Belege</Name>\n      <Description>Belegstammdaten; die Belegbilder selbst gehören dem Archiv</Description>\n      <UTF8 />\n      <DecimalSymbol>.</DecimalSymbol>\n      <DigitGroupingSymbol>,</DigitGroupingSymbol>\n      <VariableLength>\n        <ColumnDelimiter>;</ColumnDelimiter>\n        <RecordDelimiter>&#13;&#10;</RecordDelimiter>\n        <TextEncapsulator>\"</TextEncapsulator>\n        <VariablePrimaryKey>\n          <Name>voucherId</Name>\n          <Description>Eindeutige Beleg-ID</Description>\n          <AlphaNumeric />\n        </VariablePrimaryKey>\n        <VariableColumn>\n          <Name>voucherNumber</Name>\n          <Description>Belegnummer</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>voucherDate</Name>\n          <Description>Belegdatum</Description>\n          <Date>\n            <Format>YYYY-MM-DD</Format>\n          </Date>\n        </VariableColumn>\n        <VariableColumn>\n          <Name>serviceDate</Name>\n          <Description>Leistungsdatum, falls erfasst — maßgeblich für die Steuerregelversion</Description>\n          <Date>\n            <Format>YYYY-MM-DD</Format>\n          </Date>\n        </VariableColumn>\n        <VariableColumn>\n          <Name>kind</Name>\n          <Description>Belegart</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>partnerId</Name>\n          <Description>Geschäftspartner, falls zugeordnet</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n      </VariableLength>\n    </Table>\n    <Table>\n      <URL>auditLog.csv</URL>\n      <Name>Aenderungsprotokoll</Name>\n      <Description>Audit-Trail; seit Format 0.8 hash-verkettet (Unveränderbarkeit prüfbar)</Description>\n      <UTF8 />\n      <DecimalSymbol>.</DecimalSymbol>\n      <DigitGroupingSymbol>,</DigitGroupingSymbol>\n      <VariableLength>\n        <ColumnDelimiter>;</ColumnDelimiter>\n        <RecordDelimiter>&#13;&#10;</RecordDelimiter>\n        <TextEncapsulator>\"</TextEncapsulator>\n        <VariablePrimaryKey>\n          <Name>recordId</Name>\n          <Description>Eindeutige Satz-ID</Description>\n          <AlphaNumeric />\n        </VariablePrimaryKey>\n        <VariableColumn>\n          <Name>at</Name>\n          <Description>Änderungszeitpunkt (kanonisch, UTC)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>actor</Name>\n          <Description>Vom Aufrufer gemeldete Identität; nie verifiziert</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>objectType</Name>\n          <Description>Betroffener Objekttyp; \"redacted\" = nach Löschrecht geleerte Hülle</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>objectId</Name>\n          <Description>Betroffenes Objekt</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>action</Name>\n          <Description>created|corrected|finalized|locked|…</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>changes</Name>\n          <Description>Vorher/Nachher-Diff der geänderten Felder (JSON)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>previousRecordHash</Name>\n          <Description>SHA-256 des Vorgängersatzes (Hash-Kette)</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n        <VariableColumn>\n          <Name>recordHash</Name>\n          <Description>SHA-256 dieses Satzes</Description>\n          <AlphaNumeric />\n        </VariableColumn>\n      </VariableLength>\n    </Table>\n  </Media>\n</DataSet>\n",
+        "tables": [
+          {
+            "url": "journal.csv",
+            "rowCount": 2,
+            "content": "entryId;lineNumber;sequenceNumber;entryDate;voucherId;voucherNumber;text;accountNumber;accountName;side;amount;currency;taxCode;taxReportingKey;status;reverses;reversedBy;recordedAt\r\n019ea186-6500-7000-8000-000000000007;1;1;2026-02-01;019ea186-6500-7000-8000-000000000005;ER-1;\"Test; mit \"\"Zeichen\"\"\";6000;\"Bürobedarf; \"\"gemischt\"\"\";debit;119.00;EUR;;;entered;;;2026-06-07T10:00:00.000Z\r\n019ea186-6500-7000-8000-000000000007;2;1;2026-02-01;019ea186-6500-7000-8000-000000000005;ER-1;\"Test; mit \"\"Zeichen\"\"\";1200;Bank;credit;119.00;EUR;;;entered;;;2026-06-07T10:00:00.000Z\r\n"
+          },
+          {
+            "url": "accounts.csv",
+            "rowCount": 2,
+            "content": "number;name;type;subtype;status\r\n1200;Bank;asset;bank;active\r\n6000;\"Bürobedarf; \"\"gemischt\"\"\";expense;;active\r\n"
+          },
+          {
+            "url": "vouchers.csv",
+            "rowCount": 1,
+            "content": "voucherId;voucherNumber;voucherDate;serviceDate;kind;partnerId\r\n019ea186-6500-7000-8000-000000000005;ER-1;2026-02-01;;;\r\n"
+          },
+          {
+            "url": "auditLog.csv",
+            "rowCount": 2,
+            "content": "recordId;at;actor;objectType;objectId;action;changes;previousRecordHash;recordHash\r\n019ea186-6500-7000-8000-000000000006;2026-06-07T10:00:00.000Z;system;voucher;019ea186-6500-7000-8000-000000000005;created;\"{\"\"voucherNumber\"\":{\"\"from\"\":null,\"\"to\"\":\"\"ER-1\"\"},\"\"voucherDate\"\":{\"\"from\"\":null,\"\"to\"\":\"\"2026-02-01\"\"}}\";;dba10fd97b24b7b0dd6fce62eca8dd0a70e6a0aa4c5689d9cc63e7dd9f07fd63\r\n019ea186-6500-7000-8000-000000000008;2026-06-07T10:00:00.000Z;system;journalEntry;019ea186-6500-7000-8000-000000000007;created;\"{\"\"entryDate\"\":{\"\"from\"\":null,\"\"to\"\":\"\"2026-02-01\"\"},\"\"voucherId\"\":{\"\"from\"\":null,\"\"to\"\":\"\"019ea186-6500-7000-8000-000000000005\"\"},\"\"text\"\":{\"\"from\"\":null,\"\"to\"\":\"\"Test; mit \\\"\"Zeichen\\\"\"\"\"}}\";dba10fd97b24b7b0dd6fce62eca8dd0a70e6a0aa4c5689d9cc63e7dd9f07fd63;3ee90e65c8fe4ed401130d0b7352d29d4368549e8a59aa3a446631d63a2dc08f\r\n"
+          }
+        ]
+      }
+    }
+  ]
+}

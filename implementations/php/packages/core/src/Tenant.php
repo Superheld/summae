@@ -21,6 +21,7 @@ use Summae\Core\InMemory\InMemoryCostingRunRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryTenantRecordRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
+use Summae\Core\Policies\Constraint\AccountCombinationRegistry;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Ledger\Ledger;
@@ -119,10 +120,18 @@ final readonly class Tenant
         string $taxRoundingGranularity = 'perVoucher',
         ?array $packIdentity = null,
         ?array $actorAuthentication = null,
+        /**
+         * The constraint socket's second plug (F-CORE-042). Appended rather than slotted next to
+         * $dimensions, where it belongs by subject: the call sites take the defaults, and moving a
+         * positional parameter to keep two related arguments adjacent would have edited all of them
+         * to say what they already say.
+         */
+        ?AccountCombinationRegistry $combinations = null,
     ): self {
         $clock ??= new SystemClock();
         $ids ??= new UuidV7IdGenerator($clock);
         $dimensions ??= DimensionRegistry::empty();
+        $combinations ??= AccountCombinationRegistry::empty();
         $taxCodes ??= TaxCodeRegistry::empty();
         $taxProfile ??= TaxProfile::default();
         $mappings ??= MappingRegistry::empty();
@@ -166,6 +175,7 @@ final readonly class Tenant
             $taxCodes,
             $tenantId,
             $configStore,
+            $combinations,
         );
 
         $tax = new TaxService(
@@ -178,7 +188,7 @@ final readonly class Tenant
             $auditWriter,
             $configStore,
         );
-        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts, $vouchers, $openItems);
         $legalForms = new LegalFormRegistry();
         $entityProfile = new EntityProfileService($legalForms, $auditWriter, $tenantId, $configStore);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);

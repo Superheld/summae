@@ -5,9 +5,12 @@ import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
 import { AccountSheetProjection } from '../policies/projection/account-sheet.js';
+import { GdpduExportProjection } from '../policies/projection/gdpdu-export.js';
+import { AuditTrailIntegrityProjection } from '../policies/projection/audit-trail-integrity.js';
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
+import { PersonalDataDescriptionProjection } from '../policies/projection/personal-data-description.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
 import { TenantConfigurationProjection } from '../policies/projection/tenant-configuration.js';
 import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
@@ -119,6 +122,8 @@ export class TenantOperations {
         return serialize(this.tenant.partnerService.setStatus(input, 'active'));
       case 'updatePartner':
         return serialize(this.tenant.partnerService.update(input));
+      case 'erasePartner':
+        return this.tenant.partnerService.erase(input);
       case 'acquireAsset':
         return this.tenant.assetService.acquire(input);
       case 'disposeAsset':
@@ -195,6 +200,10 @@ export class TenantOperations {
         return new AuditLogProjection(tenant.audit).compute(params);
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
+      case 'personalDataDescription':
+        return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
+      case 'auditTrailIntegrity':
+        return new AuditTrailIntegrityProjection(tenant.audit).run();
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,
@@ -214,6 +223,7 @@ export class TenantOperations {
           tenant.legalForms.declared(),
           tenant.legalForms.offered(),
           tenant.legalForms.offeredSizeClasses(),
+          tenant.ledger.combinationRegistry(),
         ).compute(params);
       case 'costingRuns':
         return new CostingRunsProjection(tenant.costingRuns).compute(params);
@@ -268,6 +278,18 @@ export class TenantOperations {
           tenant.vouchers,
           tenant.fiscalYears,
           tenant.mappings,
+        ).compute(params);
+      case 'gdpduExport':
+        return new GdpduExportProjection(
+          tenant.id,
+          tenant.name,
+          tenant.baseCurrency,
+          tenant.journal,
+          tenant.accounts,
+          tenant.vouchers,
+          tenant.partners,
+          tenant.audit,
+          tenant.clock,
         ).compute(params);
       case 'journalExport':
         return new JournalExportProjection(

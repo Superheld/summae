@@ -1,0 +1,42 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-entgeltminderung",
+  "kind": "constraint",
+  "version": "2026.1",
+  "name": "Deutschland — Entgeltminderung trägt ihre Steuerkorrektur (§ 17 UStG, A-13)",
+  "contributes": [
+    "constraint"
+  ],
+  "dependsOn": [
+    {
+      "kind": "accounts",
+      "id": "de-konten"
+    }
+  ],
+  "data": {
+    "accountCombinationRules": [
+      {
+        "whenAccountIn": {
+          "from": "4020",
+          "to": "4020"
+        },
+        "requireAccountIn": {
+          "from": "3100",
+          "to": "3110"
+        },
+        "note": "§ 17 Abs. 1 UStG: mindert sich das Entgelt, ist der geschuldete Steuerbetrag zu berichtigen. Eine Buchung auf 4020 ohne Umsatzsteuerkonto meldet zu viel Umsatzsteuer an. Eine Minderung eines steuerfreien Umsatzes trägt keine Korrektur und wird gegen das Ertragskonto gebucht, das sie mindert."
+      },
+      {
+        "whenAccountIn": {
+          "from": "5010",
+          "to": "5010"
+        },
+        "requireAccountIn": {
+          "from": "1500",
+          "to": "1510"
+        },
+        "note": "§ 17 Abs. 1 Satz 2 UStG, dieselbe Pflicht auf der Eingangsseite: der Vorsteuerabzug ist mitzuberichtigen. Ohne Vorsteuerkonto bleibt zu viel Vorsteuer gezogen. Eine Minderung ohne Vorsteuer wird gegen das Aufwandskonto gebucht, das sie mindert."
+      }
+    ]
+  }
+}

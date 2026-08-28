@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Summae\Core;
 
 /**
- * Paket-Marker. Fachliche Klassen entstehen ab JOB-001 (Shared Kernel).
+ * Package marker, and the version this build calls itself. Nothing prints it — unlike
+ * `CliPackage::VERSION`, which `summae --version` answers with — but it is the version of a
+ * published package all the same, so `ReleaseVersionTest` holds it to the changelog too.
  */
 final class CorePackage
 {
-    public const string VERSION = '0.1.0-dev';
+    public const string VERSION = '0.16.0';
 
     private function __construct()
     {

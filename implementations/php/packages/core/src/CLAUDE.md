@@ -32,9 +32,10 @@ Real persistence (`laravel`/`knex`) are **own packages** outside of `core`; in
   - **`Expansion/`** — intent → balanced postings (Tax · Assets · Costing · settle difference · reverse)
   - **`Projection/`** — journal → view (fold engines + mappings)
   - **`Constraint/`** — predicate gates. Has a pack socket since 2026-08-23 (module kind `constraint`),
-    but exactly one predicate: `dimensionRules` (which accounts may not be posted without which
-    dimension). The shape is settled, the vocabulary is not — a pack still cannot express a rule about
-    a settlement or a deadline
+    two predicates since 2026-08-28: `dimensionRules` (which accounts may not be posted without
+    which dimension) and `accountCombinationRules` (which accounts must, or must not, meet in one
+    entry — F-CORE-042, the A-13 case). Both see one entry at most: no deadlines, no reach across
+    entries, no rule about a settlement, because `settle` posts nothing
 - **`Composition/`** — resolver · factory · tenant · dispatcher (dependency inversion)
 - **`Records/`** — vouchers/records (Voucher · OpenItem · Audit), **not** a policy kind
 - **`Partner/`** — supporting subdomain (master data), **not** a policy kind
@@ -47,6 +48,9 @@ not review — forbids `policies/` and everything above it from being imported t
 
 ## Where the two seams sit
 
+- **The tax expansion has TWO seams.** `taxBase` (`net`|`inclusive`) decides how an amount splits into base and
+  tax — pack data, closed enum, `tax-bases.ts` / `TaxBases.php`; the mechanism then decides which accounts and
+  keys the tax lands on. Base first, assembly second.
 - **Tax mechanisms are a registry, not a switch:** `TaxService.php` delegates to
   `TaxMechanisms::mechanismFor` (`Standard`/`ReverseCharge`/`IntraCommunitySupply`/`Exempt`). Core-internal
   by decision (closed repertoire, below); a new mechanism is one more registered strategy plus a fixture.
@@ -73,10 +77,15 @@ embedder: a mechanism registered from *outside* would be **different code in PHP
 cross-test would silently prove less than it does today. The cost is low: `exempt` showed that a new mechanism
 is four registered lines.
 
-**What would reopen it:** this seam covers only *line assembly* — the mechanism receives an already-computed,
-already-rounded tax amount (`base × rate / 100` sits in `TaxService.php`). The variance that actually differs
-between jurisdictions is elsewhere and has **no socket at all**: tax-inclusive/gross-up bases (Brazil, Odoo's
-`division`), compound bases (Canadian PST on a GST-inclusive base), tax at payment time (withholding, split
-payment), margin schemes. If the **base computation** ever becomes its own socket, a mechanism becomes
-describable as data — today's four differ only in accounts/sides/reporting keys/gross delta — and closed/open
-is a different question with possibly a different answer. Until then it is settled.
+**What would reopen it — and what happened to half of it on 2026-08-28.** This seam covers only *line
+assembly*: the mechanism receives an already-computed, already-rounded tax amount. The variance that actually
+differs between jurisdictions sits **before** it, and used to have no socket at all. It has one now for the
+commonest case: `taxBase` (`net` | `inclusive`, F-TAX-010, `tax-bases.ts` / `TaxBases.php`) lets a pack say
+that the amount handed in is the gross, which is how most of the world quotes prices.
+
+**That does not reopen the repertoire, and saying why is the point.** The remaining variance still has no
+socket and is not a base *function* at all: a **compound** base (Canadian PST on a GST-inclusive amount) needs
+another code's result and therefore an ordering between codes; **tax at payment time** (withholding, split
+payment) is a timing question; a **margin scheme** needs the purchase price of the thing sold, which is not in
+the posting. Until a mechanism is describable as pure data — today's four differ in accounts, sides, reporting
+keys and gross delta, and now also in nothing else — closed/open stays settled.

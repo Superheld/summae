@@ -1,8 +1,8 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
-// Kern framework-frei (strukturelles Pendant zu PHP „kein use Illuminate\…"):
-// weder Web-Framework noch DB-Treiber im core.
+// Framework-free core (the structural counterpart to PHP's "no `use Illuminate\…` in the
+// core"): neither a web framework nor a database driver may be imported there.
 const FRAMEWORK_PATTERNS = [
   'express',
   'fastify',
@@ -16,10 +16,11 @@ const FRAMEWORK_PATTERNS = [
   'sequelize',
 ];
 
-// Achse 2 (Substrat-Grenze): das Substrat ist eingefroren und liegt zuunterst —
-// es darf nichts von den Schichten darüber importieren.
-// records/ ist eine Daten-Schicht, die das Substrat referenzieren darf (z. B. PostResult);
-// die Grenze schützt vor Policy/Recht im Substrat, nicht vor Daten-Records.
+// Axis 2 (the substrate boundary): the substrate is frozen and sits lowest — it may import
+// nothing from the layers above it.
+// `records/` is a data layer and is allowed to reference the substrate (PostResult, for
+// instance); the boundary guards against policy and law reaching the substrate, not against
+// data records.
 const ABOVE_SUBSTRATE_PATTERNS = [
   '**/policies/**',
   '**/ledger/**',
@@ -44,7 +45,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    // Bewusst ungenutzte Bindungen per _-Präfix kennzeichnen.
+    // Mark deliberately unused bindings with a leading underscore.
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -59,7 +60,7 @@ export default tseslint.config(
     },
   },
   {
-    // Substrat-Grenze: substrate/ importiert nichts von oben (zusätzlich zu framework-frei).
+    // Substrate boundary: substrate/ imports nothing from above (on top of framework-free).
     files: ['packages/core/src/substrate/**/*.ts'],
     rules: {
       'no-restricted-imports': [
@@ -70,7 +71,7 @@ export default tseslint.config(
             {
               group: ABOVE_SUBSTRATE_PATTERNS,
               message:
-                'Substrat ist eingefroren und liegt zuunterst — kein Import von oben (Achse 2, core/src/CLAUDE.md).',
+                'The substrate is frozen and sits lowest — no import from above (axis 2, core/src/CLAUDE.md).',
             },
           ],
         },
