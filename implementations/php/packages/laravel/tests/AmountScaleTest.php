@@ -63,11 +63,12 @@ final class AmountScaleTest extends AdapterTestCase
         $ops->execute('createFiscalYear', ['year' => 2026, 'start' => '2026-01-01', 'end' => '2026-12-31']);
         $ops->execute('createAccount', ['number' => '10000', 'name' => 'Kunde', 'type' => 'asset', 'subtype' => 'ar']);
         $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erlöse', 'type' => 'revenue']);
-        $ops->execute('createVoucher', ['voucher' => ['voucherNumber' => 'RE-1', 'voucherDate' => '2026-03-01']]);
+        $voucher = $ops->execute('createVoucher', [
+            'voucher' => ['voucherNumber' => 'RE-1', 'voucherDate' => '2026-03-01'],
+        ]);
         $ops->execute('post', [
             'entryDate' => '2026-03-01',
-            'voucherId' => (string) $this->connection
-                ->table(SchemaInstaller::PREFIX . 'vouchers')->value('id'),
+            'voucherId' => is_string($voucher['id'] ?? null) ? $voucher['id'] : '',
             'text' => 'Ausgangsrechnung',
             'lines' => [
                 ['account' => '10000', 'side' => 'debit', 'money' => ['amount' => $amount, 'currency' => 'EUR']],

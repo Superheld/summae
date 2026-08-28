@@ -12,6 +12,70 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### Six open findings closed, one opened
+
+Everything the register held open on 2026-08-28, worked through in one pass. Four of the six turned
+out to be larger or different than they were written up — a finding is a lead, not a verdict.
+
+**IMPL-037 — the normative data-format document is guarded now, not merely maintained.**
+`format.schema.json`'s `$id` was already held against `FORMAT_VERSION` in both languages, so code and
+schema could not drift; the prose both are derived *from* was checked by nobody, which put the
+authority on its head. It had drifted again in the meantime — schema and both constants on 0.9, the
+document on 0.8. `DataFormatDocTest` / `data-format-doc.test.ts` check three narrow claims: title and
+`$id` line equal `FORMAT_VERSION`, no `## v0.x` missing up to the current one, every `$defs` key
+named in the document. Writing 0.9 up exposed the rest: **0.3, 0.5 and 0.7 had no section either**
+(their content lived as `###` subsections under v0.2), and nine of 23 `$defs` keys appeared nowhere
+because the prose names them differently. Sections written, version blocks put in ascending order,
+and an index from schema key to section.
+
+**IMPL-038 — the GoBD Z3 field catalogue describes the whole data set.** Decided *complete*, which
+is the reading an auditor takes. The finding's blocker did not exist: `io/journal-export-z3-current`
+pins `fieldCatalogIncluded` — a boolean — not the rows, so the repair is additive and nothing was
+superseded. The gap was four times the estimate: `voucherDate` missing on the posting, 2 of 12
+voucher fields, 4 of 9 audit fields, and the whole **`partners` stream** — the one carrying names,
+VAT ids and addresses — undescribed. The catalogue is now filtered to the streams actually on the
+carrier, and `FieldCatalogCompletenessTest` / `field-catalog-completeness.test.ts` assert set
+equality per stream in both directions.
+
+**IMPL-039 — `covers` and the requirement lists are held against each other.** The quality gate is
+defined in terms of the requirements and the requirement lists were held by nobody.
+`CoversContractTest` / `covers-contract.test.ts`: every `covers` entry is a declared ID, every
+declared requirement is named by a **live** fixture (retired ones do not count), no `SF-` is counted
+that `lieferumfang.md` does not declare. Two exception lists with reasons, guarded in reverse, and an
+excuse naming substitute fixtures must name ones that exist and still run. `F-AST-007` was decided
+**not** to be merged into F-AST-002/005 — folding a requirement into two foreign ones to make a
+string match falsifies the list.
+
+**IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is raised, and the bug under it is gone.** The one catalogue
+code reachable through the API with nothing behind it. Building it found a live defect: **both
+hydrators rebuilt the currency at its ISO default** instead of the tenant's `currencyScale`, so a
+tenant at scale 3 could not read its own books back (a raw `InvalidValue` out of the adapter) and one
+at scale 0 had its amounts silently widened. An instrumented run counted 12,366 hydrations, every one
+at scale 2 — the wrong default was never contradicted. The tenant's currency is now threaded into the
+four repositories that hydrate money, and a stored amount must carry exactly the tenant's decimal
+places, mandatory zeros included. No fixture, deliberately: a fixture drives the API, and the API
+cannot produce a store on the wrong scale.
+
+**IMPL-041 — F-KLR-002 (Abgrenzungsrechnung) is IN scope**, not retired by the 2026-08-23 decision.
+That decision named three *decision-support* methods; this is the intake stage BAB and Umlage (both
+built) consume, and `F-KLR-005` — kalkulatorische Kosten, the content of its replace/add rules —
+stands unretired beside it. What its absence costs is now written down: **in summae, Kosten ==
+Aufwand**, so the anticorruption layer that justifies costing as its own bounded context does not
+exist. `lieferumfang.md` stops promising "Abgrenzung". No code — the design already stands in
+`costing-modell.md` § 2; the build is a job of its own.
+
+**IMPL-042 — F-IO-008 (DATEV Buchungsstapel import) deferred, blocker named.** The way back needs
+BU key → `taxCode` and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu`,
+and `USt19`/`USt19WA` both carry `3`. Neither total nor injective, so an import would guess — and
+what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real
+batch to verify the format against.
+
+**IMPL-043 opened.** `F-KLR-005` is cited by three fixtures about production cost — the one place
+§ 255 Abs. 2 HGB forbids kalkulatorische Kosten. It is also the demonstration of what the IMPL-039
+guard cannot do: it checks that an ID is *declared*, never that the fixture *proves* it. That limit
+is written into the root `CLAUDE.md` so a green check is not read as more than it says.
+
+
 ### The findings register is now `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md`
 
 Renamed from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md`. Same register, same numbering, same

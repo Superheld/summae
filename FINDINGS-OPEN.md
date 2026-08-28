@@ -90,11 +90,23 @@ that until then existed only inside a refusal — a figure nobody can read is a 
 check. IMPL-034 is the same lesson from the other side, sitting in the half of a folder that the
 guard built for IMPL-031 did not reach, because a guard quietly marks where attention stops.
 
-**The four open entries above are that pattern one level up.** IMPL-037 (the normative format
-document is unguarded while its derived artefacts are), IMPL-039 (`covers` is unguarded while the
-error catalogue is), IMPL-040, IMPL-041 and IMPL-042 (requirements that are declared and not built,
-found by counting rather than by failing) all share one shape: **the thing everything else is
-defined in terms of is the thing nothing checks.** That is worth saying once here rather than five
-times below.
+**The six that closed on 2026-08-28 were that pattern one level up**, and they are worth naming
+here because the shape recurs. IMPL-037 (the normative format document unguarded while its derived
+artefacts are), IMPL-039 (`covers` unguarded while the error catalogue is), IMPL-038 (a
+self-description held by nothing but a boolean), IMPL-040 (a declared error code raised by nothing),
+IMPL-041 and IMPL-042 (requirements declared and not built, found by counting rather than by
+failing) all share one shape: **the thing everything else is defined in terms of is the thing
+nothing checks.**
+
+Four of the six turned out to be **larger or different than written**, which is the argument for
+picking a finding up rather than trusting its summary: IMPL-037 had already recurred (0.8-vs-0.9)
+and hid three more undocumented versions; IMPL-038's blocker did not exist and its gap was four
+times the estimate; IMPL-040 was sitting on a live bug that stopped a scale-3 tenant reading its own
+books; IMPL-042's blocker was in the shipped pack data all along. A finding is a lead, not a
+verdict.
+
+**The one entry above is what the pass could not close by building.** IMPL-043 is a claim about
+*meaning* — whether a fixture proves what its `covers` says — and that is the exact thing the guard
+built for IMPL-039 cannot check. It is here rather than folded into a green check on purpose.
 
 The next one goes here.
