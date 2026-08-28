@@ -123,7 +123,7 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-035 both CLIs reported the version they had at 0.1.0 | ✅ **RESOLVED 2026-08-27** — `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP: frozen since the first release, wrong from the second, and not even equal to each other, which is the equivalence policy broken on the surface a user reads first. Nothing compared the constants to anything, because a version string is not behaviour — no fixture touches it and the suite stayed green through fifteen releases. Both now name the newest dated heading in `CHANGELOG.md`, asserted by `ReleaseVersionTest`/`release-version.test.ts`; the same anchor also holds `CorePackage::VERSION` (stale the same way), the three npm `version` fields and the three `branch-alias` values that RELEASING.md recorded as uncaught. The sharper half: they were not unguarded but guarded *wrongly* — `SmokeTest::testAllPackagesAutoload` pinned the literal `0.1.0-dev`, so a correct bump turned red a test about autoloading, and the drift was defended rather than caught |
 | IMPL-036 an existing table did not gain a nullable column | ✅ **RESOLVED 2026-08-28** — the documented upgrade path for a new persisted field was "add the column by hand", which is a step nobody performs on a library upgrade; `validFrom`/`validTo` would have broken the next insert against an existing store. Both schema installers now add a missing nullable column instead of assuming the table is current, with a named test each (`HydratorAndSchemaTest` / `hydrator-and-schema.test.ts`). Recorded here late: it was issued and fixed inside the F-CORE-045 work without a register entry of its own, which is the small version of the same drift IMPL-039 is about |
 | IMPL-037 the normative data-format document lags the format | ✅ **RESOLVED 2026-08-28** — and it had already drifted again while the finding was being written: the document said v0.8, the schema and both `FORMAT_VERSION` constants said 0.9. `DataFormatDocTest`/`data-format-doc.test.ts` now hold three narrow claims in both languages — title and `$id` line equal `FORMAT_VERSION`, no `## v0.x` missing between the oldest documented version and the current one, every `$defs` key named in the document. Writing 0.9 up exposed the second half: 0.3, 0.5 and 0.7 had never had a section either, and nine of 23 `$defs` keys appeared nowhere because the prose calls them something else. Both are now written, the second as an index from schema key to section |
-| IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ✅ **RESOLVED 2026-08-28 — decided *complete*, and no supersession was needed.** The finding's blocker was wrong: `io/journal-export-z3-current` pins `fieldCatalogIncluded`, a boolean, not the rows, and `io/gdpdu-data-carrier` does not touch the catalogue at all — so the repair was purely additive and both fixtures still pass. The gap was also four times larger than the entry said: `voucherDate` missing on the posting, 2 of 12 voucher fields, 4 of 9 audit fields, and the whole `partners` stream undescribed. The catalogue now describes every field of exactly the streams the export carries — `partners` is conditional, so describing a stream that is not on the carrier is the same defect mirrored — and `FieldCatalogCompletenessTest`/`field-catalog-completeness.test.ts` hold it against a deliberately rich export in both directions and both languages |
 | IMPL-039 nothing holds `covers` and the requirement lists together | ✅ **RESOLVED 2026-08-28** — `CoversContractTest`/`covers-contract.test.ts` hold the two sets against each other in both directions and both languages, with two reasoned exception lists that are themselves guarded in reverse; an excuse naming substitute fixtures must name ones that exist and still run. `F-AST-007` was decided **not** to be merged into F-AST-002/005 — that would falsify the list to fit a string — and stands in the exception list with its four fixtures named. The guard found nothing new, which was the point: it is the drift *detector* that was missing, not the current instances. Its limit is written down where it will be read (root `CLAUDE.md`): it checks that an ID is declared, never that the fixture proves it (IMPL-043) |
 | IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
@@ -2480,3 +2480,43 @@ the guard checks that an ID is *declared*, never that the fixture behind it *pro
 requirement. `F-KLR-005` reads green while its three fixtures are about production cost, the one
 case that requirement excludes — recorded separately as IMPL-043 rather than hidden behind a green
 check.
+
+## IMPL-038 — the Z3 export's field catalogue describes four of the account's six fields — ✅ RESOLVED 2026-08-28
+
+**Decided: the catalogue is a *complete* description.** That is the reading an auditor takes, and
+the alternative — saying "selected" in the `meaning` text — would have been choosing the wording
+that makes the defect legal.
+
+**The blocker the entry named does not exist.** It said the repair required a supersession because
+the catalogue is "pinned literally by `io/journal-export-z3-current` and `io/gdpdu-data-carrier`".
+Reading the fixtures: the first pins `fieldCatalogIncluded: true` — a boolean — and nothing of the
+rows; the second never mentions the catalogue. Together with the catalogue sitting outside the
+content hashes, the repair is purely additive: both fixtures pass unchanged, and no fixture was
+retired. Which is also the sharper version of the finding — **nothing whatsoever held the
+catalogue**, in either direction, for as long as it has existed.
+
+**The gap was four times the entry's estimate.** Counted against what the serialisers emit:
+
+| stream | described before | fields the stream carries |
+|---|---|---|
+| `journal` | 11 | 12 (`voucherDate` missing) |
+| `accounts` | 4 | 8 (`id`, `status`, `validFrom`, `validTo`) |
+| `vouchers` | **2** | 12 |
+| `partners` | **0 — the stream was not mentioned at all** | 8 |
+| `auditLog` | 4 | 9 (`id`, `objectType`, `objectId`, and both hashes) |
+
+The account was the least of it. A `partners` stream that the self-description does not admit
+exists is the same problem as an undescribed field, one level up — and `partners` is the stream that
+carries names, VAT ids and addresses.
+
+**One decision the finding did not foresee.** `partners` is emitted only when partners exist, so the
+catalogue is now filtered to the streams actually on the carrier. Describing a stream that is not
+there is the same defect mirrored, and the guard asserts the catalogue's keys equal the manifest's
+`streams` — the export cannot describe more or less than it ships.
+
+**The guard runs a real export**, built to carry every optional field of every stream, and asserts
+per stream that the set of keys in the data equals the set of names in the catalogue. Equality, not
+inclusion, in both directions: a new field on a record fails until it is described, and a described
+field the export cannot carry fails until the test exercises it or the row goes. A fourth check
+refuses an empty `type` or `meaning`, which would satisfy completeness while telling a reader
+nothing.

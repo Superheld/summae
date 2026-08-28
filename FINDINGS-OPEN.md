@@ -38,33 +38,6 @@ They are open in the strongest sense — shipped code runs on an unconfirmed rea
 they are questions for a human with the statute, not defects, and copying them here is exactly the
 duplication this register was split to avoid.
 
-## IMPL-038 — the Z3 export's field catalogue describes four of the account's six fields
-
-**Found 2026-08-28** while building the account validity window (F-CORE-045).
-
-`journalExport` publishes a `fieldCatalogue` per stream — the self-description a GoBD Z3 data set
-owes an auditor. For the `accounts` stream it names `number`, `name`, `type` and `subtype`. The
-stream itself carries `id` and `status` as well, and since F-CORE-045 `validFrom`/`validTo` when
-they are set. So an auditor reading the catalogue and the data side by side finds fields in the data
-the description does not mention.
-
-**Not caused by this change and not fixed by it.** `id` and `status` have been in the stream and
-missing from the catalogue since the export existed; validity only makes the gap one field wider,
-and only for accounts that actually carry a window (nulls are stripped before hashing, which is why
-no export fixture moved).
-
-**Why it is written down instead of repaired.** Adding rows to the catalogue changes the export
-result — the catalogue is not inside the content hashes, but it *is* pinned literally by
-`io/journal-export-z3-current` and `io/gdpdu-data-carrier`. Those fixtures pin behaviour, so the
-repair is either a supersession or an argument that the catalogue's length is product data rather
-than contract. That is the same question the superseded register keeps answering, and it deserves
-its own decision rather than being settled in passing by a change about something else.
-
-**What would close it.** Decide what the catalogue is: a *complete* description of the stream (then
-it gains three rows, the two export fixtures are superseded, and a test holds the catalogue against
-the serialised shape so it cannot drift again) or a *selected* one (then it says so in its own
-`meaning` text, and the same test is not wanted). The first reading is the one an auditor takes.
-
 ## IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is a catalogue code with nothing behind it
 
 **Confirmed 2026-08-28** (older than that; it has been carried in the pack-gate backlog).
