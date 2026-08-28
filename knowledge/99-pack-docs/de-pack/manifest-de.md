@@ -1,8 +1,8 @@
 # Manifest — `de` (Deutschland)
 
 ```
-pack: de · version: 2026.8 · formatVersion: 0.6
-Datei: pack-library/de-pack/de.json · 12 Module · frühere Fassungen in versions/
+pack: de · version: 2026.9 · formatVersion: 0.6
+Datei: pack-library/de-pack/de.json · 13 Module · frühere Fassungen in versions/
 ```
 
 ## Zweck
@@ -19,7 +19,8 @@ per `id` (+ optional `version`); `createTenant({"pack": "de"})` löst es **einma
 ## Modulliste
 
 Alle Module sind DE-eigen — kein `dependsOn` über Pack-Grenzen. Reihenfolge im Manifest ist ohne
-Bedeutung; der Resolver sortiert topologisch nach `dependsOn`.
+Bedeutung; der Resolver sortiert topologisch nach `dependsOn`. Zwei `constraint`-Module sind kein
+Widerspruch: sie **addieren** sich, anders als `policy`, von dem es genau eines geben darf.
 
 | `kind` | `id` | Version |
 |---|---|---|
@@ -35,8 +36,9 @@ Bedeutung; der Resolver sortiert topologisch nach `dependsOn`.
 | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | `legalForms` | `de-rechtsformen` | 2026.1 |
 | `constraint` | `de-entgeltminderung` | 2026.1 |
+| `constraint` | `de-kleinunternehmer` | 2026.1 |
 
-Was jedes Modul enthält, steht in seinem eigenen Dokument (`modul-1` … `modul-12`, Übersicht im
+Was jedes Modul enthält, steht in seinem eigenen Dokument (`modul-1` … `modul-13`, Übersicht im
 [README](README.md)).
 
 ## Steuerschlüssel

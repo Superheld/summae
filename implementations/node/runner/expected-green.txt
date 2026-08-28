@@ -189,6 +189,8 @@ entity-profile-and-deadline
 de-resolution-deadline
 us-no-resolution-deadline
 default-pack-has-no-legal-forms
-de-entgeltminderung-erzwungen
+de-entgeltminderung-erzwungen-current
 audit-hash-chain
 gdpdu-data-carrier
+de-kleinunternehmer-ust-verboten
+xx-10-constraint-rules-readable

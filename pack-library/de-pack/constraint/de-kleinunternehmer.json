@@ -1,0 +1,31 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-kleinunternehmer",
+  "kind": "constraint",
+  "version": "2026.1",
+  "name": "Deutschland — Kleinunternehmer-Erlöse tragen keine Umsatzsteuer (§ 19 UStG)",
+  "contributes": [
+    "constraint"
+  ],
+  "dependsOn": [
+    {
+      "kind": "accounts",
+      "id": "de-konten"
+    }
+  ],
+  "data": {
+    "accountCombinationRules": [
+      {
+        "whenAccountIn": {
+          "from": "4040",
+          "to": "4040"
+        },
+        "forbidAccountIn": {
+          "from": "3100",
+          "to": "3110"
+        },
+        "note": "§ 19 Abs. 1 UStG: für Umsätze eines Kleinunternehmers wird keine Umsatzsteuer erhoben, § 19 Abs. 1 Satz 4 UStG verbietet zugleich den Vorsteuerabzug. Eine Buchung, die 4040 mit einem Umsatzsteuerkonto verbindet, weist Steuer auf einem Umsatz aus, für den keine entsteht — nach § 14c Abs. 2 UStG wird sie dann trotzdem geschuldet. Der Kleinunternehmer schuldet Steuer aus § 13b und aus dem innergemeinschaftlichen Erwerb weiterhin (§ 19 Abs. 1 Satz 3 UStG); diese Buchungen enthalten kein Erlöskonto und treffen die Regel deshalb nicht."
+      }
+    ]
+  }
+}

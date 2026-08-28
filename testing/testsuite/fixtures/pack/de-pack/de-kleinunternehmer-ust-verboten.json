@@ -1,0 +1,84 @@
+{
+  "fixture": "de-kleinunternehmer-ust-verboten",
+  "description": "F-CORE-042 with the OTHER predicate, on the shipped pack: `de-kleinunternehmer` is the first module in the library that says NO by forbidding rather than by requiring. § 19 Abs. 1 UStG raises no tax on a small business's turnover, so an entry that books 4040 (Erlöse Kleinunternehmer) together with an output-VAT account shows tax on a supply that owes none — and § 14c Abs. 2 UStG then makes it owed anyway, which is the expensive half: the books are wrong AND the money is due. WHY THIS RULE IS SAFE AND THE IG-LIEFERUNG RULE WOULD NOT BE, because that is the reasoning a later pack author needs and it is not obvious: `forbidAccountIn` refuses a COMBINATION inside one entry, so it is only usable where the combination cannot occur legitimately. A collective invoice may perfectly well carry a taxable and an intra-community supply at once, which is why 4030 gets no such rule — it would refuse a correct entry. 4040 cannot be in that position: the § 19 status holds for a whole calendar year (§ 19 Abs. 1), so no single document mixes small-business and standard-rate turnover. WHAT THE RULE DELIBERATELY DOES NOT SAY is the input side. § 19 Abs. 1 Satz 4 UStG denies the input-tax deduction too, but an input-tax posting carries no revenue line, so a rule hung on 4040 would never fire — that prohibition depends on the tenant's PROFILE and the constraint vocabulary has no conditional. Naming the gap here is better than a rule that looks like it covers it. The last step is the edge: § 13b and the intra-community acquisition stay owed by a small business (§ 19 Abs. 1 Satz 3), those entries touch 3100 without any revenue account, and they must go through untouched.",
+  "covers": ["F-CORE-042", "F-TAX-004", "SF-11"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant", "input": { "name": "Kleinunternehmer Constraint GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-KU-1", "voucherDate": "2026-04-02" },
+        "entryDate": "2026-04-02", "text": "Kleinunternehmer-Erlös mit ausgewiesener Umsatzsteuer",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "4040", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "3100", "side": "credit", "money": { "amount": "19.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Balanced, vouchered, in an open period, every account known — and legally impossible. Without the rule this posts and the VAT return then declares 19.00 of tax the business is not entitled to collect but, having shown it, owes under § 14c Abs. 2.",
+        "error": "E_COMBINATION_FORBIDDEN"
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-KU-2", "voucherDate": "2026-04-02" },
+        "entryDate": "2026-04-02", "text": "Derselbe Umsatz ohne Steuerausweis",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "4040", "side": "credit", "money": { "amount": "119.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The same money, booked the way § 19 requires: gross is net, nothing is split off. The rule forbids a line; it does not move an amount.",
+        "result": { "entry": { "id": "$E1" } }
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-KU-3", "voucherDate": "2026-04-03" },
+        "entryDate": "2026-04-03", "text": "Erlösschmälerung auf einen Kleinunternehmer-Umsatz",
+        "lines": [
+          { "account": "4040", "side": "debit", "money": { "amount": "9.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "9.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The § 17 module and this one meet here without colliding: a reduction of a tax-free supply is booked against the revenue account it reduces, so it never reaches 4020 and never needs a correction. Two constraint modules add up; neither replaces the other.",
+        "result": { "entry": { "id": "$E2" } }
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "ER-13B", "voucherDate": "2026-04-10" },
+        "entryDate": "2026-04-10", "text": "Leistung eines EU-Unternehmers, § 13b — der Kleinunternehmer schuldet die Steuer trotzdem",
+        "lines": [
+          { "account": "5000", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "3000", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1500", "side": "debit", "money": { "amount": "95.00", "currency": "EUR" } },
+          { "account": "3100", "side": "credit", "money": { "amount": "95.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The edge that proves the rule is narrow enough. § 19 Abs. 1 Satz 3 keeps § 13b alive for a small business, so 3100 legitimately carries a balance — and this entry has no revenue line, so the prohibition never triggers. A rule that had been hung on `tax_out` in general instead of on 4040 would have refused this.",
+        "result": { "entry": { "id": "$E3" } }
+      } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": { "rows": [
+        { "account": "1200", "balance": "110.00" },
+        { "account": "1500", "balance": "95.00" },
+        { "account": "3000", "balance": "-500.00" },
+        { "account": "3100", "balance": "-95.00" },
+        { "account": "4040", "balance": "-110.00" },
+        { "account": "5000", "balance": "500.00" }
+      ] } }
+  ]
+}

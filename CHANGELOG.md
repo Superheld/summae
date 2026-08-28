@@ -10,6 +10,47 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
 
+## Unreleased
+
+### The `de` pack now also says *no* — a small business's revenue may not show VAT (`de@2026.9`)
+
+The constraint socket has had two predicates since 0.16.0, and the shipped packs used exactly one of
+them. `requireAccountIn` was in force through `de-entgeltminderung` (§ 17 UStG); `forbidAccountIn`
+existed only in `xx-8`, a fixture that brings its own pack. A vocabulary that no shipped pack ever
+speaks half of is hard to tell from a feature with a data file.
+
+**New module `de-kleinunternehmer` (`constraint`, 2026.1).** § 19 Abs. 1 UStG raises no tax on a
+small business's turnover, so an entry that books `4040` (Erlöse Kleinunternehmer) together with an
+output-VAT account is refused with `E_COMBINATION_FORBIDDEN`. The entry it refuses is otherwise
+flawless — balanced, vouchered, in an open period — and § 14c Abs. 2 UStG then makes the tax it
+shows **owed anyway**, which is the expensive half: the books are wrong *and* the money is due.
+
+**Why `4040` and not `4030`,** because that reasoning is what a later pack author needs:
+`forbidAccountIn` refuses a *combination inside one entry*, so it is only usable where the
+combination cannot occur legitimately. A collective invoice may carry a taxable and an
+intra-community supply at once, so a rule on `4030` would refuse a correct entry. The § 19 status
+holds for a whole calendar year, so no single document mixes small-business and standard-rate
+turnover. What the module deliberately does **not** say is the input side: § 19 Abs. 1 Satz 4 UStG
+denies the input-tax deduction too, but an input-tax posting carries no revenue line, so a rule hung
+on `4040` would never fire — that prohibition depends on the tenant's *profile*, and the constraint
+vocabulary has no conditional. Named as a gap rather than covered by a rule that looks like it
+covers it.
+
+`de` moved to **2026.9** and has two `constraint` modules; they add up rather than replace, which
+`xx-10-constraint-rules-readable` now pins (two modules in one pack, both firing, both reported by
+`tenantConfiguration`) alongside the readability of `accountCombinationRules`.
+
+**One fixture retired.** `de-entgeltminderung-erzwungen` pinned `tenantConfiguration.
+accountCombinationRules` as a list of exactly two — the *complete* rule set of the shipped pack — so
+Germany could not forbid a second thing without it going red. That is the weld `de-pack-resolves`
+and `system-description-invariants` were retired for, six days later and one layer further in. The
+successor `de-entgeltminderung-erzwungen-current` drives the same nine steps and pins everything
+except how many rules the German pack happens to declare; `testing/testsuite/superseded.json` says
+so.
+
+New fixtures: `de-kleinunternehmer-ust-verboten`, `xx-10-constraint-rules-readable`,
+`de-entgeltminderung-erzwungen-current`.
+
 ## 0.16.0 — 2026-08-28
 
 > **Minor, not a patch, and the number was wrong before this line was written.** The work below
