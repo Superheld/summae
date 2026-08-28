@@ -45,6 +45,11 @@ Jeder Fall soll mit minimaler API-Interaktion machbar sein (Richtwert: ein Aufru
 - [x] SF-24 Kundengutschrift erstellen und gegen offenen Posten ausgleichen (v0.4, Buchhalter-M)
 - [x] SF-25 Ergebnisverwendung: Gewinnvortrag und Ausschüttung als Buchung, Bilanz-EK korrekt gegliedert (v0.4, Buchhalter-G6)
 - [x] SF-26 Geldtransit Bank↔Kasse und PSP-Konto: EÜR-neutral, Kassenkonto als Geldkonto (v0.4, Buchhalter-M6/M)
+- [x] SF-27 Pack-Komposition: ein aus Modulen komponiertes Pack ergibt byte-identisch dasselbe Bündel wie
+  hand-gereichte `ruleModules`, ein daraus gebauter Mandant bucht identisch, und `overrides[remove]` ist
+  rückstandsfrei (v0.3, F-PACK-001/002/003)
+  — *am 2026-08-28 nachgetragen: fünf Fixtures deckten diesen Standardfall ab und `validate.py` zählte ihn,
+  während diese Liste bei SF-26 endete; die Zählung war also die einzige Stelle, an der es SF-27 gab.*
 
 Liste wächst mit Befunden; jeder Fall bekommt Eingaben + erwartete Ergebnisse als Fixture.
 

@@ -2,7 +2,7 @@
 # Erwartete grüne Fixtures (Regressionsschutz: runner/test/conformance.test.ts).
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
-# Stand: M3 — ALLE 45 Fixtures grün, Vertrag erfüllt.
+# Diese Liste IST der Stand — sie zu zählen ist Sache des Runners, nicht dieses Kommentars.
 # US-Pack (us): own US chart + sales/use tax + GAAP mappings + cash-basis Schedule C + MACRS
 
 accounts-and-import

@@ -2,25 +2,37 @@
 
 Geordnet nach Tragweite. Erledigte Fragen wandern mit Antwort + Datum nach unten in „Beantwortet".
 
-## Internationalisierung (Zukunftsachse, nachfragegetrieben — Rahmen steht, Umsetzung vertagt)
+## Internationalisierung (Rahmen steht; der größere Teil ist inzwischen gebaut)
 
-Architektur-Rahmen ist integriert (NF-5.3 Triade, `jurisdiction-profil.md`, Determinismus-Attribution, Scope-Ehrlichkeit). Offen bleibt die *Umsetzung* der „Tür durchschreiten"-Hälfte:
+> **Durchgesehen am 2026-08-28.** Dieser Abschnitt führte vier Punkte als offen, die längst
+> ausgeliefert sind — Pack-Policy-Felder, das fiktive Test-Pack, „US in Scope?" und die
+> Umsetzung komponierbarer Packs. Eine Liste, die Erledigtes als offen führt, ist schlimmer als
+> keine: sie kostet jeden Leser dieselbe Prüfung, und sie lässt die wenigen wirklich offenen
+> Punkte darin untergehen. Erledigtes steht jetzt unter „Beantwortet".
 
-- **Pack-Policy-Felder ins Format** (`roundingMode`, `taxRoundingGranularity`, Währungsskala) + amount-Pattern auf 0–N Nachkommastellen lockern. Additiv/rückwärtskompatibel — erst nötig, wenn ein zweites Pack kommt. Schaltet zugleich das **fiktive Test-Pack** frei.
-- **Zweites reales Pack:** AT am billigsten (nahe DE), FR am aussagekräftigsten (PCG-Pflichtkontenrahmen + FEC-Export). Welches zuerst?
-- **US in Scope?** Einziger echter Code-Bruch (zweites Steuerparadigma, kein Vorsteuerabzug) — bewusste Ja/Nein-Entscheidung.
-- **Multi-Currency-*Buchung*** (Fremdwährung mit Kursdifferenzen): „Tür durchschreiten", Felder reserviert (v2). Timing?
-- **Export-Adapter** SAF-T (OECD) / FEC (FR) — je dünner Serializer über derselben Projektion wie Z3/DATEV.
-- **Komponierbare Packs (Umsetzung):** Modul-Registry, Pack-Resolver (Abhängigkeits-/Integritätsprüfung), Fehlercodes `E_PACK_UNRESOLVED_REF`/`E_PACK_INCOHERENT`, Manifest-Format im Datenformat, erste Resolver-Fixtures. Konzept + Granularität (kohärente Regelsätze) stehen in `jurisdiction-profil.md` (Design 2026-06-09); Bau nachfragegetrieben. **Auslösebedingung eingetreten (2026-06-09):** Der „erste App-Bedarf nach Teil-Packs" ist da — Bruces Konsumenten-Projekte (Frage 3: Haushaltsbuch, NK-Abrechnung) sind genau Nutzungsweg 3 (à la carte). Zweites Länder-Pack dagegen ausdrücklich zurückgestellt (erstmal DE).
+Offen bleibt:
 
-## Noch offen (alle bewusst vertagt — nichts blockiert Phase 4)
+- **Zweites reales Länder-Pack:** AT am billigsten (nahe DE), FR am aussagekräftigsten
+  (PCG-Pflichtkontenrahmen + FEC-Export). Welches zuerst? *(Nicht mehr blockiert — der Resolver,
+  das Manifest-Format und drei ausgelieferte Packs stehen; es ist reine Priorisierung.)*
+- **Multi-Currency-*Buchung*** (Fremdwährung mit Kursdifferenzen): Felder reserviert (v2). Timing?
+- **Export-Adapter** SAF-T (OECD) / FEC (FR) — je ein dünner Serializer über derselben Projektion
+  wie Z3/DATEV.
+- **Nummern-Mapping `summae-base` → SKR/BU** für die `datevExport`-StB-Übergabe
+  (nachfragegetrieben; Folgepunkt der SKR-Lizenzentscheidung vom 2026-06-21).
 
-1. **Kommune-Paket** (wartet auf Priorisierung kommunaler Projekte): Finanzrechnung als parallel gebuchte zweite Rechnung oder Projektion; Obligo-Modellierung (Vorentscheidung: Pre-Posting-Hook, `context-map.md`); Referenz-Bundesland für GemHVO-Erstausarbeitung.
-2. **DATEV-SKR-Lizenz:** **ENTSCHIEDEN 2026-06-21** (`00-projekt/entscheidungen.md`) — eigener offener Basis-Rahmen `summae-base` *statt* SKR-Rahmendaten mitliefern; SKR03/04 bleiben über Import verfügbar. Mitliefer-/Lizenzproblem entfällt. Offener Folgepunkt: Nummern-Mapping `summae-base` → SKR/BU für die `datevExport`-StB-Übergabe (nachfragegetrieben).
-3. **Erste Konsumenten-Projekte (Antwort konkretisiert 2026-06-09, Bruce):** Zwei projektindividuelle Kompositionen, bewusst **keine** kuratierten Packs: (a) **privates Haushaltsbuch** — Substrat + Assets-Expansion (Inventarliste = assetRegister, Abschreibungen mit eigenen Regeldaten statt AfA-Tabellen), praktisch kein Rechtsinhalt; (b) **Nebenkostenabrechnung für Vermieter** — KLR-Teilmenge (Kostenstellen = Wohneinheiten, Umlageschlüssel = AllocationScheme, umlagefähig/nicht umlagefähig = Abgrenzungsregeln); BetrKV-/§ 556-Fristen sind App-Sache. Damit ist der KLR-Scope nachfragebelegt. Offen: Reihenfolge der beiden, NF-7-Ziele daran schärfen.
-4. **Costing-Läufe ins Format:** released Läufe sind heute prozesslokal (Adapter-Annahme 5, `ABSCHLUSSBERICHT.md`); vor Cross-Implementation-Austausch (SF-15) gehört `costingRuns.jsonl` spezifiziert oder die Aussparung explizit gemacht. Spätestens mit der Node-Portierung entscheiden.
-5. **Fixture-Lücken der Suite** (Gesamt-Review 2026-06-09): **geschlossen 2026-06-14.** `vat-return-reversal` (Storno→VA) und `vat-return-cash-basis-rounding` (Ist-Versteuerung krumme Teilzahlung) gebaut, gegen die PHP-Referenz verifiziert (Suite 45/45 grün). Die Verifikation förderte SPEC-010 (Fixture-Fehler korrigiert) und SPEC-011 (PHP-Bug gefixt) zutage — Details `80-implementierung/SPEC-FINDINGS.md`. Daraus zwei fachliche Rückfragen → eigener Block „Für den Rechercheagenten" unten. § 17-Korrektur-VA und Generalumkehr-Vorzeichen waren bereits abgedeckt (Eigenprüfung Gesamt-Review).
-6. **SPEC-FINDINGS aus der Node-Portierung** (nächste Runtime): Rückfluss ins Entscheidungslog wie bei PHP. *(PHP-Findings SPEC-001–009 sind erledigt, PHP-Referenz abgeschlossen — `80-implementierung/ABSCHLUSSBERICHT.md`.)*
+## Noch offen
+
+1. **Kommune-Paket** (wartet auf Priorisierung kommunaler Projekte): Finanzrechnung als parallel
+   gebuchte zweite Rechnung oder Projektion; Obligo-Modellierung (Vorentscheidung: Pre-Posting-Hook,
+   `context-map.md`); Referenz-Bundesland für die GemHVO-Erstausarbeitung.
+2. **Reihenfolge der beiden Konsumenten-Projekte** — (a) privates Haushaltsbuch (Substrat +
+   Assets-Expansion, praktisch kein Rechtsinhalt), (b) Nebenkostenabrechnung für Vermieter
+   (KLR-Teilmenge: Kostenstellen = Wohneinheiten, Umlageschlüssel = AllocationScheme). Beide sind
+   bewusst projektindividuelle Kompositionen, **keine** kuratierten Packs; damit ist der KLR-Scope
+   nachfragebelegt. Offen ist nur die Reihenfolge und daran geschärfte NF-7-Ziele.
+3. **Die beiden fachlichen Rückfragen RQ-1/RQ-2** — siehe nächster Abschnitt. Sie sind der einzige
+   Punkt dieser Liste, an dem heute Code mit einer *unbestätigten* Lesart läuft.
 
 ## Für den Rechercheagenten (fachliche Klärung, eröffnet 2026-06-14)
 
@@ -40,6 +52,22 @@ Zu klären:
 - Die Abrundung ist **nicht summenerhaltend**: über mehrere VA-Zeiträume ergibt Σ der angezeigten Basen weniger als den Jahresnettoumsatz (im Fixture 999 statt 1000). Ist das die akzeptierte Realität, und wie behandelt die **USt-Jahreserklärung** das (eigene, nicht-gefloorte Basis-Ermittlung / Abstimmung)? Relevant, sobald eine Jahreserklärungs-Projektion gebaut wird.
 
 ## Beantwortet
+
+- **Pack-Policy-Felder im Format** (`roundingMode`, `taxRoundingGranularity`, `currencyScale`) und
+  das gelockerte amount-Pattern: gebaut, seit v0.6 im Schema, belegt durch die `xx-*`-Fixtures
+  (F-PACK-POLICY-001…004). *(Nachgetragen 2026-08-28.)*
+- **Fiktives Test-Pack:** existiert als `xx-*`-Familie und ist der Ort, an dem Mechanismen bewiesen
+  werden, ohne ein ausgeliefertes Pack festzuschweißen. *(Nachgetragen 2026-08-28.)*
+- **US in Scope?** → **Ja, entschieden und gebaut** (us-pack, v0.4.0): eigener Kontenrahmen,
+  Sales/Use Tax, GAAP-Mappings, Schedule C, MACRS. Das zweite Steuerparadigma ohne Vorsteuerabzug
+  ist der Grund, warum `F-PACK-POLICY-003` existiert. *(Nachgetragen 2026-08-28.)*
+- **Komponierbare Packs (Umsetzung):** Modul-Registry, Resolver mit Invarianten I1–I10,
+  `E_PACK_UNRESOLVED_REF`/`E_PACK_INCOHERENT`, Manifest im Datenformat und die Resolver-Fixtures —
+  alles gebaut; drei Packs ausgeliefert. *(Nachgetragen 2026-08-28.)*
+- **Costing-Läufe ins Format:** mit der Node-Portierung entschieden und gebaut; Läufe sind nicht
+  mehr prozesslokal. *(Nachgetragen 2026-08-28.)*
+- **SPEC-FINDINGS aus der Node-Portierung:** zurückgeflossen; der Befundregister ist seit
+  2026-08-28 `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md` im Repo-Root. *(Nachgetragen 2026-08-28.)*
 
 - **Buchhalter-/StB-Review-Paket (2026-06-08, v0.4):** Alle Befunde beider Reviews realisiert (Leistungsdatum, Partner schlank [Bruce], Ergebnisverwendung als Buchung [Bruce], degressive AfA/§ 7g-Mechanik mit verifiziertem Rechtsstand, Gutschriften-Regel, kanonische Subtypes, Lohn-/Bewirtungs-/Transit-Muster, Monats-GuV, DATEV beidseitig, Verfahrensdoku, Scope-Ehrlichkeit, Glossar-Kur). Kontoauszugs-Import-Formulierung präzisiert: kein Import im Package, postVoucher/settleVoucher sind die Andockpunkte. Details: Entscheidungslog 2026-06-08.
 - **Restfragen-Paket (2026-06-07, Abschluss):** Bewertungsbereiche: v1 einer, `valuationArea` reserviert (Bruce). Journalnummer: je Geschäftsjahr. Korrektur: nur `correct` + Audit, kein Löschen. Fremdwährung: v2, Felder reserviert. Steuerschlüssel: eigene Codes, DATEV-BU als Alias. Aufbewahrungsfristen: App-Sache. Dimensions-Validierung + CLI: umgesetzt/spezifiziert. Details: `00-projekt/entscheidungen.md`.
