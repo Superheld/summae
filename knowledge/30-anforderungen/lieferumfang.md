@@ -11,7 +11,7 @@ Maßstab gegen „zu wenig gebaut": Das Package *beherrscht* Rechnungswesen — 
 
 ## Was die App geschenkt bekommt
 
-Korrekte USt-Buchungen per Steuerschlüssel; EÜR und Bilanz/GuV als fertige Auswertungen aus demselben Datenbestand; AfA-Läufe inkl. GWG/Sammelposten; GoBD-Festschreibung, Storno, Audit-Trail; offene Posten (Debitoren/Kreditoren); SuSa, BWA-Grundlagen, USt-VA-Kennzahlen; KLR (Dimensionen, Abgrenzung, BAB, Umlagen); Kontenrahmen-Import und eigene Konten; Z3-Export; Periodensteuerung.
+Korrekte USt-Buchungen per Steuerschlüssel; EÜR und Bilanz/GuV als fertige Auswertungen aus demselben Datenbestand; AfA-Läufe inkl. GWG/Sammelposten; GoBD-Festschreibung, Storno, Audit-Trail; offene Posten (Debitoren/Kreditoren); SuSa, BWA-Grundlagen, USt-VA-Kennzahlen; KLR (Dimensionen, BAB, Umlagen, Zuschlagssätze, Herstellungskosten — **ohne** Abgrenzungsrechnung: die Überleitung Aufwand→Kosten ist F-KLR-002 und nicht gebaut, in summae ist Kosten heute gleich Aufwand); Kontenrahmen-Import und eigene Konten; Z3-Export; Periodensteuerung.
 
 ## Standardfälle
 

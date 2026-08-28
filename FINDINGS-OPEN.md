@@ -121,44 +121,37 @@ because anything verifies the amounts.
 the code, and add one fixture per direction. The pack policy already carries `currencyScale`, and
 the `xx-2` / `xx-4` fixtures already run a pack at scale 3, so the fixture has somewhere to stand.
 
-## IMPL-041 — F-KLR-002 (Abgrenzungsrechnung) is not built, and may not be wanted
+## IMPL-043 — F-KLR-005 is covered by three fixtures about the one case it excludes
 
-**Found 2026-08-28** while checking which requirements no fixture names.
+**Found 2026-08-28** while deciding IMPL-041.
 
-`F-KLR-002` requires a rule-based Abgrenzungsrechnung — carry over / exclude / replace / add, plus a
-two-sided reconciliation bridge. There is **no operation, no projection, no entry in `api.md`, and
-no fixture**; the costing fixtures cover F-KLR-001/003/004/005. It is the largest single unbuilt
-requirement in the list, and it was invisible because it is one row among ninety-nine.
+`F-KLR-005` requires kalkulatorische Kosten to be carried as their own entries in the costing
+circle, never in the financial-accounting journal. Three fixtures name it in `covers`:
+`costing/production-cost`, `pack/de-pack/de-herstellungskosten` and
+`pack/us-pack/us-inventory-costing`. All three are about **production cost** — and production cost
+per § 255 Abs. 2 HGB is built from *Aufwendungen*, so kalkulatorische Kosten are the one thing that
+may **not** be counted into it. The fixtures are correct about their own subject; they simply prove
+the opposite case to the one the requirement states.
 
-**The reason it is a decision and not a task.** The scope note in the root `CLAUDE.md` (decided
-2026-08-23) puts cost-accounting **steering instruments** out of scope — planned-cost/variance,
-activity-based, contribution-margin. An Abgrenzungsrechnung's whole job is to add *kalkulatorische
-Kosten* and remove neutral results, which is a steering instrument by any reading. So the likely
-truth is that this requirement was retired by that decision and nobody went back to strike it.
+**What is actually true today:** summae has no kalkulatorische Kosten at all — see IMPL-041, where
+the same gap shows from the other side (`Kosten == Aufwand`, because the Abgrenzungsrechnung that
+would introduce them is not built). F-KLR-005's "never in the Fibu journal" is therefore satisfied
+**vacuously**: nothing is in the journal because nothing exists. A requirement satisfied by the
+absence of its own subject is not covered, it is unfalsifiable.
 
-**What would close it.** Bruce decides which it is. If it was descoped, the row goes — with its
-reason, in the scope note, the way the other exclusions are written. If it was not, it is a build,
-and `SF-12` (which the requirement claims) needs to say which half of itself is covered today.
-**Do not resolve this by writing a fixture**: a fixture for a capability nobody decided to have is
-the wrong artefact.
+**Why this is its own entry and not part of IMPL-041.** It is a different defect. IMPL-041 is a
+capability that was never built; this is a `covers` claim that does not hold, in a fixture that is
+otherwise right. And it is the concrete demonstration of what the IMPL-039 guard **cannot** do:
+that guard checks an ID is *declared*, which `F-KLR-005` is. Whether the fixture behind an ID proves
+the requirement is not mechanically checkable, and pretending otherwise would be the more dangerous
+outcome — a green guard reading as "every requirement is proven".
 
-## IMPL-042 — F-IO-008 (DATEV Buchungsstapel import) is not built
-
-**Found 2026-08-28**, and the interesting part is why it stayed invisible.
-
-The requirement says a DATEV posting batch *should* be importable — the way back from the tax
-adviser. There is only `datevExport`; no import exists in either runtime. It is a **SOLL**
-requirement, so nothing is in breach.
-
-**How it hid.** The root `CLAUDE.md` — the file every agent reads first — attributed **F-IO-008** to
-`gdpduExport`, which is F-IO-012. Anyone checking whether F-IO-008 was built found a shipped
-capability under its number and moved on. A wrong ID in the most-read file is worth more than a
-wrong ID anywhere else, because it is the one that gets trusted without checking. Corrected the same
-day.
-
-**What would close it.** Either build the import (format details were always flagged as needing
-verification against a real DATEV batch), or downgrade the requirement to an explicitly deferred one
-with its reason — an unbuilt SOLL that nobody has asked for in a year is a candidate for the second.
+**What would close it.** Either F-KLR-005 loses the citations and joins F-KLR-002 as an
+explicitly unbuilt requirement (the honest reading of the evidence), or its "never in the Fibu
+journal" half is restated as what it really guards — that `runCosting` writes no journal entry —
+and a fixture proves *that*, which is checkable today. **Built in the meantime: nothing**, and
+deliberately: it is a decision about what the requirement means, and the same pass has already
+decided two of those.
 
 ## What is closed, and the pattern in it
 

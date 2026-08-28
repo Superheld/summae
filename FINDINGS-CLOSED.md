@@ -126,8 +126,9 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-039 nothing holds `covers` and the requirement lists together | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
-| IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
-| IMPL-042 F-IO-008 (DATEV import) is not built | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
+| IMPL-042 F-IO-008 (DATEV import) is not built | ✅ **DECIDED 2026-08-28 — deferred, with the blocker named and verifiable in the shipped pack.** The way back needs BU key → `taxCode`, and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu` at all, and `USt19`/`USt19WA` both carry `3`. The inverse is neither total nor unique, so an import would guess — and what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real batch to verify the format against; until then the way back is the app's, the same line CAMT and XRechnung already sit on |
+| IMPL-043 F-KLR-005 is covered by fixtures about the case it excludes | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -2371,3 +2372,69 @@ reader.
 *What is deliberately not checked:* whether the prose is *right*. That is neither achievable nor
 wanted. The guard checks that the document knows which format it describes and leaves no step and no
 object unmentioned — the three things that were provably wrong.
+
+## IMPL-041 — F-KLR-002 (Abgrenzungsrechnung) is not built, and may not be wanted — ✅ DECIDED 2026-08-28
+
+**The question was scope, and the repository answers it.** The finding read the 2026-08-23 exclusion
+of *cost-accounting steering instruments* as probably covering the Abgrenzungsrechnung, because its
+job is to add kalkulatorische Kosten. Three things say otherwise, and none of them needs the
+decision log:
+
+1. **What the exclusion actually named** — planned-cost/variance, activity-based, contribution
+   margin. All three answer *what should we do?*. The Abgrenzungsrechnung answers *what are the
+   costs?*: it is the Kostenartenrechnung's first stage, the one every other stage consumes.
+2. **The dependents are built.** BAB and Umlage are F-KLR-003/004, shipped and fixture-covered.
+   Excluding the intake stage while keeping the stages that consume it is not a scope line, it is an
+   inconsistency.
+3. **F-KLR-005 was not struck.** It requires kalkulatorische Kosten as their own entries in the
+   costing circle — and kalkulatorische Kosten are exactly the content of F-KLR-002's *ersetzen*
+   (Anderskosten) and *hinzufügen* (Zusatzkosten) rules. A decision that retired 002 on the grounds
+   of kalkulatorische Kosten would have had to retire 005 on the same grounds. It did not.
+
+**What the absence actually costs, which the finding understated.** `context-map.md` justifies
+costing as a separate bounded context by naming the Abgrenzungsrechnung as its anticorruption layer
+— "a rare stroke of luck: the domain supplies the translation artefact itself". That layer does not
+exist. Primary-cost intake filters the journal by cost-centre dimension and takes book values, so
+**Kosten == Aufwand** in summae: no neutral expense is excluded, no Anderskosten replace a balance
+figure, no Zusatzkosten are added. The separation of circles is real; the translation that gives the
+separation its meaning is not.
+
+**What was done, and what deliberately was not.** The scope question is answered and recorded where
+a reader meets it: the `F-KLR-002` row states that it stands and what is missing, and
+`lieferumfang.md` stops listing "Abgrenzung" among what the embedding app gets for free — that line
+was simply untrue. **No code was written**, on purpose: the design is not the open part
+(`40-domaenenmodell/costing-modell.md` § 2 specifies the `ReconciliationRule` set with its four rule
+types and the reconciliation bridge as an invariant), the *build* is, and a build of that size is a
+job, not a finding closure. It is now a named, decided, unbuilt requirement instead of an undecided
+one — which is the whole difference this entry was opened to make.
+
+## IMPL-042 — F-IO-008 (DATEV Buchungsstapel import) is not built — ✅ DECIDED 2026-08-28
+
+**Deferred, and the blocker is data rather than effort.** The finding offered two ways out: build
+the import, or downgrade the requirement with its reason. Checking what a build would need decided
+it.
+
+An import maps a DATEV BU key back to a `taxCode`. The only mapping that exists is `datevBu` on the
+tax code, and it runs the other way — **it is neither total nor injective**, and both gaps are
+visible in the shipped `de` pack:
+
+- five of ten tax codes carry **no** `datevBu` at all (`RC13b`, `igL`, `IGE19`, `IGE7`, `AUSFUHR`),
+  so a batch containing those postings has no preimage;
+- `USt19` and `USt19WA` both carry `3`, so a key that does map back maps back to two codes.
+
+An import would therefore have to guess, and what it would guess is the **tax** — the same failure
+shape the closed subtype repertoire (F-CORE-046) and the closed tax mechanisms were built against,
+except this one lands in the VAT return. Inventing the inverse silently is worse than not shipping
+the capability.
+
+**What unblocks it:** an explicit, injective reverse block in the pack (not the inversion of
+`datevBu`, which is a different mapping doing a different job) plus a real Buchungsstapel to verify
+the EXTF format against — the verification the requirement has always asked for and never got. Until
+then the way back is the embedding app's, which is the line CAMT and XRechnung already sit on:
+`postVoucher`/`settle` are the attachment points for *parsed* transactions.
+
+**Why it hid**, kept from the original entry because it is the transferable part: the root
+`CLAUDE.md` attributed **F-IO-008** to `gdpduExport`, which is F-IO-012. Anyone checking whether
+F-IO-008 was built found a shipped capability under its number and moved on. A wrong ID in the
+most-read file is worth more than a wrong ID anywhere else, because it is the one that gets trusted
+without checking.

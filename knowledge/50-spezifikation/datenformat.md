@@ -279,7 +279,9 @@ Degressive AfA ist **aktiv** (Investitionsbooster: Anschaffung 01.07.2025–31.1
 
 ### DATEV beide Richtungen (StB-1 + Buchhalter-M)
 
-`datevExport` zusätzlich mit `kind: entries | accounts | partners` (Buchungsstapel, Kontenbeschriftungen, Geschäftspartner-Stammdaten). Rückweg `importDatevBatch` (Stapel vom Steuerberater → Buchungen) als Fähigkeit spezifiziert; exaktes Format bei JOB-011 gegen aktuelle DATEV-Doku verifizieren.
+`datevExport` zusätzlich mit `kind: entries | accounts | partners` (Buchungsstapel, Kontenbeschriftungen, Geschäftspartner-Stammdaten) — **gebaut**.
+
+Der Rückweg `importDatevBatch` (Stapel vom Steuerberater → Buchungen) ist als Fähigkeit spezifiziert und **nicht gebaut**; seit 2026-08-28 ausdrücklich zurückgestellt statt offen geführt (F-IO-008, IMPL-042). Der Blocker sitzt nicht im Format, sondern in den Daten: die Rückrichtung braucht BU-Schlüssel → `taxCode`, und `datevBu` bildet nur vorwärts ab. Im `de`-Pack tragen fünf von zehn Steuercodes gar keinen `datevBu`, und `USt19`/`USt19WA` tragen beide die `3` — die Umkehrung ist weder total noch eindeutig. Ein Import müsste raten, und geraten würde die Steuer. Ein injektiver Rückabbildungs-Block im Pack und ein echter Buchungsstapel zur Formatverifikation sind die Voraussetzungen; bis dahin ist der Rückweg App-Sache, wie bei CAMT und XRechnung.
 
 ## v0.5 — Export-Manifest, Bilanzseiten, Bemessungsgrundlage beim Storno
 
