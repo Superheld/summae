@@ -170,3 +170,22 @@ export function installSchema(db: SyncDb): void {
     db.schema((schema) => schema.createTable(name, table.define));
   }
 }
+
+/**
+ * Remove the whole set again — the twin of PHP's `SchemaInstaller::drop`, which this side simply
+ * did not have (IMPL-036).
+ *
+ * **Idempotent on purpose.** A second run must not fail on tables that are already gone: teardown
+ * runs in failure paths too, and a drop that throws there replaces the real error with its own.
+ * Reverse creation order, so a future foreign key does not have to be discovered by a crash.
+ *
+ * It is a **test and teardown** tool, not a migration: everything the tables hold is the books, and
+ * nothing in summae calls this on its own.
+ */
+export function dropSchema(db: SyncDb): void {
+  for (const table of [...TABLES].reverse()) {
+    const name = `${TABLE_PREFIX}${table.name}`;
+    if (!db.hasTable(name)) continue;
+    db.schema((schema) => schema.dropTable(name));
+  }
+}

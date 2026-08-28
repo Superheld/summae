@@ -31,10 +31,17 @@ pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identi
 - **Core framework-free:** no web/DB frameworks and no
   DB drivers in `packages/core/**` — eslint `no-restricted-imports` enforces it. Structural counterpart to
   „no `use Illuminate\…` in the core". Adapters are their own packages (`knex`, `cli`).
-- **`packages/knex` has its own suite** since 2026-08-16 (`packages/knex/test/adapter.test.ts`,
-  IMPL-015): round-trip through a real column and tenant scoping with two tenants on one database.
-  Twin of PHP's `packages/laravel/tests`. Keep the two in step — the defect that made the suite
-  necessary (every `byId`/`save` ignoring `tenant_id`) was identical in both languages.
+- **`packages/knex` has its own suite** since 2026-08-16 (IMPL-015): round-trip through a real
+  column and tenant scoping with two tenants on one database, plus `hydrator-and-schema.test.ts`
+  since 2026-08-28 (IMPL-036). Twin of PHP's `packages/laravel/tests`, **file name for file name**,
+  which is what makes "are these in step?" answerable by listing both directories. Keep them so —
+  the defect that made the suite necessary (every `byId`/`save` ignoring `tenant_id`) was identical
+  in both languages.
+  **Do not measure the step by counting.** PHPUnit methods against vitest `it`s compares the two
+  frameworks: data providers multiply one method into many cases, so the same coverage reads as
+  half. The comparison that means something is *which modules have a test at all* — that is how the
+  hydrator and the schema installer turned out to have none here while having seven over there, and
+  how `dropSchema` turned out not to exist at all.
 - **Persistence (M4):** via **Knex** as schema/query builder (direct counterpart to
   the PHP side's `illuminate/database`) with **better-sqlite3** as the sqlite driver, **pg**
   for Postgres. The goal is a bit-exact match of the PHP side's `summae_*` schema
