@@ -43,6 +43,56 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### Added: `personalDataDescription`, and the address shape it needed (F-CORE-041)
+
+The remaining two GDPR rows, closed together — and the second one not the way it was written.
+
+`personalDataDescription` is the counterpart to `systemDescription`: that projection answers *what
+does this system record, and about what*; this one answers *where can operator-supplied free text
+come to rest in these books, and how much of it is actually here*. `fields[]` names every holder and
+field with `freeText`/`required`/`present`, `addressKeys[]` says which address keys the tenant really
+uses, `counts` gives partners, vouchers and distinct actors. It is **generated**, which is the whole
+argument for it — §1 of the census is hand-written, and a hand-written inventory is the kind of list
+that goes stale in silence.
+
+**The axis held, and that is the reason this belongs in summae at all.** *Where* identifying fields
+sit is mechanism: the partner has a name, the trail records an actor, a posting carries text, and
+that is as true in the `us` pack as in the `de` pack. *Whether* a field counts as personal data is
+not mechanism — a company identifier is personal data for a sole trader and not for a corporation —
+so the projection **never classifies**, and says so in a `classification` field rather than letting a
+reader assume. It also reports shape and never content: `present` counts partners with an address,
+`addressKeys` names keys and not values. A tool built for a privacy obligation must not become the
+convenient way to read everybody's data out.
+
+**The address declaration went the other way from what the census proposed.** That row asked for the
+fields to be declared so the format could support data minimisation. They are — `line1`, `line2`,
+`postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2 — but `additionalProperties` stays
+**open**, deliberately. Closing it would make an export of lawful data invalid: books written before
+the shape existed carry whatever they carry, and a schema that rejects them turns a privacy
+improvement into a data-loss event. So the declaration says what to *write* and `addressKeys` says
+what is *there*, which is the half a declaration can never supply and the half an inventory needs.
+No street/houseNumber split — it does not survive contact with addresses outside the German-speaking
+world, and `line1`/`line2` do.
+
+### Not done: the audit hash chain, and why (SPEC-022)
+
+`docs/gobd-conformance.md` §14 item 5c records the per-entry hash chain as *deferred, not rejected*.
+Picking it up ran into something no amount of effort gets past: `datenformat.md` says of the reserved
+fields, normatively, that **readers must ignore them and writers must not populate them in v0.x**.
+`previousEntryHash` is one of them, and we are on format 0.7.
+
+Writing the chain anyway would break the rule in both halves, and the second is the one that counts:
+a conforming reader has been *instructed to ignore* the field, so a chain written today is tamper
+evidence for nobody but us — an auditor's tool, another implementation and a future reader would all
+be conforming precisely by ignoring it. Bumping the format to 0.8 does not help; 0.8 is still v0.x.
+
+So nothing was built, on purpose: a chain that exists but is ignorable is worse than none, because it
+reads like protection. The way out is a decision — amend the reserved-field rule for format 0.8, or
+take it to 1.0 where the reserved fields were always meant to go live — and that is a product call,
+not an engineering one. Recorded in full as SPEC-022, which is the first entry in the open register
+since it was emptied. Manifest-level hashing (SHA-256 per stream, RFC 8785) is untouched and still
+does what it always did.
+
 ### The Node persistence suite caught up with the PHP one (IMPL-036)
 
 `implementations/node/CLAUDE.md` said the knex suite is the twin of `packages/laravel/tests` and

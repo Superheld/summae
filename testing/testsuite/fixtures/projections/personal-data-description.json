@@ -1,0 +1,167 @@
+{
+  "fixture": "personal-data-description",
+  "description": "F-CORE-041: `personalDataDescription` reports WHERE operator-supplied text can come to rest in these books, and how much of it is actually there. It is the counterpart to `systemDescription`, which answers the same shape of question about auditing — and it exists because the alternative was a hand-written inventory, which is the kind of list that goes stale in silence: a renamed field leaves the row standing, still readable, still wrong. THE SPLIT IS THE POINT AND IT FALLS ON SUMMAE'S OWN AXIS. Where identifying data can sit is mechanism: the partner has a name, the trail records an actor, a posting carries free text, and that is as true in the us pack as in the de pack. Whether a given field COUNTS as personal data is not mechanism — jurisdictions answer it differently, and a company identifier is personal data for a sole trader and not for a corporation. So the projection never classifies; it says `freeText` (summae neither constrains nor interprets this content) and it counts. `classification` states that in the payload, so a reader cannot mistake an inventory for legal advice. IT REPORTS SHAPE, NEVER CONTENT: `present` is how many partners carry an address, not what any address says; `addressKeys` is which keys occur, not their values. A projection built to help with a privacy obligation must not become the convenient place to read everybody's data out of. `addressKeys` is also the answer a hand-written list cannot give: the format declares a recommended address shape and does not forbid others, so the only truthful answer to what is in there is to look. Two of the rows carry `present: null` on purpose — a posting text and an audit diff exist per record rather than per holder, and inventing a count for them would be a number nobody could act on.",
+  "covers": [
+    "F-CORE-041",
+    "F-CORE-022"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Verzeichnis GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erloese",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": {
+        "actor": "buchhaltung",
+        "name": "Kunde mit Adresse AG",
+        "kind": "customer",
+        "vatId": "DE123456789",
+        "address": {
+          "line1": "Hauptstrasse 1",
+          "postalCode": "10115",
+          "city": "Berlin",
+          "country": "DE"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$P1",
+          "name": "Kunde mit Adresse AG"
+        }
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": {
+        "actor": "buchhaltung",
+        "name": "Kunde ohne Adresse GmbH",
+        "kind": "customer"
+      },
+      "expect": {
+        "comment": "No address and no VAT id — the counts must distinguish the two partners, or `present` would just be the partner count under another name.",
+        "result": {
+          "id": "$P2"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "actor": "erfassung",
+        "voucher": {
+          "voucherNumber": "RE-2026-001",
+          "voucherDate": "2026-03-01",
+          "partnerId": "$P1",
+          "issuer": "Kunde mit Adresse AG"
+        }
+      },
+      "expect": {
+        "result": {
+          "id": "$V1"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "personalDataDescription",
+      "params": {},
+      "expect": {
+        "comment": "Two partners, one with an address and a VAT id; one voucher with an issuer; two distinct actors across the trail. The address keys are the four that were actually used, sorted — deterministic ordering, like every other list summae publishes.",
+        "addressKeys": [
+          "city",
+          "country",
+          "line1",
+          "postalCode"
+        ],
+        "counts": {
+          "partners": 2,
+          "vouchers": 1,
+          "distinctActors": 2
+        },
+        "classification": "none — summae reports where operator-supplied text can sit, not which of it is personal data under any jurisdiction",
+        "fields": [
+          {
+            "holder": "partner",
+            "field": "name",
+            "freeText": true,
+            "required": true,
+            "present": 2
+          },
+          {
+            "holder": "partner",
+            "field": "vatId",
+            "freeText": true,
+            "required": false,
+            "present": 1
+          },
+          {
+            "holder": "partner",
+            "field": "address",
+            "freeText": true,
+            "required": false,
+            "present": 1
+          },
+          {
+            "holder": "voucher",
+            "field": "issuer",
+            "freeText": true,
+            "required": false,
+            "present": 1
+          },
+          {
+            "holder": "journalEntry",
+            "field": "text",
+            "freeText": true,
+            "required": false,
+            "present": null
+          },
+          {
+            "holder": "auditRecord",
+            "field": "actor",
+            "freeText": true,
+            "required": true,
+            "present": 2
+          },
+          {
+            "holder": "auditRecord",
+            "field": "changes",
+            "freeText": true,
+            "required": true,
+            "present": null,
+            "mirrors": "the fields of whatever record changed"
+          }
+        ]
+      }
+    }
+  ]
+}

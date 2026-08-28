@@ -401,7 +401,20 @@
           "type": "string"
         },
         "address": {
-          "type": "object"
+          "$comment": "The recommended postal shape, declared so an inventory can name it and an application can agree with the next one — NOT closed. `additionalProperties` stays open on purpose: books written before this shape existed may carry any key, and a schema that rejected them would make an export of lawful data invalid, which is a worse outcome than an undeclared key. `personalDataDescription.addressKeys` reports what a tenant actually holds, which is the question a declaration alone cannot answer. Deliberately no street/houseNumber split: it does not survive contact with addresses outside the German-speaking world, and `line1`/`line2` do.",
+          "type": "object",
+          "properties": {
+            "line1": { "type": "string" },
+            "line2": { "type": "string" },
+            "postalCode": { "type": "string" },
+            "city": { "type": "string" },
+            "region": { "type": "string" },
+            "country": {
+              "$comment": "ISO 3166-1 alpha-2, uppercase — the same two letters the tax codes already speak.",
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            }
+          }
         },
         "paymentTermsDays": {
           "type": "integer",

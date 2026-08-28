@@ -44,6 +44,7 @@ final class TenantOperationsContractTest extends TestCase
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
         'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
         'tenantConfiguration', 'unappropriatedResult',
+            'personalDataDescription',
     ];
 
     private function freshOps(): TenantOperations

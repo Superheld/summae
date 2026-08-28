@@ -8,6 +8,7 @@ import { AccountSheetProjection } from '../policies/projection/account-sheet.js'
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
+import { PersonalDataDescriptionProjection } from '../policies/projection/personal-data-description.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
 import { TenantConfigurationProjection } from '../policies/projection/tenant-configuration.js';
 import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized-entries.js';
@@ -197,6 +198,8 @@ export class TenantOperations {
         return new AuditLogProjection(tenant.audit).compute(params);
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
+      case 'personalDataDescription':
+        return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,

@@ -87,17 +87,21 @@ free text, so what actually lands in them is decided by the application, not by 
 
 ## 5. Records of processing (Art. 30)
 
-➖ today, and this is the row with the most interesting shape.
+✅ since 0.15.1, with one honest limit.
 
 Art. 30 asks a controller to describe categories of data subjects, categories of personal data,
-recipients and erasure periods. summae already answers the structurally identical question about
-*auditing*: `systemDescription` (`system-description-claims`, F-IO-007) publishes which object types
-are audited, which capabilities exist, and which pack is in force — machine-readable, generated, and
-guarded against drifting away from what the engine really does.
+recipients and erasure periods. summae answers the structurally identical question about *auditing*
+through `systemDescription` (`system-description-claims`, F-IO-007), and now answers it about people
+through **`personalDataDescription`** (`personal-data-description`, F-CORE-041): every field where
+operator-supplied free text can come to rest, how many records actually carry one, which address keys
+this tenant really uses, and how many distinct actors the trail knows.
 
-There is no equivalent for personal data. §1 of this document is that inventory written by hand,
-which means it is exactly as reliable as hand-written documentation ever is — the guard checks that
-the fields exist, not that the list is complete. Making it a projection is proposed in §7.
+**What it will not do is classify.** It reports that a field holds free text summae neither
+constrains nor interprets; it never reports that a field *is* personal data, because that answer is
+jurisdictional — a company identifier is personal data for a sole trader and not for a corporation.
+The payload says so in a `classification` field rather than leaving a reader to assume. §1 of this
+document is summae's own reading for the German/EU case, hand-written on purpose and machine-checked
+against the schema; the projection is the generated half an operator's own record can be built from.
 
 ---
 
@@ -131,8 +135,8 @@ Three consequences worth being explicit about:
 | # | Item | Kind | Why it is not done |
 |---|---|---|---|
 | 1 | ~~No erasure for a partner the books never referenced~~ | ✅ **closed 2026-08-28** | Built as `erasePartner` (F-CORE-040). **The scoping in this row was wrong in a way worth recording:** it proposed refusing when *any* record referenced the id, *audit records included* — and `createPartner` always writes one, so the operation could never have succeeded. The guard is bookkeeping references only (voucher, open item); the audit records about the partner are erased **with** it, because they carry the name and address in `changes` and leaving them standing moves the personal data rather than removing it. A single record replaces them, carrying `existed: true → false` and no personal payload — a shape the audit-trail contract test forced, since it requires every record to have a before/after diff, and an empty one would have been an exception where a truthful diff costs nothing. |
-| 2 | **`partner.address` accepts anything** | ⚠️ open | `{"type": "object"}` with no `properties`. The format cannot support data minimisation for a field whose contents it does not know, and the engine exports the object wholesale in `journalExport`. Declaring the address fields is a `format.schema.json` change and therefore append-only-relevant — it must be a format version, not a quiet tightening, because existing data may already hold keys the new schema would reject. |
-| 3 | **No Art. 30 building block** | ⚠️ open | §1 is a hand-written inventory. `systemDescription` shows the shape a generated one would take (§5). The interesting part is where it belongs on summae's own axis: *where* identifying fields sit is mechanism and jurisdiction-free, so it is substrate; *whether* a given field counts as personal data is answered differently by the GDPR and by the CCPA, so the classification is pack data. That split is the project's own litmus test, and it comes out clean — which is the argument that this belongs in summae rather than in every application separately. |
+| 2 | ~~`partner.address` accepts anything~~ | ✅ **closed 2026-08-28**, and not the way this row proposed | The recommended shape is declared — `line1`, `line2`, `postalCode`, `city`, `region`, `country` (ISO 3166-1 alpha-2). **`additionalProperties` stays open**, which is the correction: closing it would have made an export of lawful data invalid, because books written before the shape existed carry whatever they carry, and a schema that rejects them turns a privacy improvement into a data-loss event. So the declaration says what to *write*, and `personalDataDescription.addressKeys` says what is actually *there* — which is the half a declaration alone can never supply, and the half an inventory actually needs. No street/houseNumber split: it does not survive contact with addresses outside the German-speaking world. |
+| 3 | ~~No Art. 30 building block~~ | ✅ **closed 2026-08-28** | `personalDataDescription` (F-CORE-041), the counterpart to `systemDescription`: `fields[]` with holder, field, `freeText`, `required` and `present`; `addressKeys[]`; `counts`. The axis held — *where* identifying fields sit is mechanism and is what the projection reports, while *whether* a field counts as personal data is jurisdictional and is what it deliberately refuses to say, stating that refusal in a `classification` field so no reader mistakes an inventory for advice. It reports shape and never content, which is the constraint that kept it from becoming a convenient way to read everybody's data out. §1 of this document stays hand-written and stays schema-checked; the projection is the machine-readable answer for an operator's own record. |
 | 4 | **No single Art. 15 answer** | ⚠️ open | The sources all exist; the assembly does not (§2). Lower value than #1 and #3: an application that already reads four projections can join them, and the failure mode is an incomplete disclosure rather than an unlawful retention. |
 | 5 | Restriction of processing (Art. 18) has no mechanism | ➖ **deliberate for now** | `partner.status` is a commercial state on purpose and should not be overloaded into an access control — the same distinction the code already draws between `Partner.deactivate` (a state) and `Account.lock` (a control). A real restriction would need a gate in front of every read, which is a constraint-socket question, and that socket has one predicate today. |
 | 6 | Retention-period expiry | ➖ | summae holds no retention clock and will not: the periods are jurisdictional (§ 147 AO is six or ten years depending on the class of record) and the decision to erase is the controller's. The library's contribution is the entry date, which it already publishes. |
