@@ -4,6 +4,7 @@ export { Money } from './substrate/money.js';
 export { canonicalJson } from './substrate/canonical-json.js';
 export { type Clock, SystemClock, FixedClock } from './substrate/clock.js';
 export { Uuid } from './substrate/uuid.js';
+export { FORMAT_VERSION } from './substrate/format-version.js';
 export {
   type IdGenerator,
   UuidV7IdGenerator,

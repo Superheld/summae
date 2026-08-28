@@ -122,7 +122,7 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-034 the pack manifests were documented as products that do not exist | ✅ **RESOLVED 2026-08-27** — `manifest-de-complete.md` and `manifest-us-complete.md` described packs `de-complete`/`us-complete` at version 2026.1 bundling eight modules under ids that were renamed long ago, so a reader who copied from them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's defect in the half its guard did not reach: the guard checked modules, and the manifest documents sat beside them unchecked. Rewritten from the real manifests, `default` got the one it never had, and `PackDocsTest`/`pack-docs.test.ts` grew a fourth rule over manifest documents |
 | IMPL-035 both CLIs reported the version they had at 0.1.0 | ✅ **RESOLVED 2026-08-27** — `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP: frozen since the first release, wrong from the second, and not even equal to each other, which is the equivalence policy broken on the surface a user reads first. Nothing compared the constants to anything, because a version string is not behaviour — no fixture touches it and the suite stayed green through fifteen releases. Both now name the newest dated heading in `CHANGELOG.md`, asserted by `ReleaseVersionTest`/`release-version.test.ts`; the same anchor also holds `CorePackage::VERSION` (stale the same way), the three npm `version` fields and the three `branch-alias` values that RELEASING.md recorded as uncaught. The sharper half: they were not unguarded but guarded *wrongly* — `SmokeTest::testAllPackagesAutoload` pinned the literal `0.1.0-dev`, so a correct bump turned red a test about autoloading, and the drift was defended rather than caught |
 | IMPL-036 an existing table did not gain a nullable column | ✅ **RESOLVED 2026-08-28** — the documented upgrade path for a new persisted field was "add the column by hand", which is a step nobody performs on a library upgrade; `validFrom`/`validTo` would have broken the next insert against an existing store. Both schema installers now add a missing nullable column instead of assuming the table is current, with a named test each (`HydratorAndSchemaTest` / `hydrator-and-schema.test.ts`). Recorded here late: it was issued and fixed inside the F-CORE-045 work without a register entry of its own, which is the small version of the same drift IMPL-039 is about |
-| IMPL-037 the normative data-format document lags the format | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-037 the normative data-format document lags the format | ✅ **RESOLVED 2026-08-28** — and it had already drifted again while the finding was being written: the document said v0.8, the schema and both `FORMAT_VERSION` constants said 0.9. `DataFormatDocTest`/`data-format-doc.test.ts` now hold three narrow claims in both languages — title and `$id` line equal `FORMAT_VERSION`, no `## v0.x` missing between the oldest documented version and the current one, every `$defs` key named in the document. Writing 0.9 up exposed the second half: 0.3, 0.5 and 0.7 had never had a section either, and nine of 23 `$defs` keys appeared nowhere because the prose calls them something else. Both are now written, the second as an index from schema key to section |
 | IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-039 nothing holds `covers` and the requirement lists together | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 | IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
@@ -2303,3 +2303,71 @@ claims? `importMapping` already computes `gapWarnings`, so the machinery exists 
 (b) Should `balanceSheet`'s result position use the income-statement mapping instead of all
 non-balance-carrying accounts, so the two cannot drift apart? (b) changes numbers and needs a
 fixture. Documented, not changed.
+
+## IMPL-037 — the normative data-format document lags the format it defines — ✅ RESOLVED 2026-08-28
+
+**Found 2026-08-28** while writing the 0.8 section of `knowledge/50-spezifikation/datenformat.md`.
+The document's title said **v0.6**. The schema had been at **0.7** since the partner record gained a
+status, both engines shipped it, fixtures exercised it — and the document that calls itself normative
+described a format the product had left behind, for weeks, with the whole gate green.
+
+**Why this is a finding and not a typo I already fixed.** The instance is repaired (0.7 and 0.8 are
+both written up now). The *gap* is that nothing would have caught it and nothing would catch the
+next one. `format.schema.json`'s `$id` is held against `FORMAT_VERSION` by
+`format-version.test.ts` and its PHP twin, in both languages — so **code and schema cannot drift**.
+The prose that both of them are supposed to derive from is checked by nobody, which inverts the
+authority: the derived artefacts are guarded and the normative one is not.
+
+This is the same shape as the GoBD census row that described a `de` pack which had already moved
+(closed 2026-08-28 by making §15 a machine-checked table of the facts that document asserts). One
+folder over, the same defect class, no guard yet.
+
+**What would close it.** Not a full prose check — that is not achievable and not wanted. The
+narrow, checkable claims are enough:
+
+- the version in `datenformat.md`'s title and its `$id` line equal `FORMAT_VERSION`;
+- every version between the oldest documented and the current one has a `## v0.x` section, so a
+  release cannot skip its own write-up the way 0.7 did;
+- optionally, that every `$defs` key the schema declares is named somewhere in the document.
+
+A guard beside `GobdConformanceDocTest` / `gobd-conformance-doc.test.ts`, in both languages, because
+the rule about mirrored tests applies to guards too.
+
+**Built in the meantime: nothing**, deliberately — writing the guard is the fix, and it is small
+enough that starting it half-way would only hide the gap behind a test that checks the easy half.
+
+**Resolved the same day, and the fix found more than the finding described.**
+
+*The instance had already recurred.* The finding was written about 0.6-vs-0.7. By the time it was
+picked up, `format.schema.json` and both `FORMAT_VERSION` constants were on **0.9** (closed subtype
+repertoire, `accountUsageRules`, `appliesWhen`) and the document still said **0.8** — the same
+defect, one version on, in the days between writing the finding and reading it. That is the
+strongest argument the entry could have made for itself.
+
+*Three claims, mechanically checked, in both languages* (`DataFormatDocTest` /
+`data-format-doc.test.ts`, beside the GoBD and GDPR census guards):
+
+1. the version in the title **and** in the `Schema-Datei $id → **x.y**` line equals `FORMAT_VERSION`;
+2. between the oldest documented version and the current one, no `## v0.x` section is missing, and
+   the current one has its own;
+3. every `$defs` key the schema declares is named in the document.
+
+*What rule 2 exposed.* 0.7 was not the only skipped write-up — **0.3 and 0.5 had never had a
+section either**. Their content was there, as `###` subsections filed under v0.2, which is why
+nobody noticed: the document was complete about the *format* and silent about the *steps*. All four
+missing sections (0.3, 0.5, 0.7, 0.9) are written, the version blocks now run in ascending order
+(0.6 stood after 0.8), and the small steps deliberately get a short pointer section rather than a
+copy of the normative text.
+
+*What rule 3 exposed.* Nine of 23 `$defs` keys — `uuid`, `timestamp`, `entryLine`,
+`mappingPosition`, `manifest`, `auditRecord`, `constraintData`, `depreciationData`,
+`productionCostData` — did not appear in the document at all, because it describes them under
+*subject-matter* names (`entryLine` is "Position", `manifest` is "Export-Manifest") and the module
+`data` shapes only ever appear as a `kind`. A reader arriving from the schema could not find them.
+The rule is satisfied by an **index** (§ *Wo jeder `$defs`-Schlüssel spezifiziert ist*) rather than
+by scattering the keys into the prose, which would have been the way to satisfy a test instead of a
+reader.
+
+*What is deliberately not checked:* whether the prose is *right*. That is neither achievable nor
+wanted. The guard checks that the document knows which format it describes and leaves no step and no
+object unmentioned — the three things that were provably wrong.
