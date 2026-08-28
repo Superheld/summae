@@ -43,6 +43,35 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### The Node persistence suite caught up with the PHP one (IMPL-036)
+
+`implementations/node/CLAUDE.md` said the knex suite is the twin of `packages/laravel/tests` and
+that the two are to be kept in step. They were not, and the uneven part is the finding: the
+**hydrator and the schema installer had no Node tests at all** while having seven on the PHP side.
+That is the worst place for a gap to sit — the hydrator is where the *shared* data format is
+produced and consumed (PHP writes these documents, Node reads them, SF-15), and its defensive
+branches never fire on the happy path the conformance runner walks. A wrong default there does not
+crash; it silently drops data.
+
+`hydrator-and-schema.test.ts` closes it, named after its PHP twin on purpose so that "are these in
+step?" can be answered by listing both directories. Twelve cases: the money fallback, dimensions
+and tax tags surviving a line (including an incomplete dimension being dropped rather than guessed),
+the date half of a timestamp column, UTF-8 round-tripping unescaped, broken JSON refused instead of
+read as empty, the schema created and dropped and dropped again, and the account number unique per
+tenant rather than globally. Two more went into `adapter.test.ts`: `byId` refusing another tenant's
+row — checked for listings and writes but never for the single most likely call — and the stored
+JSON being the aggregate's own serialization rather than a shape the repository invented.
+
+Building it surfaced a real API gap: **PHP had `SchemaInstaller::drop` and Node had no way to drop
+the schema at all.** `dropSchema` now exists, idempotent, in reverse creation order.
+
+**A correction worth publishing, because the number was in a report.** This gap was first sized as
+"32 test methods against 15" by comparing PHP methods to a grep for `it(`. The real figures were 60
+against 76, and the first pair overstated it about fourfold: PHPUnit data providers turn one method
+into many cases, so counting across two frameworks measures the frameworks. Node is at 74 now.
+Counting was the wrong instrument; *which modules have no test at all* was the right one, and it is
+what found the hydrator.
+
 ### Added: `erasePartner` — the one place summae was doing something wrong (F-CORE-040)
 
 The GDPR census listed three open rows; this closes the first, and it is the only one where summae

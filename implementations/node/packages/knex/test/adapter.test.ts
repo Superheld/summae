@@ -16,7 +16,7 @@ import {
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DatabaseTenantFactory } from '../src/database-tenant-factory.js';
 import { DatabaseTenantRecordRepository, listTenants } from '../src/repositories.js';
-import { installSchema } from '../src/schema-installer.js';
+import { installSchema, TABLE_PREFIX } from '../src/schema-installer.js';
 import { SyncDb } from '../src/sync-db.js';
 
 /**
@@ -137,6 +137,39 @@ describe('adapter round-trip', () => {
     expect(item?.remaining().amountAsString()).toBe('690.00');
     expect(item?.status()).toBe('partially_settled');
     expect(item?.settlements()[0]?.cause).toBe('payment');
+  });
+
+  /**
+   * IMPL-036, twin of PHP's `testTheStoredJsonIsTheAggregatesOwnSerialization`.
+   *
+   * The shared data format lives in these columns — PHP writes them, Node reads them (SF-15). If a
+   * repository ever encoded a shape of its own instead of the aggregate's, the cross-test would
+   * only notice for the fields it happens to compare, and the ones it does not would drift silently
+   * in a format whose whole point is that both engines agree on it.
+   */
+  it('stores the aggregate own serialization, not a shape of the repository', () => {
+    const writer = tenantOn(TENANT_A);
+    const ids = writeBooks(writer, 'A', '8400');
+    const reader = tenantOn(TENANT_A);
+
+    const column = (table: string, id: string, field: string): unknown => {
+      const row = db.first(db.table(`${TABLE_PREFIX}${table}`).where('id', id));
+      return JSON.parse(String((row as Record<string, unknown>)[field]));
+    };
+
+    const voucher = reader.vouchers.byId(Uuid.fromString(ids.voucherId));
+    expect(voucher).not.toBeNull();
+    expect(column('vouchers', ids.voucherId, 'payload')).toEqual(voucher!.toJSON());
+
+    const partner = reader.partners.byId(Uuid.fromString(ids.partnerId));
+    expect(partner).not.toBeNull();
+    expect(column('partners', ids.partnerId, 'payload')).toEqual(partner!.toJSON());
+
+    const item = reader.openItems.byId(Uuid.fromString(ids.openItemId));
+    expect(item).not.toBeNull();
+    expect(column('open_items', ids.openItemId, 'settlements')).toEqual(
+      item!.settlements().map((settlement) => settlement.toJSON()),
+    );
   });
 });
 
@@ -271,6 +304,25 @@ describe('tenant scoping', () => {
 
     expect(a.openItems.byOriginEntry(Uuid.fromString(idsA.entryId))).toHaveLength(1);
     expect(a.openItems.byOriginEntry(Uuid.fromString(idsB.entryId))).toEqual([]);
+  });
+
+  /**
+   * IMPL-036, twin of PHP's `testByIdRefusesAnotherTenantsRow`. This side checked that *listings*
+   * do not leak and that a *write* cannot cross, but not the single most likely call: asking for
+   * one row by an id you were handed. A repository that forgets the tenant clause there hands out
+   * another company's books to anybody who learns an id.
+   */
+  it('refuses another tenant row on a direct byId', () => {
+    const a = tenantOn(TENANT_A);
+    const idsA = writeBooks(a, 'A', '8400');
+    const b = tenantOn(TENANT_B);
+    const idsB = writeBooks(b, 'B', '8500');
+
+    expect(a.journal.byId(Uuid.fromString(idsA.entryId)), 'own row must be found').not.toBeNull();
+    expect(a.journal.byId(Uuid.fromString(idsB.entryId))).toBeNull();
+    expect(a.vouchers.byId(Uuid.fromString(idsB.voucherId))).toBeNull();
+    expect(a.partners.byId(Uuid.fromString(idsB.partnerId))).toBeNull();
+    expect(a.openItems.byId(Uuid.fromString(idsB.openItemId))).toBeNull();
   });
 
   it('cannot write over another tenant’s row', () => {
