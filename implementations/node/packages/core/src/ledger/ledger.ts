@@ -163,6 +163,10 @@ export class Ledger {
     const entryDate = parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
 
+    // 4b. The accounts' validity window, which can only be judged once the date is known —
+    // deliberately AFTER the period check, so no input that is refused today changes its code.
+    this.assertAccountsValidOn(lines, entryDate);
+
     const text = asString(input.text) ?? '';
 
     const entry = new JournalEntry(
@@ -271,6 +275,10 @@ export class Ledger {
       });
       const lines = this.resolveLines(parsed);
       this.assertBalanced(lines);
+      // The corrected entry keeps its own date, so that is the date the window is judged against —
+      // a correction must not be able to move a posting onto an account that was not open for
+      // business when the posting happened.
+      this.assertAccountsValidOn(lines, entry.entryDate);
 
       changes.lines = {
         from: entry.lines().map((line) => line.toJSON()),
@@ -551,6 +559,31 @@ export class Ledger {
     // line, which is why it could not have been a second rule inside the dimension registry.
     this.combinations.validateEntry(lines.map((line) => line.account));
     return lines;
+  }
+
+  /**
+   * An account may be posted to only inside its validity window (F-CORE-045).
+   *
+   * Judged against the ENTRY DATE, not against today: that is the whole difference from a lock. An
+   * account retired at a year end keeps taking a late correction for December and refuses January,
+   * which is what retiring an account actually means; a lock would refuse both.
+   */
+  private assertAccountsValidOn(lines: EntryLine[], entryDate: CalendarDate): void {
+    for (const line of lines) {
+      const account = this.accounts.byId(line.accountId);
+      if (account === null || account.isValidOn(entryDate)) continue;
+
+      throw new DomainError(
+        'E_ACCOUNT_NOT_VALID_AT_DATE',
+        `Account ${account.number.value} may not be posted to on ${entryDate.iso}`,
+        {
+          number: account.number.value,
+          entryDate: entryDate.iso,
+          validFrom: account.validFrom?.iso ?? null,
+          validTo: account.validTo?.iso ?? null,
+        },
+      );
+    }
   }
 
   private assertBalanced(lines: EntryLine[]): void {

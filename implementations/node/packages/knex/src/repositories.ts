@@ -81,6 +81,8 @@ export class DatabaseAccountRepository implements AccountRepository {
         type: account.type,
         subtype: account.subtype,
         status: account.status(),
+        valid_from: account.validFrom?.iso ?? null,
+        valid_to: account.validTo?.iso ?? null,
       }),
     );
   }
@@ -113,6 +115,8 @@ export class DatabaseAccountRepository implements AccountRepository {
       str(row, 'type') as AccountType,
       strOrNull(row, 'subtype'),
       str(row, 'status') as AccountStatus,
+      H.date(row.valid_from),
+      H.date(row.valid_to),
     );
   }
 

@@ -249,6 +249,8 @@ final class OperationParameters
             'type' => [ 'type' => 'string', 'required' => true ],
             'subtype' => [ 'type' => 'string' ],
             'status' => [ 'type' => 'string' ],
+            'validFrom' => [ 'type' => 'date' ],
+            'validTo' => [ 'type' => 'date' ],
             'actor' => [ 'type' => 'string' ],
         ],
         'lockAccount' => [
@@ -271,6 +273,8 @@ final class OperationParameters
                         'type' => [ 'type' => 'string' ],
                         'subtype' => [ 'type' => 'string' ],
                         'status' => [ 'type' => 'string' ],
+                        'validFrom' => [ 'type' => 'date' ],
+                        'validTo' => [ 'type' => 'date' ],
                     ],
                 ],
             ],

@@ -989,8 +989,25 @@ same posting count against the same budget.
 
 `number` (yes), `name` (yes), `type` (yes:
 asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
-`active`/`locked`). Output: serialized account. Errors:
-`E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
+`active`/`locked`), `validFrom` (no, date), `validTo` (no, date). Output: serialized account.
+Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `validTo` before
+its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
+would be created dead).
+
+**`validFrom`/`validTo` are the window in which the account may be posted to**, and both are
+unbounded when absent, which is what almost every account will be. It is **not** a lock, and the
+difference is why both exist: `lockAccount` is unconditional and about *now*, so it refuses even a
+late correction dated before the lock — exactly wrong for an account you are retiring at a year
+end. The window is judged against the **posting's own date**, so an account valid to `2026-12-31`
+keeps accepting a December correction booked in February and refuses January. A posting outside the
+window is `E_ACCOUNT_NOT_VALID_AT_DATE`, with `number`, `entryDate` and both bounds in `details`.
+
+**Writes only, never reads.** An account outside its window still appears in every report that has
+postings on it, and carries its balance forward like any other — the history happened. Setting a
+window is master data and changes nothing about postings that already exist; it decides what may be
+booked from now on. [`accounts`](#accounts--the-chart-of-accounts) reports both bounds, so a screen
+can grey out what the chosen date does not allow instead of letting the user post and translating
+an error code afterwards.
 
 #### defineDimensionType / defineDimensionValue
 
@@ -1016,8 +1033,9 @@ cost-accounting operation.
 #### importChartOfAccounts
 
 Atomic chart-of-accounts import: validate everything first, then create. `rows`
-(yes, non-empty; each row carries `number`, `name`, `type`, `subtype` and `status` — the same
-fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in the core). Output: `{ "importedCount": <int> }`. Errors:
+(yes, non-empty; each row carries `number`, `name`, `type`, `subtype`, `status`, `validFrom` and
+`validTo` — the same fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in
+the core). Output: `{ "importedCount": <int> }`. Errors:
 `E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
 batch).
 
@@ -1828,9 +1846,9 @@ error.
 
 ### accounts — the chart of accounts
 
-No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`
-and `status`, ordered by account number. Nothing else — no balances (that is
-`trialBalance`), no movements (`accountSheet`), no hashes.
+No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`,
+`status`, `validFrom` and `validTo`, ordered by account number. Nothing else — no balances (that
+is `trialBalance`), no movements (`accountSheet`), no hashes.
 
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
@@ -1840,11 +1858,17 @@ pack is the chart the tenant *started* from, and one `createAccount` later it is
 a guess. **`status`** is the read side of `lockAccount`; a locked account stays
 in the list, because it is still part of the chart and merely refuses postings.
 
+**`validFrom`/`validTo`** are the window in which the account may be posted to (both `null` for
+almost every account). They are the read side of the same field on
+[`createAccount`](#createaccount), and unlike `status` they depend on a **date**: an account is
+usable for one posting and not for another, so a picker has to be filtered against the date the
+user chose, not against the account alone.
+
 ```json
 // params {}
 { "accounts": [
-  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active" },
-  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked" } ] }
+  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active", "validFrom": null, "validTo": null },
+  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked", "validFrom": null, "validTo": null } ] }
 ```
 
 ### fiscalYears — fiscal years and period status

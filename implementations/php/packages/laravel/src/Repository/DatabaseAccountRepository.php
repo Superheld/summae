@@ -12,6 +12,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
+use Summae\Laravel\Repository\Hydrator;
 
 final readonly class DatabaseAccountRepository implements AccountRepository
 {
@@ -31,6 +32,8 @@ final readonly class DatabaseAccountRepository implements AccountRepository
             'type' => $account->type->value,
             'subtype' => $account->subtype,
             'status' => $account->status()->value,
+            'valid_from' => $account->validFrom?->iso,
+            'valid_to' => $account->validTo?->iso,
         ]);
     }
 
@@ -78,7 +81,7 @@ final readonly class DatabaseAccountRepository implements AccountRepository
 
     private function hydrate(object $row): Account
     {
-        /** @var object{id: string, number: string, name: string, type: string, subtype: ?string, status: string} $row */
+        /** @var object{id: string, number: string, name: string, type: string, subtype: ?string, status: string, valid_from?: mixed, valid_to?: mixed} $row */
         return new Account(
             Uuid::fromString($row->id),
             AccountNumber::of($row->number),
@@ -86,6 +89,8 @@ final readonly class DatabaseAccountRepository implements AccountRepository
             AccountType::from($row->type),
             $row->subtype,
             AccountStatus::from($row->status),
+            Hydrator::date($row->valid_from ?? null),
+            Hydrator::date($row->valid_to ?? null),
         );
     }
 

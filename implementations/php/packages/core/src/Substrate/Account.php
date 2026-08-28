@@ -20,7 +20,34 @@ final class Account implements \JsonSerializable
         public readonly AccountType $type,
         public readonly ?string $subtype,
         private AccountStatus $status = AccountStatus::Active,
+        /**
+         * The window in which the account may be POSTED to (F-CORE-045). `null` on either side
+         * means unbounded, which is what every account had before the window existed and what
+         * almost every account will keep.
+         *
+         * **Not the same thing as a lock, and that is why both exist.** A lock is unconditional and
+         * about now: it stops every posting, including a correction dated before the lock, which is
+         * exactly wrong for an account being retired at a year end. A window is about the posting's
+         * own date, so an account valid to 2026-12-31 keeps accepting a late correction for
+         * December and refuses January.
+         */
+        public readonly ?CalendarDate $validFrom = null,
+        public readonly ?CalendarDate $validTo = null,
     ) {
+    }
+
+    /**
+     * Writes only, and never reads: an account outside its window still appears in every report
+     * that has postings on it, because the history happened. A window that hid past figures would
+     * be a way to make the books say less than the journal does.
+     */
+    public function isValidOn(CalendarDate $date): bool
+    {
+        if ($this->validFrom !== null && $date->isBefore($this->validFrom)) {
+            return false;
+        }
+
+        return !($this->validTo !== null && $date->isAfter($this->validTo));
     }
 
     public function status(): AccountStatus
@@ -70,6 +97,8 @@ final class Account implements \JsonSerializable
             'type' => $this->type->value,
             'subtype' => $this->subtype,
             'status' => $this->status->value,
+            'validFrom' => $this->validFrom?->iso,
+            'validTo' => $this->validTo?->iso,
         ];
     }
 }

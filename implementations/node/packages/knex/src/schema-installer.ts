@@ -21,6 +21,11 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
       t.string('type', 16);
       t.string('subtype', 32).nullable();
       t.string('status', 16).defaultTo('active');
+      // F-CORE-045: the window in which the account may be POSTED to. Both nullable, both unbounded
+      // by default — every account that existed before the window did keeps behaving exactly as it
+      // did.
+      t.date('valid_from').nullable();
+      t.date('valid_to').nullable();
       t.unique(['tenant_id', 'number']);
     },
   },
@@ -158,16 +163,37 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
  *
  * What that covers and what it does not is worth stating plainly, because the honest limit is the
  * reason this shape was chosen over a migration runner: it covers **additive** changes — a new
- * table, and by hand a new nullable column — and nothing else. A column that changes its type or a
- * table that has to be rewritten still needs a real migration, which neither language has. Until
- * one exists, a change of that kind means recreating the workspace, and saying so out loud is
- * better than a runner that only looks like one.
+ * table, and since 2026-08-28 a new **nullable column** on a table that already exists
+ * (`ADDED_COLUMNS`) — and nothing else. A column that changes its type or a table that has to be
+ * rewritten still needs a real migration, which neither language has. Until one exists, a change of
+ * that kind means recreating the workspace, and saying so out loud is better than a runner that
+ * only looks like one.
+ *
+ * The column half used to read "by hand", and the first change that needed it showed why that was
+ * not good enough: an existing workspace kept the old table and failed on the next insert with an
+ * unknown column, which is a loud failure but one nobody could fix from inside summae.
  */
+const ADDED_COLUMNS: ReadonlyArray<{
+  table: string;
+  column: string;
+  define: (t: Knex.TableBuilder) => void;
+}> = [
+  // F-CORE-045, the validity window. Twin of PHP's `SchemaInstaller::ensureColumn` calls.
+  { table: 'accounts', column: 'valid_from', define: (t) => void t.date('valid_from').nullable() },
+  { table: 'accounts', column: 'valid_to', define: (t) => void t.date('valid_to').nullable() },
+];
+
 export function installSchema(db: SyncDb): void {
   for (const table of TABLES) {
     const name = `${TABLE_PREFIX}${table.name}`;
     if (db.hasTable(name)) continue;
     db.schema((schema) => schema.createTable(name, table.define));
+  }
+
+  for (const added of ADDED_COLUMNS) {
+    const name = `${TABLE_PREFIX}${added.table}`;
+    if (!db.hasTable(name) || db.hasColumn(name, added.column)) continue;
+    db.schema((schema) => schema.alterTable(name, added.define));
   }
 }
 

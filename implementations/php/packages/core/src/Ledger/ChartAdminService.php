@@ -12,6 +12,7 @@ use Summae\Core\Substrate\Account;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\AccountStatus;
 use Summae\Core\Substrate\AccountType;
+use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\Uuid;
 
@@ -130,6 +131,16 @@ final readonly class ChartAdminService
 
         if ($account->subtype !== null) {
             $changes['subtype'] = ['from' => null, 'to' => $account->subtype];
+        }
+
+        // Only when set, like `subtype`: a window is the exception, and a trail that records two
+        // nulls on every account creation says nothing while costing every reader a line.
+        if ($account->validFrom !== null) {
+            $changes['validFrom'] = ['from' => null, 'to' => $account->validFrom->iso];
+        }
+
+        if ($account->validTo !== null) {
+            $changes['validTo'] = ['from' => null, 'to' => $account->validTo->iso];
         }
 
         return $changes;
@@ -266,6 +277,28 @@ final readonly class ChartAdminService
             ? AccountStatus::Locked
             : AccountStatus::Active;
 
-        return new Account($this->ids->next(), AccountNumber::of($number), $name, $type, $subtype, $status);
+        $validFrom = is_string($input['validFrom'] ?? null) ? CalendarDate::of($input['validFrom']) : null;
+        $validTo = is_string($input['validTo'] ?? null) ? CalendarDate::of($input['validTo']) : null;
+        if ($validFrom !== null && $validTo !== null && $validTo->isBefore($validFrom)) {
+            // A window that closes before it opens accepts no posting at all, so the account would
+            // be created dead and every later refusal would name the date rather than the cause.
+            throw new DomainError('E_INPUT_INVALID', sprintf(
+                'Account %s: validTo %s lies before validFrom %s',
+                $number,
+                $validTo->iso,
+                $validFrom->iso,
+            ), ['number' => $number, 'validFrom' => $validFrom->iso, 'validTo' => $validTo->iso]);
+        }
+
+        return new Account(
+            $this->ids->next(),
+            AccountNumber::of($number),
+            $name,
+            $type,
+            $subtype,
+            $status,
+            $validFrom,
+            $validTo,
+        );
     }
 }

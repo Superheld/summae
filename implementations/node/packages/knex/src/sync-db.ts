@@ -42,6 +42,20 @@ export class SyncDb {
     return row !== undefined;
   }
 
+  /**
+   * Does the table already have this column?
+   *
+   * Same reason as `hasTable`: Knex' own is a Promise. It is what makes an ADDITIVE column change
+   * reach a workspace that already exists — before it, `installSchema` only ever created missing
+   * tables, so an upgraded library met an old table and failed on the next insert.
+   */
+  hasColumn(table: string, column: string): boolean {
+    const rows = this.db.prepare(`PRAGMA table_info(${JSON.stringify(table)})`).all() as Array<{
+      name?: unknown;
+    }>;
+    return rows.some((row) => row.name === column);
+  }
+
   /** Run DDL (schema can produce several statements) synchronously. */
   schema(build: (s: Knex.SchemaBuilder) => Knex.SchemaBuilder): void {
     for (const stmt of build(this.knex.schema).toSQL()) {

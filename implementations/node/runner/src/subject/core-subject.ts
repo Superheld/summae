@@ -303,7 +303,18 @@ export class CoreSubject implements Subject {
     }
     const subtype = asString(data.subtype);
     const status = data.status === 'locked' ? 'locked' : 'active';
-    return new Account(tenant.ids.next(), AccountNumber.of(number), name, type, subtype, status);
+    const rawFrom = asString(data.validFrom);
+    const rawTo = asString(data.validTo);
+    return new Account(
+      tenant.ids.next(),
+      AccountNumber.of(number),
+      name,
+      type,
+      subtype,
+      status,
+      rawFrom === null ? null : CalendarDate.of(rawFrom),
+      rawTo === null ? null : CalendarDate.of(rawTo),
+    );
   }
 
   private buildFiscalYear(tenant: Tenant, data: Record<string, unknown>): FiscalYear {

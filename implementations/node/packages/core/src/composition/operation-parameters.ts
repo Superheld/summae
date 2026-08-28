@@ -241,6 +241,8 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     type: { type: 'string', required: true },
     subtype: { type: 'string' },
     status: { type: 'string' },
+    validFrom: { type: 'date' },
+    validTo: { type: 'date' },
     actor: { type: 'string' },
   },
   lockAccount: {
@@ -263,6 +265,8 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
           type: { type: 'string' },
           subtype: { type: 'string' },
           status: { type: 'string' },
+          validFrom: { type: 'date' },
+          validTo: { type: 'date' },
         },
       },
     },
