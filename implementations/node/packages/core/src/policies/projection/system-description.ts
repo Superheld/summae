@@ -40,7 +40,7 @@ import type { Uuid } from '../../substrate/uuid.js';
 export const API_OPERATIONS = [
    'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
    'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
-   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
+   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
    'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile', 'settle',
@@ -131,7 +131,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'voucher', actions: ['created'] },
   { objectType: 'account', actions: ['created', 'locked', 'unlocked'] },
   { objectType: 'openItem', actions: ['settled', 'cancelled'] },
-  { objectType: 'partner', actions: ['created', 'updated', 'deactivated', 'reactivated'] },
+  { objectType: 'partner', actions: ['created', 'updated', 'deactivated', 'reactivated', 'erased'] },
   { objectType: 'fiscalYear', actions: ['created', 'closed'] },
   { objectType: 'period', actions: ['closed', 'reopened'] },
   { objectType: 'taxProfile', actions: ['changed'] },

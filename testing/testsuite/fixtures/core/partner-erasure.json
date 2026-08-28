@@ -1,0 +1,164 @@
+{
+  "fixture": "partner-erasure",
+  "description": "F-CORE-040: `erasePartner` removes a business partner and the trail's records about it — the Art. 17 GDPR case, and the answer to a sentence in `partner-status` that said there is no deletePartner and should not be. That sentence was right about the partner the books reference and wrong about every other one. The retention duty (§ 147 AO / § 257 HGB) defeats the right to erasure via Art. 17(3)(b) GDPR for records the books carry — and defeats nothing at all for a partner created by a typo that no voucher and no open item ever named. Keeping that one forever was never a compliance decision, only a missing operation. TWO THINGS MAKE THIS MORE THAN A ROW DELETE. First, the guard: a voucher or an open item naming the partner refuses with E_PARTNER_IN_USE, and the refusal carries the counts, so an application can tell the data subject WHY rather than only no. Second, the audit trail: createPartner writes the name and address into `changes`, so erasing the partner while that record stands moves the personal data to the place nobody looks instead of removing it. The records ABOUT this partner go with it, and one new record takes their place — id, actor and moment, with `existed: true -> false` as its diff and no personal payload at all. The trail keeps the fact that an erasure happened, which is what an audit asks of it. This is the ONE hole in `append-only because no code path deletes`, and it is reachable from exactly this operation; nothing in the bookkeeping path can call it.",
+  "covers": [
+    "F-CORE-040",
+    "F-CORE-022"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Loeschrecht GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1400",
+        "name": "Forderungen",
+        "type": "asset",
+        "subtype": "ar"
+      },
+      {
+        "number": "8400",
+        "name": "Erloese",
+        "type": "revenue"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Vertipper GmbH",
+        "kind": "customer",
+        "vatId": "DE123456789"
+      },
+      "expect": {
+        "comment": "A partner nobody will ever trade with — created by mistake, and about to be the case the retention duty does not cover.",
+        "result": {
+          "id": "$P1",
+          "name": "Vertipper GmbH",
+          "kind": "customer",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "op": "createPartner",
+      "input": {
+        "name": "Echter Kunde AG",
+        "kind": "customer",
+        "accountNumbers": [
+          "1400"
+        ]
+      },
+      "expect": {
+        "result": {
+          "id": "$P2",
+          "name": "Echter Kunde AG"
+        }
+      }
+    },
+    {
+      "op": "createVoucher",
+      "input": {
+        "voucher": {
+          "voucherNumber": "RE-2026-001",
+          "voucherDate": "2026-03-01",
+          "partnerId": "$P2"
+        }
+      },
+      "expect": {
+        "comment": "The second partner now appears in the books. That is the only difference between the two, and it is the whole difference.",
+        "result": {
+          "id": "$V1"
+        }
+      }
+    },
+    {
+      "op": "erasePartner",
+      "input": {
+        "partnerId": "$P1",
+        "actor": "datenschutz@example.test"
+      },
+      "expect": {
+        "comment": "One creation record went; `erasedAuditRecords` reports it rather than leaving the caller to guess what the operation reached.",
+        "result": {
+          "id": "$P1",
+          "erasedAuditRecords": 1
+        }
+      }
+    },
+    {
+      "op": "erasePartner",
+      "input": {
+        "partnerId": "$P2"
+      },
+      "expect": {
+        "error": "E_PARTNER_IN_USE",
+        "comment": "The partner exists and is kept on purpose — deliberately NOT E_PARTNER_UNKNOWN. The refusal's `details` carry the counts (vouchers/openItems) so an application can answer the data subject with a reason rather than a bare no; the counts are asserted in the per-language unit tests, which is where a fixture cannot reach."
+      }
+    },
+    {
+      "op": "updatePartner",
+      "input": {
+        "partnerId": "$P1",
+        "name": "Wiedergaenger GmbH"
+      },
+      "expect": {
+        "error": "E_PARTNER_UNKNOWN",
+        "comment": "Erased means gone, not hidden: the id no longer resolves, and every operation taking a partnerId says so with the code an unknown id has always produced."
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "auditLog",
+      "params": {
+        "objectType": "partner",
+        "objectId": "$P1"
+      },
+      "expect": {
+        "comment": "What remains about the erased partner is one record, and it is the erasure itself: actor, moment, and a diff about existence rather than about a person. createPartner's record — which carried the name and the VAT id in `changes` — is gone, which is the half a row delete would have missed.",
+        "count": 1,
+        "records": [
+          {
+            "objectType": "partner",
+            "objectId": "$P1",
+            "action": "erased",
+            "actor": "datenschutz@example.test",
+            "changes": {
+              "existed": {
+                "from": true,
+                "to": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "auditLog",
+      "params": {
+        "objectType": "partner",
+        "objectId": "$P2"
+      },
+      "expect": {
+        "comment": "The partner the books reference is untouched, trail and all — the refusal changed nothing.",
+        "count": 1
+      }
+    }
+  ]
+}

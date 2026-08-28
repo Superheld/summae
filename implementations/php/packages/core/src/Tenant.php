@@ -178,7 +178,7 @@ final readonly class Tenant
             $auditWriter,
             $configStore,
         );
-        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts);
+        $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts, $vouchers, $openItems);
         $legalForms = new LegalFormRegistry();
         $entityProfile = new EntityProfileService($legalForms, $auditWriter, $tenantId, $configStore);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);

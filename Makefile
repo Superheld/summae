@@ -12,7 +12,11 @@ NODE    = cd implementations/node &&
 fixtures:     ## Conformance fixtures against the core (fast, while developing)
 	$(PHP) php runner/bin/run-fixtures.php
 
-fixtures-strict: ## The same fixtures, but a newly green one without an entry is an error
+fixtures-strict: ## The same fixtures, plus the byte-identical double run (determinism)
+	# `--strict` means: every fixture green AND the whole suite run twice with byte-identical
+	# output. It does NOT check that a new fixture was added to runner/expected-green.txt — that
+	# list is a regression guard consumed by the conformance unit test, and nothing fails when a
+	# new fixture is missing from it. The comment here used to claim otherwise.
 	$(PHP) php runner/bin/run-fixtures.php --strict
 
 fixtures-db:  ## The same fixtures against the DATABASE adapter (SQLite)

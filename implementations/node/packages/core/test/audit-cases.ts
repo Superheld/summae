@@ -358,6 +358,18 @@ const AUDITED: readonly Case[] = [
       ops.execute('reactivatePartner', { partnerId: String(partner.id) });
     },
   },
+  {
+    // The one operation whose audit record is what SURVIVES it: `erased` names the id, the actor
+    // and the moment, and the records it replaced — including createPartner's, which held the
+    // name — are gone. See PartnerService.erase.
+    op: 'erasePartner',
+    objectType: 'partner',
+    action: 'erased',
+    run: (ops) => {
+      const partner = ops.execute('createPartner', { name: 'Kunde AG', kind: 'customer' }) as Record<string, unknown>;
+      ops.execute('erasePartner', { partnerId: String(partner.id) });
+    },
+  },
   // --- vouchers, settlements, assets, costing ------------------------------
   {
     op: 'createVoucher',

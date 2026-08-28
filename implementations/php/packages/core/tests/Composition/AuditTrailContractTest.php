@@ -190,6 +190,10 @@ class AuditTrailContractTest extends TestCase
         yield 'updatePartner' => ['updatePartner', 'partner', 'updated'];
         yield 'deactivatePartner' => ['deactivatePartner', 'partner', 'deactivated'];
         yield 'reactivatePartner' => ['reactivatePartner', 'partner', 'reactivated'];
+        // The one operation whose audit record is what SURVIVES it: `erased` names the id, the
+        // actor and the moment, and the records it replaced — including createPartner's, which
+        // held the name — are gone. See PartnerService::erase.
+        yield 'erasePartner' => ['erasePartner', 'partner', 'erased'];
         // --- vouchers, settlements, assets, costing --------------------------
         yield 'createVoucher' => ['createVoucher', 'voucher', 'created'];
         yield 'postVoucher' => ['postVoucher', 'voucher', 'created'];
@@ -374,6 +378,13 @@ class AuditTrailContractTest extends TestCase
                 $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
                 self::assertIsString($partner['id'] ?? null);
                 $ops->execute('deactivatePartner', ['partnerId' => $partner['id']]);
+
+                return;
+            case 'erasePartner':
+                /** @var array<string, mixed> $partner */
+                $partner = $ops->execute('createPartner', ['name' => 'Kunde AG', 'kind' => 'customer']);
+                self::assertIsString($partner['id'] ?? null);
+                $ops->execute('erasePartner', ['partnerId' => $partner['id']]);
 
                 return;
             case 'reactivatePartner':
