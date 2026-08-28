@@ -132,6 +132,8 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_DIMENSION_INVALID` | unbekannter Typ/Code oder Pflichtdimension fehlt (Regelmodul) | edge-errors |
+| `E_COMBINATION_REQUIRED` | Die Buchung beruehrt ein Konto aus `whenAccountIn`, aber keines aus `requireAccountIn` (constraint-Modul, v0.15.1, F-CORE-042). `details`: `account`, `requiredFrom`, `requiredTo` | xx-8-constraint-account-combination |
+| `E_COMBINATION_FORBIDDEN` | Die Buchung beruehrt ein Konto aus `whenAccountIn` und eines aus `forbidAccountIn` (constraint-Modul, v0.15.1, F-CORE-042). `details`: `account`, `forbidden` | xx-8-constraint-account-combination |
 
 ## E_DEPRECIATION / E_COSTING
 

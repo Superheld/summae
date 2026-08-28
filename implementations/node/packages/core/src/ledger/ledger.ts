@@ -20,6 +20,7 @@ import { Uuid } from '../substrate/uuid.js';
 import type { Account } from '../substrate/account.js';
 import type { AuditChanges } from '../records/audit-record.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
+import { AccountCombinationRegistry } from '../policies/constraint/account-combination-registry.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { EntryLine } from '../substrate/entry-line.js';
 import type { FiscalYear } from '../substrate/fiscal-year.js';
@@ -92,6 +93,8 @@ export class Ledger {
     tenantId: Uuid | null = null,
     /** Passed straight through to the chart service, which is where dimensions are declared. */
     configStore: TenantConfigStore | null = null,
+    /** The constraint socket's second predicate (F-CORE-042), checked over the whole entry. */
+    private readonly combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ) {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
@@ -104,6 +107,11 @@ export class Ledger {
    * a posting will be measured by. Read-only access: declaring a type or a value goes through
    * `defineDimensionType`/`defineDimensionValue`, which audit and store the change.
    */
+  /** What `tenantConfiguration` reports, same reason as the dimension rules. */
+  combinationRegistry(): AccountCombinationRegistry {
+    return this.combinations;
+  }
+
   dimensionRegistry(): DimensionRegistry {
     return this.dimensions;
   }
@@ -539,6 +547,9 @@ export class Ledger {
     for (const line of lines) {
       this.dimensions.validateLine(line.account, line.dimensions);
     }
+    // Over the whole entry, after the per-line checks: a combination is not a property of any one
+    // line, which is why it could not have been a second rule inside the dimension registry.
+    this.combinations.validateEntry(lines.map((line) => line.account));
     return lines;
   }
 

@@ -72,6 +72,7 @@ export interface ResolvedPack {
   resultAppropriation: Record<string, unknown> | null;
   legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
+  accountCombinationRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
   contentDigest: string;
@@ -196,6 +197,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let resultAppropriation: Record<string, unknown> | null = null;
   let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
+  const accountCombinationRules: Record<string, unknown>[] = [];
   let packPolicyModule: Record<string, unknown> | null = null;
 
   for (const m of sorted) {
@@ -248,6 +250,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         // one silently winning would make the pack order significant.
         for (const rule of Array.isArray(m.data.dimensionRules) ? m.data.dimensionRules : []) {
           if (isRecord(rule)) dimensionRules.push(rule);
+        }
+        for (const rule of Array.isArray(m.data.accountCombinationRules) ? m.data.accountCombinationRules : []) {
+          if (isRecord(rule)) accountCombinationRules.push(rule);
         }
         break;
       case 'depreciation':
@@ -377,6 +382,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     resultAppropriation,
     legalForms,
     dimensionRules,
+    accountCombinationRules,
     packPolicy: effectivePolicy,
     profile,
   };
@@ -413,6 +419,7 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     legalForms: isRecord(pack.legalForms) ? pack.legalForms : null,
     // The first constraint plug: which accounts may not be posted without which dimension.
     dimensionRules: Array.isArray(pack.dimensionRules) ? pack.dimensionRules : [],
+    accountCombinationRules: Array.isArray(pack.accountCombinationRules) ? pack.accountCombinationRules : [],
     packPolicy: pack.packPolicy,
   };
 }

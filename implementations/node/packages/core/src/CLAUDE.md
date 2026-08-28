@@ -32,9 +32,10 @@ Real persistence (`knex`/`laravel`) are **own packages** outside of `core`; in
   - **`expansion/`** — intent → balanced postings (tax · assets · costing · settle difference · reverse)
   - **`projection/`** — journal → view (fold engines + mappings)
   - **`constraint/`** — predicate gates. Has a pack socket since 2026-08-23 (module kind `constraint`),
-    but exactly one predicate: `dimensionRules` (which accounts may not be posted without which
-    dimension). The shape is settled, the vocabulary is not — a pack still cannot express a rule about
-    a settlement or a deadline
+    two predicates since 2026-08-28: `dimensionRules` (which accounts may not be posted without
+    which dimension) and `accountCombinationRules` (which accounts must, or must not, meet in one
+    entry — F-CORE-042, the A-13 case). Both see one entry at most: no deadlines, no reach across
+    entries, no rule about a settlement, because `settle` posts nothing
 - **`composition/`** — resolver · factory · tenant · dispatcher (dependency inversion)
 - **`records/`** — vouchers/records (voucher · open-item · audit), **not** a policy kind
 - **`partner/`** — supporting subdomain (master data), **not** a policy kind
