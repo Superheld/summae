@@ -1,4 +1,3 @@
-import Big from 'big.js';
 import type { AuditWriter } from '../../../ledger/audit-writer.js';
 import type { TenantConfigStore } from '../../../composition/tenant-config-store.js';
 import { DomainError } from '../../../domain-error.js';
@@ -11,6 +10,7 @@ import type { Uuid } from '../../../substrate/uuid.js';
 import type { TaxCodeRegistry } from './tax-code-registry.js';
 import type { TaxCodeVersion } from './tax-code-version.js';
 import type { TaxProfile } from './tax-profile.js';
+import { splitByBase } from './tax-bases.js';
 import { mechanismFor } from './tax-mechanisms.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -194,22 +194,30 @@ export class TaxService {
     if (this.taxRoundingGranularity === 'perLine') {
       const taxLines: Array<Record<string, unknown>> = [];
       let grossTotal = netTotal;
+      // With an inclusive base the amount handed in is the gross, so the NET LINE moves too — the
+      // split is what the caller could not do themselves, and returning their gross as a net line
+      // would post the tax twice. Collected per line and used for the output below.
+      const netAmounts: Money[] = [];
       const lineTags = netLines.map((line) => {
         const version = versions.get(line.code)!;
-        const tag = this.tag(line.code, version, version.reportingKey, tagBase(line.money));
-        const tax = Money.fromCalculation(
-          new Big(line.money.amountAsString()).times(version.rate).div(100),
-          this.baseCurrency,
-        );
-        taxLines.push({ account: version.taxAccount, side: sideFor, money: tax.toJSON(), taxTag: tag });
-        grossTotal = grossTotal.add(tax);
+        const split = splitByBase(version.taxBase, line.money, version.rate, this.baseCurrency);
+        netAmounts.push(split.base);
+        const tag = this.tag(line.code, version, version.reportingKey, tagBase(split.base));
+        taxLines.push({ account: version.taxAccount, side: sideFor, money: split.tax.toJSON(), taxTag: tag });
+        grossTotal = grossTotal.add(split.tax);
         return tag;
       });
+      // An inclusive base already contained its tax, so the gross must not gain it a second time.
+      for (const [index, line] of netLines.entries()) {
+        if (versions.get(line.code)!.taxBase === 'inclusive') {
+          grossTotal = grossTotal.subtract(line.money).add(netAmounts[index]!);
+        }
+      }
       return {
         netLines: netLines.map((line, index) => ({
           account: line.account,
           side: sideFor,
-          money: line.money.toJSON(),
+          money: (netAmounts[index] ?? line.money).toJSON(),
           taxTag: lineTags[index] ?? null,
           dimensions: line.dimensions,
         })),
@@ -228,14 +236,13 @@ export class TaxService {
     const taxLines: Array<Record<string, unknown>> = [];
     let grossTotal = netTotal;
     const baseTags = new Map<string, Record<string, unknown>>();
+    const inclusiveNet = new Map<(typeof netLines)[number], Money>();
 
     for (const code of codes) {
       const version = versions.get(code)!;
-      const base = bases.get(code)!;
-      const tax = Money.fromCalculation(
-        new Big(base.amountAsString()).times(version.rate).div(100),
-        this.baseCurrency,
-      );
+      const split = splitByBase(version.taxBase, bases.get(code)!, version.rate, this.baseCurrency);
+      const base = split.base;
+      const tax = split.tax;
 
       const contribution = mechanismFor(version.mechanism).contribute({
         version,
@@ -247,13 +254,26 @@ export class TaxService {
       for (const line of contribution.taxLines) taxLines.push(line);
       baseTags.set(code, contribution.baseTag);
       grossTotal = grossTotal.add(contribution.grossDelta);
+
+      // With an inclusive base the group's amount was the gross, so the NET LINES have to shrink to
+      // the base — and by the shared rule, not by a second rounding. `allocate` distributes the
+      // group base over its lines by largest remainder weighted with the amounts they came in with,
+      // which is the same mechanism `allocate` the operation offers and the only one that
+      // guarantees the parts add up to the whole. A per-line recomputation would not: two lines
+      // each rounding half a cent up produce a group that is a cent too large.
+      if (version.taxBase === 'inclusive') {
+        const members = netLines.filter((line) => line.code === code);
+        const parts = base.allocate(...members.map((line) => line.money.amountAsString()));
+        members.forEach((line, index) => inclusiveNet.set(line, parts[index]!));
+        grossTotal = grossTotal.subtract(bases.get(code)!).add(base);
+      }
     }
 
     return {
       netLines: netLines.map((line) => ({
         account: line.account,
         side: sideFor,
-        money: line.money.toJSON(),
+        money: (inclusiveNet.get(line) ?? line.money).toJSON(),
         taxTag: baseTags.get(line.code) ?? null,
         dimensions: line.dimensions,
       })),

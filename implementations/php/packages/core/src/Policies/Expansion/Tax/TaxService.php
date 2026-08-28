@@ -194,13 +194,12 @@ final readonly class TaxService
             $resultNetLines = [];
             foreach ($netLines as $line) {
                 $version = $versions[$line['code']];
-                $tag = $this->tag($line['code'], $version, $version->reportingKey, $tagBase($line['money']));
-                $tax = Money::fromCalculation(
-                    BigDecimal::of($line['money']->amountAsString())
-                        ->multipliedBy(BigDecimal::of($version->rate))
-                        ->dividedBy(100, 10, \Brick\Math\RoundingMode::Unnecessary),
-                    $this->baseCurrency,
-                );
+                // With an inclusive base the amount handed in is the gross, so the NET LINE moves
+                // too — the split is what the caller could not do themselves, and returning their
+                // gross as a net line would post the tax twice.
+                $split = TaxBases::split($version->taxBase, $line['money'], $version->rate, $this->baseCurrency);
+                $tag = $this->tag($line['code'], $version, $version->reportingKey, $tagBase($split['base']));
+                $tax = $split['tax'];
                 $taxLines[] = [
                     'account' => $version->taxAccount,
                     'side' => $sideFor,
@@ -208,10 +207,14 @@ final readonly class TaxService
                     'taxTag' => $tag,
                 ];
                 $grossTotal = $grossTotal->add($tax);
+                // An inclusive base already contained its tax, so the gross must not gain it twice.
+                if ($version->taxBase === TaxBases::INCLUSIVE) {
+                    $grossTotal = $grossTotal->subtract($line['money'])->add($split['base']);
+                }
                 $resultNetLines[] = [
                     'account' => $line['account'],
                     'side' => $sideFor,
-                    'money' => $line['money']->jsonSerialize(),
+                    'money' => $split['base']->jsonSerialize(),
                     'taxTag' => $tag,
                     'dimensions' => $line['dimensions'],
                 ];
@@ -233,18 +236,18 @@ final readonly class TaxService
         $grossTotal = $netTotal;
         /** @var array<string, array<string, mixed>> $baseTags tag per code for the net lines */
         $baseTags = [];
+        /** @var array<int, Money> $inclusiveNet */
+        $inclusiveNet = [];
 
         foreach ($codes as $code) {
             $version = $versions[$code];
-            $base = $bases[$code];
 
-            // Per voucher per tax rate: compute once, round once (half-up).
-            $tax = Money::fromCalculation(
-                BigDecimal::of($base->amountAsString())
-                    ->multipliedBy(BigDecimal::of($version->rate))
-                    ->dividedBy(100, 10, \Brick\Math\RoundingMode::Unnecessary),
-                $this->baseCurrency,
-            );
+            // Per voucher per tax rate: compute once, round once (half-up). The split is the
+            // expansion's second seam (F-TAX-010) — for a net base it is the same arithmetic this
+            // line always did.
+            $split = TaxBases::split($version->taxBase, $bases[$code], $version->rate, $this->baseCurrency);
+            $base = $split['base'];
+            $tax = $split['tax'];
 
             $mainSide = $lineSide;
             $tag = fn (?string $reportingKey): array => $this->tag($code, $version, $reportingKey, $tagBase($base));
@@ -260,16 +263,40 @@ final readonly class TaxService
             }
             $baseTags[$code] = $contribution['baseTag'];
             $grossTotal = $grossTotal->add($contribution['grossDelta']);
+
+            // With an inclusive base the group's amount was the gross, so the NET LINES have to
+            // shrink to the base — and by the shared rule, not by a second rounding. allocate()
+            // distributes the group base over its lines by largest remainder weighted with the
+            // amounts they came in with, which is the only way the parts are guaranteed to add up
+            // to the whole: two lines each rounding half a cent up produce a group a cent too large.
+            if ($version->taxBase === TaxBases::INCLUSIVE) {
+                $weights = [];
+                foreach ($netLines as $index => $line) {
+                    if ($line['code'] === $code) {
+                        $weights[$index] = $line['money']->amountAsString();
+                    }
+                }
+                $parts = $base->allocate(...array_values($weights));
+                foreach (array_keys($weights) as $position => $index) {
+                    $inclusiveNet[$index] = $parts[$position];
+                }
+                $grossTotal = $grossTotal->subtract($bases[$code])->add($base);
+            }
+        }
+
+        $resultNetLines = [];
+        foreach ($netLines as $index => $line) {
+            $resultNetLines[] = [
+                'account' => $line['account'],
+                'side' => $lineSide,
+                'money' => ($inclusiveNet[$index] ?? $line['money'])->jsonSerialize(),
+                'taxTag' => $baseTags[$line['code']] ?? null,
+                'dimensions' => $line['dimensions'],
+            ];
         }
 
         return [
-            'netLines' => array_map(static fn (array $line): array => [
-                'account' => $line['account'],
-                'side' => $lineSide,
-                'money' => $line['money']->jsonSerialize(),
-                'taxTag' => $baseTags[$line['code']] ?? null,
-                'dimensions' => $line['dimensions'],
-            ], $netLines),
+            'netLines' => $resultNetLines,
             'taxLines' => $this->withoutZeroTaxLines($taxLines),
             'grossTotal' => $grossTotal->jsonSerialize(),
         ];
