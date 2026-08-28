@@ -158,3 +158,9 @@ export {
   type PackManifest,
   type ModuleRef,
 } from './composition/pack-resolver.js';
+
+// The two closed repertoires of the tax expansion. Exported because a document that names them —
+// `docs/gobd-conformance.md` §15 does — is making a checkable claim, and the PHP twins
+// (`TaxMechanisms::all()`, `TaxBases::all()`) have always been reachable. Symmetry, not new surface.
+export { allTaxMechanisms } from './policies/expansion/tax/tax-mechanisms.js';
+export { allTaxBaseKinds, type TaxBaseKind } from './policies/expansion/tax/tax-bases.js';

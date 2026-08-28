@@ -189,3 +189,4 @@ entity-profile-and-deadline
 de-resolution-deadline
 us-no-resolution-deadline
 default-pack-has-no-legal-forms
+de-entgeltminderung-erzwungen

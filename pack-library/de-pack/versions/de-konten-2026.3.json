@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.4",
+  "version": "2026.3",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -155,7 +155,7 @@
       },
       {
         "number": "4020",
-        "name": "Gewährte Skonti und Erlösschmälerungen (umsatzsteuerpflichtig)",
+        "name": "Gewährte Skonti und Erlösschmälerungen",
         "type": "revenue"
       },
       {
@@ -181,11 +181,6 @@
       {
         "number": "5000",
         "name": "Wareneinsatz und Fremdleistungen",
-        "type": "expense"
-      },
-      {
-        "number": "5010",
-        "name": "Erhaltene Skonti und Nachlässe (vorsteuerpflichtig)",
         "type": "expense"
       },
       {

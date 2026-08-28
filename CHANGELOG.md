@@ -12,6 +12,52 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.15.1 — unreleased
 
+### The `de` pack now enforces the VAT correction on a reduced consideration (A-13, `de@2026.8`)
+
+§ 17 Abs. 1 UStG says a reduced consideration corrects the tax owed, and sentence 2 says the input-tax
+deduction is corrected with it. summae could not hold either, and the gap sat on the embedding
+application's obligation list as **A-13**. `accountCombinationRules` gave it a shape three days ago;
+what was still missing is that **no shipped pack declared such a rule**, and a capability nobody
+ships is not a guarantee.
+
+What made this worth building is that the incomplete entry is otherwise flawless: it balances, it has
+a voucher, it is in the right period, and every account and the trial balance read correctly. The
+only wrong figure is the one that gets filed — the one place nobody checks twice.
+
+- `4020` (granted discount) must be met by an output-VAT account, `5010` by an input-VAT account,
+  else `E_COMBINATION_REQUIRED`. Fixture `pack/de-pack/de-entgeltminderung-erzwungen` proves both
+  refusals, both correct postings, and — the edge that matters — that a discount on a **tax-free**
+  intra-community supply still goes through untouched.
+- The chart gained `5010 Erhaltene Skonti und Nachlässe (vorsteuerpflichtig)`: the input side had no
+  reduction account at all, so there was nothing for the obligation to hang on. `4020` was renamed to
+  say that it is the *taxable* one. **Migration:** a tax-free reduction booked on `4020` is now
+  refused and belongs on the revenue or expense account it reduces. The predicate sees one entry and
+  can never ask whether the original sale carried tax, so the account name is what makes the question
+  answerable — which is also why German charts have kept discount accounts per rate all along.
+
+### Fixed: the pack format rejected a constraint module carrying only the second predicate
+
+`format.schema.json` required `dimensionRules`, so a module with only `accountCombinationRules` did
+not validate — an oversight from adding the second predicate. The first pack that needed exactly that
+found it on the first run. A module now carries **at least one** of the two.
+
+### The GoBD census stops being able to describe a product that moved
+
+`docs/gobd-conformance.md` claimed the `de` pack lacked codes for the intra-community acquisition and
+the exempt export. Both were built on 2026-08-23 — *hours after the row was written* — and the row
+went on saying otherwise through five days of green builds, because nothing compared prose to
+product.
+
+The rows stay prose on purpose; a census reduced to a machine-readable list stops being readable by
+whoever has to defend it. But the **facts quoted inside them** move into a table (§15) that
+`GobdConformanceDocTest` / `gobd-conformance-doc.test.ts` holds against its sources: each pack's
+shipped tax codes, the engine's registered mechanisms and tax-base kinds, and the account-combination
+rule behind the A-13 ✅. Writing the table found the first defect immediately — the `us` code is
+`SALETAX`, not `SALESTAX`.
+
+`allTaxMechanisms()` / `allTaxBaseKinds()` are exported from the core for this; the PHP twins were
+always reachable, so this is symmetry rather than new surface.
+
 ### Fixed: both CLIs reported the version they had at 0.1.0 (IMPL-035)
 
 `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP. Both literals were written at the

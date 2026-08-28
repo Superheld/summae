@@ -2,12 +2,12 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.8",
+  "version": "2026.7",
   "modules": [
     {
       "kind": "accounts",
       "id": "de-konten",
-      "version": "2026.4"
+      "version": "2026.3"
     },
     {
       "kind": "tax",
@@ -57,11 +57,6 @@
     {
       "kind": "legalForms",
       "id": "de-rechtsformen",
-      "version": "2026.1"
-    },
-    {
-      "kind": "constraint",
-      "id": "de-entgeltminderung",
       "version": "2026.1"
     }
   ],
