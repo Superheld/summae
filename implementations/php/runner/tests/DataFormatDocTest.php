@@ -63,7 +63,7 @@ final class DataFormatDocTest extends TestCase
 
         self::assertSame(
             FormatVersion::CURRENT,
-            $matches[1],
+            $matches[1] ?? '',
             'the normative document describes a format the product has left behind (IMPL-037)',
         );
     }
@@ -81,7 +81,7 @@ final class DataFormatDocTest extends TestCase
             'the opening note must name the schema version it describes',
         );
 
-        self::assertSame(FormatVersion::CURRENT, $matches[1]);
+        self::assertSame(FormatVersion::CURRENT, $matches[1] ?? '');
     }
 
     /**

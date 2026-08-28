@@ -125,7 +125,7 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-037 the normative data-format document lags the format | ✅ **RESOLVED 2026-08-28** — and it had already drifted again while the finding was being written: the document said v0.8, the schema and both `FORMAT_VERSION` constants said 0.9. `DataFormatDocTest`/`data-format-doc.test.ts` now hold three narrow claims in both languages — title and `$id` line equal `FORMAT_VERSION`, no `## v0.x` missing between the oldest documented version and the current one, every `$defs` key named in the document. Writing 0.9 up exposed the second half: 0.3, 0.5 and 0.7 had never had a section either, and nine of 23 `$defs` keys appeared nowhere because the prose calls them something else. Both are now written, the second as an index from schema key to section |
 | IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ✅ **RESOLVED 2026-08-28 — decided *complete*, and no supersession was needed.** The finding's blocker was wrong: `io/journal-export-z3-current` pins `fieldCatalogIncluded`, a boolean, not the rows, and `io/gdpdu-data-carrier` does not touch the catalogue at all — so the repair was purely additive and both fixtures still pass. The gap was also four times larger than the entry said: `voucherDate` missing on the posting, 2 of 12 voucher fields, 4 of 9 audit fields, and the whole `partners` stream undescribed. The catalogue now describes every field of exactly the streams the export carries — `partners` is conditional, so describing a stream that is not on the carrier is the same defect mirrored — and `FieldCatalogCompletenessTest`/`field-catalog-completeness.test.ts` hold it against a deliberately rich export in both directions and both languages |
 | IMPL-039 nothing holds `covers` and the requirement lists together | ✅ **RESOLVED 2026-08-28** — `CoversContractTest`/`covers-contract.test.ts` hold the two sets against each other in both directions and both languages, with two reasoned exception lists that are themselves guarded in reverse; an excuse naming substitute fixtures must name ones that exist and still run. `F-AST-007` was decided **not** to be merged into F-AST-002/005 — that would falsify the list to fit a string — and stands in the exception list with its four fixtures named. The guard found nothing new, which was the point: it is the drift *detector* that was missing, not the current instances. Its limit is written down where it will be read (root `CLAUDE.md`): it checks that an ID is declared, never that the fixture proves it (IMPL-043) |
-| IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ✅ **RESOLVED 2026-08-28** — built at the persistence boundary, where the catalogue always said it belonged ("Betrag im Bestand"), and it found a live defect on the way: both hydrators rebuilt the currency at its **ISO default** instead of the tenant's `currencyScale`, so a scale-3 tenant could not read its own books back (raw `InvalidValue` out of the adapter) and a scale-0 one had its amounts silently widened. Twelve thousand hydrations per suite run agreed with the wrong default because every fixture that re-hydrates money runs at scale 2 — exactly the "SF-15 passes because both runtimes agree" the entry named. Not a fixture: a store on the wrong scale cannot be produced by this engine, so the suite cannot build one. `AmountScaleTest`/`amount-scale.test.ts`, five cases each, both directions |
 | IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
 | IMPL-042 F-IO-008 (DATEV import) is not built | ✅ **DECIDED 2026-08-28 — deferred, with the blocker named and verifiable in the shipped pack.** The way back needs BU key → `taxCode`, and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu` at all, and `USt19`/`USt19WA` both carry `3`. The inverse is neither total nor unique, so an import would guess — and what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real batch to verify the format against; until then the way back is the app's, the same line CAMT and XRechnung already sit on |
 | IMPL-043 F-KLR-005 is covered by fixtures about the case it excludes | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
@@ -2520,3 +2520,50 @@ inclusion, in both directions: a new field on a record fails until it is describ
 field the export cannot carry fails until the test exercises it or the row goes. A fourth check
 refuses an empty `type` or `meaning`, which would satisfy completeness while telling a reader
 nothing.
+
+## IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is a catalogue code with nothing behind it — ✅ RESOLVED 2026-08-28
+
+**Where it belongs was the first thing to settle, and the catalogue had already said it.**
+`E_AMOUNT_SCALE_MISMATCH` judges "Betrag **im Bestand**" — an amount already in the store — and is
+described as a *Reader-/Writer-Prüfung*. The API-input side is taken: `core/post-malformed` pins
+`10.001` at scale 2 as `E_ENTRY_INVALID_AMOUNT`, and a fixture is append-only. The two do not
+overlap once the distinction is stated: one judges an amount a **caller offered**, the other an
+amount **somebody already wrote into the books**.
+
+**The defect underneath, which the finding did not know about.** Both hydrators built the currency
+from the stored ISO code with **no scale override**:
+
+```php
+Currency::of($data['currency'] ?? 'EUR')   // scale 2, always
+```
+
+So every amount came back on the ISO default regardless of the tenant's pack. At `currencyScale: 3`
+that made `"107.501"` *unrepresentable* and threw a raw `InvalidValue` out of the adapter — a
+tenant could not read its own books back. At scale 0 it silently widened `"1234"` to `"1234.00"`.
+Instrumenting a full database run counted **12,366** hydrations, every one of them EUR or USD at
+scale 2: the wrong default was never contradicted because no fixture that re-hydrates money runs at
+another scale. That is the finding's own sentence — *SF-15 passes because both runtimes agree, not
+because anything verifies the amounts* — turning out to be literally true of a live bug.
+
+**What was built**, mirrored in both languages:
+
+- the tenant's `Currency` is threaded into the four repositories that hydrate money (journal, open
+  items, costing runs, assets), so the reader knows the scale it is reading on;
+- `assertScale` raises `E_AMOUNT_SCALE_MISMATCH` when a stored amount does not carry **exactly**
+  the tenant's decimal places — mandatory zeros included, which is the half that would otherwise
+  pass silently: `"100.0"` is representable at scale 2 and would simply have been padded;
+- the writer runs through the same function at the one seam where an amount leaves as a bare string
+  rather than through a `Money` object (the open-item amount column). Everything else is serialised
+  by `Money`, canonical by construction — so this is **narrower than the finding assumed**, and it
+  is narrower for a reason: after the reader is fixed, a wrong-scale write can only come from an
+  amount reshaped by hand, and that is the one place it could be;
+- an **absent** amount keeps the documented zero fallback. A malformed document must not take the
+  process down mid-read, and "no amount at all" is not a claim anybody made about the books.
+
+**No fixture, and that is the finding corrected rather than dodged.** The entry asked for "one
+fixture per direction". A fixture drives the API, and the API cannot produce a store on the wrong
+scale — the engine writes canonically by construction. The situation the code exists for arrives
+from *outside*: another runtime, a restore, a hand edit. The tests therefore write the bad row
+straight into the column and read it back through a second tenant instance, which is what the
+adapter suites are for. `fehlerkatalog.md` and `abdeckung.md` now say that instead of listing it as
+the last real gap.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Laravel\Tests;
 
 use Summae\Core\Substrate\Side;
+use Summae\Core\Substrate\Currency;
 use Summae\Laravel\Repository\Hydrator;
 use Summae\Laravel\Schema\SchemaInstaller;
 
@@ -21,11 +22,11 @@ final class HydratorAndSchemaTest extends AdapterTestCase
 {
     public function testMoneyFallsBackToTheDocumentedDefaultsRatherThanCrashing(): void
     {
-        self::assertSame('12.34', Hydrator::money(['amount' => '12.34', 'currency' => 'EUR'])->amountAsString());
+        self::assertSame('12.34', Hydrator::money(['amount' => '12.34', 'currency' => 'EUR'], Currency::of('EUR'))->amountAsString());
 
         // A malformed document must not take the process down mid-read; zero EUR is the documented
         // fallback, and the amount is still validated by Money itself.
-        $fallback = Hydrator::money([]);
+        $fallback = Hydrator::money([], Currency::of('EUR'));
         self::assertSame('0.00', $fallback->amountAsString());
         self::assertSame('EUR', $fallback->currency->code);
     }
@@ -51,7 +52,7 @@ final class HydratorAndSchemaTest extends AdapterTestCase
                 'side' => 'debit',
                 'money' => ['amount' => '100.00', 'currency' => 'EUR'],
             ],
-        ]);
+        ], Currency::of('EUR'));
 
         self::assertCount(2, $lines);
         self::assertSame(Side::Credit, $lines[0]->side);

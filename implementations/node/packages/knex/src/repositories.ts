@@ -14,6 +14,7 @@ import {
   CalendarDate,
   CostingRun,
   type CostingRunRepository,
+  type Currency,
   type EntryStatus,
   FiscalYear,
   type FiscalYearRepository,
@@ -219,6 +220,7 @@ export class DatabaseJournalRepository implements JournalRepository {
   constructor(
     private readonly db: SyncDb,
     private readonly tenantId: Uuid,
+    private readonly currency: Currency,
   ) {}
 
   append(entry: JournalEntry): void {
@@ -301,7 +303,7 @@ export class DatabaseJournalRepository implements JournalRepository {
       new PeriodRef(int(row, 'fiscal_year'), int(row, 'period')),
       Uuid.fromString(str(row, 'voucher_id')),
       str(row, 'text'),
-      H.entryLines(H.decodeList(row.lines)),
+      H.entryLines(H.decodeList(row.lines), this.currency),
       strOrNull(row, 'reverses') === null ? null : Uuid.fromString(str(row, 'reverses')),
       strOrNull(row, 'reversed_by') === null ? null : Uuid.fromString(str(row, 'reversed_by')),
       str(row, 'status') as EntryStatus,
@@ -368,6 +370,7 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
   constructor(
     private readonly db: SyncDb,
     private readonly tenantId: Uuid,
+    private readonly currency: Currency,
   ) {}
 
   add(item: OpenItem): void {
@@ -378,7 +381,10 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
         kind: item.kind,
         origin_entry_id: item.originEntryId.value,
         origin_line_index: item.originLineIndex,
-        amount: item.money.amountAsString(),
+        // The one place an amount is written as a bare string rather than through a Money object,
+        // so the one place a writer could reshape it by hand. Everything else is serialised by
+        // Money itself, which is canonical by construction (IMPL-040).
+        amount: H.assertScale(item.money.amountAsString(), this.currency),
         currency: item.money.currency.code,
         voucher_id: item.voucherId.value,
         opened_at: item.openedAt.iso,
@@ -414,14 +420,14 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
   private hydrate(row: Row): OpenItem {
     const settlements = H.decodeList(row.settlements).map((data) => {
       const difference = H.isRecord(data.difference) ? data.difference : null;
-      const differenceMoney = difference !== null && H.isRecord(difference.money) ? H.money(difference.money) : null;
+      const differenceMoney = difference !== null && H.isRecord(difference.money) ? H.money(difference.money, this.currency) : null;
       const differenceKind =
         difference !== null && typeof difference.kind === 'string'
           ? (difference.kind as SettlementDifferenceKind)
           : null;
       return new Settlement(
         Uuid.fromString(str(data, 'entryId')),
-        H.money(H.isRecord(data.money) ? data.money : {}),
+        H.money(H.isRecord(data.money) ? data.money : {}, this.currency),
         H.requireDate(data.settledAt, 'settledAt'),
         differenceMoney,
         differenceKind,
@@ -433,7 +439,7 @@ export class DatabaseOpenItemRepository implements OpenItemRepository {
       str(row, 'kind') as OpenItemKind,
       Uuid.fromString(str(row, 'origin_entry_id')),
       int(row, 'origin_line_index'),
-      H.money({ amount: str(row, 'amount'), currency: str(row, 'currency') }),
+      H.money({ amount: str(row, 'amount'), currency: str(row, 'currency') }, this.currency),
       Uuid.fromString(str(row, 'voucher_id')),
       H.requireDate(row.opened_at, 'opened_at'),
       strOrNull(row, 'partner_id') === null ? null : Uuid.fromString(str(row, 'partner_id')),
@@ -459,6 +465,7 @@ export class DatabaseCostingRunRepository implements CostingRunRepository {
   constructor(
     private readonly db: SyncDb,
     private readonly tenantId: Uuid,
+    private readonly currency: Currency,
   ) {}
 
   add(run: CostingRun): void {
@@ -507,7 +514,7 @@ export class DatabaseCostingRunRepository implements CostingRunRepository {
       const out = new Map<string, Money>();
       if (!H.isRecord(raw)) return out;
       for (const [code, value] of Object.entries(raw)) {
-        if (H.isRecord(value)) out.set(code, H.money(value));
+        if (H.isRecord(value)) out.set(code, H.money(value, this.currency));
       }
       return out;
     };
@@ -519,7 +526,7 @@ export class DatabaseCostingRunRepository implements CostingRunRepository {
       str(row, 'status'),
       totals(data.primary),
       totals(data.afterAllocation),
-      H.money(H.isRecord(data.grandTotal) ? data.grandTotal : {}),
+      H.money(H.isRecord(data.grandTotal) ? data.grandTotal : {}, this.currency),
       typeof data.method === 'string' ? data.method : 'step_ladder',
       Array.isArray(data.rates) ? (data.rates as OverheadRate[]) : [],
       Array.isArray(data.rateWarnings) ? (data.rateWarnings as RateWarning[]) : [],
@@ -598,6 +605,7 @@ export class DatabaseAssetRepository implements AssetRepository {
   constructor(
     private readonly db: SyncDb,
     private readonly tenantId: Uuid,
+    private readonly currency: Currency,
   ) {}
 
   add(asset: Asset): void {
@@ -671,13 +679,13 @@ export class DatabaseAssetRepository implements AssetRepository {
     const state = H.decode(row.state);
     const schedule = (Array.isArray(data.monthlySchedule) ? data.monthlySchedule : [])
       .filter(H.isRecord)
-      .map((amount) => H.money(amount));
+      .map((amount) => H.money(amount, this.currency));
     const depreciations = (Array.isArray(state.depreciations) ? state.depreciations : [])
       .filter(H.isRecord)
       .map((booking) => ({
         planMonth: int(booking, 'planMonth'),
         date: H.requireDate(booking.date, 'depreciation date'),
-        amount: H.money(H.isRecord(booking.amount) ? booking.amount : {}),
+        amount: H.money(H.isRecord(booking.amount) ? booking.amount : {}, this.currency),
         entryId: Uuid.fromString(str(booking, 'entryId')),
         kind: typeof booking.kind === 'string' ? booking.kind : 'planned',
       }));
@@ -686,7 +694,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       str(data, 'name'),
       str(data, 'assetClass'),
       AccountNumber.of(str(data, 'assetAccount')),
-      H.money(H.isRecord(data.acquisitionCost) ? data.acquisitionCost : {}),
+      H.money(H.isRecord(data.acquisitionCost) ? data.acquisitionCost : {}, this.currency),
       H.requireDate(data.acquiredOn, 'acquiredOn'),
       str(data, 'route') as AssetRoute,
       typeof data.usefulLifeMonths === 'number' ? data.usefulLifeMonths : null,
@@ -710,7 +718,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       H.date(data.depreciationStart),
       typeof data.depreciationMethod === 'string' ? data.depreciationMethod : null,
       data.scheduleRevised === true,
-      H.isRecord(data.specialDepreciationBudget) ? H.money(data.specialDepreciationBudget) : null,
+      H.isRecord(data.specialDepreciationBudget) ? H.money(data.specialDepreciationBudget, this.currency) : null,
       typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
       typeof data.totalUnits === 'number' ? data.totalUnits : null,
       typeof data.reportedUnits === 'number' ? data.reportedUnits : 0,

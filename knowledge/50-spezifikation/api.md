@@ -277,7 +277,7 @@ unabhängig: Pack-Auflösung geschieht beim Mandanten-Aufbau, Buchungsvalidierun
 
 ## Fehlerkatalog
 
-Vollständige Liste mit Bedeutung, auslösender Invariante und Fixture-Referenz: `fehlerkatalog.md` (alle Codes abgedeckt). Neu mit der Pack-Komposition: `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` (Resolver, siehe **Pack-Resolver**) sowie `E_AMOUNT_SCALE_MISMATCH` (Betrag ≠ deklarierte `currencyScale` — Reader/Writer-Prüfung, kein Resolver-Fehler). Weitere Festlegungen: Storno eines Stornos ist zulässig (normale Buchung mit `reverses` auf die Stornobuchung); Überzahlung ist App-Muster (Verrechnungskonto/neuer OP) — der Kern weist nur Über-Zuordnung ab (`E_SETTLEMENT_EXCEEDS_ITEM`).
+Vollständige Liste mit Bedeutung, auslösender Invariante und Fixture-Referenz: `fehlerkatalog.md` (alle Codes abgedeckt). Neu mit der Pack-Komposition: `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` (Resolver, siehe **Pack-Resolver**) sowie `E_AMOUNT_SCALE_MISMATCH` (Betrag im **Bestand** ≠ deklarierte `currencyScale` — Reader/Writer-Prüfung in der Persistenz, kein Resolver-Fehler und **nicht** die Eingabeprüfung: einen vom Aufrufer angebotenen Betrag beurteilt `E_ENTRY_INVALID_AMOUNT`). Weitere Festlegungen: Storno eines Stornos ist zulässig (normale Buchung mit `reverses` auf die Stornobuchung); Überzahlung ist App-Muster (Verrechnungskonto/neuer OP) — der Kern weist nur Über-Zuordnung ab (`E_SETTLEMENT_EXCEEDS_ITEM`).
 
 ## Offene Punkte
 

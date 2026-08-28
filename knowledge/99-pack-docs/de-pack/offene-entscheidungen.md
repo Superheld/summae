@@ -37,10 +37,15 @@ Rechtsstand 06/2026 maßgeblich.
 Konto `1510` Vorsteuer ermäßigter Satz, Kennzahl 66. Existiert im Kontenrahmen, ist aber von keiner
 Fixture belegt. Beim nächsten fachlichen Durchgang bestätigen.
 
-### `E_AMOUNT_SCALE_MISMATCH` ohne Fixture
+### ~~`E_AMOUNT_SCALE_MISMATCH` ohne Fixture~~ — erledigt 2026-08-28
 
-Nicht DE-inhaltlich, aber Teil der Pack-Reife: der einzige Katalogcode, der über die API erreichbar
-ist und keine Fixture hat. Steht als Befund in [`../../../FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md).
+Nicht DE-inhaltlich, aber Teil der Pack-Reife. War der einzige Katalogcode, der deklariert war und
+von nichts ausgelöst wurde. Gebaut mit IMPL-040: die Prüfung sitzt auf der **Persistenz-Ebene** —
+sie beurteilt einen Betrag, der schon im Bestand steht, nicht einen, den ein Aufrufer anbietet — und
+ist deshalb über die Suite nicht erreichbar, wohl aber über einen Adapter-Test je Sprache
+(`AmountScaleTest` / `amount-scale.test.ts`, beide Richtungen). Der Bau fand den Defekt darunter:
+der Hydrator las jeden Betrag auf der ISO-Standardskala statt auf der des Mandanten, sodass ein
+Mandant mit `currencyScale: 3` seine eigenen Bücher nicht zurücklesen konnte.
 
 ---
 
@@ -85,5 +90,5 @@ dem Hinweis, dass die maßgebliche Liste in `pack-library/de-pack/de.json` steht
 ### F — Fehler-Fixtures
 
 `E_POLICY_INVALID` hat seit 2026-08-16 die Fixture `resolver-policy-invalid`; I6/I7/I8 sind über
-die Resolver-Fixtures und `F-PACK-RESOLVE` belegt. Übrig bleibt allein
-`E_AMOUNT_SCALE_MISMATCH`, siehe oben.
+die Resolver-Fixtures und `F-PACK-RESOLVE` belegt. `E_AMOUNT_SCALE_MISMATCH` ist seit 2026-08-28
+gebaut und per Adapter-Test belegt (siehe oben) — damit ist die Liste leer.

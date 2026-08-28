@@ -38,27 +38,6 @@ They are open in the strongest sense — shipped code runs on an unconfirmed rea
 they are questions for a human with the statute, not defects, and copying them here is exactly the
 duplication this register was split to avoid.
 
-## IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is a catalogue code with nothing behind it
-
-**Confirmed 2026-08-28** (older than that; it has been carried in the pack-gate backlog).
-
-It is the **only** error code in `fehlerkatalog.md` that is reachable through the API and has no
-fixture. `E_WORKSPACE_INVALID` sits at the CLI level and cannot be reached from the suite;
-`E_NOT_IMPLEMENTED` and `E_UNEXPECTED` are catch-alls that could only be triggered by building the
-bug they report. Those three are covered by a per-language contract test, on purpose. This one is a
-real gap: the reader/writer check that an amount carries exactly the tenant's `currencyScale`
-decimal places — including mandatory zeros, canonical form — is **not built**, so the code is
-declared and never raised.
-
-**Why it matters more than one missing fixture.** The check is a cross-implementation guard by
-nature: it is what would catch a store written by one runtime at scale 3 being read by a tenant at
-scale 2. `SF-15` is exactly that scenario, and it passes today because both runtimes agree — not
-because anything verifies the amounts.
-
-**What would close it.** Build the check where amounts enter and leave (reader and writer), raise
-the code, and add one fixture per direction. The pack policy already carries `currencyScale`, and
-the `xx-2` / `xx-4` fixtures already run a pack at scale 3, so the fixture has somewhere to stand.
-
 ## IMPL-043 — F-KLR-005 is covered by three fixtures about the one case it excludes
 
 **Found 2026-08-28** while deciding IMPL-041.

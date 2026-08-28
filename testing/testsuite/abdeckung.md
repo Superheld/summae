@@ -4,7 +4,7 @@
 
 ## Fehlercodes
 
-Offen ohne Fixture (✗): `E_AMOUNT_SCALE_MISMATCH` — die Reader-/Writer-Prüfung der Nachkommastellen ist noch nicht gebaut. `E_WORKSPACE_INVALID` und `E_NOT_IMPLEMENTED` sind über Fixtures gar nicht erreichbar und werden pro Sprache durch einen Kontrakt-Test geprüft; `E_UNEXPECTED` ist bewusst kein Katalogcode und wird von `validate.py` nur mitgezählt, weil dessen Regex auch Fließtext greift. `E_POLICY_INVALID` hat seit 2026-08-16 die Fixture `resolver-policy-invalid`.
+Ohne Fixture, mit Grund: `E_AMOUNT_SCALE_MISMATCH` ist seit 2026-08-28 gebaut (IMPL-040), sitzt aber auf der **Persistenz-Ebene** und ist über die Suite nicht erreichbar — einen Bestand mit falscher Stellenzahl kann diese Engine nicht erzeugen; belegt durch `AmountScaleTest` / `amount-scale.test.ts` in beiden Sprachen, beide Richtungen. `E_WORKSPACE_INVALID` und `E_NOT_IMPLEMENTED` sind über Fixtures ebenfalls nicht erreichbar und werden pro Sprache durch einen Kontrakt-Test geprüft; `E_UNEXPECTED` ist bewusst kein Katalogcode und wird von `validate.py` nur mitgezählt, weil dessen Regex auch Fließtext greift. `E_POLICY_INVALID` hat seit 2026-08-16 die Fixture `resolver-policy-invalid`.
 
 ## Standardfälle
 

@@ -27,6 +27,7 @@ final readonly class DatabaseCostingRunRepository implements CostingRunRepositor
     public function __construct(
         private ConnectionInterface $connection,
         private Uuid $tenantId,
+        private Currency $currency,
     ) {
     }
 
@@ -105,11 +106,11 @@ final readonly class DatabaseCostingRunRepository implements CostingRunRepositor
     {
         $raw = $data['grandTotal'] ?? null;
         if (!is_array($raw)) {
-            return Money::zero(Currency::of('EUR'));
+            return Money::zero($this->currency);
         }
 
         /** @var array<string, mixed> $raw */
-        return Hydrator::money($raw);
+        return Hydrator::money($raw, $this->currency);
     }
 
     /**
@@ -125,7 +126,7 @@ final readonly class DatabaseCostingRunRepository implements CostingRunRepositor
         foreach ($raw as $code => $value) {
             if (is_string($code) && is_array($value)) {
                 /** @var array<string, mixed> $value */
-                $out[$code] = Hydrator::money($value);
+                $out[$code] = Hydrator::money($value, $this->currency);
             }
         }
 

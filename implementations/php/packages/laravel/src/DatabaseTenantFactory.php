@@ -134,11 +134,11 @@ final readonly class DatabaseTenantFactory
         $accounts = new DatabaseAccountRepository($this->connection, $tenantId);
         $fiscalYears = new DatabaseFiscalYearRepository($this->connection, $tenantId);
         $vouchers = new DatabaseVoucherRepository($this->connection, $tenantId);
-        $journal = new DatabaseJournalRepository($this->connection, $tenantId);
-        $openItems = new DatabaseOpenItemRepository($this->connection, $tenantId);
+        $journal = new DatabaseJournalRepository($this->connection, $tenantId, $baseCurrency);
+        $openItems = new DatabaseOpenItemRepository($this->connection, $tenantId, $baseCurrency);
         $partners = new DatabasePartnerRepository($this->connection, $tenantId);
-        $costingRuns = new DatabaseCostingRunRepository($this->connection, $tenantId);
-        $assets = new DatabaseAssetRepository($this->connection, $tenantId);
+        $costingRuns = new DatabaseCostingRunRepository($this->connection, $tenantId, $baseCurrency);
+        $assets = new DatabaseAssetRepository($this->connection, $tenantId, $baseCurrency);
         $audit = new DatabaseAuditTrail($this->connection, $tenantId);
 
         $ledger = new Ledger(
