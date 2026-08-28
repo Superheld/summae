@@ -404,11 +404,21 @@
           "$comment": "The recommended postal shape, declared so an inventory can name it and an application can agree with the next one — NOT closed. `additionalProperties` stays open on purpose: books written before this shape existed may carry any key, and a schema that rejected them would make an export of lawful data invalid, which is a worse outcome than an undeclared key. `personalDataDescription.addressKeys` reports what a tenant actually holds, which is the question a declaration alone cannot answer. Deliberately no street/houseNumber split: it does not survive contact with addresses outside the German-speaking world, and `line1`/`line2` do.",
           "type": "object",
           "properties": {
-            "line1": { "type": "string" },
-            "line2": { "type": "string" },
-            "postalCode": { "type": "string" },
-            "city": { "type": "string" },
-            "region": { "type": "string" },
+            "line1": {
+              "type": "string"
+            },
+            "line2": {
+              "type": "string"
+            },
+            "postalCode": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
             "country": {
               "$comment": "ISO 3166-1 alpha-2, uppercase — the same two letters the tax codes already speak.",
               "type": "string",
@@ -1330,10 +1340,102 @@
             "additionalProperties": false
           },
           "minItems": 1
+        },
+        "accountCombinationRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "whenAccountIn"
+            ],
+            "properties": {
+              "whenAccountIn": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "requireAccountIn": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "forbidAccountIn": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "requireAccountIn"
+                ],
+                "not": {
+                  "required": [
+                    "forbidAccountIn"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "forbidAccountIn"
+                ],
+                "not": {
+                  "required": [
+                    "requireAccountIn"
+                  ]
+                }
+              }
+            ]
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false,
-      "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Heute genau ein Prädikat: dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend."
+      "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Zwei Prädikate. dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend. Seit v0.15.1 ein ZWEITES Praedikat: accountCombinationRules sagt, welche Konten in EINER Buchung zusammen auftreten muessen (requireAccountIn) oder nicht duerfen (forbidAccountIn) — genau eines von beiden je Regel, sonst waeren es zwei Regeln unter einem Namen. Geprueft ueber die ganze Buchung, nicht je Zeile, und ausdruecklich nicht ueber Seiten: der benannte Fall (gewaehrtes Skonto muss seine Steuerkorrektur tragen, A-13) hat beide Zeilen auf DERSELBEN Seite, ein Praedikat ueber Soll/Haben haette den Fall verfehlt, fuer den es gebaut wurde. Das Praedikat sieht eine Buchung: keine Fristen, kein Blick ueber Buchungen hinweg, und keine Regel ueber eine Verrechnung — settle bucht nicht."
     }
   }
 }

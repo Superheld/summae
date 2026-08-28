@@ -15,6 +15,7 @@ import {
   InMemoryVoucherRepository,
 } from '../in-memory.js';
 import { PartnerService } from '../partner/partner-service.js';
+import { AccountCombinationRegistry } from '../policies/constraint/account-combination-registry.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { AuditWriter } from '../ledger/audit-writer.js';
 import {
@@ -107,6 +108,13 @@ export class Tenant {
     taxRoundingGranularity = 'perVoucher',
     packIdentity: { id: string; version: string } | null = null,
     actorAuthentication: { declared: boolean; method: string | null } | null = null,
+    /**
+     * The constraint socket's second plug (F-CORE-042). Appended rather than slotted next to
+     * `dimensions`, where it belongs by subject: thirteen call sites take the defaults, and moving
+     * a positional parameter to keep two related arguments adjacent would have edited all of them
+     * to say the same thing they already say.
+     */
+    combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
     const idGen = ids ?? new UuidV7IdGenerator(clock);
     const tenantId = idGen.next(); // tenant ID = first generated ID (determinism)
@@ -146,6 +154,7 @@ export class Tenant {
       packIdentity,
       store,
       actorAuthentication,
+      combinations,
     );
   }
 
@@ -186,6 +195,8 @@ export class Tenant {
     configStore: TenantConfigStore | null = null,
     /** See the constructor: the embedding's declaration about `actor` (SPEC-020). */
     actorAuthentication: { declared: boolean; method: string | null } | null = null,
+    /** The constraint socket's second plug (F-CORE-042) — see `inMemory` for why it is last. */
+    combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
     const ledger = new Ledger(
@@ -202,6 +213,7 @@ export class Tenant {
       taxCodes,
       tenantId,
       configStore,
+      combinations,
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
     const tax = new TaxService(

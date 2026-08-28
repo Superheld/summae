@@ -219,6 +219,7 @@ export class TenantOperations {
           tenant.legalForms.declared(),
           tenant.legalForms.offered(),
           tenant.legalForms.offeredSizeClasses(),
+          tenant.ledger.combinationRegistry(),
         ).compute(params);
       case 'costingRuns':
         return new CostingRunsProjection(tenant.costingRuns).compute(params);

@@ -13,6 +13,7 @@ use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\CalendarDate;
 use Summae\Core\Substrate\Clock;
+use Summae\Core\Policies\Constraint\AccountCombinationRegistry;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\IdGenerator;
@@ -94,6 +95,11 @@ final readonly class TenantFactory
             ? array_values($this->ruleModules['dimensionRules'])
             : [];
 
+        /** @var list<array<string, mixed>> $accountCombinationRules */
+        $accountCombinationRules = is_array($this->ruleModules['accountCombinationRules'] ?? null)
+            ? array_values($this->ruleModules['accountCombinationRules'])
+            : [];
+
         $tenant = Tenant::inMemory(
             is_string($input['name'] ?? null) ? $input['name'] : 'Tenant',
             Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR', $currencyScale),
@@ -105,6 +111,8 @@ final readonly class TenantFactory
             $mappings,
             $granularity,
             $this->packIdentity(),
+            null,
+            AccountCombinationRegistry::fromData($accountCombinationRules),
         );
 
         $accountCount = 0;

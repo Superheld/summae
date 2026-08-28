@@ -186,6 +186,7 @@ final readonly class TenantOperations
                 $tenant->legalForms->declared(),
                 $tenant->legalForms->offered(),
                 $tenant->legalForms->offeredSizeClasses(),
+                $tenant->ledger->combinationRegistry(),
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),

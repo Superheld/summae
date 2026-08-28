@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Summae\Core\Policies\Projection;
 
+use Summae\Core\Policies\Constraint\AccountCombinationRegistry;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 
@@ -74,6 +75,8 @@ final readonly class TenantConfigurationProjection
         private array $legalForms,
         /** @var list<string> */
         private array $sizeClasses,
+        /** The constraint socket's second plug (F-CORE-042) — appended for the same reason it is last on Tenant. */
+        private ?AccountCombinationRegistry $combinations = null,
     ) {
     }
 
@@ -93,6 +96,9 @@ final readonly class TenantConfigurationProjection
             'dimensionTypes' => $masterData['types'],
             'dimensionValues' => $masterData['values'],
             'dimensionRules' => $this->dimensions->rulesData(),
+            // The socket's second predicate (F-CORE-042), reported for the same reason as the first:
+            // an embedding that offers a booking screen has to know which combinations are refused.
+            'accountCombinationRules' => ($this->combinations ?? AccountCombinationRegistry::empty())->rulesInForce(),
             'allocationScheme' => $this->allocationScheme,
             'mappings' => $this->mappings->summaries(),
             'appropriationTargets' => $this->appropriationTargets,

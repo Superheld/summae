@@ -34,6 +34,7 @@ use Summae\Core\Substrate\Side;
 use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
 use Summae\Core\Composition\TenantConfigStore;
+use Summae\Core\Policies\Constraint\AccountCombinationRegistry;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
@@ -83,6 +84,8 @@ final readonly class Ledger
         ?Uuid $tenantId = null,
         /** Passed straight through to the chart service, which is where dimensions are declared. */
         ?TenantConfigStore $configStore = null,
+        /** The constraint socket's second predicate (F-CORE-042), checked over the whole entry. */
+        private ?AccountCombinationRegistry $combinations = null,
     ) {
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
@@ -98,6 +101,12 @@ final readonly class Ledger
     public function dimensionRegistry(): DimensionRegistry
     {
         return $this->dimensions;
+    }
+
+    /** What tenantConfiguration reports, same reason as the dimension rules. */
+    public function combinationRegistry(): AccountCombinationRegistry
+    {
+        return $this->combinations ?? AccountCombinationRegistry::empty();
     }
 
     /**
@@ -693,6 +702,13 @@ final readonly class Ledger
         foreach ($lines as $entryLine) {
             $this->dimensions->validateLine($entryLine->account, $entryLine->dimensions);
         }
+
+        // Over the whole entry, after the per-line checks: a combination is not a property of any
+        // one line, which is why it could not have been a second rule inside the dimension registry.
+        $this->combinations?->validateEntry(array_map(
+            static fn (EntryLine $entryLine): AccountNumber => $entryLine->account,
+            $lines,
+        ));
 
         return $lines;
     }

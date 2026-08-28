@@ -1,3 +1,4 @@
+import { AccountCombinationRegistry } from '../constraint/account-combination-registry.js';
 import type { DimensionRegistry } from '../constraint/dimension-registry.js';
 import type { MappingRegistry } from './mapping/mapping-registry.js';
 
@@ -19,7 +20,8 @@ import type { MappingRegistry } from './mapping/mapping-registry.js';
  *
  * **It reports what is in force, not what is stored**, and where the two differ the difference is
  * the point:
- * - `dimensionRules` are the *pack's* — which accounts may not be posted without which dimension.
+ * - `dimensionRules` and `accountCombinationRules` are the *pack's* — which accounts may not be
+ *   posted without which dimension, and which may not (or must) meet in one entry.
  *   They are never stored (they come back from the pack on every open) and an embedding cannot
  *   derive them, so a form cannot know which field it must not leave empty.
  * - `mappings` lists the pack's mappings *and* the imported ones. The record holds only the
@@ -58,6 +60,8 @@ export class TenantConfigurationProjection {
     private readonly entityProfile: { legalForm: string; sizeClass: string | null } | null,
     private readonly legalForms: string[],
     private readonly sizeClasses: string[],
+    /** The constraint socket's second plug (F-CORE-042) — appended for the same reason it is last on `Tenant`. */
+    private readonly combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ) {}
 
   compute(_params: Record<string, unknown>): Record<string, unknown> {
@@ -68,6 +72,9 @@ export class TenantConfigurationProjection {
       dimensionTypes: masterData.types,
       dimensionValues: masterData.values,
       dimensionRules: this.dimensions.rulesData(),
+      // The socket's second predicate (F-CORE-042), reported for the same reason as the first: an
+      // embedding that offers a booking screen has to know which combinations will be refused.
+      accountCombinationRules: this.combinations.rulesInForce(),
       allocationScheme: this.allocationScheme,
       mappings: this.mappings.summaries(),
       appropriationTargets: [...this.appropriationTargets],

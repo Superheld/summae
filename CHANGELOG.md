@@ -43,6 +43,42 @@ something asserted it. The smoke test now asserts that the classes load, which i
 is bumped and held to the same anchor rather than left standing as the stale twin of the constant
 next to it. Nothing prints it; it is the declared version of a published package all the same.
 
+### The constraint socket gets a second word (F-CORE-042)
+
+`docs/gobd-conformance.md` §14 item 6 has carried a ⚠️ since the constraint socket was built, and the
+wording was exact: *the shape of the socket is settled, its vocabulary is not*. A pack could express
+one thought — this account may not be posted without that dimension — and nothing else a jurisdiction
+forbids. A socket with a single predicate is not visibly a socket; it might be a feature with a data
+file beside it.
+
+`accountCombinationRules` is the second word: which accounts must, or must not, appear in **one entry**
+together. Per rule, `whenAccountIn` plus exactly one of `requireAccountIn` / `forbidAccountIn` — a rule
+saying both would be two rules under one name. Violations are `E_COMBINATION_REQUIRED` and
+`E_COMBINATION_FORBIDDEN`, two codes rather than one with a flag, because a script branching on the
+exit code has to take opposite corrective actions for *you are missing a line* and *you have one line
+too many*.
+
+**The require case is A-13**, the obligation that has sat on the embedding application's list because
+summae could not express it: a granted discount reduces the consideration and must carry its tax
+correction. It is now declarable in a pack.
+
+**Why "the entry" and not "the other side", which is the part worth keeping.** In the correct booking
+the discount is a debit and so is the VAT correction, with the receivable on the credit — both required
+lines sit on the *same* side. A predicate about sides would have missed the very case it was built for.
+"Somewhere in the same entry" is also the weaker claim, and the weaker claim is the one a pack can
+reason about without knowing how an application splits its lines.
+
+**What it deliberately still cannot do**, stated because a socket's limits are part of its contract: it
+sees one entry. No deadlines (§5 keeps those ➖ on purpose — they are German rules with exceptions, and
+a hard block would make late but honest bookkeeping impossible). No reach across entries. And no rule
+about a *settlement*: `settle` records an allocation and posts nothing, so there is no entry there to
+constrain. A-13 is reached through the posting instead, which is where the books actually change — and
+the GoBD row moves from ➖ to ⚠️ rather than to ✅, because the shipped `de` pack does not declare such a
+rule yet. That is a product decision about accounts and reporting consequences, not a missing mechanism.
+
+`tenantConfiguration` reports the rules in force, for the same reason it reports the dimension rules:
+an embedding that offers a booking screen has to know which combinations will be refused.
+
 ### Added: `personalDataDescription`, and the address shape it needed (F-CORE-041)
 
 The remaining two GDPR rows, closed together — and the second one not the way it was written.
