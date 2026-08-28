@@ -452,7 +452,7 @@ final class CostingService
      * released runs only, and the fixture `parameter-effect` reads a draft sheet — an append-only
      * contract that says otherwise. Bending the fixture would rewrite what the contract always said,
      * so the rule is followed as the contract has it and the contradiction is recorded
-     * (SPEC-FINDINGS). `status` is in the answer, so nobody has to guess which they got.
+     * (FINDINGS-CLOSED.md). `status` is in the answer, so nobody has to guess which they got.
      *
      * @param array<string, mixed> $params
      *

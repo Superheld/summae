@@ -8,9 +8,39 @@ versioning per SemVer (0.x: minor may break).
 > `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
 > unchanged. These notes keep the IDs they were published with, because a released note
 > should describe what was released. The mapping lives at the top of
-> [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
+> [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
 
 ## Unreleased
+
+### The findings register is now `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md`
+
+Renamed from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md`. Same register, same numbering, same
+split by state — the old names said "SPEC" while two of the three series in it (`IMPL-nnn`
+implementation defects, `SPEC-Cnn` cross-implementation) are not about the specification at all, and
+someone looking for open bugs had no reason to open a file named after a spec. The per-language
+pointers moved with them (`implementations/*/FINDINGS.md`).
+
+The **historical** knowledge-base register at `knowledge/80-implementierung/SPEC-FINDINGS.md` keeps
+its name deliberately: it is closed, its numbers are cited in commits, and it uses the same prefixes
+for *different* findings — renaming it would suggest the two are one register.
+
+**Five findings recorded**, four of them found by counting rather than by anything failing:
+
+- **IMPL-039** — nothing holds `covers` and the requirement lists together. 21 fixtures cited a
+  `F-PACK-*`/`F-RP-*` family that no requirements file declared; `SF-27` was counted by
+  `validate.py` and declared nowhere. Both repaired; the class is not, and the comparison that makes
+  it a finding is that the error catalogue *is* held against the exit-code tables as sets in both
+  directions, in both languages.
+- **IMPL-040** — `E_AMOUNT_SCALE_MISMATCH` is the one catalogue code reachable through the API with
+  no fixture and no check behind it.
+- **IMPL-041** — F-KLR-002 (Abgrenzungsrechnung) is not built and may have been retired by the
+  2026-08-23 scope decision without the row being struck. A decision, not a task.
+- **IMPL-042** — F-IO-008 (DATEV Buchungsstapel import) is not built. It hid because the root
+  `CLAUDE.md` attributed that ID to `gdpduExport`, which is F-IO-012.
+- **IMPL-036** — recorded late: the schema installers now add a missing nullable column instead of
+  assuming the table is current, fixed inside the F-CORE-045 work without a register entry of its
+  own.
+
 
 ### Conditional constraints, and a word for "not this account at all" (F-CORE-047)
 
@@ -1153,8 +1183,8 @@ New fixtures `tax/consideration-reduction`, `core/ec-sales-list-gap-warnings` an
 
 ### The findings register is one file (docs)
 
-`implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin
-pointers to a single [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md) at the repository root. The
+`implementations/php/FINDINGS-OPEN.md` and `implementations/node/FINDINGS-OPEN.md` are now thin
+pointers to a single [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) at the repository root. The
 language-neutral findings had been living in both: seven `SPEC-` entries were byte-identical copies
 and **SPEC-014 had already drifted** — the PHP copy carried the decision, its reasoning and a
 related finding, the Node copy had shrunk to a summary ending in "full write-up on the PHP side".
@@ -1178,8 +1208,8 @@ Two findings from this release are recorded there:
 `docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
 with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
-The register is also **split by state**: `SPEC-FINDINGS.md` holds the four open findings and
-nothing else — 198 lines, short enough to read whole — while `SPEC-FINDINGS-RESOLVED.md` holds the
+The register is also **split by state**: `FINDINGS-OPEN.md` holds the four open findings and
+nothing else — 198 lines, short enough to read whole — while `FINDINGS-CLOSED.md` holds the
 21 decided ones in full, with the status table over both. The reason is what happens when somebody
 is told "we have open findings": reading the register should not mean carrying 1,600 lines of
 settled history into the work. Closing a finding means moving its block across, which is the whole

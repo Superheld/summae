@@ -9,8 +9,8 @@ In-depth documentation for the Node implementation. Commands/conventions at a gl
 - [`entwicklung.md`](entwicklung.md) — setup (pnpm), what must be green (= CI, incl. coverage thresholds),
   conventions, branch/commit workflow, "adding a new operation/projection", spec retrofit, determinism hooks.
 - [`konformitaet.md`](konformitaet.md) — the compatibility contract, how the runner works,
-  the most common cross-impl pitfalls, the SPEC-FINDINGS escalation path.
-- [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) — documented contradictions between spec/fixture/model (SPEC-… / IMPL-…).
+  the most common cross-impl pitfalls, the findings escalation path.
+- [`../FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md) — documented contradictions between spec/fixture/model (SPEC-… / IMPL-…).
 
 > Build patterns + "new operation = service + one `case` + fixture" are **language-neutral** and live
 > once in the root `CLAUDE.md` (section "Bau-Konventionen"). Only the Node idioms are here.

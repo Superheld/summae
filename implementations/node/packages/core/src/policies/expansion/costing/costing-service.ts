@@ -424,7 +424,7 @@ export class CostingService {
    * Note what this deliberately does NOT do: refuse a draft run. F-KLR-001 says evaluations read
    * released runs only, and the fixture `parameter-effect` reads a draft sheet — an append-only
    * contract that says otherwise. Bending the fixture would rewrite what the contract always said, so
-   * the rule is followed as the contract has it and the contradiction is recorded (SPEC-FINDINGS).
+   * the rule is followed as the contract has it and the contradiction is recorded (FINDINGS-CLOSED.md).
    * `status` is in the answer, so nobody has to guess which they got.
    */
   overheadRates(params: Record<string, unknown>): Record<string, unknown> {

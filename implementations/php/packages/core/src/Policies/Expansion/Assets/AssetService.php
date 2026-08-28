@@ -29,7 +29,7 @@ use Summae\Core\Substrate\Uuid;
  * of the acquisition cost over the useful life (flat); yearly values = allocate
  * by months per calendar year — no residual remainder, Σ = acquisition cost exactly.
  *
- * Account resolution (spec gap, see SPEC-FINDINGS): rule-module keys
+ * Account resolution (spec gap, see FINDINGS-CLOSED.md): rule-module keys
  * `depreciationExpenseAccount`/`gwgExpenseAccount`/`acquisitionCounterAccount`,
  * otherwise convention: the single bank account as counter account; depreciation
  * account by name prefix "AfA", low-value-asset account by name part "GWG".
@@ -1361,7 +1361,7 @@ final class AssetService
         }
 
         throw new DomainError('E_ASSET_UNKNOWN', sprintf(
-            'No useful life for asset class "%s" in the rule module (see SPEC-FINDINGS)',
+            'No useful life for asset class "%s" in the rule module (see FINDINGS-CLOSED.md)',
             $assetClass,
         ));
     }

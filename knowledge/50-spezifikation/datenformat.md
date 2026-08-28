@@ -484,5 +484,5 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 ## Offene Punkte v0.4 → v0.5
 
 - Kommunale Erweiterung (Finanzrechnungs-Kreis, Produkt-Pflichtdimension) — wartet auf Budgeting-Kontext
-- Rückfluss der SPEC-FINDINGS aus der PHP-Implementierung
+- Rückfluss der Befunde aus der PHP-Implementierung
 - Regelmodul-Inhalte als eigene Lieferaufgabe: DATEV-BWA Form 01, USt-Jahreserklärungs-Mapping, Anlage-EÜR-Vollmapping

@@ -148,5 +148,5 @@ wird** — außer den Konto-Nummern (A), die mit dem ersten Buchen quasi-irrever
 4. **Schema-Lücke `includeNonCash` (IMPL-002 / SPEC-008):** das `cash-basis-categories`-Mapping (Modul 5)
    braucht `includeNonCash` an der Position; das normative `format.schema.json` kennt das Feld nicht
    (`additionalProperties:false`). Die Engine liest es trotzdem, Pack-JSON wird nie gegen das Schema
-   validiert → gebaut & grün, Befund in beiden `SPEC-FINDINGS.md`. **Vorschlag:** `mappingPosition`
+   validiert → gebaut & grün, Befund in beiden `FINDINGS-OPEN.md`. **Vorschlag:** `mappingPosition`
    ums Feld erweitern, bevor je Pack-Module schema-validiert werden.

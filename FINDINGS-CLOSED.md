@@ -1,7 +1,7 @@
-# SPEC-FINDINGS — resolved
+# FINDINGS — closed
 
 Every finding that is decided, in full. Open ones live in
-[`SPEC-FINDINGS.md`](SPEC-FINDINGS.md), which is deliberately short enough to read whole.
+[`FINDINGS-OPEN.md`](FINDINGS-OPEN.md), which is deliberately short enough to read whole.
 
 > **Finding IDs were re-prefixed on 2026-08-23 — the numbers did not change.**
 > The old prefixes sat inside the requirement namespaces: `F-0xx` was one category
@@ -55,6 +55,10 @@ Re-verified against the code on 2026-08-15 — the per-finding headings below no
 status, so scanning the list no longer suggests open work that is long done. Resolved entries
 keep their original text under the resolution note: why a decision was made is worth more than
 a short file.
+
+**Highest number issued: `IMPL-042`, `SPEC-022`, `SPEC-C01`** (2026-08-28). Numbers are never
+reused, so this table lists open findings too — as one line with a pointer, never with their text,
+which stays in `FINDINGS-OPEN.md` until the finding is closed.
 
 | Finding | Status |
 |---|---|
@@ -117,6 +121,13 @@ a short file.
 | IMPL-033 an appropriated year kept offering a phantom loss | ✅ **RESOLVED 2026-08-27** — `available` for a year was "earned through it minus everything appropriated", which goes negative as soon as a resolution reaches a later year's profit; the operation read −300 as an unappropriated *loss* and booked it, charging a pot that held 200 and appropriating one profit one-and-a-half times. The pot now decides direction and ceiling, the year figure only sizes it. Found while building `unappropriatedResult` (F-CORE-038), which is also what makes it visible: the figure had never been readable except as the detail of a refusal |
 | IMPL-034 the pack manifests were documented as products that do not exist | ✅ **RESOLVED 2026-08-27** — `manifest-de-complete.md` and `manifest-us-complete.md` described packs `de-complete`/`us-complete` at version 2026.1 bundling eight modules under ids that were renamed long ago, so a reader who copied from them typed `createTenant(de-complete)` and got `E_PROFILE_UNKNOWN`. Exactly IMPL-031's defect in the half its guard did not reach: the guard checked modules, and the manifest documents sat beside them unchecked. Rewritten from the real manifests, `default` got the one it never had, and `PackDocsTest`/`pack-docs.test.ts` grew a fourth rule over manifest documents |
 | IMPL-035 both CLIs reported the version they had at 0.1.0 | ✅ **RESOLVED 2026-08-27** — `summae --version` answered `0.1.0` in Node and `0.1.0-dev` in PHP: frozen since the first release, wrong from the second, and not even equal to each other, which is the equivalence policy broken on the surface a user reads first. Nothing compared the constants to anything, because a version string is not behaviour — no fixture touches it and the suite stayed green through fifteen releases. Both now name the newest dated heading in `CHANGELOG.md`, asserted by `ReleaseVersionTest`/`release-version.test.ts`; the same anchor also holds `CorePackage::VERSION` (stale the same way), the three npm `version` fields and the three `branch-alias` values that RELEASING.md recorded as uncaught. The sharper half: they were not unguarded but guarded *wrongly* — `SmokeTest::testAllPackagesAutoload` pinned the literal `0.1.0-dev`, so a correct bump turned red a test about autoloading, and the drift was defended rather than caught |
+| IMPL-036 an existing table did not gain a nullable column | ✅ **RESOLVED 2026-08-28** — the documented upgrade path for a new persisted field was "add the column by hand", which is a step nobody performs on a library upgrade; `validFrom`/`validTo` would have broken the next insert against an existing store. Both schema installers now add a missing nullable column instead of assuming the table is current, with a named test each (`HydratorAndSchemaTest` / `hydrator-and-schema.test.ts`). Recorded here late: it was issued and fixed inside the F-CORE-045 work without a register entry of its own, which is the small version of the same drift IMPL-039 is about |
+| IMPL-037 the normative data-format document lags the format | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-038 the Z3 field catalogue describes 4 of 6 account fields | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-039 nothing holds `covers` and the requirement lists together | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-040 `E_AMOUNT_SCALE_MISMATCH` has nothing behind it | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-042 F-IO-008 (DATEV import) is not built | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.

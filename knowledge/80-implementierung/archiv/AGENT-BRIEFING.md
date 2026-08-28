@@ -56,4 +56,4 @@ Die Testsuite wird aus `Rechnungswesen (1)/testing/testsuite/` synchronisiert (E
 
 ## Eskalation (wichtig)
 
-Die Spec ist v0.2 — Lücken sind möglich. Wenn Spec, Fixture und Modell sich widersprechen oder etwas fehlt: **nicht raten, nicht die Fixture ändern.** Stattdessen in `rechnungswesen-php/SPEC-FINDINGS.md` dokumentieren (Was, Wo, Vorschlag) und mit dem nächstplausiblen Verhalten weiterbauen. Diese Findings fließen zurück in die Wissensbasis (Entscheidungslog).
+Die Spec ist v0.2 — Lücken sind möglich. Wenn Spec, Fixture und Modell sich widersprechen oder etwas fehlt: **nicht raten, nicht die Fixture ändern.** Stattdessen in `rechnungswesen-php/FINDINGS-OPEN.md` dokumentieren (Was, Wo, Vorschlag) und mit dem nächstplausiblen Verhalten weiterbauen. Diese Findings fließen zurück in die Wissensbasis (Entscheidungslog).

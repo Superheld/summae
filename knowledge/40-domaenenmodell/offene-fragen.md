@@ -66,7 +66,7 @@ Zu klären:
   alles gebaut; drei Packs ausgeliefert. *(Nachgetragen 2026-08-28.)*
 - **Costing-Läufe ins Format:** mit der Node-Portierung entschieden und gebaut; Läufe sind nicht
   mehr prozesslokal. *(Nachgetragen 2026-08-28.)*
-- **SPEC-FINDINGS aus der Node-Portierung:** zurückgeflossen; der Befundregister ist seit
+- **Befunde aus der Node-Portierung:** zurückgeflossen; der Befundregister ist seit
   2026-08-28 `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md` im Repo-Root. *(Nachgetragen 2026-08-28.)*
 
 - **Buchhalter-/StB-Review-Paket (2026-06-08, v0.4):** Alle Befunde beider Reviews realisiert (Leistungsdatum, Partner schlank [Bruce], Ergebnisverwendung als Buchung [Bruce], degressive AfA/§ 7g-Mechanik mit verifiziertem Rechtsstand, Gutschriften-Regel, kanonische Subtypes, Lohn-/Bewirtungs-/Transit-Muster, Monats-GuV, DATEV beidseitig, Verfahrensdoku, Scope-Ehrlichkeit, Glossar-Kur). Kontoauszugs-Import-Formulierung präzisiert: kein Import im Package, postVoucher/settleVoucher sind die Andockpunkte. Details: Entscheidungslog 2026-06-08.

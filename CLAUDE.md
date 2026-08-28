@@ -143,10 +143,10 @@ copy collapsed into one). Alongside them live the machine-readable spec parts th
 change is a *new* fixture, never a quiet edit to an existing one — an edited fixture rewrites
 what the contract always said, and every implementation that agreed with the old expectation
 silently becomes "wrong" retroactively. Contradiction between spec/fixture/model → **do not
-guess, do not bend the fixture**, but document it in the repo-root `SPEC-FINDINGS.md` and
+guess, do not bend the fixture**, but document it in the repo-root `FINDINGS-OPEN.md` and
 continue building with the next most plausible behavior. **One register for both implementations,
-split by state:** `SPEC-FINDINGS.md` holds what is *open* and is kept short enough to read whole;
-`SPEC-FINDINGS-RESOLVED.md` holds what is decided, in full, plus the status table. Closing a finding
+split by state:** `FINDINGS-OPEN.md` holds what is *open* and is kept short enough to read whole;
+`FINDINGS-CLOSED.md` holds what is decided, in full, plus the status table. Closing a finding
 means moving its block across — the per-language files are thin pointers.
 
 **Retiring a fixture is the one exception, and it is narrow.** Append-only stops a fixture from
