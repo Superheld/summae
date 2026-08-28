@@ -10,6 +10,7 @@ use Summae\Core\Policies\Expansion\Assets\AssetRoute;
 use Summae\Core\Port\AssetRepository;
 use Summae\Core\Substrate\AccountNumber;
 use Summae\Core\Substrate\Money;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
@@ -18,6 +19,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
     public function __construct(
         private ConnectionInterface $connection,
         private Uuid $tenantId,
+        private Currency $currency,
     ) {
     }
 
@@ -114,7 +116,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
         foreach (is_array($data['monthlySchedule'] ?? null) ? $data['monthlySchedule'] : [] as $amount) {
             if (is_array($amount)) {
                 /** @var array<string, mixed> $amount */
-                $schedule[] = Hydrator::money($amount);
+                $schedule[] = Hydrator::money($amount, $this->currency);
             }
         }
 
@@ -130,7 +132,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             $depreciations[] = [
                 'planMonth' => is_int($booking['planMonth'] ?? null) ? $booking['planMonth'] : 0,
                 'date' => Hydrator::date($booking['date'] ?? null) ?? throw new \RuntimeException('depreciation date missing'),
-                'amount' => Hydrator::money($bookingMoney),
+                'amount' => Hydrator::money($bookingMoney, $this->currency),
                 'entryId' => Uuid::fromString(is_string($booking['entryId'] ?? null) ? $booking['entryId'] : ''),
                 'kind' => is_string($booking['kind'] ?? null) ? $booking['kind'] : 'planned',
             ];
@@ -144,7 +146,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             is_string($data['name'] ?? null) ? $data['name'] : '',
             is_string($data['assetClass'] ?? null) ? $data['assetClass'] : '',
             AccountNumber::of(is_string($data['assetAccount'] ?? null) ? $data['assetAccount'] : '0'),
-            Hydrator::money($cost),
+            Hydrator::money($cost, $this->currency),
             Hydrator::date($data['acquiredOn'] ?? null) ?? throw new \RuntimeException('acquiredOn missing'),
             AssetRoute::from(is_string($data['route'] ?? null) ? $data['route'] : 'capitalize'),
             is_int($data['usefulLifeMonths'] ?? null) ? $data['usefulLifeMonths'] : null,
@@ -160,21 +162,21 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             Hydrator::date($data['depreciationStart'] ?? null),
             is_string($data['depreciationMethod'] ?? null) ? $data['depreciationMethod'] : null,
             ($data['scheduleRevised'] ?? false) === true,
-            self::optionalMoney($data['specialDepreciationBudget'] ?? null),
+            $this->optionalMoney($data['specialDepreciationBudget'] ?? null),
             is_int($data['specialDepreciationWindowEnd'] ?? null) ? $data['specialDepreciationWindowEnd'] : null,
             is_int($data['totalUnits'] ?? null) ? $data['totalUnits'] : null,
             is_int($data['reportedUnits'] ?? null) ? $data['reportedUnits'] : 0,
         );
     }
 
-    private static function optionalMoney(mixed $raw): ?Money
+    private function optionalMoney(mixed $raw): ?Money
     {
         if (!is_array($raw)) {
             return null;
         }
 
         /** @var array<string, mixed> $raw */
-        return Hydrator::money($raw);
+        return Hydrator::money($raw, $this->currency);
     }
 
     /** @return list<array{type: string, code: string}> */

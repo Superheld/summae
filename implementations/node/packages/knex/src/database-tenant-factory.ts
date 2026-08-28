@@ -95,22 +95,26 @@ export class DatabaseTenantFactory {
     const mappings = options.mappings ?? MappingRegistry.empty();
     for (const mapping of config.mappings) mappings.add(Mapping.fromData(mapping));
 
+    // The scale is a PACK parameter (`packPolicy.currencyScale`), so it comes from the caller on
+    // every open — not from the record, which stores the code alone. Absent means "whatever this
+    // currency's own scale is", which is not the same as EUR's. Hoisted out of the call because the
+    // repositories that hydrate money need it too: reading an amount on the ISO default when the
+    // tenant runs on another scale is IMPL-040.
+    const baseCurrency = Currency.of(record.baseCurrency, options.baseCurrency?.scale);
+
     const tenant = Tenant.fromPorts(
       tenantId,
       record.name,
-      // The scale is a PACK parameter (`packPolicy.currencyScale`), so it comes from the caller on
-      // every open — not from the record, which stores the code alone. Absent means "whatever this
-      // currency's own scale is", which is not the same as EUR's.
-      Currency.of(record.baseCurrency, options.baseCurrency?.scale),
+      baseCurrency,
       {
         accounts: new DatabaseAccountRepository(db, tenantId),
         fiscalYears: new DatabaseFiscalYearRepository(db, tenantId),
         vouchers: new DatabaseVoucherRepository(db, tenantId),
-        journal: new DatabaseJournalRepository(db, tenantId),
-        openItems: new DatabaseOpenItemRepository(db, tenantId),
-        assets: new DatabaseAssetRepository(db, tenantId),
+        journal: new DatabaseJournalRepository(db, tenantId, baseCurrency),
+        openItems: new DatabaseOpenItemRepository(db, tenantId, baseCurrency),
+        assets: new DatabaseAssetRepository(db, tenantId, baseCurrency),
         partners: new DatabasePartnerRepository(db, tenantId),
-        costingRuns: new DatabaseCostingRunRepository(db, tenantId),
+        costingRuns: new DatabaseCostingRunRepository(db, tenantId, baseCurrency),
         audit: new DatabaseAuditTrail(db, tenantId),
       },
       clock,

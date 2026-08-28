@@ -131,7 +131,7 @@ final readonly class JournalExportProjection
                 'contentHashes' => $contentHashes,
             ],
             'fieldCatalogIncluded' => true,
-            'fieldCatalog' => $this->fieldCatalog(),
+            'fieldCatalog' => $this->fieldCatalog(array_map(strval(...), array_keys($streams))),
             'journal' => [
                 'entryCount' => count($entries),
                 'ordering' => 'sequenceNumber',
@@ -179,42 +179,87 @@ final readonly class JournalExportProjection
     }
 
     /**
-     * Field catalog (GoBD Z3 description standard): name, type, meaning.
+     * Field catalog (GoBD Z3 description standard): name, type, meaning — **complete** for every
+     * stream the export carries.
+     *
+     * Complete is the whole point and it was not true until 2026-08-28 (IMPL-038). The catalogue
+     * named 4 of the account's 8 fields, 2 of the voucher's 12, 4 of the audit record's 9, missed
+     * `voucherDate` on the posting, and did not mention the `partners` stream at all — so an
+     * auditor reading the description and the data side by side found fields in the data the
+     * self-description does not admit to. A Z3 data set that under-describes itself is the one
+     * failure this field exists to prevent.
+     *
+     * Keyed by stream and filtered to the streams actually exported, because `partners` is
+     * conditional: describing a stream that is not on the carrier is the same defect mirrored.
+     *
+     * @param list<string> $streams
      *
      * @return array<string, list<array{name: string, type: string, meaning: string}>>
      */
-    private function fieldCatalog(): array
+    private function fieldCatalog(array $streams): array
     {
-        return [
+        $catalog = [
             'journal' => [
                 ['name' => 'id', 'type' => 'uuid', 'meaning' => 'Eindeutige Buchungs-ID (UUIDv7)'],
                 ['name' => 'sequenceNumber', 'type' => 'integer', 'meaning' => 'Lückenlose Journalnummer je Geschäftsjahr'],
                 ['name' => 'status', 'type' => 'string', 'meaning' => 'entered|finalized (Festschreibung)'],
                 ['name' => 'entryDate', 'type' => 'date', 'meaning' => 'Buchungsdatum (zonenlos)'],
+                ['name' => 'voucherDate', 'type' => 'date|null', 'meaning' => 'Belegdatum der Buchung, sofern abweichend erfasst'],
                 ['name' => 'recordedAt', 'type' => 'timestamp', 'meaning' => 'Erfassungszeitpunkt'],
                 ['name' => 'periodRef', 'type' => 'object', 'meaning' => 'Geschäftsjahr + Periode'],
                 ['name' => 'voucherId', 'type' => 'uuid', 'meaning' => 'Belegreferenz (Pflicht)'],
                 ['name' => 'text', 'type' => 'string', 'meaning' => 'Buchungstext'],
-                ['name' => 'lines', 'type' => 'array', 'meaning' => 'Positionen: Konto, Seite, Betrag, Dimensionen, Steuer-Tag'],
+                ['name' => 'lines', 'type' => 'array', 'meaning' => 'Positionen: accountId, side (debit|credit), money, dimensions, taxTag'],
                 ['name' => 'reverses', 'type' => 'uuid|null', 'meaning' => 'Rückverweis bei Storno (Generalumkehr)'],
                 ['name' => 'reversedBy', 'type' => 'uuid|null', 'meaning' => 'Verweis auf die Stornobuchung'],
             ],
             'accounts' => [
+                ['name' => 'id', 'type' => 'uuid', 'meaning' => 'Eindeutige Konto-ID (UUIDv7); die Buchungsposition verweist hierauf, nicht auf die Nummer'],
                 ['name' => 'number', 'type' => 'string', 'meaning' => 'Kontonummer (führende Nullen signifikant)'],
                 ['name' => 'name', 'type' => 'string', 'meaning' => 'Kontobezeichnung'],
                 ['name' => 'type', 'type' => 'string', 'meaning' => 'asset|liability|equity|expense|revenue'],
-                ['name' => 'subtype', 'type' => 'string|null', 'meaning' => 'Kanonischer Subtyp (bank, ar, ap, …)'],
+                ['name' => 'subtype', 'type' => 'string|null', 'meaning' => 'Kanonischer Subtyp, geschlossenes Repertoire seit Format 0.9 (bank, cash, transit, ar, ap, tax_in, tax_out, result_allocation, fixed_asset, opening_balance, private)'],
+                ['name' => 'status', 'type' => 'string', 'meaning' => 'active|locked — ein gesperrtes Konto nimmt keine Buchung mehr an'],
+                ['name' => 'validFrom', 'type' => 'date|null', 'meaning' => 'Beginn des Gültigkeitsfensters; fehlend = unbegrenzt'],
+                ['name' => 'validTo', 'type' => 'date|null', 'meaning' => 'Ende des Gültigkeitsfensters; fehlend = unbegrenzt'],
             ],
             'vouchers' => [
+                ['name' => 'id', 'type' => 'uuid', 'meaning' => 'Eindeutige Beleg-ID (UUIDv7); die Buchung verweist hierauf'],
                 ['name' => 'voucherNumber', 'type' => 'string', 'meaning' => 'Belegnummer'],
                 ['name' => 'voucherDate', 'type' => 'date', 'meaning' => 'Belegdatum'],
+                ['name' => 'due', 'type' => 'date|null', 'meaning' => 'Fälligkeit'],
+                ['name' => 'recurring', 'type' => 'boolean|null', 'meaning' => 'Dauerbeleg — wiederholt seine Nummer bestimmungsgemäß'],
+                ['name' => 'economicYear', 'type' => 'integer|null', 'meaning' => 'Wirtschaftsjahr der Zuordnung, wenn vom Buchungsjahr abweichend'],
+                ['name' => 'supplierTaxationMethod', 'type' => 'string|null', 'meaning' => 'Versteuerungsart des Ausstellers (Soll-/Ist-Versteuerung)'],
+                ['name' => 'serviceDate', 'type' => 'date|null', 'meaning' => 'Leistungsdatum (steuerlich entscheidend)'],
+                ['name' => 'servicePeriod', 'type' => 'object|null', 'meaning' => 'Leistungszeitraum {from, to}'],
+                ['name' => 'kind', 'type' => 'string|null', 'meaning' => 'Belegart'],
+                ['name' => 'partnerId', 'type' => 'uuid|null', 'meaning' => 'Verweis auf den Geschäftspartner'],
+                ['name' => 'issuer', 'type' => 'string|null', 'meaning' => 'Aussteller als Freitext, wenn kein Partnersatz existiert'],
+            ],
+            'partners' => [
+                ['name' => 'id', 'type' => 'uuid', 'meaning' => 'Eindeutige Partner-ID (UUIDv7)'],
+                ['name' => 'name', 'type' => 'string', 'meaning' => 'Name des Geschäftspartners'],
+                ['name' => 'kind', 'type' => 'string', 'meaning' => 'customer|supplier|both'],
+                ['name' => 'vatId', 'type' => 'string|null', 'meaning' => 'USt-IdNr.'],
+                ['name' => 'paymentTermsDays', 'type' => 'integer|null', 'meaning' => 'Zahlungsziel in Tagen'],
+                ['name' => 'accountNumbers', 'type' => 'array|null', 'meaning' => 'Zugeordnete Personenkonten'],
+                ['name' => 'address', 'type' => 'object|null', 'meaning' => 'Anschrift, vom Kern unverändert gespeichert'],
+                ['name' => 'status', 'type' => 'string', 'meaning' => 'active|inactive (Format 0.7); fehlend gilt als active'],
             ],
             'auditLog' => [
+                ['name' => 'id', 'type' => 'uuid', 'meaning' => 'Eindeutige Satz-ID (UUIDv7)'],
                 ['name' => 'at', 'type' => 'timestamp', 'meaning' => 'Änderungszeitpunkt'],
                 ['name' => 'actor', 'type' => 'string', 'meaning' => 'Audit-Identität'],
+                ['name' => 'objectType', 'type' => 'string', 'meaning' => 'Art des geänderten Objekts (account, entry, period, …)'],
+                ['name' => 'objectId', 'type' => 'uuid', 'meaning' => 'Identität des geänderten Objekts'],
                 ['name' => 'action', 'type' => 'string', 'meaning' => 'created|corrected|finalized|locked|…'],
                 ['name' => 'changes', 'type' => 'object', 'meaning' => 'Vorher/Nachher-Diff der geänderten Felder'],
+                ['name' => 'previousRecordHash', 'type' => 'string|null', 'meaning' => 'SHA-256 des Vorgängersatzes (Format 0.8); null beim ersten Satz und bei vor 0.8 geschriebenen Sätzen'],
+                ['name' => 'recordHash', 'type' => 'string|null', 'meaning' => 'SHA-256 dieses Satzes ohne dieses Feld selbst (Format 0.8)'],
             ],
         ];
+
+        return array_intersect_key($catalog, array_flip($streams));
     }
 }

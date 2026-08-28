@@ -182,7 +182,7 @@ widersprüchlich. `E_PACK_UNRESOLVED_REF` hat Vorrang, wenn beide zugleich zutr�
 | `E_PACK_UNRESOLVED_REF` | Eine Referenz im Manifest/Modul zeigt ins Leere: Modul-`id`/`version` im Modulbestand nicht gefunden, `dependsOn` zeigt auf ein nicht in der effektiven Liste enthaltenes Modul, oder ein gefalteter Beitrag referenziert ein fehlendes Ziel — `taxAccount` (bzw. `inputTaxAccount` bei `reverse_charge`) ohne Konto (I1), Mapping-Selektor trifft kein Konto / zeigt vollständig ins Leere (I2), eines der fünf `assetAccounts.*Account` fehlt (I3), ein vom Profil/Manifest referenzierter `taxCode` wird von keinem aufgelösten `tax`-Modul bereitgestellt (I4, mapping-frei) | resolver-errors |
 | `E_PACK_INCOHERENT` | Referenzen existieren, aber das Bündel passt nicht zusammen: Abhängigkeits-Zyklus, Konto-`number`-Kollision aus zwei Kontenrahmen (I6), doppelter `taxCode.code`/`mapping.id` oder mehr als ein `policy`-Modul (I7), kollidierender oder ins Leere greifender `override` (Doppel-Override, `replace` auf nicht gelistetes Modul), unbekanntes `kind`, **unbekannter `mechanism` an einem `taxCode`** (v0.8.0) | resolver-errors |
 | `E_POLICY_INVALID` | `packPolicy`-Wert ungültig oder inkonsistent: unbekannter `roundingMode`/`taxRoundingGranularity`-Enum, `currencyScale` nicht ganzzahlig oder außerhalb 0–4, ISO-Exponent-Widerspruch, Manifest-`packPolicy`-Kopie ≠ aufgelöstes `policy`-Modul, oder `currencyScale`-Änderung auf bestehendem Mandanten | resolver-policy-invalid |
-| `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | ✗ |
+| `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | Adapter-Test |
 
 **Die Zahlen stehen bewusst nicht mehr hier — `validate.py` zählt sie.** Bis 2026-08-28 stand an
 dieser Stelle „Stand 2026-08-16: 44 Codes in Tabellen, 40 mit Fixture", und beides war falsch
@@ -194,8 +194,14 @@ sie ist ersatzlos gestrichen.
 
 **Ohne Fixture, und je aus einem eigenen Grund:**
 
-- `E_AMOUNT_SCALE_MISMATCH` — die **einzige echte Lücke**. Der Code ist über die API erreichbar und
-  es gibt keine Fixture dafür (`FINDINGS-OPEN.md`).
+- `E_AMOUNT_SCALE_MISMATCH` — **Persistenz-Ebene, über die Suite nicht erreichbar** (seit
+  2026-08-28 gebaut, IMPL-040). Er beurteilt einen Betrag, der **schon im Bestand steht**, nicht
+  einen, den ein Aufrufer anbietet — den beurteilt `E_ENTRY_INVALID_AMOUNT`, und `post-malformed`
+  nagelt das fest. Einen Bestand mit falscher Stellenzahl kann diese Engine gar nicht erzeugen; er
+  kommt aus einer anderen Runtime, einer Rücksicherung oder von Hand. Eine Fixture kann so einen
+  Bestand nicht herstellen, ein Adapter-Test schon: `AmountScaleTest` /
+  `amount-scale.test.ts`, je fünf Fälle, beide Richtungen. Er war bis dahin der einzige Code, der
+  deklariert war und von nichts ausgelöst wurde.
 - `E_WORKSPACE_INVALID` — CLI-Ebene, über die Suite gar nicht erreichbar; per Sprache durch einen
   Kontrakt-Test belegt.
 - `E_NOT_IMPLEMENTED` und `E_UNEXPECTED` — Auffangcodes, die auszulösen bedeuten würde, den Fehler

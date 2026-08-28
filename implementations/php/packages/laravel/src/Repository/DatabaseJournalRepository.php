@@ -11,6 +11,7 @@ use Summae\Core\Substrate\JournalEntry;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Substrate\PeriodRef;
 use Summae\Core\Substrate\Timestamp;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
@@ -24,6 +25,7 @@ final readonly class DatabaseJournalRepository implements JournalRepository
     public function __construct(
         private ConnectionInterface $connection,
         private Uuid $tenantId,
+        private Currency $currency,
     ) {
     }
 
@@ -126,7 +128,7 @@ final readonly class DatabaseJournalRepository implements JournalRepository
             new PeriodRef((int) $row->fiscal_year, (int) $row->period),
             Uuid::fromString($row->voucher_id),
             $row->text,
-            Hydrator::entryLines(Hydrator::decodeList($row->lines)),
+            Hydrator::entryLines(Hydrator::decodeList($row->lines), $this->currency),
             $row->reverses === null ? null : Uuid::fromString($row->reverses),
             $row->reversed_by === null ? null : Uuid::fromString($row->reversed_by),
             EntryStatus::from($row->status),
