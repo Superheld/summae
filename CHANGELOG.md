@@ -12,6 +12,63 @@ versioning per SemVer (0.x: minor may break).
 
 ## Unreleased
 
+### Conditional constraints, and a word for "not this account at all" (F-CORE-047)
+
+Two new words in the `constraint` kind, closing proposal B of
+[`docs/proposals/constraint-vocabulary.md`](docs/proposals/constraint-vocabulary.md).
+
+**`appliesWhen`** conditions a constraint rule on a **closed** set of tenant facts — `legalForm` and
+`taxationMethod`. Closed on purpose: the moment conditions become an expression language a pack
+carries logic, and the point of the substrate/pack split is gone. `smallBusiness` and amount
+conditions are argued **out**, with the reasons carried into the schema and the code rather than
+left in the memo.
+
+**`accountUsageRules`** says an entry must not touch an account **at all** —
+`E_ACCOUNT_USE_FORBIDDEN`. This was not in the proposal, and the reason it exists is worth keeping:
+the memo expressed "this account may not be used" as `whenAccountIn: X` plus
+`forbidAccountIn: 0000–9999`, since every entry has at least two accounts. That fires, and it is
+wrong twice — it reads as a range, and account numbers compare by **code point**, so `0000`–`9999`
+does not cover a chart whose numbers begin with a letter and covers a six-digit chart only by
+accident. A prohibition whose correctness depends on how a foreign chart numbers its accounts is
+not a prohibition.
+
+**Shipped in `de@2026.10`:** a capital company (`gmbh`, `ug`, `ag`, `eg`) must not post to
+`2400 Privat`. Its assets are separate from its shareholders' (§ 13 Abs. 1 GmbHG, § 1 Abs. 1 AktG),
+so a withdrawal is salary, a loan, or an open or hidden distribution (§ 8 Abs. 3 Satz 2 KStG) —
+never a private withdrawal. The rule hangs on the **legal form** rather than the account because
+`2400` is exactly right for a sole trader, a GbR, an OHG and a KG, and the same German chart serves
+both worlds.
+
+**A missing fact makes a rule dormant, not failing.** A tenant that never called `setEntityProfile`
+has no legal form; refusing its postings would punish it for not having configured something, and
+applying the rule anyway would assume a precondition nobody checked. `tenantConfiguration` reports
+dormant rules, so a caller can tell "no such rule" from "waiting for a fact".
+
+**A mistyped condition fails loudly** (resolver invariant **I10**): a `legalForm` the pack does not
+declare, or a taxation method the engine does not know, is `E_PACK_INCOHERENT`. Otherwise the rule
+would sleep for ever and the pack would look stricter than it is — the same silent failure the
+closed subtype and mechanism repertoires exist against.
+
+**Proposal A — a predicate keyed on the account's `subtype` — was declined**, and not on cost.
+Checking its motivating rule against the shipped packs showed the memo was wrong about what `de`
+forbids (`4040` only; `4030` was excluded deliberately because a collective invoice may carry a
+taxable and an intra-community supply at once), and that the same objection generalises rather than
+disappearing when the key becomes a subtype — `us` `4100 Exempt Sales` meets `2100 Sales Tax
+Payable` on any mixed receipt. The full argument is in the memo.
+
+### `2026.10` is newer than `2026.9` (F-CORE-048)
+
+"Current" — what a request without a version resolves to — compared whole version strings by **code
+point**, and `'1' < '9'`. So `2026.10` sorted *below* `2026.9`: the tenth release of a pack would
+have looked published while every versionless tenant kept resolving the ninth, with `resolvePack`
+reporting a real, existing, wrong version. The German pack reached `2026.9` on 2026-08-28 and this
+was found by the next bump.
+
+Versions now compare **segment by segment**, numerically where both segments are numbers, code
+points otherwise (so `1.0-beta` keeps the behaviour it had). Nothing published resolves differently:
+with single-digit segments the two orders agree, which is why it could be changed in one step.
+
+
 ### The account subtype repertoire is closed (F-CORE-046, format 0.9)
 
 `subtype` is the field through which a chart of accounts tells the engine what an account **is** —

@@ -161,6 +161,11 @@ final readonly class Tenant
             new TenantRecord($tenantId->value, $name, $baseCurrency->code, $packIdentity, TenantRecord::emptyConfig()),
         );
 
+        // Built before the ledger, not with the other services below: the ledger reads the declared
+        // legal form on every posting to evaluate conditional constraint rules (F-CORE-047), and it
+        // must hold the same object `setEntityProfile` later writes to.
+        $legalForms = new LegalFormRegistry();
+
         $ledger = new Ledger(
             $baseCurrency,
             $accounts,
@@ -176,6 +181,8 @@ final readonly class Tenant
             $tenantId,
             $configStore,
             $combinations,
+            $legalForms,
+            $taxProfile,
         );
 
         $tax = new TaxService(
@@ -189,7 +196,6 @@ final readonly class Tenant
             $configStore,
         );
         $partnerService = new PartnerService($partners, $audit, $clock, $ids, $accounts, $vouchers, $openItems);
-        $legalForms = new LegalFormRegistry();
         $entityProfile = new EntityProfileService($legalForms, $auditWriter, $tenantId, $configStore);
         $assetService = new AssetService($baseCurrency, $assets2, $fiscalYears, $vouchers, $ledger, $ids, [], $tenantId, $auditWriter);
         $resultAppropriation = new ResultAppropriationService($baseCurrency, $accounts, $journal, $ledger, $auditWriter);

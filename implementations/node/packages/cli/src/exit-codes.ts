@@ -91,6 +91,7 @@ const CODES: readonly string[] = [
   // can tell "unlock the account" from "your date is wrong" — the two need opposite corrections,
   // which is the same argument the two combination codes were split for.
   'E_ACCOUNT_NOT_VALID_AT_DATE',
+  'E_ACCOUNT_USE_FORBIDDEN',
 ];
 
 export function exitCodeFor(errorCode: string): number {

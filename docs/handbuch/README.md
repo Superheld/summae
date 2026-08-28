@@ -467,9 +467,14 @@ names one bundle for good: a changed module gets a new module version, and a
 manifest whose references move gets a new manifest version. Old versions may stay
 in the library beside the new ones, so a pin like `{ "id": "de", "version":
 "2026.3" }` keeps resolving what it always resolved. Asking **without** a version
-means *current*, and current is the highest version by code point — never
-whichever file the directory walk reached first, which would differ between two
-machines.
+means *current*, and current is the **highest** version — never whichever file the
+directory walk reached first, which would differ between two machines. Versions
+are compared **segment by segment**, numerically where both segments are numbers,
+so `2026.10` follows `2026.9`; a segment that is not a number falls back to code
+points, so a pack that versions itself some other way keeps the order it had.
+(Until 2026-08-28 the whole string was compared by code point, which put `2026.10`
+*below* `2026.9` — a pack's tenth release would have looked published while the
+ninth kept resolving.)
 
 **`contentDigest` is the part nobody can forget.** `resolvePack` returns it
 alongside `id` and `version`, and a tenant carries it in `pack.contentDigest`: a
@@ -637,6 +642,48 @@ dimension).
 "dimensionValues": [ { "typeCode": "costCenter", "code": "A", "name": "Stelle A" } ],
 "ruleModules": { "dimensionRules": [ { "accountRange": { "from": "4000", "to": "4999" }, "requiredDimension": "costCenter" } ] }
 ```
+
+### `accountCombinationRules[]` / `accountUsageRules[]` — the other two ways a pack says no
+
+`dimensionRules` is one of **three** words the `constraint` kind speaks. All three are checked over
+the **whole entry**, once, after its lines resolve.
+
+| Word | Says | Violation |
+|---|---|---|
+| `dimensionRules` | this account may not be posted without that dimension | `E_DIMENSION_INVALID` |
+| `accountCombinationRules` | an entry touching `whenAccountIn` must also touch `requireAccountIn`, or must **not** touch `forbidAccountIn` | `E_COMBINATION_REQUIRED` / `E_COMBINATION_FORBIDDEN` |
+| `accountUsageRules` | an entry must not touch `forbidAccountIn` **at all** | `E_ACCOUNT_USE_FORBIDDEN` |
+
+A combination rule carries **exactly one** of `requireAccountIn`/`forbidAccountIn` — both together
+would be two rules under one name. The predicate is about the entry, never about sides: the case it
+was built for (a granted discount must carry its VAT correction) has both lines on the *same* side.
+
+**`appliesWhen` conditions either kind on the tenant.** A closed set of two facts, and every named
+condition must hold while any listed value satisfies one:
+
+```json
+"accountUsageRules": [
+  { "appliesWhen": { "legalForm": ["gmbh", "ug", "ag", "eg"] },
+    "forbidAccountIn": { "from": "2400", "to": "2400" },
+    "note": "a capital company has no private account" } ]
+```
+
+- `legalForm` — one of the forms *this pack* declares in its `legalForms` module, set through
+  [`setEntityProfile`](#setentityprofile). Naming a form the pack does not declare is
+  `E_PACK_INCOHERENT` at resolve time, because a mistyped form would otherwise leave the rule
+  permanently asleep and the pack looking stricter than it is.
+- `taxationMethod` — `accrual` or `cash`, which comes from the pack at tenant creation.
+
+**A rule whose fact is missing does not apply.** A tenant that never called `setEntityProfile` has
+no legal form, so a rule keyed on one stays dormant — it is neither enforced nor hidden.
+`tenantConfiguration` reports it either way, which is how you tell "there is no such rule" from
+"the rule is waiting for a fact you have not supplied".
+
+Deliberately **not** conditions: an amount (a threshold belongs to the one module that owns it, not
+restated in a second place) and small-business status (time-segmented; use `vatReturn.gapWarnings`,
+which already reports movement on a tax account carrying no tax code). What all three words cannot
+do at all: deadlines, anything across entries, or a rule about a settlement — `settle` posts nothing.
+Those are projections' work (`duplicateVouchers`, `cashJournal`, `unfinalizedEntries`).
 
 ### `mappings[]`
 
@@ -2637,7 +2684,8 @@ hand-written inventory never catches.
 ### tenantConfiguration — what this tenant is set up as
 
 No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
-`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
+`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`,
+`accountCombinationRules[]`, `accountUsageRules[]`, `allocationScheme`
 (raw, exactly as `setAllocationScheme` accepts it, or `null`), `mappings[]`
 (`{id, kind, version}` each), `appropriationTargets[]`, `entityProfile`, `legalForms[]` and
 `sizeClasses[]`.
@@ -2661,6 +2709,11 @@ point:
   dimension. They stand in no record at all (they come back from the pack on every open), and you
   cannot derive them from the pack file without reimplementing the resolver. This is how a form
   knows which field it must not leave empty.
+- **`accountCombinationRules[]` and `accountUsageRules[]` are the pack's too**, and are reported
+  for the same reason: a booking screen can grey out a forbidden account before the user posts,
+  instead of translating an exit code afterwards. A rule carrying `appliesWhen` is listed **even
+  when it is currently dormant** — a caller that could not see it would be unable to tell an absent
+  rule from one waiting on a fact the tenant has not declared.
 - **`mappings[]` lists the pack's mappings and the imported ones together.** The record holds only
   the imports, so a projection mirroring it would answer "none" for a `de` tenant whose
   `balanceSheet`, `incomeStatement` and `cashBasisReport` all work. These are the names those

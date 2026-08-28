@@ -265,7 +265,7 @@
             "opening_balance",
             "private"
           ],
-          "description": "Kanonischer Subtyp \u2014 seit 0.9 ein GESCHLOSSENES Repertoire. Bis dahin ein freier String, und genau das war der Defekt: subtype ist das Feld, durch das der Kontenrahmen der Engine sagt, WAS ein Konto ist (welche Bewegung erfolgsneutral ist, welches Konto ein Steuerkonto ist und auf welcher Seite, welche Buchung eine Forderung er\u00f6ffnet). Ein Pack, das tax-out statt tax_out schrieb, erzeugte ein Konto, das annotiert aussah und inert war \u2014 die USt-Voranmeldung \u00fcbersprang es, und nichts in der Ausgabe sagte, dass ein Steuerkonto fehlte. Dieselbe Fehlerform, f\u00fcr die v0.8.0 die Steuermechanismen geschlossen hat (reverse-charge fiel auf normale USt zur\u00fcck) und f\u00fcr die PartnerKind geschlossen wurde (custommer war eine Partnerart wie jede andere). Acht der elf Werte liest die Engine und verzweigt darauf; fixed_asset, opening_balance und private sind Annotation, die jedes ausgelieferte Pack tr\u00e4gt und kein Code konsultiert \u2014 sie stehen im Repertoire, weil die Packs sie benutzen."
+          "description": "Kanonischer Subtyp — seit 0.9 ein GESCHLOSSENES Repertoire. Bis dahin ein freier String, und genau das war der Defekt: subtype ist das Feld, durch das der Kontenrahmen der Engine sagt, WAS ein Konto ist (welche Bewegung erfolgsneutral ist, welches Konto ein Steuerkonto ist und auf welcher Seite, welche Buchung eine Forderung er\u00f6ffnet). Ein Pack, das tax-out statt tax_out schrieb, erzeugte ein Konto, das annotiert aussah und inert war — die USt-Voranmeldung \u00fcbersprang es, und nichts in der Ausgabe sagte, dass ein Steuerkonto fehlte. Dieselbe Fehlerform, f\u00fcr die v0.8.0 die Steuermechanismen geschlossen hat (reverse-charge fiel auf normale USt zur\u00fcck) und f\u00fcr die PartnerKind geschlossen wurde (custommer war eine Partnerart wie jede andere). Acht der elf Werte liest die Engine und verzweigt darauf; fixed_asset, opening_balance und private sind Annotation, die jedes ausgelieferte Pack tr\u00e4gt und kein Code konsultiert — sie stehen im Repertoire, weil die Packs sie benutzen."
         },
         "status": {
           "enum": [
@@ -1336,6 +1336,11 @@
           "required": [
             "accountCombinationRules"
           ]
+        },
+        {
+          "required": [
+            "accountUsageRules"
+          ]
         }
       ],
       "properties": {
@@ -1440,6 +1445,31 @@
                 },
                 "additionalProperties": false
               },
+              "appliesWhen": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "legalForm": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "taxationMethod": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "enum": [
+                        "accrual",
+                        "cash"
+                      ]
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
               "note": {
                 "type": "string"
               }
@@ -1469,10 +1499,69 @@
             ]
           },
           "minItems": 1
+        },
+        "accountUsageRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "forbidAccountIn"
+            ],
+            "properties": {
+              "forbidAccountIn": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "appliesWhen": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "legalForm": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "taxationMethod": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "enum": [
+                        "accrual",
+                        "cash"
+                      ]
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false,
-      "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Zwei Prädikate. dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend. Seit v0.15.1 ein ZWEITES Praedikat: accountCombinationRules sagt, welche Konten in EINER Buchung zusammen auftreten muessen (requireAccountIn) oder nicht duerfen (forbidAccountIn) — genau eines von beiden je Regel, sonst waeren es zwei Regeln unter einem Namen. Geprueft ueber die ganze Buchung, nicht je Zeile, und ausdruecklich nicht ueber Seiten: der benannte Fall (gewaehrtes Skonto muss seine Steuerkorrektur tragen, A-13) hat beide Zeilen auf DERSELBEN Seite, ein Praedikat ueber Soll/Haben haette den Fall verfehlt, fuer den es gebaut wurde. Das Praedikat sieht eine Buchung: keine Fristen, kein Blick ueber Buchungen hinweg, und keine Regel ueber eine Verrechnung — settle bucht nicht. Ein Modul traegt MINDESTENS EINES der beiden Praedikate, aber nicht notwendig beide: bis v0.15.1 verlangte dieses Schema dimensionRules, womit ein Modul mit nur dem zweiten Praedikat nicht validierte — das erste Pack, das genau das brauchte, fand den Fehler sofort (de-entgeltminderung)."
+      "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Zwei Prädikate. dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend. Seit v0.15.1 ein ZWEITES Praedikat: accountCombinationRules sagt, welche Konten in EINER Buchung zusammen auftreten muessen (requireAccountIn) oder nicht duerfen (forbidAccountIn) — genau eines von beiden je Regel, sonst waeren es zwei Regeln unter einem Namen. Geprueft ueber die ganze Buchung, nicht je Zeile, und ausdruecklich nicht ueber Seiten: der benannte Fall (gewaehrtes Skonto muss seine Steuerkorrektur tragen, A-13) hat beide Zeilen auf DERSELBEN Seite, ein Praedikat ueber Soll/Haben haette den Fall verfehlt, fuer den es gebaut wurde. Das Praedikat sieht eine Buchung: keine Fristen, kein Blick ueber Buchungen hinweg, und keine Regel ueber eine Verrechnung — settle bucht nicht. Ein Modul traegt MINDESTENS EINES der beiden Praedikate, aber nicht notwendig beide: bis v0.15.1 verlangte dieses Schema dimensionRules, womit ein Modul mit nur dem zweiten Praedikat nicht validierte — das erste Pack, das genau das brauchte, fand den Fehler sofort (de-entgeltminderung). Seit 0.9 ein DRITTES Wort und eine BEDINGUNG. accountUsageRules sagt, welche Konten dieser Mandant ueberhaupt nicht bebuchen darf (forbidAccountIn, ohne when) — bewusst KEINE Kombinationsregel mit forbidAccountIn 0000-9999, denn dieser Trick liest sich als Bereich und ist zweimal falsch: Kontonummern vergleichen ueber CODEPOINTS, also deckt 0000-9999 einen Kontenrahmen mit Buchstaben nicht ab und einen sechsstelligen nur zufaellig. Eine Verweigerung, deren Richtigkeit davon abhaengt, wie ein fremder Kontenrahmen nummeriert, ist keine Verweigerung. appliesWhen bedingt eine Regel beider Sorten auf eine GESCHLOSSENE Menge von Mandantentatsachen (legalForm, taxationMethod) — geschlossen mit Absicht: sobald Bedingungen eine Ausdruckssprache werden, traegt ein Pack Logik, und die Trennung Substrat/Pack ist dahin. smallBusiness und Betragsgrenzen sind ausdruecklich NICHT dabei, mit Begruendung in docs/proposals/constraint-vocabulary.md. Eine unbekannte Bedingung ist E_PACK_INCOHERENT; eine legalForm, die das Pack nicht deklariert, ebenfalls (Resolver-Invariante I10) — sonst waere die Regel dauerhaft SCHLAFEND, also genau der stille Fehler, gegen den das geschlossene Subtyp- und Mechanismus-Repertoire gebaut wurden. Eine Regel, deren Bedingung nicht erfuellbar ist, weil die Tatsache fehlt (kein setEntityProfile), greift NICHT — tenantConfiguration meldet sie trotzdem, damit ein Aufrufer sieht, dass sie ruht."
     }
   }
 }

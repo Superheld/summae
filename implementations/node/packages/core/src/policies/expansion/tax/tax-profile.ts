@@ -37,7 +37,12 @@ export class TaxProfile {
    * (SPEC-016): `packPolicy.vatPeriods` declares the windows a jurisdiction files in, and a pack
    * that declares them overrides the substrate's list entirely.
    */
-  private static readonly METHODS = ['accrual', 'cash'];
+  /**
+   * The two ways this engine can recognise revenue. Published because the pack resolver checks
+   * `appliesWhen.taxationMethod` against it (I10) — a private list could only be checked by
+   * copying it, and a copied repertoire is a repertoire that drifts.
+   */
+  static readonly METHODS = ['accrual', 'cash'];
 
   /**
    * The filing windows assumed when a pack declares none — a **default, not a definition**

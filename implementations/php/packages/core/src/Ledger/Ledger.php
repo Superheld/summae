@@ -35,6 +35,8 @@ use Summae\Core\Records\OpenItem;
 use Summae\Core\Records\Voucher;
 use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Policies\Constraint\AccountCombinationRegistry;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Policies\Projection\LegalFormRegistry;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Settlement;
@@ -86,6 +88,14 @@ final readonly class Ledger
         ?TenantConfigStore $configStore = null,
         /** The constraint socket's second predicate (F-CORE-042), checked over the whole entry. */
         private ?AccountCombinationRegistry $combinations = null,
+        /**
+         * The two tenant facts a constraint rule may be conditioned on (`appliesWhen`, F-CORE-047).
+         * Held as the live registries rather than as copied values, because the legal form is set
+         * by `setEntityProfile` **after** the ledger exists — a snapshot taken here would leave
+         * every conditional rule dormant for the life of the tenant.
+         */
+        private ?LegalFormRegistry $legalForms = null,
+        private ?TaxProfile $taxProfile = null,
     ) {
         $this->auditWriter = new AuditWriter($audit, $clock, $ids);
         $this->settlements = new SettlementService($baseCurrency, $accounts, $journal, $openItems, $this->auditWriter);
@@ -107,6 +117,26 @@ final readonly class Ledger
     public function combinationRegistry(): AccountCombinationRegistry
     {
         return $this->combinations ?? AccountCombinationRegistry::empty();
+    }
+
+    /**
+     * The tenant facts a conditional constraint rule is measured against (`appliesWhen`).
+     *
+     * Read fresh on every posting, never cached: `setEntityProfile` may run at any point in a
+     * tenant's life, and a rule that only applies to tenants configured before the first posting
+     * would be a rule nobody could rely on. Absent stays absent — an unset fact makes a rule keyed
+     * on it dormant rather than failing the posting, which is argued where the matching is done.
+     *
+     * @return array{legalForm: string|null, taxationMethod: string|null}
+     */
+    private function constraintContext(): array
+    {
+        $declared = $this->legalForms?->declared();
+
+        return [
+            'legalForm' => is_string($declared['legalForm'] ?? null) ? $declared['legalForm'] : null,
+            'taxationMethod' => $this->taxProfile?->taxationMethod(),
+        ];
     }
 
     /**
@@ -713,10 +743,13 @@ final readonly class Ledger
 
         // Over the whole entry, after the per-line checks: a combination is not a property of any
         // one line, which is why it could not have been a second rule inside the dimension registry.
-        $this->combinations?->validateEntry(array_map(
-            static fn (EntryLine $entryLine): AccountNumber => $entryLine->account,
-            $lines,
-        ));
+        $this->combinations?->validateEntry(
+            array_map(
+                static fn (EntryLine $entryLine): AccountNumber => $entryLine->account,
+                $lines,
+            ),
+            $this->constraintContext(),
+        );
 
         return $lines;
     }

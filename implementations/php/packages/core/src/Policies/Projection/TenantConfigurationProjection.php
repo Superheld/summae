@@ -99,6 +99,10 @@ final readonly class TenantConfigurationProjection
             // The socket's second predicate (F-CORE-042), reported for the same reason as the first:
             // an embedding that offers a booking screen has to know which combinations are refused.
             'accountCombinationRules' => ($this->combinations ?? AccountCombinationRegistry::empty())->rulesInForce(),
+            // The socket's third word (F-CORE-047). Reported even when conditional and currently
+            // DORMANT — a caller has to be able to see that a rule exists and does not apply yet,
+            // because the alternative is inferring it from postings that go through.
+            'accountUsageRules' => ($this->combinations ?? AccountCombinationRegistry::empty())->usageRulesInForce(),
             'allocationScheme' => $this->allocationScheme,
             'mappings' => $this->mappings->summaries(),
             'appropriationTargets' => $this->appropriationTargets,

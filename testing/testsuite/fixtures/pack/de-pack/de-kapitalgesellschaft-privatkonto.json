@@ -1,0 +1,94 @@
+{
+  "fixture": "de-kapitalgesellschaft-privatkonto",
+  "description": "F-CORE-047 in the shipped German pack: a capital company has no private account. THE RULE. A GmbH's assets are separate from its shareholders' (§ 13 Abs. 1 GmbHG, § 1 Abs. 1 AktG), so what a shareholder takes out is always one of four things — salary, a loan, an open distribution, or, if it is none of those, a hidden one (§ 8 Abs. 3 Satz 2 KStG). None of the four is a private withdrawal, so a posting to 2400 Privat does two kinds of damage: it mixes the company's assets with the shareholder's, and it hides WHICH of the four actually happened, which is precisely the question a tax audit asks. WHY THE RULE HANGS ON THE LEGAL FORM AND NOT ON THE ACCOUNT, which is the whole reason this module exists: 2400 is exactly the right account for a sole trader, a GbR, an OHG and a KG, and the SAME chart serves both worlds, because German charts of accounts are not split by legal form. A prohibition attached to the account would therefore be either wrong for the partnerships or inert for the corporations. WHY IT IS A USAGE RULE AND NOT A COMBINATION: the statement is `this tenant may not post to this account`, not `these two accounts may not meet`. The old vocabulary could have faked it with `whenAccountIn: 2400–2400` plus `forbidAccountIn: 0000–9999` — every entry has at least two accounts, so it would fire — and that trick is wrong twice: it reads as a range, and account numbers compare by CODE POINT, so `0000`–`9999` does not cover a chart whose numbers start with a letter and covers a six-digit chart only by accident. THE DORMANT CASE IS PINNED FIRST, and deliberately: a tenant that never declared a legal form has none, and a rule conditioned on a fact that is absent does not apply. Refusing the posting would punish a tenant for not having configured something; applying the rule anyway would assume a precondition nobody checked.",
+  "covers": ["F-CORE-047"],
+  "setup": {},
+  "steps": [
+    { "op": "createTenant",
+      "input": { "name": "Privatkonto Constraint GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "PRIV-1", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01",
+        "text": "Entnahme, bevor eine Rechtsform erklaert ist",
+        "lines": [
+          { "account": "2400", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "DORMANT. No legal form has been declared, so the condition cannot be evaluated and the rule does not apply. `tenantConfiguration` still reports the rule, which is how a caller tells `there is no such rule` from `the rule is waiting for a fact`.",
+        "result": { "entry": { "id": "$E1" } }
+      } },
+
+    { "op": "setEntityProfile",
+      "input": { "tenant": "$T1", "legalForm": "gmbh" },
+      "expect": { "result": { "legalForm": "gmbh" } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "PRIV-2", "voucherDate": "2026-04-01" },
+        "entryDate": "2026-04-01",
+        "text": "Dieselbe Entnahme als GmbH",
+        "lines": [
+          { "account": "2400", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "The identical posting, refused because one configuration call happened in between. Nothing about the entry changed — the tenant did.",
+        "error": "E_ACCOUNT_USE_FORBIDDEN"
+      } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "AR-1", "voucherDate": "2026-04-02" },
+        "entryDate": "2026-04-02",
+        "text": "Gewoehnlicher Erloes derselben GmbH",
+        "lines": [
+          { "account": "1200", "side": "debit", "money": { "amount": "1000.00", "currency": "EUR" } },
+          { "account": "4000", "side": "credit", "money": { "amount": "1000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "A usage rule names one account and refuses nothing else. Worth pinning, because a rule that forbids an account by forbidding it to meet ANY other account — the trick this word replaced — is one edit away from refusing the whole chart.",
+        "result": { "entry": { "id": "$E2" } }
+      } },
+
+    { "op": "setEntityProfile",
+      "input": { "tenant": "$T1", "legalForm": "einzelunternehmen" },
+      "expect": { "result": { "legalForm": "einzelunternehmen" } } },
+
+    { "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "PRIV-3", "voucherDate": "2026-05-01" },
+        "entryDate": "2026-05-01",
+        "text": "Dieselbe Entnahme als Einzelunternehmen",
+        "lines": [
+          { "account": "2400", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "THE OTHER HALF, and the reason the condition exists at all: for a sole trader 2400 is the correct account and the same chart offers it. A prohibition attached to the account instead of the legal form would have made the German pack unusable for every partnership in it.",
+        "result": { "entry": { "id": "$E3" } }
+      } }
+  ],
+  "projections": [
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Two private withdrawals stand, one from before the legal form was declared and one from after it was changed to a sole trader; the GmbH's attempt is not in the books at all. The bank carries all three movements that succeeded.",
+        "rows": [
+          { "account": "1200", "balance": "0.00" },
+          { "account": "2400", "balance": "1000.00" },
+          { "account": "4000", "balance": "-1000.00" }
+        ]
+      } }
+  ]
+}

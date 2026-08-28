@@ -1,0 +1,39 @@
+{
+  "formatVersion": "0.9",
+  "id": "de-kapitalgesellschaft",
+  "kind": "constraint",
+  "version": "2026.1",
+  "name": "Deutschland — eine Kapitalgesellschaft hat kein Privatkonto",
+  "contributes": [
+    "constraint"
+  ],
+  "dependsOn": [
+    {
+      "kind": "accounts",
+      "id": "de-konten"
+    },
+    {
+      "kind": "legalForms",
+      "id": "de-rechtsformen"
+    }
+  ],
+  "data": {
+    "accountUsageRules": [
+      {
+        "appliesWhen": {
+          "legalForm": [
+            "gmbh",
+            "ug",
+            "ag",
+            "eg"
+          ]
+        },
+        "forbidAccountIn": {
+          "from": "2400",
+          "to": "2400"
+        },
+        "note": "Eine Kapitalgesellschaft hat kein Privatkonto. Das Vermögen der Gesellschaft ist von dem ihrer Gesellschafter getrennt (§ 13 Abs. 1 GmbHG, § 1 Abs. 1 AktG); was ein Gesellschafter entnimmt, ist Geschäftsführergehalt, Darlehen, offene Gewinnausschüttung oder — wenn es keines davon ist — eine verdeckte Gewinnausschüttung (§ 8 Abs. 3 Satz 2 KStG). Eine Buchung auf 2400 Privat ist deshalb in keinem dieser Fälle richtig: sie mischt Gesellschafts- und Gesellschaftervermögen und verdeckt zugleich, welcher der vier Vorgänge tatsächlich vorliegt. Für Einzelunternehmen, GbR, OHG und KG bleibt 2400 das richtige Konto, weshalb die Regel an der Rechtsform hängt und nicht am Kontenrahmen — derselbe Kontenrahmen bedient beide."
+      }
+    ]
+  }
+}

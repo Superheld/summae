@@ -64,7 +64,9 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
   version too, because a bundle is what it references. Keeping the old version resolvable is then a
   matter of leaving the old file in place next to the new one (the loader is content-based and
   recursive, so a `versions/` subfolder needs no code) — a request without a version means *current*,
-  which is the **highest** version by code point. `PackVersionIdentityTest` / `pack-version-identity`
+  which is the **highest** version — compared segment by segment and numerically where both
+  segments are numbers, so `2026.10` follows `2026.9` rather than preceding it, which is what a
+  plain code-point compare did until 2026-08-28. `PackVersionIdentityTest` / `pack-version-identity`
   refuse two files claiming the same published identity, and `resolvePack` returns a derived
   `contentDigest` that nobody can forget to change.
 - **A pack's numbers are not the conformance suite's to pin.** A fixture that pins a shipped pack's

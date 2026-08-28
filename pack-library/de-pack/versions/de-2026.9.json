@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.10",
+  "version": "2026.9",
   "modules": [
     {
       "kind": "accounts",
@@ -67,11 +67,6 @@
     {
       "kind": "constraint",
       "id": "de-kleinunternehmer",
-      "version": "2026.1"
-    },
-    {
-      "kind": "constraint",
-      "id": "de-kapitalgesellschaft",
       "version": "2026.1"
     }
   ],

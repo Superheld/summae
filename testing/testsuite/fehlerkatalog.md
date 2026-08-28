@@ -68,6 +68,7 @@ kein `E_INPUT_INVALID`: die Eingabe ist wohlgeformt, sie ist nur nicht erfüllba
 | `E_ACCOUNT_LOCKED` | Konto gesperrt | post-and-invariants |
 | `E_ACCOUNT_NUMBER_TAKEN` | Kontonummer doppelt (Repository-Kontrakt) | accounts-and-import |
 | `E_ACCOUNT_NOT_VALID_AT_DATE` | Buchung auf ein Konto außerhalb seines Gültigkeitsfensters `validFrom`/`validTo` (2026-08-28, F-CORE-045). `details`: `number`, `entryDate`, `validFrom`, `validTo` | account-validity |
+| `E_ACCOUNT_USE_FORBIDDEN` | Das Pack verbietet diesem Mandanten die Nutzung des Kontos überhaupt — `accountUsageRules`, ggf. unter `appliesWhen` (2026-08-28, F-CORE-047). `details`: `account`, `forbiddenFrom`, `forbiddenTo`, `appliesWhen` | xx-12-constraint-applies-when |
 | `E_COA_FORMAT_INVALID` | Kontenrahmen-Import nicht parsebar | accounts-and-import |
 
 
