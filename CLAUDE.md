@@ -46,7 +46,7 @@ valuation, is deliberately **in** scope and simply not built yet).
 > was said to be the app's. The reasoning was never wrong about the facts — `datenformat.md` still
 > says the export is "a mapping, not an invention" — but "we ship the mapping's *input*" and "the
 > books are auditable" are not the same claim, and an audit asking for a data carrier does not care
-> which of the two we meant. It is now built (`gdpduExport`, F-IO-008, Beschreibungsstandard 1.6).
+> which of the two we meant. It is now built (`gdpduExport`, F-IO-012, Beschreibungsstandard 1.6).
 > A scope decision that survives only because nothing tests it is worth re-reading now and then;
 > this one did not survive the re-read.
 
@@ -143,10 +143,10 @@ copy collapsed into one). Alongside them live the machine-readable spec parts th
 change is a *new* fixture, never a quiet edit to an existing one — an edited fixture rewrites
 what the contract always said, and every implementation that agreed with the old expectation
 silently becomes "wrong" retroactively. Contradiction between spec/fixture/model → **do not
-guess, do not bend the fixture**, but document it in the repo-root `SPEC-FINDINGS.md` and
+guess, do not bend the fixture**, but document it in the repo-root `FINDINGS-OPEN.md` and
 continue building with the next most plausible behavior. **One register for both implementations,
-split by state:** `SPEC-FINDINGS.md` holds what is *open* and is kept short enough to read whole;
-`SPEC-FINDINGS-RESOLVED.md` holds what is decided, in full, plus the status table. Closing a finding
+split by state:** `FINDINGS-OPEN.md` holds what is *open* and is kept short enough to read whole;
+`FINDINGS-CLOSED.md` holds what is decided, in full, plus the status table. Closing a finding
 means moving its block across — the per-language files are thin pointers.
 
 **Retiring a fixture is the one exception, and it is narrow.** Append-only stops a fixture from
@@ -181,13 +181,23 @@ defect nobody could repair without leaving the repository first.
   (`job/…`, `chore/…`, `fix/…`); merge via `--no-ff` when green.
 - **ID namespaces are disjoint by prefix — never by padding.** Four families, and a *requirement*
   never shares a prefix with a *finding*: **`F-<AREA>-nnn`** functional requirement
-  (`30-anforderungen/funktional.md`, areas CORE/TAX/AST/KLR/IO) · **`NF-n[.n]`** non-functional
-  requirement (`30-anforderungen/nicht-funktional.md`) · **`SF-nn`** standard case
+  (`30-anforderungen/funktional.md`, areas CORE/TAX/AST/KLR/IO/**PACK**/**RP**) · **`NF-n[.n]`**
+  non-functional requirement (`30-anforderungen/nicht-funktional.md`) · **`SF-nn`** standard case
   (`30-anforderungen/lieferumfang.md`) · **`SPEC-nnn` / `SPEC-Cnn` / `IMPL-nnn`** findings
-  (repo-root `SPEC-FINDINGS.md` open / `SPEC-FINDINGS-RESOLVED.md` decided). Fixtures name only
-  requirements in `covers`. Until 2026-08-23 the findings ran as `F-0xx`/`NF-0xx`, which a reader — and a grep —
-  could tell from the requirements only by a leading zero or a missing area word; the mapping is at
-  the top of `SPEC-FINDINGS.md`. A new series gets its own word, not a number range.
+  (repo-root `FINDINGS-OPEN.md` open / `FINDINGS-CLOSED.md` decided). Until 2026-08-23 the findings
+  ran as `F-0xx`/`NF-0xx`, which a reader — and a grep — could tell from the requirements only by a
+  leading zero or a missing area word; the mapping is at the top of `FINDINGS-OPEN.md`. A new series
+  gets its own word, not a number range.
+- **`covers` names requirements — and this line used to claim more than was true.** Until
+  2026-08-28 it read "fixtures name only requirements in `covers`" while 21 fixtures cited a
+  `F-PACK-*`/`F-RP-*` family that **no requirements file declared**, and the Gate-1 resolver drafts
+  cited error codes (`E_PACK_INCOHERENT`), resolver invariants (`I1`–`I4`) and bare words (`cycle`,
+  `override`). The families are now declared, because a requirement that 21 fixtures prove exists;
+  the rest is legacy and stays, because a fixture is append-only and its `covers` cannot be edited.
+  **For anything new: name declared requirement IDs and nothing else.** PACK and RP were added by
+  writing down what was already being tested, not by inventing a scope — and the reason the drift
+  went unnoticed for a year is that nothing holds `covers` against the requirement lists. That is a
+  known gap, deliberately not closed with a test yet (`FINDINGS-OPEN.md`).
 
 Language-specific conventions, build and test commands: in
 `implementations/<language>/CLAUDE.md`.

@@ -1,12 +1,17 @@
-# SPEC-FINDINGS — moved
+# Findings — moved
 
 The findings register is **one register for both implementations**, at the repository root, split by
 state rather than by language:
 
-- [`SPEC-FINDINGS.md`](../../SPEC-FINDINGS.md) — **what is open.** Short on purpose: told to look at
+- [`FINDINGS-OPEN.md`](../../FINDINGS-OPEN.md) — **what is open.** Short on purpose: told to look at
   the open findings, you should be able to read all of it and carry nothing else.
-- [`SPEC-FINDINGS-RESOLVED.md`](../../SPEC-FINDINGS-RESOLVED.md) — everything decided, in full, plus
+- [`FINDINGS-CLOSED.md`](../../FINDINGS-CLOSED.md) — everything decided, in full, plus
   the status table over both. This is what a comment saying "see IMPL-025" resolves to.
+
+> **Renamed 2026-08-28** from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md` (and this pointer
+> from `SPEC-FINDINGS.md`). Same register, same numbering — the old names said "SPEC" while two of
+> the three series in it are not about the spec, and someone looking for open bugs had no reason to
+> open a file named after a specification.
 
 It used to be two files split by *language*, and the language-neutral findings lived in both: seven
 `SPEC-` entries were byte-identical copies and SPEC-014 had already drifted. A split by language

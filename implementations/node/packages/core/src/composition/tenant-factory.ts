@@ -10,7 +10,11 @@ import { Currency } from '../substrate/currency.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
 import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
-import { AccountCombinationRegistry, type AccountCombinationRuleData } from '../policies/constraint/account-combination-registry.js';
+import {
+  AccountCombinationRegistry,
+  type AccountCombinationRuleData,
+  type AccountUsageRuleData,
+} from '../policies/constraint/account-combination-registry.js';
 import { DimensionRegistry, type DimensionRuleData } from '../policies/constraint/dimension-registry.js';
 import { Tenant } from './tenant.js';
 
@@ -86,6 +90,10 @@ export class TenantFactory {
     // entry. Threaded exactly like the first: pack data in, registry out, nothing law-shaped here.
     const accountCombinationRules = (Array.isArray(this.ruleModules.accountCombinationRules) ? this.ruleModules.accountCombinationRules : [])
       .filter((rule): rule is AccountCombinationRuleData => isRecord(rule));
+    // The socket's third word (F-CORE-047) — accounts this tenant may not touch at all, optionally
+    // conditioned on a tenant fact. Threaded the same way; the condition is evaluated at posting.
+    const accountUsageRules = (Array.isArray(this.ruleModules.accountUsageRules) ? this.ruleModules.accountUsageRules : [])
+      .filter((rule): rule is AccountUsageRuleData => isRecord(rule));
 
     const tenant = Tenant.inMemory(
       asString(input.name) ?? 'Tenant',
@@ -99,7 +107,7 @@ export class TenantFactory {
       taxRoundingGranularity,
       this.packIdentity(),
       null,
-      AccountCombinationRegistry.fromData(accountCombinationRules),
+      AccountCombinationRegistry.fromData(accountCombinationRules, accountUsageRules),
     );
 
     let accountCount = 0;

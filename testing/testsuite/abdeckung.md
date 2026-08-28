@@ -6,9 +6,18 @@
 
 Offen ohne Fixture (✗): `E_AMOUNT_SCALE_MISMATCH` — die Reader-/Writer-Prüfung der Nachkommastellen ist noch nicht gebaut. `E_WORKSPACE_INVALID` und `E_NOT_IMPLEMENTED` sind über Fixtures gar nicht erreichbar und werden pro Sprache durch einen Kontrakt-Test geprüft; `E_UNEXPECTED` ist bewusst kein Katalogcode und wird von `validate.py` nur mitgezählt, weil dessen Regex auch Fließtext greift. `E_POLICY_INVALID` hat seit 2026-08-16 die Fixture `resolver-policy-invalid`.
 
-## Standardfälle: 26 / 26 ✅
+## Standardfälle
 
-SF-15 (Cross-Implementierung: Datenbestand aus Runtime A in B weiterführen) ist mit der **zweiten Runtime** (Node) erfüllt — bidirektionaler PHP↔Node-Cross-Test grün; Cross-Test-Protokoll in `README.md`. Alle SF-01…26 haben mindestens eine Fixture.
+**Auch hier zählt `validate.py`, nicht diese Überschrift.** Sie lautete bis 2026-08-28 „26 / 26 ✅"
+und der Absatz darunter „alle SF-01…26" — während fünf Fixtures längst SF-27 abdeckten und das
+Skript ihn mitzählte. Bemerkenswert daran ist die Richtung des Fehlers: die Zahl war nicht zu
+optimistisch, sondern zu klein, und ein Standardfall existierte nur in der Zählung, weil
+`lieferumfang.md` bei SF-26 endete. Beides ist nachgetragen.
+
+SF-15 (Cross-Implementierung: Datenbestand aus Runtime A in B weiterführen) ist der einzige
+Standardfall **ohne** Fixture und das mit Absicht: er ist mit der **zweiten Runtime** (Node) erfüllt
+und wird vom bidirektionalen PHP↔Node-Cross-Test belegt, nicht von der Suite — Protokoll in
+`README.md`. Jeder andere deklarierte Standardfall hat mindestens eine Fixture.
 
 ## Determinismus-Pflichtfälle: 5 / 5 ✅
 
@@ -31,4 +40,4 @@ Von vier gemeldeten Lücken hielten zwei der Prüfung nicht stand: **§ 17-Korre
 
 ## Fazit
 
-**Kern-Vertrag erfüllt für PHP- und Node-Referenz.** Eine Implementierung, die die **45 Kern-Fixtures** (plus Determinismus-Doppellauf) besteht, ist für den Buchungskern konform. Die **13 Pack-Fixtures** (v0.6-Pack-Komposition) erweitern den Vertrag um die Resolver-Ebene — Stand Gate 1. Zwei fachliche Rückfragen offen (RQ-1/RQ-2, `40-domaenenmodell/offene-fragen.md`) — beide betreffen nur die VA-Darstellungs-/Zuordnungssemantik, nicht den Buchungskern. SF-15 ist mit der zweiten Runtime (Node) erfüllt: bidirektionaler Cross-Test grün.
+**Kern-Vertrag erfüllt für PHP- und Node-Referenz.** Eine Implementierung, die die Kern-Fixtures unter `fixtures/core/` (plus Determinismus-Doppellauf) besteht, ist für den Buchungskern konform; die Fixtures unter `fixtures/pack/` erweitern den Vertrag um die Resolver-Ebene. *(Hier standen „45 Kern-Fixtures" und „13 Pack-Fixtures" — beide seit langem falsch, in derselben Datei, deren erste Zeile sagt, dass Zahlen hier nicht stehen. Ein Verzeichnisname veraltet nicht.)* Zwei fachliche Rückfragen offen (RQ-1/RQ-2, `40-domaenenmodell/offene-fragen.md`) — beide betreffen nur die VA-Darstellungs-/Zuordnungssemantik, nicht den Buchungskern. SF-15 ist mit der zweiten Runtime (Node) erfüllt: bidirektionaler Cross-Test grün.

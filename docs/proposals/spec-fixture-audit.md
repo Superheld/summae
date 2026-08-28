@@ -29,7 +29,7 @@ even document their own derivation:
 **Finding:** the hotspot **amounts** are rigorously spec-derived (the derivation is in the fixture
 comments). The class that actually slipped through was code-pinned **label text** (`Vereinnahmte USt`) —
 *output strings*, not amounts — now (a) fixed (labels come from the pack mapping) and (b) guarded by #27
-(no jurisdiction label/text in the core). Hole closed, audited amounts sound. No `SPEC-FINDINGS` entries
+(no jurisdiction label/text in the core). Hole closed, audited amounts sound. No findings-register entries
 from depth A.
 
 **Out of scope for A (would be depth B):** non-hotspot fixtures (assets, costing, dimensions, DATEV) were
@@ -56,7 +56,7 @@ not hand-re-derived — trusted via covers-linkage + the conformance oracle.
   where intent vs. output diverged) against the spec, by hand. ~1–2 h. Catches the same class.
 - **(B) Systematic** — for every fixture, confirm each `expect` value is derivable from the spec it
   `covers`, not just reproduced from the engine. Needs the requirement specs (`knowledge/30-anforderungen/`) open alongside;
-  larger, produces a per-fixture audit table. Findings → `SPEC-FINDINGS.md`.
+  larger, produces a per-fixture audit table. Findings → `FINDINGS-OPEN.md`.
 - **(C) Structural-only** — rely on the #27 guards + covers-linkage + "fixtures are authored from
   the spec" discipline going forward, and skip the retro-audit. Cheapest; accepts that old
   amount-fixtures are trusted.

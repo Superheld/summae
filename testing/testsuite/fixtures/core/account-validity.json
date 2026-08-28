@@ -1,0 +1,131 @@
+{
+  "fixture": "account-validity",
+  "description": "F-CORE-045: an account may be posted to only inside its validity window. THE FINDING BEHIND THIS FIXTURE is not a wrong number but a silent one — `validFrom` and `validTo` were declared on `account` in the normative format schema and no implementation read or wrote them; `importChartOfAccounts` dropped them without a word, so an account carrying `validTo: 2025-12-31` accepted a posting dated 2026-06-01 exactly as if the field had never been there. A field the schema declares and the engine ignores is the mirror image of the rule the project already has for the other direction, and it is worse in one respect: whoever set it believed it did something. WHY THIS IS NOT A LOCK, and why both have to exist: `E_ACCOUNT_LOCKED` is unconditional and about NOW — it refuses every posting, including a late correction dated before the lock, which is precisely wrong for an account retired at a year end. The window is judged against the POSTING's date, so 1901 keeps taking its December correction (step 4) and refuses January (step 3). A caller that could not tell the two refusals apart could not tell a user whether to unlock the account or fix the date. WRITES ONLY: the trial balance at the end still carries every account outside its window with every figure ever posted to it, because the history happened — a window that hid past figures would make the books say less than the journal does. The last step proves the guard on the master data itself: a window that closes before it opens accepts nothing at all, so the account would be created dead and every later refusal would name a date rather than the cause.",
+  "covers": ["F-CORE-045"],
+  "setup": {
+    "tenant": { "name": "Kontengueltigkeit GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1900", "name": "Aktive Rechnungsabgrenzung", "type": "asset" },
+      { "number": "1901", "name": "Uebergangskonto (nur 2026)", "type": "asset", "validTo": "2026-12-31" },
+      { "number": "6000", "name": "Sonstiger betrieblicher Aufwand", "type": "expense" },
+      { "number": "6001", "name": "Neues Aufwandskonto (ab 2027)", "type": "expense", "validFrom": "2027-01-01" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "vouchers": []
+  },
+  "steps": [
+    { "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "BEL-1", "voucherDate": "2026-11-30" } },
+      "expect": { "result": { "id": "$V1" } } },
+    { "op": "post",
+      "input": { "entryDate": "2026-11-30", "voucherId": "$V1", "text": "Uebergangskonto, innerhalb seines Fensters",
+        "lines": [
+          { "account": "1901", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ] },
+      "expect": {
+        "comment": "Inside the window, so nothing fires. An account with a window behaves exactly like one without for every date it covers.",
+        "result": { "id": "$E1" }
+      } },
+
+    { "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "BEL-2", "voucherDate": "2027-01-15" } },
+      "expect": { "result": { "id": "$V2" } } },
+    { "op": "post",
+      "input": { "entryDate": "2027-01-15", "voucherId": "$V2", "text": "Uebergangskonto nach seinem Ende",
+        "lines": [
+          { "account": "1901", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ] },
+      "expect": {
+        "comment": "Balanced, vouchered, in an open period, on an account that exists and is not locked — and refused, because the account was retired at the year end. Before this the posting went through and the account carried a 2027 balance nobody had planned for.",
+        "error": "E_ACCOUNT_NOT_VALID_AT_DATE"
+      } },
+
+    { "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "BEL-3", "voucherDate": "2026-12-20" } },
+      "expect": { "result": { "id": "$V3" } } },
+    { "op": "post",
+      "input": { "entryDate": "2026-12-20", "voucherId": "$V3", "text": "Verspaetete Korrektur fuer Dezember",
+        "lines": [
+          { "account": "1901", "side": "credit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1900", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } }
+        ] },
+      "expect": {
+        "comment": "THE DIFFERENCE FROM A LOCK, in one step: the same account that just refused January takes December, because the window is judged against the posting's own date. A lock would have refused this too, which is why retiring an account was not expressible before.",
+        "result": { "id": "$E2" }
+      } },
+
+    { "op": "post",
+      "input": { "entryDate": "2026-12-20", "voucherId": "$V3", "text": "Konto, das es 2026 noch nicht gibt",
+        "lines": [
+          { "account": "6001", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ] },
+      "expect": {
+        "comment": "The other edge of the window. A chart position introduced for the coming year must not quietly collect this year's postings.",
+        "error": "E_ACCOUNT_NOT_VALID_AT_DATE"
+      } },
+
+    { "op": "createVoucher",
+      "input": { "voucher": { "voucherNumber": "BEL-4", "voucherDate": "2027-02-01" } },
+      "expect": { "result": { "id": "$V4" } } },
+    { "op": "post",
+      "input": { "entryDate": "2027-02-01", "voucherId": "$V4", "text": "Dasselbe Konto, sobald es gilt",
+        "lines": [
+          { "account": "6001", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ] },
+      "expect": { "result": { "id": "$E3" } } },
+
+    { "op": "createAccount",
+      "input": { "number": "6002", "name": "Fenster, das vor seinem Anfang schliesst", "type": "expense", "validFrom": "2027-01-01", "validTo": "2026-12-31" },
+      "expect": {
+        "comment": "Refused at the master data, not at the first posting. An account with an empty window accepts nothing at all, and every refusal it produced later would have named a date instead of the reason.",
+        "error": "E_INPUT_INVALID"
+      } },
+
+    { "op": "createAccount",
+      "input": { "number": "6003", "name": "Konto ohne Fenster", "type": "expense" },
+      "expect": {
+        "comment": "Both bounds absent is what every account had before the window existed and what almost every account keeps. Nothing changes for it.",
+        "result": { "number": "6003" }
+      } }
+  ],
+  "projections": [
+    { "name": "accounts", "params": {},
+      "expect": {
+        "comment": "The window is readable — a screen offering an account picker must be able to grey out what the date does not allow, instead of letting the user post and then translating an error code.",
+        "accounts": [
+          { "number": "1200", "validFrom": null, "validTo": null },
+          { "number": "1900", "validFrom": null, "validTo": null },
+          { "number": "1901", "validFrom": null, "validTo": "2026-12-31" },
+          { "number": "6000", "validFrom": null, "validTo": null },
+          { "number": "6001", "validFrom": "2027-01-01", "validTo": null },
+          { "number": "6003", "validFrom": null, "validTo": null }
+        ]
+      } },
+    { "name": "trialBalance", "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "1901 is outside its window from 2027 on and still carries everything ever posted to it. The window governs writes and never reads.",
+        "rows": [
+          { "account": "1200", "balance": "-400.00" },
+          { "account": "1900", "balance": "400.00" },
+          { "account": "1901", "balance": "0.00" }
+        ]
+      } },
+    { "name": "trialBalance", "params": { "fiscalYear": 2027, "throughPeriod": 12 },
+      "expect": {
+        "comment": "The window has no effect on a carry-forward either: 1900 crosses into 2027 with its opening balance while 1901, whose window ended, simply has nothing left to carry.",
+        "rows": [
+          { "account": "1200", "openingBalance": "-400.00", "balance": "-410.00" },
+          { "account": "1900", "openingBalance": "400.00", "balance": "400.00" },
+          { "account": "6001", "openingBalance": "0.00", "balance": "10.00" }
+        ]
+      } }
+  ]
+}

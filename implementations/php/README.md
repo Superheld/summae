@@ -26,7 +26,7 @@ implementation must satisfy all fixtures byte-identically and deterministically.
 | `packages/cli/` | `superheld/summae-cli` — CLI, JSON output |
 | `runner/` | fixture runner for the conformance suite |
 | `testing/testsuite/` | the conformance fixtures — authored here, **append-only** |
-| `SPEC-FINDINGS.md` | findings against spec/fixtures (escalation path) |
+| `FINDINGS-OPEN.md` | findings against spec/fixtures (escalation path) |
 
 ## Development
 
@@ -44,7 +44,7 @@ Postgres is only needed for the persistence adapter: `docker compose --profile d
 
 ## Iron rules
 
-1. **Fixtures are never edited.** Contradiction found → `SPEC-FINDINGS.md`.
+1. **Fixtures are never edited.** Contradiction found → `FINDINGS-OPEN.md`.
 2. **The core stays framework-free.** No `Illuminate\*` in `packages/core`.
 3. **Journal append-only, balances are projections.** Never store a balance.
 4. **Money is never a float.** `Money` on brick/math, half-up, allocate largest-remainder.

@@ -1,0 +1,135 @@
+{
+  "fixture": "xx-13-pack-version-ordering",
+  "description": "A request without a version means CURRENT, and current is the highest version — compared segment by segment, numerically where both segments are numbers. THE DEFECT THIS PINS was one release away and would have been silent. Versions were compared as whole strings by code point, and `'1' < '9'`, so `2026.10` sorted BELOW `2026.9`: the tenth publication of a pack would have looked published while every versionless tenant kept resolving the ninth. Nothing would have said so — `resolvePack` returns the version it chose, and it would have returned a real, existing, wrong one. The German pack reached `2026.9` on 2026-08-28 and the next edit to it was the one that found this. WHY IT IS SAFE TO CHANGE IN ONE STEP rather than behind a flag: with single-digit segments the two orders agree, so no version that has ever been published resolves differently — the rule only decides cases that could not arise yet. A segment that is not a number still falls back to code points, so a pack that versions itself some other way (`1.0-beta`) keeps exactly the behaviour it had. THE THIRD STEP IS THE CONTRACT; the first two exist so that a failure tells you which half broke — whether the pins still resolve what they always resolved, or whether only the choice among them moved.",
+  "covers": ["F-CORE-048"],
+  "setup": {
+    "modules": [
+      {
+        "formatVersion": "0.9",
+        "id": "xx-ver-konten",
+        "kind": "accounts",
+        "version": "2026.9",
+        "name": "XX Kontenrahmen (neunte Fassung)",
+        "contributes": ["accounts"],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "400", "name": "Erloese", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" }
+          ]
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-ver-konten",
+        "kind": "accounts",
+        "version": "2026.10",
+        "name": "XX Kontenrahmen (zehnte Fassung)",
+        "contributes": ["accounts"],
+        "dependsOn": [],
+        "data": {
+          "accounts": [
+            { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+            { "number": "400", "name": "Erloese", "type": "revenue" },
+            { "number": "600", "name": "Aufwand", "type": "expense" },
+            { "number": "610", "name": "Aufwand, neu in der zehnten Fassung", "type": "expense" }
+          ]
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-ver-policy",
+        "kind": "policy",
+        "version": "2026.1",
+        "name": "XX Policy",
+        "contributes": ["policy"],
+        "dependsOn": [],
+        "data": {
+          "packPolicy": {
+            "roundingMode": "halfUpAwayFromZero",
+            "taxRoundingGranularity": "perVoucher",
+            "currencyScale": 2
+          }
+        }
+      }
+    ],
+    "manifests": [
+      {
+        "formatVersion": "0.9",
+        "id": "xx-versioniert",
+        "name": "Fiktive Jurisdiktion XX (neunte Fassung)",
+        "version": "2026.9",
+        "modules": [
+          { "kind": "accounts", "id": "xx-ver-konten", "version": "2026.9" },
+          { "kind": "policy", "id": "xx-ver-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      {
+        "formatVersion": "0.9",
+        "id": "xx-versioniert",
+        "name": "Fiktive Jurisdiktion XX (zehnte Fassung)",
+        "version": "2026.10",
+        "modules": [
+          { "kind": "accounts", "id": "xx-ver-konten", "version": "2026.10" },
+          { "kind": "policy", "id": "xx-ver-policy", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      }
+    ]
+  },
+  "steps": [
+    { "op": "resolvePack",
+      "input": { "manifest": { "id": "xx-versioniert", "version": "2026.9" } },
+      "expect": {
+        "comment": "A pin resolves what it always resolved. Unchanged by the ordering fix and pinned first so a failure here says `the pins broke`, not `the choice moved`.",
+        "result": { "id": "xx-versioniert", "version": "2026.9", "accountCount": 3 }
+      } },
+
+    { "op": "resolvePack",
+      "input": { "manifest": { "id": "xx-versioniert", "version": "2026.10" } },
+      "expect": {
+        "comment": "The tenth publication exists and is reachable by its own name. It always was — being unreachable was never the defect.",
+        "result": { "id": "xx-versioniert", "version": "2026.10", "accountCount": 4 }
+      } },
+
+    { "op": "resolvePack",
+      "input": { "manifest": { "id": "xx-versioniert" } },
+      "expect": {
+        "comment": "THE CONTRACT. No version asked for, so the newest answers — and `2026.10` is newer than `2026.9`, which a code-point comparison of the whole string denies because it reads `1` before `9`. Before this, every tenant created without a pin would silently have run the ninth release of a pack that had published ten.",
+        "result": { "id": "xx-versioniert", "version": "2026.10", "accountCount": 4 }
+      } },
+
+    { "op": "createTenant",
+      "input": { "name": "XX Ohne Pin GmbH", "baseCurrency": "EUR", "pack": "xx-versioniert", "firstFiscalYear": 2026 },
+      "expect": {
+        "comment": "And the same choice through the door an application actually uses: `createTenant` names the pack and no version, so the tenant must be built on the tenth release. `resolvePack` being right while `createTenant` disagreed would be the worse bug of the two.",
+        "result": { "id": "$T1", "pack": { "id": "xx-versioniert", "version": "2026.10" } }
+      } }
+  ],
+  "projections": [
+    { "name": "accounts", "params": { "tenant": "$T1" },
+      "expect": {
+        "comment": "The account that exists only in the tenth release is in the tenant's chart, which is the difference made visible: a wrong choice of version is not an abstract mislabelling, it is a chart with an account missing from it.",
+        "accounts": [
+          { "number": "100" },
+          { "number": "400" },
+          { "number": "600" },
+          { "number": "610" }
+        ]
+      } }
+  ]
+}

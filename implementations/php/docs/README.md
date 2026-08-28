@@ -7,7 +7,7 @@ package (they find everything in the package READMEs under `packages/*/README.md
 |---|---|
 | [architektur.md](architektur.md) | Layers, packages, ports & adapters, data flow — *why* it is cut this way |
 | [entwicklung.md](entwicklung.md) | Setup (Docker), tests/PHPStan/fixtures, branch/job workflow, conventions |
-| [konformitaet.md](konformitaet.md) | The compatibility contract: fixture suite, determinism, SPEC-FINDINGS |
+| [konformitaet.md](konformitaet.md) | The compatibility contract: fixture suite, determinism, findings |
 
 ## The most important rule first
 
@@ -15,7 +15,7 @@ The **normative source** is not this code but the knowledge base
 (sister repo "Rechnungswesen"): specification, domain model, and the
 conformance fixtures. This implementation is *conformant* when all fixtures are
 green. Fixtures are **never edited here** — contradictions go to
-[`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) and flow back through the knowledge
+[`FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md) and flow back through the knowledge
 base (see [konformitaet.md](konformitaet.md)).
 
 ## Quick start for newcomers

@@ -16,6 +16,7 @@ use Summae\Core\Policies\Projection\BalanceSheetProjection;
 use Summae\Core\Policies\Projection\CashBasisProjection;
 use Summae\Core\Policies\Projection\CashJournalProjection;
 use Summae\Core\Policies\Projection\DatevExportProjection;
+use Summae\Core\Policies\Projection\DuplicateVouchersProjection;
 use Summae\Core\Policies\Projection\EcSalesListProjection;
 use Summae\Core\Policies\Projection\IncomeStatementProjection;
 use Summae\Core\Policies\Projection\JournalExportProjection;
@@ -172,6 +173,12 @@ final readonly class TenantOperations
                 $tenant->audit,
             ))->compute($params),
             'auditTrailIntegrity' => (new AuditTrailIntegrityProjection($tenant->audit))->run(),
+            'duplicateVouchers' => (new DuplicateVouchersProjection(
+                $tenant->baseCurrency,
+                $tenant->vouchers,
+                $tenant->journal,
+                $tenant->partners,
+            ))->compute(),
             'gdpduExport' => (new GdpduExportProjection(
                 $tenant->id,
                 $tenant->name,

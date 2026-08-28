@@ -199,6 +199,10 @@ export class Tenant {
     combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
     const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
+    // Built before the ledger, not with the other services below: the ledger reads the declared
+    // legal form on every posting to evaluate conditional constraint rules (F-CORE-047), and it
+    // must hold the same object `setEntityProfile` later writes to.
+    const legalForms = new LegalFormRegistry();
     const ledger = new Ledger(
       baseCurrency,
       accounts,
@@ -214,6 +218,8 @@ export class Tenant {
       tenantId,
       configStore,
       combinations,
+      legalForms,
+      taxProfile,
     );
     const auditWriter = new AuditWriter(audit, clock, ids);
     const tax = new TaxService(
@@ -239,7 +245,6 @@ export class Tenant {
       configStore,
     );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
-    const legalForms = new LegalFormRegistry();
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
     return new Tenant(

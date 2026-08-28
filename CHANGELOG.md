@@ -8,7 +8,237 @@ versioning per SemVer (0.x: minor may break).
 > `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
 > unchanged. These notes keep the IDs they were published with, because a released note
 > should describe what was released. The mapping lives at the top of
-> [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
+> [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
+
+## Unreleased
+
+### The findings register is now `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md`
+
+Renamed from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md`. Same register, same numbering, same
+split by state — the old names said "SPEC" while two of the three series in it (`IMPL-nnn`
+implementation defects, `SPEC-Cnn` cross-implementation) are not about the specification at all, and
+someone looking for open bugs had no reason to open a file named after a spec. The per-language
+pointers moved with them (`implementations/*/FINDINGS.md`).
+
+The **historical** knowledge-base register at `knowledge/80-implementierung/SPEC-FINDINGS.md` keeps
+its name deliberately: it is closed, its numbers are cited in commits, and it uses the same prefixes
+for *different* findings — renaming it would suggest the two are one register.
+
+**Five findings recorded**, four of them found by counting rather than by anything failing:
+
+- **IMPL-039** — nothing holds `covers` and the requirement lists together. 21 fixtures cited a
+  `F-PACK-*`/`F-RP-*` family that no requirements file declared; `SF-27` was counted by
+  `validate.py` and declared nowhere. Both repaired; the class is not, and the comparison that makes
+  it a finding is that the error catalogue *is* held against the exit-code tables as sets in both
+  directions, in both languages.
+- **IMPL-040** — `E_AMOUNT_SCALE_MISMATCH` is the one catalogue code reachable through the API with
+  no fixture and no check behind it.
+- **IMPL-041** — F-KLR-002 (Abgrenzungsrechnung) is not built and may have been retired by the
+  2026-08-23 scope decision without the row being struck. A decision, not a task.
+- **IMPL-042** — F-IO-008 (DATEV Buchungsstapel import) is not built. It hid because the root
+  `CLAUDE.md` attributed that ID to `gdpduExport`, which is F-IO-012.
+- **IMPL-036** — recorded late: the schema installers now add a missing nullable column instead of
+  assuming the table is current, fixed inside the F-CORE-045 work without a register entry of its
+  own.
+
+
+### Conditional constraints, and a word for "not this account at all" (F-CORE-047)
+
+Two new words in the `constraint` kind, closing proposal B of
+[`docs/proposals/constraint-vocabulary.md`](docs/proposals/constraint-vocabulary.md).
+
+**`appliesWhen`** conditions a constraint rule on a **closed** set of tenant facts — `legalForm` and
+`taxationMethod`. Closed on purpose: the moment conditions become an expression language a pack
+carries logic, and the point of the substrate/pack split is gone. `smallBusiness` and amount
+conditions are argued **out**, with the reasons carried into the schema and the code rather than
+left in the memo.
+
+**`accountUsageRules`** says an entry must not touch an account **at all** —
+`E_ACCOUNT_USE_FORBIDDEN`. This was not in the proposal, and the reason it exists is worth keeping:
+the memo expressed "this account may not be used" as `whenAccountIn: X` plus
+`forbidAccountIn: 0000–9999`, since every entry has at least two accounts. That fires, and it is
+wrong twice — it reads as a range, and account numbers compare by **code point**, so `0000`–`9999`
+does not cover a chart whose numbers begin with a letter and covers a six-digit chart only by
+accident. A prohibition whose correctness depends on how a foreign chart numbers its accounts is
+not a prohibition.
+
+**Shipped in `de@2026.10`:** a capital company (`gmbh`, `ug`, `ag`, `eg`) must not post to
+`2400 Privat`. Its assets are separate from its shareholders' (§ 13 Abs. 1 GmbHG, § 1 Abs. 1 AktG),
+so a withdrawal is salary, a loan, or an open or hidden distribution (§ 8 Abs. 3 Satz 2 KStG) —
+never a private withdrawal. The rule hangs on the **legal form** rather than the account because
+`2400` is exactly right for a sole trader, a GbR, an OHG and a KG, and the same German chart serves
+both worlds.
+
+**A missing fact makes a rule dormant, not failing.** A tenant that never called `setEntityProfile`
+has no legal form; refusing its postings would punish it for not having configured something, and
+applying the rule anyway would assume a precondition nobody checked. `tenantConfiguration` reports
+dormant rules, so a caller can tell "no such rule" from "waiting for a fact".
+
+**A mistyped condition fails loudly** (resolver invariant **I10**): a `legalForm` the pack does not
+declare, or a taxation method the engine does not know, is `E_PACK_INCOHERENT`. Otherwise the rule
+would sleep for ever and the pack would look stricter than it is — the same silent failure the
+closed subtype and mechanism repertoires exist against.
+
+**Proposal A — a predicate keyed on the account's `subtype` — was declined**, and not on cost.
+Checking its motivating rule against the shipped packs showed the memo was wrong about what `de`
+forbids (`4040` only; `4030` was excluded deliberately because a collective invoice may carry a
+taxable and an intra-community supply at once), and that the same objection generalises rather than
+disappearing when the key becomes a subtype — `us` `4100 Exempt Sales` meets `2100 Sales Tax
+Payable` on any mixed receipt. The full argument is in the memo.
+
+### `2026.10` is newer than `2026.9` (F-CORE-048)
+
+"Current" — what a request without a version resolves to — compared whole version strings by **code
+point**, and `'1' < '9'`. So `2026.10` sorted *below* `2026.9`: the tenth release of a pack would
+have looked published while every versionless tenant kept resolving the ninth, with `resolvePack`
+reporting a real, existing, wrong version. The German pack reached `2026.9` on 2026-08-28 and this
+was found by the next bump.
+
+Versions now compare **segment by segment**, numerically where both segments are numbers, code
+points otherwise (so `1.0-beta` keeps the behaviour it had). Nothing published resolves differently:
+with single-digit segments the two orders agree, which is why it could be changed in one step.
+
+
+### The account subtype repertoire is closed (F-CORE-046, format 0.9)
+
+`subtype` is the field through which a chart of accounts tells the engine what an account **is** —
+which movement is profit-neutral, which account is a tax account and on which side its tax stands,
+which posting opens a receivable — and it was a free string that took anything. The defect that
+follows is not a wrong figure but an **inert** one: a chart writing `tax-out` instead of `tax_out`
+produced an account that *looked* annotated and behaved like an unannotated one. The VAT return
+skipped it, the cash-basis projection did not treat it as tax, and nothing in any output said a tax
+account had gone missing. The only way to notice was to compare the return against the ledger.
+
+This is the third time the project has met that shape and the third identical answer: v0.8.0 closed
+the tax mechanisms after `reverse-charge` fell back to plain VAT under the ordinary reporting key,
+and `PartnerKind` was closed after `custommer` turned out to be a partner kind like any other.
+
+**Eleven values, two tiers, one list.** Eight the engine reads and branches on (`bank`, `cash`,
+`transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`); `fixed_asset`, `opening_balance`
+and `private` are annotation that every shipped pack carries and no code consults. They are in the
+repertoire because the packs use them — a list holding only the eight would refuse all three
+shipped charts.
+
+**Enforced where a subtype is authored, and nowhere else.** A pack fails at resolution
+(`E_PACK_INCOHERENT`, like every other coherence check, so at `resolvePack` rather than at the first
+posting); `createAccount` refuses with `E_INPUT_INVALID` and `importChartOfAccounts` with
+`E_COA_FORMAT_INVALID` naming the row. It is deliberately **not** checked in the `Account`
+constructor, where it would be shortest — hydrating a stored account runs through that constructor,
+so a database written before this repertoire existed would stop loading, and a validation that
+refuses to read back what it once wrote is a worse failure than the one it prevents. Existing data
+is therefore untouched; only new authoring is constrained.
+
+**Two fixtures were retired for it, and the register gained a second reason.** `xx-8` and `xx-9`
+carried `subtype: "vat"` on an account 177 — a value neither engine has ever read, copied from one
+fixture into the other before anyone noticed, which is the argument for closing a vocabulary rather
+than reviewing its uses. Their expectations were never wrong and are carried into
+`xx-8-…-current` / `xx-9-…-current` unchanged; what could not survive format 0.9 was their
+*setup*. `superseded.json` now says so explicitly, with the guard that keeps it narrow: if a
+successor's expectation differs by so much as a figure, it is a behaviour change and therefore a
+new fixture, not a retirement.
+
+Format version moves to **0.9**.
+
+
+### An account's validity window is real now (F-CORE-045)
+
+`validFrom` and `validTo` were declared on `account` in the normative format schema and **no
+implementation read or wrote them**. `importChartOfAccounts` dropped them without a word, so an
+account carrying `validTo: 2025-12-31` accepted a posting dated 2026-06-01 exactly as if the field
+had never been there. A field the schema declares and the engine ignores is the mirror image of the
+rule this project already had for the other direction ("a field the engine reads but the schema does
+not declare is a finding"), and worse in one respect: whoever set it believed it did something.
+Removing it from the normative format would have been the other honest closure and the more
+expensive one — so it is built.
+
+**It is a window, not a lock, and both have to exist.** `lockAccount` is unconditional and about
+*now*: it refuses every posting including a late correction dated before the lock, which is exactly
+wrong for an account retired at a year end. The window is judged against the **posting's own date**,
+so an account valid to `2026-12-31` keeps taking its December correction booked in February and
+refuses January — `E_ACCOUNT_NOT_VALID_AT_DATE`, a code of its own because "unlock the account" and
+"fix your date" are opposite corrections. **Writes only:** an account outside its window keeps every
+figure ever posted to it in every report and carries its balance forward. A `validTo` before its
+`validFrom` is refused at the master data (`E_INPUT_INVALID`) rather than at the first posting.
+
+`createAccount` and `importChartOfAccounts` accept both fields, `accounts` reports them (so a picker
+can be filtered by the chosen date), the audit trail records them when set, and both adapters
+persist them.
+
+> **Upgrading an existing workspace needs nothing.** The schema installer now also adds a **missing
+> nullable column** to a table that already exists, in both languages — until now it only ever
+> created missing *tables*, and its own docblock called the column case "by hand". The first change
+> that needed it showed why that was not good enough: an existing workspace kept the old table and
+> failed on the next insert. Pinned by `testAnExistingTableGainsANullableColumnInsteadOfBreakingOnTheNextInsert`
+> / `gives an existing table a nullable column instead of breaking on the next insert`. Type changes
+> and rewrites still need a real migration, which neither language has.
+
+New error code `E_ACCOUNT_NOT_VALID_AT_DATE` (`fehlerkatalog.md` + both exit-code tables), fixture
+`core/account-validity`, and a row in `docs/gobd-conformance.md` §6.
+
+### `duplicateVouchers` — the same document entered twice (F-CORE-044)
+
+`voucherNumber` is a free string with no uniqueness of any kind, and `postVoucher` substitutes
+`''` when none is supplied. An incoming invoice booked a second time therefore produced a second
+voucher, a second balanced entry and a **second input-tax deduction** — with every invariant the
+library has satisfied: the entries balance, both carry a voucher, both sit in an open period, the
+trial balance adds up. Nothing looked wrong anywhere. The money was simply claimed twice, and no
+projection said so.
+
+**Grouping is by document identity, not by number:** the issuer (`partnerId` where the voucher
+names a partner, the free-text `issuer` otherwise) plus the number. Two suppliers legitimately
+send the same invoice number, which is why this is **a report and not a refusal** — a uniqueness
+rule on `voucherNumber` would be wrong rather than merely strict, and the only thing worse than a
+missing check is one that blocks correct bookkeeping. Same line `vatReturn.gapWarnings` draws.
+
+Three exclusions, each because including it would produce noise instead of findings: an empty
+`voucherNumber`, a `recurring` voucher (a standing document repeating its number is what the flag
+means), and — per voucher — entries that are a reversal or have been reversed. `postedTotal`
+counts only what still moves the books, so a duplicate already corrected reads `0.00` and stays in
+the list *with its history*; `stillPosted` says how many of a group still count.
+
+**No parameters, and a date window least of all:** an invoice entered in December and again in
+January is exactly the case this exists for, and a window on the voucher date hides it at the
+boundary. Fixture `core/duplicate-vouchers`; `docs/gobd-conformance.md` §4 gains a row that is ✅
+for *detectable* and explicitly says nothing about prevention.
+
+### The `de` pack now also says *no* — a small business's revenue may not show VAT (`de@2026.9`)
+
+The constraint socket has had two predicates since 0.16.0, and the shipped packs used exactly one of
+them. `requireAccountIn` was in force through `de-entgeltminderung` (§ 17 UStG); `forbidAccountIn`
+existed only in `xx-8`, a fixture that brings its own pack. A vocabulary that no shipped pack ever
+speaks half of is hard to tell from a feature with a data file.
+
+**New module `de-kleinunternehmer` (`constraint`, 2026.1).** § 19 Abs. 1 UStG raises no tax on a
+small business's turnover, so an entry that books `4040` (Erlöse Kleinunternehmer) together with an
+output-VAT account is refused with `E_COMBINATION_FORBIDDEN`. The entry it refuses is otherwise
+flawless — balanced, vouchered, in an open period — and § 14c Abs. 2 UStG then makes the tax it
+shows **owed anyway**, which is the expensive half: the books are wrong *and* the money is due.
+
+**Why `4040` and not `4030`,** because that reasoning is what a later pack author needs:
+`forbidAccountIn` refuses a *combination inside one entry*, so it is only usable where the
+combination cannot occur legitimately. A collective invoice may carry a taxable and an
+intra-community supply at once, so a rule on `4030` would refuse a correct entry. The § 19 status
+holds for a whole calendar year, so no single document mixes small-business and standard-rate
+turnover. What the module deliberately does **not** say is the input side: § 19 Abs. 1 Satz 4 UStG
+denies the input-tax deduction too, but an input-tax posting carries no revenue line, so a rule hung
+on `4040` would never fire — that prohibition depends on the tenant's *profile*, and the constraint
+vocabulary has no conditional. Named as a gap rather than covered by a rule that looks like it
+covers it.
+
+`de` moved to **2026.9** and has two `constraint` modules; they add up rather than replace, which
+`xx-10-constraint-rules-readable` now pins (two modules in one pack, both firing, both reported by
+`tenantConfiguration`) alongside the readability of `accountCombinationRules`.
+
+**One fixture retired.** `de-entgeltminderung-erzwungen` pinned `tenantConfiguration.
+accountCombinationRules` as a list of exactly two — the *complete* rule set of the shipped pack — so
+Germany could not forbid a second thing without it going red. That is the weld `de-pack-resolves`
+and `system-description-invariants` were retired for, six days later and one layer further in. The
+successor `de-entgeltminderung-erzwungen-current` drives the same nine steps and pins everything
+except how many rules the German pack happens to declare; `testing/testsuite/superseded.json` says
+so.
+
+New fixtures: `de-kleinunternehmer-ust-verboten`, `xx-10-constraint-rules-readable`,
+`de-entgeltminderung-erzwungen-current`.
 
 ## 0.16.0 — 2026-08-28
 
@@ -953,8 +1183,8 @@ New fixtures `tax/consideration-reduction`, `core/ec-sales-list-gap-warnings` an
 
 ### The findings register is one file (docs)
 
-`implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin
-pointers to a single [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md) at the repository root. The
+`implementations/php/FINDINGS-OPEN.md` and `implementations/node/FINDINGS-OPEN.md` are now thin
+pointers to a single [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) at the repository root. The
 language-neutral findings had been living in both: seven `SPEC-` entries were byte-identical copies
 and **SPEC-014 had already drifted** — the PHP copy carried the decision, its reasoning and a
 related finding, the Node copy had shrunk to a summary ending in "full write-up on the PHP side".
@@ -978,8 +1208,8 @@ Two findings from this release are recorded there:
 `docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
 with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
-The register is also **split by state**: `SPEC-FINDINGS.md` holds the four open findings and
-nothing else — 198 lines, short enough to read whole — while `SPEC-FINDINGS-RESOLVED.md` holds the
+The register is also **split by state**: `FINDINGS-OPEN.md` holds the four open findings and
+nothing else — 198 lines, short enough to read whole — while `FINDINGS-CLOSED.md` holds the
 21 decided ones in full, with the status table over both. The reason is what happens when somebody
 is told "we have open findings": reading the register should not mean carrying 1,600 lines of
 settled history into the work. Closing a finding means moving its block across, which is the whole

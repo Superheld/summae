@@ -238,6 +238,8 @@
       "type": { "type": "string", "required": true },
       "subtype": { "type": "string" },
       "status": { "type": "string" },
+      "validFrom": { "type": "date" },
+      "validTo": { "type": "date" },
       "actor": { "type": "string" }
     },
     "lockAccount": {
@@ -259,7 +261,9 @@
             "name": { "type": "string" },
             "type": { "type": "string" },
             "subtype": { "type": "string" },
-            "status": { "type": "string" }
+            "status": { "type": "string" },
+            "validFrom": { "type": "date" },
+            "validTo": { "type": "date" }
           }
         }
       },
@@ -675,6 +679,7 @@
     "personalDataDescription": {},
     "systemDescription": {},
     "auditTrailIntegrity": {},
+    "duplicateVouchers": {},
     "gdpduExport": {
       "fiscalYear": {
         "type": "integer",

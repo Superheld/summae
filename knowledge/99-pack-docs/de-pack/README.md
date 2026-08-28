@@ -1,4 +1,4 @@
-# DE-Pack — `de-complete`
+# DE-Pack — `de`
 
 Baufertige Beschreibung des Deutschland-Packs. Eine Datei je Modul, jede konkret genug,
 dass der Build daraus direkt das Modul-JSON (`modules/<kind>/<id>.json`) schreiben kann.
@@ -42,6 +42,8 @@ neuer Packs.
 | 10 | `modul-10-production-cost-de.md` | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | 11 | `modul-11-legal-forms-de.md` | `legalForms` | `de-rechtsformen` | 2026.1 |
 | 12 | `modul-12-constraint-entgeltminderung.md` | `constraint` | `de-entgeltminderung` | 2026.1 |
+| 13 | `modul-13-constraint-kleinunternehmer.md` | `constraint` | `de-kleinunternehmer` | 2026.1 |
+| 14 | `modul-14-constraint-kapitalgesellschaft.md` | `constraint` | `de-kapitalgesellschaft` | 2026.1 |
 
 Dazu:
 
@@ -53,7 +55,8 @@ Dazu:
 ## Was vom DE-Pack abgedeckt wird
 
 Soll-/Ist-Versteuerung, USt-VA-Kennzahlen, §13b Reverse-Charge, ig. Lieferung, unentgeltliche
-Wertabgabe, Skonto/§17-Korrektur, Bewirtungs-70/30-Split, GWG/AfA (linear, degressiv,
+Wertabgabe, Skonto/§17-Korrektur (erzwungen, Modul 12), Kleinunternehmer ohne Steuerausweis (erzwungen,
+Modul 13), Bewirtungs-70/30-Split, GWG/AfA (linear, degressiv,
 Methodenwechsel), Bilanz (HGB §266), GuV (§275), EÜR. Belegt durch die Fixtures in
 `testing/testsuite/fixtures/{tax,core,assets,projections}/`.
 
@@ -62,4 +65,6 @@ Methodenwechsel), Bilanz (HGB §266), GuV (§275), EÜR. Belegt durch die Fixtur
 1. `accounts` (Modul 1) — keine Abhängigkeit.
 2. `tax`, `mapping`, `assetAccounts` — `dependsOn` Modul 1 (referenzieren Konten per `number`).
 3. `depreciation`, `policy` — datenrein, keine Konten-Referenz.
-4. Manifest `de-complete` listet 1–8 + `packPolicy`-Kopie + `defaults`.
+4. `constraint` — `dependsOn` Modul 1 (Regeln nennen Konten per `number`); mehrere Module
+   dieser Sorte addieren sich.
+5. Manifest `de` listet alle Module + `packPolicy`-Kopie + `defaults`.

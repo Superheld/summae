@@ -67,5 +67,13 @@ Rechnungsdatum der *anderen* Buchung kennen.
 
 ## Fixture
 
-`testing/testsuite/fixtures/pack/de-pack/de-entgeltminderung-erzwungen.json` — beide Verstöße, beide
-korrekten Buchungen und der steuerfreie Fall, der durchlaufen muss.
+`testing/testsuite/fixtures/pack/de-pack/de-entgeltminderung-erzwungen-current.json` — beide
+Verstöße, beide korrekten Buchungen und der steuerfreie Fall, der durchlaufen muss.
+
+> Der Vorgänger `de-entgeltminderung-erzwungen.json` liegt unverändert daneben und ist in
+> `testing/testsuite/superseded.json` eingetragen. Er pinnte die **vollständige** Regelliste des
+> ausgelieferten Packs (genau zwei), womit Deutschland nichts Zweites hätte verbieten können, ohne
+> dass dieses Fixture rot wird — dieselbe Schweißnaht, für die `de-pack-resolves` zurückgezogen
+> wurde. Rot wurde es, als `de-kleinunternehmer` dazukam (Modul 13). Dass die geltenden Regeln
+> **lesbar** sind, ist Mechanismus und liegt jetzt in `xx-10-constraint-rules-readable`, einem
+> Fixture mit eigenem Pack.

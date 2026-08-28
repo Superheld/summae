@@ -467,9 +467,14 @@ names one bundle for good: a changed module gets a new module version, and a
 manifest whose references move gets a new manifest version. Old versions may stay
 in the library beside the new ones, so a pin like `{ "id": "de", "version":
 "2026.3" }` keeps resolving what it always resolved. Asking **without** a version
-means *current*, and current is the highest version by code point — never
-whichever file the directory walk reached first, which would differ between two
-machines.
+means *current*, and current is the **highest** version — never whichever file the
+directory walk reached first, which would differ between two machines. Versions
+are compared **segment by segment**, numerically where both segments are numbers,
+so `2026.10` follows `2026.9`; a segment that is not a number falls back to code
+points, so a pack that versions itself some other way keeps the order it had.
+(Until 2026-08-28 the whole string was compared by code point, which put `2026.10`
+*below* `2026.9` — a pack's tenth release would have looked published while the
+ninth kept resolving.)
 
 **`contentDigest` is the part nobody can forget.** `resolvePack` returns it
 alongside `id` and `version`, and a tenant carries it in `pack.contentDigest`: a
@@ -512,13 +517,36 @@ Validation runs in the test runners, so the core stays framework-free.
 | `accounts[].number` | string | yes | account number (codepoint comparison, leading zeros significant) |
 | `accounts[].name` | string | yes | account label |
 | `accounts[].type` | string (enum) | yes | `asset`, `liability`, `equity`, `expense`, `revenue` |
-| `accounts[].subtype` | string\|null | — | free marker; among other things drives the open-item automation |
+| `accounts[].subtype` | string (enum)\|null | — | canonical subtype, a **closed** repertoire (see below); among other things drives the open-item automation |
 
 `type` determines the balance mechanics: `asset`/`liability`/`equity` are
 balance-carrying (carry forward across years), `expense`/`revenue` are per
-fiscal year. `subtype` is a free string in the code (no enum check); used in
-fixtures: `bank`, `cash`, `ar`, `ap`, `tax_in`, `tax_out`, `fixed_asset`,
-`opening_balance`, `transit`.
+fiscal year.
+
+`subtype` is a **closed repertoire** since format 0.9 — eleven values, and anything else is
+refused rather than stored:
+
+| Value | Read by the engine for |
+|---|---|
+| `bank` | payment account; profit-neutral movement in the cash-basis projection |
+| `cash` | the cash journal (`cashJournal`), cash-basis |
+| `transit` | money in transit — not a profit event |
+| `ar` | a debit opens a **receivable** |
+| `ap` | a credit opens a **payable** |
+| `tax_in` | VAT return (input side), cash-basis, DATEV export |
+| `tax_out` | VAT return (output side), cash-basis, DATEV export |
+| `result_allocation` | where an appropriated result lands |
+| `fixed_asset` | *annotation only* — the asset expansion uses its own module |
+| `opening_balance` | *annotation only* — the chart's opening-balance account |
+| `private` | *annotation only* — owner's drawings and contributions |
+
+It used to be a free string, and that was a real defect rather than a loose end: a chart that wrote
+`tax-out` instead of `tax_out` produced an account that **looked** annotated and behaved like an
+unannotated one — the VAT return skipped it and nothing in the output said a tax account had gone
+missing. A pack with an unknown subtype now fails at `resolvePack` (`E_PACK_INCOHERENT`);
+`createAccount` refuses with `E_INPUT_INVALID` and `importChartOfAccounts` with
+`E_COA_FORMAT_INVALID` naming the row. **Absent is not unknown** — most accounts in most charts
+carry no subtype at all, and nothing here applies to them.
 
 ```json
 "chartsOfAccounts": [
@@ -614,6 +642,48 @@ dimension).
 "dimensionValues": [ { "typeCode": "costCenter", "code": "A", "name": "Stelle A" } ],
 "ruleModules": { "dimensionRules": [ { "accountRange": { "from": "4000", "to": "4999" }, "requiredDimension": "costCenter" } ] }
 ```
+
+### `accountCombinationRules[]` / `accountUsageRules[]` — the other two ways a pack says no
+
+`dimensionRules` is one of **three** words the `constraint` kind speaks. All three are checked over
+the **whole entry**, once, after its lines resolve.
+
+| Word | Says | Violation |
+|---|---|---|
+| `dimensionRules` | this account may not be posted without that dimension | `E_DIMENSION_INVALID` |
+| `accountCombinationRules` | an entry touching `whenAccountIn` must also touch `requireAccountIn`, or must **not** touch `forbidAccountIn` | `E_COMBINATION_REQUIRED` / `E_COMBINATION_FORBIDDEN` |
+| `accountUsageRules` | an entry must not touch `forbidAccountIn` **at all** | `E_ACCOUNT_USE_FORBIDDEN` |
+
+A combination rule carries **exactly one** of `requireAccountIn`/`forbidAccountIn` — both together
+would be two rules under one name. The predicate is about the entry, never about sides: the case it
+was built for (a granted discount must carry its VAT correction) has both lines on the *same* side.
+
+**`appliesWhen` conditions either kind on the tenant.** A closed set of two facts, and every named
+condition must hold while any listed value satisfies one:
+
+```json
+"accountUsageRules": [
+  { "appliesWhen": { "legalForm": ["gmbh", "ug", "ag", "eg"] },
+    "forbidAccountIn": { "from": "2400", "to": "2400" },
+    "note": "a capital company has no private account" } ]
+```
+
+- `legalForm` — one of the forms *this pack* declares in its `legalForms` module, set through
+  [`setEntityProfile`](#setentityprofile). Naming a form the pack does not declare is
+  `E_PACK_INCOHERENT` at resolve time, because a mistyped form would otherwise leave the rule
+  permanently asleep and the pack looking stricter than it is.
+- `taxationMethod` — `accrual` or `cash`, which comes from the pack at tenant creation.
+
+**A rule whose fact is missing does not apply.** A tenant that never called `setEntityProfile` has
+no legal form, so a rule keyed on one stays dormant — it is neither enforced nor hidden.
+`tenantConfiguration` reports it either way, which is how you tell "there is no such rule" from
+"the rule is waiting for a fact you have not supplied".
+
+Deliberately **not** conditions: an amount (a threshold belongs to the one module that owns it, not
+restated in a second place) and small-business status (time-segmented; use `vatReturn.gapWarnings`,
+which already reports movement on a tax account carrying no tax code). What all three words cannot
+do at all: deadlines, anything across entries, or a rule about a settlement — `settle` posts nothing.
+Those are projections' work (`duplicateVouchers`, `cashJournal`, `unfinalizedEntries`).
 
 ### `mappings[]`
 
@@ -989,8 +1059,32 @@ same posting count against the same budget.
 
 `number` (yes), `name` (yes), `type` (yes:
 asset/liability/equity/expense/revenue), `subtype` (no), `status` (no:
-`active`/`locked`). Output: serialized account. Errors:
-`E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`.
+`active`/`locked`), `validFrom` (no, date), `validTo` (no, date). Output: serialized account.
+Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `validTo` before
+its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
+would be created dead; or a `subtype` outside the repertoire).
+
+**`subtype` is a closed repertoire** — one of the eleven canonical values listed under
+`chartsOfAccounts[]`, or absent. A value outside it is `E_INPUT_INVALID` with the offending value
+and the known list in `details`, rather than being stored: before format 0.9 a hyphen for an
+underscore created a liability account that no VAT return would ever count, and the only way to
+notice was to compare the return against the ledger. Absent is not unknown — most accounts carry
+no subtype and nothing here applies to them.
+
+**`validFrom`/`validTo` are the window in which the account may be posted to**, and both are
+unbounded when absent, which is what almost every account will be. It is **not** a lock, and the
+difference is why both exist: `lockAccount` is unconditional and about *now*, so it refuses even a
+late correction dated before the lock — exactly wrong for an account you are retiring at a year
+end. The window is judged against the **posting's own date**, so an account valid to `2026-12-31`
+keeps accepting a December correction booked in February and refuses January. A posting outside the
+window is `E_ACCOUNT_NOT_VALID_AT_DATE`, with `number`, `entryDate` and both bounds in `details`.
+
+**Writes only, never reads.** An account outside its window still appears in every report that has
+postings on it, and carries its balance forward like any other — the history happened. Setting a
+window is master data and changes nothing about postings that already exist; it decides what may be
+booked from now on. [`accounts`](#accounts--the-chart-of-accounts) reports both bounds, so a screen
+can grey out what the chosen date does not allow instead of letting the user post and translating
+an error code afterwards.
 
 #### defineDimensionType / defineDimensionValue
 
@@ -1016,10 +1110,13 @@ cost-accounting operation.
 #### importChartOfAccounts
 
 Atomic chart-of-accounts import: validate everything first, then create. `rows`
-(yes, non-empty; each row carries `number`, `name`, `type`, `subtype` and `status` — the same
-fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in the core). Output: `{ "importedCount": <int> }`. Errors:
-`E_COA_FORMAT_INVALID`, `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
-batch).
+(yes, non-empty; each row carries `number`, `name`, `type`, `subtype`, `status`, `validFrom` and
+`validTo` — the same fields as [`createAccount`](#createaccount)), `format` (no, not evaluated in
+the core). Output: `{ "importedCount": <int> }`. Errors:
+`E_COA_FORMAT_INVALID` (an unparsable row — including a `subtype` outside the repertoire —
+naming the row index), `E_ACCOUNT_NUMBER_TAKEN` (also a duplicate within the
+batch). The import is atomic, so one bad row creates none of the others: half a chart of accounts
+is worse than none.
 
 #### lockAccount
 
@@ -1828,23 +1925,31 @@ error.
 
 ### accounts — the chart of accounts
 
-No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`
-and `status`, ordered by account number. Nothing else — no balances (that is
-`trialBalance`), no movements (`accountSheet`), no hashes.
+No parameters. Output: `accounts[]` with `number`, `name`, `type`, `subtype`,
+`status`, `validFrom` and `validTo`, ordered by account number. Nothing else — no balances (that
+is `trialBalance`), no movements (`accountSheet`), no hashes.
 
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
 cash box, which receivables and payables — and it is what an application should
-use to preselect a counter account. Reading the **pack** instead is the trap: the
+use to preselect a counter account. It is one of eleven canonical values or
+`null` (the repertoire is listed under `chartsOfAccounts[]`), so a caller may switch on it
+exhaustively rather than defensively. Reading the **pack** instead is the trap: the
 pack is the chart the tenant *started* from, and one `createAccount` later it is
 a guess. **`status`** is the read side of `lockAccount`; a locked account stays
 in the list, because it is still part of the chart and merely refuses postings.
 
+**`validFrom`/`validTo`** are the window in which the account may be posted to (both `null` for
+almost every account). They are the read side of the same field on
+[`createAccount`](#createaccount), and unlike `status` they depend on a **date**: an account is
+usable for one posting and not for another, so a picker has to be filtered against the date the
+user chose, not against the account alone.
+
 ```json
 // params {}
 { "accounts": [
-  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active" },
-  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked" } ] }
+  { "number": "1000", "name": "Kasse", "type": "asset", "subtype": "cash", "status": "active", "validFrom": null, "validTo": null },
+  { "number": "8400", "name": "Erlöse", "type": "revenue", "subtype": null, "status": "locked", "validFrom": null, "validTo": null } ] }
 ```
 
 ### fiscalYears — fiscal years and period status
@@ -1984,6 +2089,47 @@ decide what happens.
 // params { "asOf": "2026-03-31", "olderThanDays": 30 }
 { "asOf": "2026-03-31", "olderThanDays": 30, "count": 2, "oldestAgeInDays": 74,
   "entries": [ { "sequenceNumber": 7, "entryDate": "2026-01-16", "ageInDays": 74, "text": "Miete Januar" } ] }
+```
+
+### duplicateVouchers — the same document entered twice
+
+No parameters. Output: `count` (groups), `voucherCount` (vouchers involved) and
+`duplicates[]` with `voucherNumber`, `partnerId`, `partnerName`, `issuer`, `count`,
+`stillPosted` and `vouchers[]` — each with `voucherId`, `voucherDate`, `postedTotal` (Money)
+and `entries[]` (`entryId`, `sequenceNumber`, `fiscalYear`, `entryDate`, `status`,
+`reverses`, `reversedBy`).
+
+**What it is for.** `voucherNumber` is a free string and summae enforces no uniqueness on it,
+so the same incoming invoice booked twice gives you two vouchers, two balanced entries and
+**two input-tax deductions** — with every invariant satisfied. The entries balance, both carry
+a voucher, both sit in an open period, the trial balance adds up. Nothing anywhere looks
+wrong; the money is simply claimed twice. This projection is the only place that says so.
+
+**Grouping is by document identity, not by number.** The key is the issuer plus the number:
+`partnerId` where the voucher names a partner, otherwise the free-text `issuer`, otherwise
+neither (those group among themselves). Two suppliers may both send their invoice number 1,
+and a tenant using supplier numbers as its own will meet that in its first year — which is why
+this is a **report and not a refusal**. A uniqueness rule would be wrong in a way you could not
+work around. Same line as [`vatReturn`](#vatreturn--vat-return)'s `gapWarnings`.
+
+**Three things are deliberately not reported**, because a warning list with noise in it stops
+being read: a voucher with an empty `voucherNumber` (nothing to compare), a voucher flagged
+`recurring` (a standing document repeating its number is what the flag means), and — per
+voucher — entries that are a reversal or have been reversed. `postedTotal` counts only what
+still moves the books, so a duplicate you already corrected reads `0.00` and stays in the list
+**with its history** rather than vanishing; `stillPosted` is how many of the group still count.
+
+**No parameters, and a date window least of all.** An invoice entered in December and again in
+January is exactly the case this exists for, and any window on the voucher date hides it at the
+boundary.
+
+```json
+// params { }
+{ "count": 1, "voucherCount": 2,
+  "duplicates": [ { "voucherNumber": "RE-4711", "partnerName": "Lieferant Nord GmbH",
+                    "count": 2, "stillPosted": 2,
+                    "vouchers": [ { "voucherDate": "2026-02-03", "postedTotal": { "amount": "595.00", "currency": "EUR" } },
+                                  { "voucherDate": "2026-02-17", "postedTotal": { "amount": "595.00", "currency": "EUR" } } ] } ] }
 ```
 
 ### openItems — open-item list
@@ -2304,7 +2450,7 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.8"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.9"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
@@ -2538,7 +2684,8 @@ hand-written inventory never catches.
 ### tenantConfiguration — what this tenant is set up as
 
 No parameters: a tenant has exactly one configuration, so there is nothing to select. Output:
-`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`, `allocationScheme`
+`taxProfile`, `dimensionTypes[]`, `dimensionValues[]`, `dimensionRules[]`,
+`accountCombinationRules[]`, `accountUsageRules[]`, `allocationScheme`
 (raw, exactly as `setAllocationScheme` accepts it, or `null`), `mappings[]`
 (`{id, kind, version}` each), `appropriationTargets[]`, `entityProfile`, `legalForms[]` and
 `sizeClasses[]`.
@@ -2562,6 +2709,11 @@ point:
   dimension. They stand in no record at all (they come back from the pack on every open), and you
   cannot derive them from the pack file without reimplementing the resolver. This is how a form
   knows which field it must not leave empty.
+- **`accountCombinationRules[]` and `accountUsageRules[]` are the pack's too**, and are reported
+  for the same reason: a booking screen can grey out a forbidden account before the user posts,
+  instead of translating an exit code afterwards. A rule carrying `appliesWhen` is listed **even
+  when it is currently dormant** — a caller that could not see it would be unable to tell an absent
+  rule from one waiting on a fact the tenant has not declared.
 - **`mappings[]` lists the pack's mappings and the imported ones together.** The record holds only
   the imports, so a projection mirroring it would answer "none" for a `de` tenant whose
   `balanceSheet`, `incomeStatement` and `cashBasisReport` all work. These are the names those

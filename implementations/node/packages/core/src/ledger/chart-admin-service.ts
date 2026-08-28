@@ -2,8 +2,9 @@ import { DomainError } from '../domain-error.js';
 import type { AccountRepository } from '../port.js';
 import { Account } from '../substrate/account.js';
 import { AccountNumber } from '../substrate/account-number.js';
+import { CalendarDate } from '../substrate/calendar-date.js';
 import type { IdGenerator } from '../substrate/id-generator.js';
-import { isAccountType } from '../substrate/types.js';
+import { ACCOUNT_SUBTYPES, isAccountSubtype, isAccountType } from '../substrate/types.js';
 import type { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import type { Uuid } from '../substrate/uuid.js';
 import type { AuditWriter } from './audit-writer.js';
@@ -108,6 +109,10 @@ export class ChartAdminService {
     };
 
     if (account.subtype !== null) changes.subtype = { from: null, to: account.subtype };
+    // Only when set, like `subtype`: a window is the exception, and a trail that records two nulls
+    // on every account creation says nothing while costing every reader a line.
+    if (account.validFrom !== null) changes.validFrom = { from: null, to: account.validFrom.iso };
+    if (account.validTo !== null) changes.validTo = { from: null, to: account.validTo.iso };
 
     return changes;
   }
@@ -208,8 +213,40 @@ export class ChartAdminService {
     }
 
     const subtype = asString(input.subtype);
+    if (subtype !== null && !isAccountSubtype(subtype)) {
+      // Closed repertoire: an unknown subtype used to be stored and then read by nobody, so the
+      // account looked annotated and behaved like an unannotated one.
+      throw new DomainError('E_INPUT_INVALID', `Account ${number}: unknown subtype "${subtype}"`, {
+        number,
+        subtype,
+        known: [...ACCOUNT_SUBTYPES],
+      });
+    }
     const status = input.status === 'locked' ? 'locked' : 'active';
 
-    return new Account(this.ids.next(), AccountNumber.of(number), name, type, subtype, status);
+    const rawFrom = asString(input.validFrom);
+    const rawTo = asString(input.validTo);
+    const validFrom = rawFrom === null ? null : CalendarDate.of(rawFrom);
+    const validTo = rawTo === null ? null : CalendarDate.of(rawTo);
+    if (validFrom !== null && validTo !== null && validTo.isBefore(validFrom)) {
+      // A window that closes before it opens accepts no posting at all, so the account would be
+      // created dead and every later refusal would name the date rather than the cause.
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        `Account ${number}: validTo ${validTo.iso} lies before validFrom ${validFrom.iso}`,
+        { number, validFrom: validFrom.iso, validTo: validTo.iso },
+      );
+    }
+
+    return new Account(
+      this.ids.next(),
+      AccountNumber.of(number),
+      name,
+      type,
+      subtype,
+      status,
+      validFrom,
+      validTo,
+    );
   }
 }

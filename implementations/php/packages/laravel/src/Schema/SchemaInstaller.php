@@ -28,10 +28,15 @@ final class SchemaInstaller
      *
      * What that covers and what it does not is worth stating plainly, because the honest limit is
      * the reason this shape was chosen over a migration runner: it covers **additive** changes — a
-     * new table, and by hand a new nullable column — and nothing else. A column that changes its
-     * type or a table that has to be rewritten still needs a real migration, which neither language
-     * has. Until one exists, a change of that kind means recreating the workspace, and saying so out
-     * loud is better than a runner that only looks like one.
+     * new table, and since 2026-08-28 a new **nullable column** on a table that already exists
+     * (`ensureColumn`) — and nothing else. A column that changes its type or a table that has to be
+     * rewritten still needs a real migration, which neither language has. Until one exists, a change
+     * of that kind means recreating the workspace, and saying so out loud is better than a runner
+     * that only looks like one.
+     *
+     * The column half used to read "by hand", and the first change that needed it showed why that
+     * was not good enough: an existing workspace kept the old table and failed on the next insert
+     * with an unknown column, which is a loud failure but one nobody could fix from inside summae.
      */
     public static function create(Builder $schema): void
     {
@@ -43,6 +48,11 @@ final class SchemaInstaller
             $table->string('type', 16);
             $table->string('subtype', 32)->nullable();
             $table->string('status', 16)->default('active');
+            // F-CORE-045: the window in which the account may be POSTED to. Both nullable, both
+            // unbounded by default — every account that existed before the window did keeps
+            // behaving exactly as it did.
+            $table->date('valid_from')->nullable();
+            $table->date('valid_to')->nullable();
             $table->unique(['tenant_id', 'number']);
         });
 
@@ -147,6 +157,19 @@ final class SchemaInstaller
             $table->string('pack_version')->nullable();
             $table->json('config');
         });
+
+        // Columns added to a table that already exists (F-CORE-045). `ensure` above only ever
+        // creates a MISSING table, so a workspace opened after an upgrade kept the old columns and
+        // the first `add()` failed on an unknown one. The docblock called that "by hand", which is
+        // a support burden for a change the installer can perfectly well make itself — as long as
+        // it stays what it says: **nullable columns only**, never a type change and never a
+        // rewrite. Those still need a real migration, which neither language has.
+        self::ensureColumn($schema, 'accounts', 'valid_from', static function (Blueprint $table): void {
+            $table->date('valid_from')->nullable();
+        });
+        self::ensureColumn($schema, 'accounts', 'valid_to', static function (Blueprint $table): void {
+            $table->date('valid_to')->nullable();
+        });
     }
 
     public static function drop(Builder $schema): void
@@ -172,5 +195,24 @@ final class SchemaInstaller
         }
 
         $schema->create($name, $definition);
+    }
+
+    /**
+     * Adds one **nullable** column if the table is there and the column is not.
+     *
+     * Deliberately not a general migration: it can only add, it is checked per column, and it
+     * silently does nothing when the table itself is missing — `ensure` will have created that one
+     * with the column already in it.
+     *
+     * @param \Closure(Blueprint): void $definition
+     */
+    private static function ensureColumn(Builder $schema, string $table, string $column, \Closure $definition): void
+    {
+        $name = self::PREFIX . $table;
+        if (!$schema->hasTable($name) || $schema->hasColumn($name, $column)) {
+            return;
+        }
+
+        $schema->table($name, $definition);
     }
 }

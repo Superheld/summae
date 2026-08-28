@@ -29,7 +29,7 @@ SF-15 ist bisher der einzige offene Standardfall, weil er zwei Runtimes braucht.
 
 ## Eskalation (Findings)
 
-Spec-Lücke/Widerspruch beim Bauen → nicht raten, nicht Fixture biegen. In `SPEC-FINDINGS.md` im Format F-0xx anhängen (Was/Wo/Gewähltes Verhalten/Vorschlag), mit nächstplausiblem Verhalten weiterbauen. Die Wissensbasis arbeitet sie als nächste Spec-Version ein (so geschehen mit F-001…009 aus PHP). Node-spezifische Findings sind erwartbar v. a. bei Rundung/Zahlentypen.
+Spec-Lücke/Widerspruch beim Bauen → nicht raten, nicht Fixture biegen. In `FINDINGS-OPEN.md` im Format F-0xx anhängen (Was/Wo/Gewähltes Verhalten/Vorschlag), mit nächstplausiblem Verhalten weiterbauen. Die Wissensbasis arbeitet sie als nächste Spec-Version ein (so geschehen mit F-001…009 aus PHP). Node-spezifische Findings sind erwartbar v. a. bei Rundung/Zahlentypen.
 
 ## Reihenfolge (analog `JOBS.md`, runtime-agnostisch)
 

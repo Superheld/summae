@@ -1,0 +1,222 @@
+# FINDINGS — open
+
+Contradictions between spec / fixture / model, and defects found while building, that are **not
+decided yet**. Root `CLAUDE.md`: "don't guess, don't bend the fixture, but document it and build on
+with the next-most-plausible behaviour."
+
+**This file holds only what is open, on purpose.** Somebody — or something — told to look at the
+open findings should be able to read the whole register and carry nothing else. Everything decided
+lives in [`FINDINGS-CLOSED.md`](FINDINGS-CLOSED.md) with its full reasoning and the status table
+over both; that is what a code comment saying "see IMPL-025" resolves to, and it is not reading you
+need in order to work on what is open.
+
+> **Renamed 2026-08-28** from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md`. Same register, same
+> numbering, same split by state — the old names said "SPEC" while two of the three series in here
+> are not about the spec at all, and a reader looking for open bugs had no reason to open a file
+> named after a specification. The per-language pointers moved with them
+> (`implementations/*/FINDINGS.md`). The **historical** knowledge-base register at
+> `knowledge/80-implementierung/SPEC-FINDINGS.md` keeps its name deliberately: it is closed, its
+> numbers are cited in commits, and it uses the same prefixes for *different* findings — renaming it
+> would suggest the two are one register.
+
+**Recording a finding:** append it here, in the series it belongs to — `SPEC-nnn` (spec / fixture /
+model contradict each other) · `SPEC-Cnn` (cross-implementation) · `IMPL-nnn` (implementation
+defect, including a requirement that is not built or not tested — root `CLAUDE.md`: "a requirement
+without a test is itself a finding"). Numbers are never reused; the highest one ever issued is the
+last row of the status table in the closed file. Which language you found it in is a sentence in the
+entry, not a file — most of them turn out to concern both.
+
+**Closing one:** move the whole block to `FINDINGS-CLOSED.md` and add its row to the status table
+there. Moving it is the entire bookkeeping — the split is by *state*, and a state changes once. That
+is also why this is not the old per-language split: that one duplicated the same text in two places
+and drifted (SPEC-014 did, in the open).
+
+**Two open domain questions are not findings and live elsewhere.** `RQ-1` (which VAT period a
+reversal belongs to) and `RQ-2` (the euro rounding of the VAT base, which is not sum-preserving) are
+in [`knowledge/40-domaenenmodell/offene-fragen.md`](knowledge/40-domaenenmodell/offene-fragen.md).
+They are open in the strongest sense — shipped code runs on an unconfirmed reading of the law — but
+they are questions for a human with the statute, not defects, and copying them here is exactly the
+duplication this register was split to avoid.
+
+## IMPL-037 — the normative data-format document lags the format it defines
+
+**Found 2026-08-28** while writing the 0.8 section of `knowledge/50-spezifikation/datenformat.md`.
+The document's title said **v0.6**. The schema had been at **0.7** since the partner record gained a
+status, both engines shipped it, fixtures exercised it — and the document that calls itself normative
+described a format the product had left behind, for weeks, with the whole gate green.
+
+**Why this is a finding and not a typo I already fixed.** The instance is repaired (0.7 and 0.8 are
+both written up now). The *gap* is that nothing would have caught it and nothing would catch the
+next one. `format.schema.json`'s `$id` is held against `FORMAT_VERSION` by
+`format-version.test.ts` and its PHP twin, in both languages — so **code and schema cannot drift**.
+The prose that both of them are supposed to derive from is checked by nobody, which inverts the
+authority: the derived artefacts are guarded and the normative one is not.
+
+This is the same shape as the GoBD census row that described a `de` pack which had already moved
+(closed 2026-08-28 by making §15 a machine-checked table of the facts that document asserts). One
+folder over, the same defect class, no guard yet.
+
+**What would close it.** Not a full prose check — that is not achievable and not wanted. The
+narrow, checkable claims are enough:
+
+- the version in `datenformat.md`'s title and its `$id` line equal `FORMAT_VERSION`;
+- every version between the oldest documented and the current one has a `## v0.x` section, so a
+  release cannot skip its own write-up the way 0.7 did;
+- optionally, that every `$defs` key the schema declares is named somewhere in the document.
+
+A guard beside `GobdConformanceDocTest` / `gobd-conformance-doc.test.ts`, in both languages, because
+the rule about mirrored tests applies to guards too.
+
+**Built in the meantime: nothing**, deliberately — writing the guard is the fix, and it is small
+enough that starting it half-way would only hide the gap behind a test that checks the easy half.
+
+## IMPL-038 — the Z3 export's field catalogue describes four of the account's six fields
+
+**Found 2026-08-28** while building the account validity window (F-CORE-045).
+
+`journalExport` publishes a `fieldCatalogue` per stream — the self-description a GoBD Z3 data set
+owes an auditor. For the `accounts` stream it names `number`, `name`, `type` and `subtype`. The
+stream itself carries `id` and `status` as well, and since F-CORE-045 `validFrom`/`validTo` when
+they are set. So an auditor reading the catalogue and the data side by side finds fields in the data
+the description does not mention.
+
+**Not caused by this change and not fixed by it.** `id` and `status` have been in the stream and
+missing from the catalogue since the export existed; validity only makes the gap one field wider,
+and only for accounts that actually carry a window (nulls are stripped before hashing, which is why
+no export fixture moved).
+
+**Why it is written down instead of repaired.** Adding rows to the catalogue changes the export
+result — the catalogue is not inside the content hashes, but it *is* pinned literally by
+`io/journal-export-z3-current` and `io/gdpdu-data-carrier`. Those fixtures pin behaviour, so the
+repair is either a supersession or an argument that the catalogue's length is product data rather
+than contract. That is the same question the superseded register keeps answering, and it deserves
+its own decision rather than being settled in passing by a change about something else.
+
+**What would close it.** Decide what the catalogue is: a *complete* description of the stream (then
+it gains three rows, the two export fixtures are superseded, and a test holds the catalogue against
+the serialised shape so it cannot drift again) or a *selected* one (then it says so in its own
+`meaning` text, and the same test is not wanted). The first reading is the one an auditor takes.
+
+## IMPL-039 — nothing holds `covers` and the requirement lists together
+
+**Found 2026-08-28** while taking an inventory of every list in the repo that no gate touches.
+
+The root `CLAUDE.md` said "fixtures name only requirements in `covers`". It was not true and had not
+been true for about a year: **21 fixtures cited a `F-PACK-*` / `F-RP-*` family that no requirements
+file declared**, using two area words (PACK, RP) that were not among the five the same paragraph
+listed. `SF-27` was in the same state from the other side — five fixtures covered it and
+`validate.py` counted it, while `lieferumfang.md` ended at SF-26, so a standard case existed only in
+the arithmetic.
+
+**Repaired for the instances, not for the class.** PACK and RP are now declared, with text
+reconstructed from the fixtures that prove them; SF-27 is written down. What is *not* built is
+anything that would have caught it, or will catch the next one. The comparison that makes this a
+finding rather than a chore: the error catalogue and the exit-code tables are held against each
+other **as sets, in both directions, in both languages**, so half the work fails the build. The
+requirement lists — the thing the whole quality gate is defined in terms of — are held by nobody.
+
+**The remaining instance, left open deliberately:** `F-AST-007` (declining-balance depreciation with
+the automatic switch, plus § 7g) is **built and behaviourally covered** by
+`declining-balance-depreciation`, `declining-balance-asset-class`, `special-depreciation` and
+`asset-register-special-depreciation` — all of which name `F-AST-002` / `F-AST-005`. The honest
+repair is probably to **merge** F-AST-007 into those two rather than to add a fixture whose only
+purpose is to carry a string, and that is a decision about the requirement list, not a gap in the
+tests.
+
+**What would close it.** A guard beside `GobdConformanceDocTest` / `gobd-conformance-doc.test.ts`,
+in both languages, with three narrow rules: every `covers` entry is a declared ID (with a named
+exception list for the Gate-1 resolver drafts, which cite error codes and invariant shorthands and
+cannot be edited because fixtures are append-only); every declared requirement is named by some
+`covers` **or** stands in that exception list with a reason; and `validate.py` counts no `SF-` that
+`lieferumfang.md` does not declare. Deliberately **not built yet** — a guard was explicitly not
+wanted in this pass, and half a guard would mark where attention stops, which is the lesson IMPL-034
+already taught.
+
+## IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is a catalogue code with nothing behind it
+
+**Confirmed 2026-08-28** (older than that; it has been carried in the pack-gate backlog).
+
+It is the **only** error code in `fehlerkatalog.md` that is reachable through the API and has no
+fixture. `E_WORKSPACE_INVALID` sits at the CLI level and cannot be reached from the suite;
+`E_NOT_IMPLEMENTED` and `E_UNEXPECTED` are catch-alls that could only be triggered by building the
+bug they report. Those three are covered by a per-language contract test, on purpose. This one is a
+real gap: the reader/writer check that an amount carries exactly the tenant's `currencyScale`
+decimal places — including mandatory zeros, canonical form — is **not built**, so the code is
+declared and never raised.
+
+**Why it matters more than one missing fixture.** The check is a cross-implementation guard by
+nature: it is what would catch a store written by one runtime at scale 3 being read by a tenant at
+scale 2. `SF-15` is exactly that scenario, and it passes today because both runtimes agree — not
+because anything verifies the amounts.
+
+**What would close it.** Build the check where amounts enter and leave (reader and writer), raise
+the code, and add one fixture per direction. The pack policy already carries `currencyScale`, and
+the `xx-2` / `xx-4` fixtures already run a pack at scale 3, so the fixture has somewhere to stand.
+
+## IMPL-041 — F-KLR-002 (Abgrenzungsrechnung) is not built, and may not be wanted
+
+**Found 2026-08-28** while checking which requirements no fixture names.
+
+`F-KLR-002` requires a rule-based Abgrenzungsrechnung — carry over / exclude / replace / add, plus a
+two-sided reconciliation bridge. There is **no operation, no projection, no entry in `api.md`, and
+no fixture**; the costing fixtures cover F-KLR-001/003/004/005. It is the largest single unbuilt
+requirement in the list, and it was invisible because it is one row among ninety-nine.
+
+**The reason it is a decision and not a task.** The scope note in the root `CLAUDE.md` (decided
+2026-08-23) puts cost-accounting **steering instruments** out of scope — planned-cost/variance,
+activity-based, contribution-margin. An Abgrenzungsrechnung's whole job is to add *kalkulatorische
+Kosten* and remove neutral results, which is a steering instrument by any reading. So the likely
+truth is that this requirement was retired by that decision and nobody went back to strike it.
+
+**What would close it.** Bruce decides which it is. If it was descoped, the row goes — with its
+reason, in the scope note, the way the other exclusions are written. If it was not, it is a build,
+and `SF-12` (which the requirement claims) needs to say which half of itself is covered today.
+**Do not resolve this by writing a fixture**: a fixture for a capability nobody decided to have is
+the wrong artefact.
+
+## IMPL-042 — F-IO-008 (DATEV Buchungsstapel import) is not built
+
+**Found 2026-08-28**, and the interesting part is why it stayed invisible.
+
+The requirement says a DATEV posting batch *should* be importable — the way back from the tax
+adviser. There is only `datevExport`; no import exists in either runtime. It is a **SOLL**
+requirement, so nothing is in breach.
+
+**How it hid.** The root `CLAUDE.md` — the file every agent reads first — attributed **F-IO-008** to
+`gdpduExport`, which is F-IO-012. Anyone checking whether F-IO-008 was built found a shipped
+capability under its number and moved on. A wrong ID in the most-read file is worth more than a
+wrong ID anywhere else, because it is the one that gets trusted without checking. Corrected the same
+day.
+
+**What would close it.** Either build the import (format details were always flagged as needing
+verification against a real DATEV batch), or downgrade the requirement to an explicitly deferred one
+with its reason — an unbuilt SOLL that nobody has asked for in a year is a candidate for the second.
+
+## What is closed, and the pattern in it
+
+Everything else that stood here is in [`FINDINGS-CLOSED.md`](FINDINGS-CLOSED.md) with what was
+decided and why.
+
+SPEC-022 was open for a few hours on 2026-08-28 and its premise turned out to be wrong, which is the
+useful part: it read the reserved-field rule as blocking *the* hash chain, when the rule reserves
+`previousEntryHash` on the **posting** while the obligation it was meant to serve
+(`docs/gobd-conformance.md` §14 item 5c) asks for tamper evidence on the **audit trail**, which
+carries no such reservation. Two different chains had collapsed into one word. The trail's chain is
+built (F-CORE-043); the posting's stays blocked, with the reasoning in the closed register.
+
+Of the seven before it — IMPL-030 to IMPL-034, SPEC-020 and SPEC-021 — **four came from outside**,
+reported by an application embedding the library, and the other two were found while building what
+those reports asked for. Our own suite was green through all of it, and each fix shipped with the
+guard that would have caught it. IMPL-033 sharpens the point: it was found by publishing a number
+that until then existed only inside a refusal — a figure nobody can read is a figure nobody can
+check. IMPL-034 is the same lesson from the other side, sitting in the half of a folder that the
+guard built for IMPL-031 did not reach, because a guard quietly marks where attention stops.
+
+**The four open entries above are that pattern one level up.** IMPL-037 (the normative format
+document is unguarded while its derived artefacts are), IMPL-039 (`covers` is unguarded while the
+error catalogue is), IMPL-040, IMPL-041 and IMPL-042 (requirements that are declared and not built,
+found by counting rather than by failing) all share one shape: **the thing everything else is
+defined in terms of is the thing nothing checks.** That is worth saying once here rather than five
+times below.
+
+The next one goes here.

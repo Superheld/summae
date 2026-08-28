@@ -20,7 +20,9 @@ import { Uuid } from '../substrate/uuid.js';
 import type { Account } from '../substrate/account.js';
 import type { AuditChanges } from '../records/audit-record.js';
 import { TaxCodeRegistry } from '../policies/expansion/tax/tax-code-registry.js';
-import { AccountCombinationRegistry } from '../policies/constraint/account-combination-registry.js';
+import { AccountCombinationRegistry, type ConstraintContext } from '../policies/constraint/account-combination-registry.js';
+import type { LegalFormRegistry } from '../policies/projection/legal-forms.js';
+import type { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
 import { DimensionRegistry } from '../policies/constraint/dimension-registry.js';
 import { EntryLine } from '../substrate/entry-line.js';
 import type { FiscalYear } from '../substrate/fiscal-year.js';
@@ -95,6 +97,14 @@ export class Ledger {
     configStore: TenantConfigStore | null = null,
     /** The constraint socket's second predicate (F-CORE-042), checked over the whole entry. */
     private readonly combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
+    /**
+     * The two tenant facts a constraint rule may be conditioned on (`appliesWhen`, F-CORE-047).
+     * Held as the live registries rather than as copied values, because the legal form is set by
+     * `setEntityProfile` **after** the ledger exists — a snapshot taken here would leave every
+     * conditional rule dormant for the life of the tenant.
+     */
+    private readonly legalForms: LegalFormRegistry | null = null,
+    private readonly taxProfile: TaxProfile | null = null,
   ) {
     this.auditWriter = new AuditWriter(audit, clock, ids);
     this.settlements = new SettlementService(baseCurrency, accounts, journal, openItems, this.auditWriter);
@@ -108,6 +118,21 @@ export class Ledger {
    * `defineDimensionType`/`defineDimensionValue`, which audit and store the change.
    */
   /** What `tenantConfiguration` reports, same reason as the dimension rules. */
+  /**
+   * The tenant facts a conditional constraint rule is measured against (`appliesWhen`).
+   *
+   * Read fresh on every posting, never cached: `setEntityProfile` may run at any point in a
+   * tenant's life, and a rule that only applies to tenants configured before the first posting
+   * would be a rule nobody could rely on. Absent stays absent — an unset fact makes a rule keyed on
+   * it dormant rather than failing the posting, which is argued where the matching is done.
+   */
+  private constraintContext(): ConstraintContext {
+    return {
+      legalForm: this.legalForms?.declared()?.legalForm ?? null,
+      taxationMethod: this.taxProfile?.taxationMethod() ?? null,
+    };
+  }
+
   combinationRegistry(): AccountCombinationRegistry {
     return this.combinations;
   }
@@ -162,6 +187,10 @@ export class Ledger {
     // 4. Temporal context
     const entryDate = parseEntryDate(input.entryDate);
     const [fiscalYear, period] = this.openPeriodFor(entryDate);
+
+    // 4b. The accounts' validity window, which can only be judged once the date is known —
+    // deliberately AFTER the period check, so no input that is refused today changes its code.
+    this.assertAccountsValidOn(lines, entryDate);
 
     const text = asString(input.text) ?? '';
 
@@ -271,6 +300,10 @@ export class Ledger {
       });
       const lines = this.resolveLines(parsed);
       this.assertBalanced(lines);
+      // The corrected entry keeps its own date, so that is the date the window is judged against —
+      // a correction must not be able to move a posting onto an account that was not open for
+      // business when the posting happened.
+      this.assertAccountsValidOn(lines, entry.entryDate);
 
       changes.lines = {
         from: entry.lines().map((line) => line.toJSON()),
@@ -549,8 +582,33 @@ export class Ledger {
     }
     // Over the whole entry, after the per-line checks: a combination is not a property of any one
     // line, which is why it could not have been a second rule inside the dimension registry.
-    this.combinations.validateEntry(lines.map((line) => line.account));
+    this.combinations.validateEntry(lines.map((line) => line.account), this.constraintContext());
     return lines;
+  }
+
+  /**
+   * An account may be posted to only inside its validity window (F-CORE-045).
+   *
+   * Judged against the ENTRY DATE, not against today: that is the whole difference from a lock. An
+   * account retired at a year end keeps taking a late correction for December and refuses January,
+   * which is what retiring an account actually means; a lock would refuse both.
+   */
+  private assertAccountsValidOn(lines: EntryLine[], entryDate: CalendarDate): void {
+    for (const line of lines) {
+      const account = this.accounts.byId(line.accountId);
+      if (account === null || account.isValidOn(entryDate)) continue;
+
+      throw new DomainError(
+        'E_ACCOUNT_NOT_VALID_AT_DATE',
+        `Account ${account.number.value} may not be posted to on ${entryDate.iso}`,
+        {
+          number: account.number.value,
+          entryDate: entryDate.iso,
+          validFrom: account.validFrom?.iso ?? null,
+          validTo: account.validTo?.iso ?? null,
+        },
+      );
+    }
   }
 
   private assertBalanced(lines: EntryLine[]): void {

@@ -2,7 +2,7 @@
 # Erwartete grüne Fixtures (Regressionsschutz: runner/test/conformance.test.ts).
 # Pack-Komposition (Gate 1): Resolver-Fehler, DE-komponiert==DE, Test-Pack XX
 # Pack-Wahl (Gate 2): mitgeliefertes default-pack (neutraler Kontenrahmen)
-# Stand: M3 — ALLE 45 Fixtures grün, Vertrag erfüllt.
+# Diese Liste IST der Stand — sie zu zählen ist Sache des Runners, nicht dieses Kommentars.
 # US-Pack (us): own US chart + sales/use tax + GAAP mappings + cash-basis Schedule C + MACRS
 
 accounts-and-import
@@ -175,8 +175,8 @@ entry-author
 consideration-reduction
 input-structure-contract
 xx-7-pack-declares-filing-periods
-xx-8-constraint-account-combination
-xx-9-tax-base-inclusive
+xx-8-constraint-account-combination-current
+xx-9-tax-base-inclusive-current
 de-appropriate-result
 result-appropriation-guards
 de-profit-appropriation
@@ -189,6 +189,14 @@ entity-profile-and-deadline
 de-resolution-deadline
 us-no-resolution-deadline
 default-pack-has-no-legal-forms
-de-entgeltminderung-erzwungen
+de-entgeltminderung-erzwungen-current
 audit-hash-chain
 gdpdu-data-carrier
+de-kapitalgesellschaft-privatkonto
+de-kleinunternehmer-ust-verboten
+xx-10-constraint-rules-readable
+xx-11-account-subtype-repertoire
+xx-12-constraint-applies-when
+xx-13-pack-version-ordering
+duplicate-vouchers
+account-validity

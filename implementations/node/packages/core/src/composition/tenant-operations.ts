@@ -17,6 +17,7 @@ import { UnfinalizedEntriesProjection } from '../policies/projection/unfinalized
 import { BalanceSheetProjection } from '../policies/projection/balance-sheet.js';
 import { CashBasisProjection } from '../policies/projection/cash-basis.js';
 import { DatevExportProjection } from '../policies/projection/datev-export.js';
+import { DuplicateVouchersProjection } from '../policies/projection/duplicate-vouchers.js';
 import { JournalExportProjection } from '../policies/projection/journal-export.js';
 import { IncomeStatementProjection } from '../policies/projection/income-statement.js';
 import { EcSalesListProjection } from '../policies/projection/ec-sales-list.js';
@@ -204,6 +205,13 @@ export class TenantOperations {
         return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
       case 'auditTrailIntegrity':
         return new AuditTrailIntegrityProjection(tenant.audit).run();
+      case 'duplicateVouchers':
+        return new DuplicateVouchersProjection(
+          tenant.baseCurrency,
+          tenant.vouchers,
+          tenant.journal,
+          tenant.partners,
+        ).compute();
       case 'systemDescription':
         return new SystemDescriptionProjection(
           tenant.id,

@@ -382,8 +382,19 @@ final class CoreSubject implements Subject
         $type = AccountType::from(is_string($data['type'] ?? null) ? $data['type'] : '');
         $subtype = is_string($data['subtype'] ?? null) ? $data['subtype'] : null;
         $status = ($data['status'] ?? null) === 'locked' ? AccountStatus::Locked : AccountStatus::Active;
+        $validFrom = is_string($data['validFrom'] ?? null) ? CalendarDate::of($data['validFrom']) : null;
+        $validTo = is_string($data['validTo'] ?? null) ? CalendarDate::of($data['validTo']) : null;
 
-        return new Account($tenant->ids->next(), AccountNumber::of($number), $name, $type, $subtype, $status);
+        return new Account(
+            $tenant->ids->next(),
+            AccountNumber::of($number),
+            $name,
+            $type,
+            $subtype,
+            $status,
+            $validFrom,
+            $validTo,
+        );
     }
 
     /**

@@ -27,7 +27,7 @@ use Summae\Core\Substrate\Uuid;
  *
  * auditLog stream: included as soon as the trail contains real change
  * history (actions beyond created/finalized) — the
- * fixture situation here is contradictory, see SPEC-FINDINGS.
+ * fixture situation here is contradictory, see FINDINGS-CLOSED.md.
  */
 final readonly class JournalExportProjection
 {

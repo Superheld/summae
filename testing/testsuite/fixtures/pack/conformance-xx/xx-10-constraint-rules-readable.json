@@ -1,0 +1,138 @@
+{
+  "fixture": "xx-10-constraint-rules-readable",
+  "description": "F-CORE-035 meets F-CORE-042: a rule that REFUSES a posting has to be readable, or the refusal cannot be explained from inside the library. A screen with an account picker can only learn which combinations are forbidden by trying them and reading the error — the same argument that made `tenantConfiguration` report `dimensionRules` in the first place. Two things are pinned here that were pinned nowhere else. FIRST, `accountCombinationRules` appears in `tenantConfiguration` at all: `core/tenant-configuration` covers the first predicate and stops there, and the only place the second one was ever read back was a fixture on the SHIPPED German pack — which meant the German pack could not declare another rule without the readability claim going red (that fixture is now `de-entgeltminderung-erzwungen-current`, and this one carries what it gave up). Pinning the whole list is legitimate HERE and was not there, and the difference is the whole point of the superseded register: this pack is the fixture's own data, so the list cannot move underneath it. SECOND, two constraint modules ADD UP rather than replace — `pack-library/CLAUDE.md` says so and nothing held it: both modules' rules are in force at once, both fire, and both are reported. Order in the reported list follows resolution, which is byte-equal in both languages; that it is stable is worth pinning, that it means anything is not — a pack author must not read priority into it, because the predicates are independent and every rule is checked.",
+  "covers": ["F-CORE-035", "F-CORE-042"],
+  "setup": {
+    "pack": {
+      "manifest": {
+        "formatVersion": "0.6",
+        "id": "xx-readable-constraints",
+        "name": "Fiktive Jurisdiktion XX (lesbare Kombinationsregeln aus zwei Modulen)",
+        "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-readable-konten", "version": "2026.1" },
+          { "kind": "constraint", "id": "xx-regel-a", "version": "2026.1" },
+          { "kind": "constraint", "id": "xx-regel-b", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "accrual" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      "modules": [
+        {
+          "formatVersion": "0.6",
+          "id": "xx-readable-konten",
+          "kind": "accounts",
+          "version": "2026.1",
+          "name": "XX Kontenrahmen (lesbare Regeln)",
+          "contributes": ["accounts"],
+          "dependsOn": [],
+          "data": {
+            "accounts": [
+              { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+              { "number": "140", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+              { "number": "177", "name": "Umsatzsteuer", "type": "liability", "subtype": "tax_out" },
+              { "number": "300", "name": "Eigenkapital", "type": "equity", "subtype": "opening_balance" },
+              { "number": "400", "name": "Erloese", "type": "revenue" },
+              { "number": "440", "name": "Steuerfreie Erloese", "type": "revenue" },
+              { "number": "873", "name": "Gewaehrte Skonti", "type": "expense" }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "xx-regel-a",
+          "kind": "constraint",
+          "version": "2026.1",
+          "name": "XX Regel A — Minderung traegt ihre Steuerkorrektur",
+          "contributes": ["constraint"],
+          "dependsOn": [{ "kind": "accounts", "id": "xx-readable-konten" }],
+          "data": {
+            "accountCombinationRules": [
+              {
+                "whenAccountIn": { "from": "873", "to": "873" },
+                "requireAccountIn": { "from": "177", "to": "177" },
+                "note": "requireAccountIn aus Modul A"
+              }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.6",
+          "id": "xx-regel-b",
+          "kind": "constraint",
+          "version": "2026.1",
+          "name": "XX Regel B — steuerfreier Erloes traegt keine Steuer",
+          "contributes": ["constraint"],
+          "dependsOn": [{ "kind": "accounts", "id": "xx-readable-konten" }],
+          "data": {
+            "accountCombinationRules": [
+              {
+                "whenAccountIn": { "from": "440", "to": "440" },
+                "forbidAccountIn": { "from": "177", "to": "177" },
+                "note": "forbidAccountIn aus Modul B — ein zweites constraint-Modul im selben Pack"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    { "op": "createTenant",
+      "input": { "name": "XX Lesbar GmbH", "baseCurrency": "EUR", "pack": "xx-readable-constraints", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1" } } },
+
+    { "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "BEL-1", "voucherDate": "2026-01-31" } },
+      "expect": { "result": { "id": "$V1" } } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Skonto ohne Steuerkorrektur",
+        "lines": [
+          { "account": "873", "side": "debit", "money": { "amount": "10.00", "currency": "EUR" } },
+          { "account": "140", "side": "credit", "money": { "amount": "10.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "comment": "Module A is in force.", "error": "E_COMBINATION_REQUIRED" } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Steuerfreier Erloes mit Steuer",
+        "lines": [
+          { "account": "140", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "440", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "177", "side": "credit", "money": { "amount": "19.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Module B is in force at the same time and in the same tenant. Adding a second constraint module did not replace the first — which is what `several constraint modules add up` means, and until now nothing checked it.",
+        "error": "E_COMBINATION_FORBIDDEN"
+      } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Steuerfreier Erloes ohne Steuer",
+        "lines": [
+          { "account": "140", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "440", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "comment": "Neither rule is triggered, so nothing fires.", "result": { "id": "$E1" } } }
+  ],
+  "projections": [
+    { "name": "tenantConfiguration", "params": { "tenant": "$T1" },
+      "expect": {
+        "comment": "Both modules' rules, read back through one projection. A caller can render the prohibition BEFORE the user posts instead of translating an exit code afterwards.",
+        "accountCombinationRules": [
+          { "whenAccountIn": { "from": "873", "to": "873" }, "requireAccountIn": { "from": "177", "to": "177" } },
+          { "whenAccountIn": { "from": "440", "to": "440" }, "forbidAccountIn": { "from": "177", "to": "177" } }
+        ]
+      } }
+  ]
+}

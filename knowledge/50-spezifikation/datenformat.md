@@ -423,19 +423,21 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 
 ```json
 {
-  "formatVersion": "0.6",
-  "id": "de-complete",
-  "name": "Deutschland — vollständig (EÜR + Bilanz)",
-  "version": "2026.1",
+  "formatVersion": "0.9",
+  "id": "de",
+  "name": "Deutschland",
+  "version": "2026.10",
   "modules": [
-    { "kind": "accounts", "id": "summae-base", "version": "2026.1" },
-    { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
-    { "kind": "mapping", "id": "de-hgb-bilanz-266" },
-    { "kind": "mapping", "id": "de-guv-275" },
-    { "kind": "mapping", "id": "de-anlage-euer-2026" },
-    { "kind": "depreciation", "id": "afa-de" },
-    { "kind": "assetAccounts", "id": "summae-base-asset-accounts" },
-    { "kind": "policy", "id": "de-eur" }
+    { "kind": "accounts", "id": "de-konten", "version": "2026.4" },
+    { "kind": "tax", "id": "de-ust", "version": "2026.4" },
+    { "kind": "mapping", "id": "de-bilanz", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-guv", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-euer", "version": "2026.2" },
+    { "kind": "depreciation", "id": "de-afa", "version": "2026.7" },
+    { "kind": "assetAccounts", "id": "de-assets", "version": "2026.1" },
+    { "kind": "policy", "id": "de-policy", "version": "2026.1" },
+    { "kind": "legalForms", "id": "de-rechtsformen", "version": "2026.1" },
+    { "kind": "constraint", "id": "de-kleinunternehmer", "version": "2026.1" }
   ],
   "overrides": [],
   "taxCodes": ["USt19", "VSt19"],
@@ -448,11 +450,19 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 }
 ```
 
+> **Gekürzt, nicht vollständig** — das ausgelieferte `de`-Manifest führt mehr Module; die
+> maßgebliche Liste steht in `pack-library/de-pack/de.json`, nicht hier.
+>
+> *Bis 2026-08-28 stand hier ein Manifest `de-complete` mit den Modul-`id`s `summae-base`,
+> `de-ust-2026`, `afa-de` und `summae-base-asset-accounts` — **keine davon hat je existiert**, und
+> das Pack `de-complete` gibt es nicht. Das Beispiel beschrieb ein Produkt aus der Entwurfsphase.
+> IMPL-034 hat den Namen an anderer Stelle entfernt; diese Stelle blieb stehen.*
+
 | Feld | Typ | Bedeutung |
 |---|---|---|
 | `formatVersion` | semver | `0.6`. |
 | `id` / `name` / `version` | String | Pack-Identität; der Mandant **pinnt `id`+`version`**. |
-| `modules` | Array `{kind, id, version?}` | Kuratierte Liste. Fehlt `version` → Resolver wählt deterministisch die höchste verfügbare (String-Codepoint-Vergleich, `api.md`). |
+| `modules` | Array `{kind, id, version?}` | Kuratierte Liste. Fehlt `version` → Resolver wählt deterministisch die höchste verfügbare (**segmentweiser Vergleich**, numerisch wo beide Segmente Zahlen sind, sonst Codepoint — `2026.10` folgt damit auf `2026.9`; bis 2026-08-28 war es ein Codepoint-Vergleich der ganzen Zeichenkette, F-CORE-048). |
 | `overrides` | Array `{op, ref, with?}` | Module **weglassen** (`op: "remove"`) oder **ersetzen** (`op: "replace"`, `with: {kind,id,version?}`) — Nutzungsweg 2. **Nur** `remove`/`replace`, kein Feld-Patch (würde Modul-Versionierung/Determinismus unterlaufen). Eigene Mandanten-Konten/-Schlüssel legt die App **darüber** (F-CORE-007), nicht via Override. |
 | `taxCodes` | Array von Strings | `taxCode`-Auswahl des **synthetisierten Profils** (reale `profile.taxCodes`-Form). Resolver-Prüfung I4: jeder Code wird von einem aufgelösten `tax`-Modul bereitgestellt, sonst `E_PACK_UNRESOLVED_REF`. |
 | `defaults` | Objekt `{taxationMethod, smallBusiness, vatPeriod}` | Reale Profil-`defaults` (`TaxProfile::fromData`: `taxationMethod` accrual\|cash · `smallBusiness` bool\|Segmentliste · `vatPeriod` monthly\|quarterly). Geht ins synthetisierte Profil; Quelle des ResolvedPack-Felds `taxProfileDefaults`. Mit `additionalProperties: false` damit **kein** Widerspruch — `defaults` ist explizit Teil des Pack-Manifest-Schemas. |
@@ -460,18 +470,19 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 
 `additionalProperties: false`.
 
-> **Kanonische `de-complete`-Modulliste:** Die hier gezeigte 8-Modul-Liste ist
-> **byte-identisch** zu design § 2 (eine kuratierte Liste, **ein** Namensschema
-> `<jurisd>-<gegenstand>-<jahr>`: `de-ust-2026`, `de-hgb-bilanz-266`, `de-guv-275`,
-> `de-anlage-euer-2026`, `afa-de`, `summae-base`, `summae-base-asset-accounts`,
-> `de-eur`). Der mitgelieferte Default-Kontenrahmen ist `summae-base` (jurisdiktions-
-> neutraler Basis-Rahmen); SKR03/04 werden **nicht** gebündelt, bleiben aber per
-> `importChartOfAccounts` verfügbar. Die USt-VA braucht **kein** Mapping-Modul (mapping-frei). Diese Liste ist das
-> Regressions-Orakel („DE komponiert == DE heute") und **muss** in design § 2, hier und in
-> der PACK-KOMPOSITION-Doku identisch geführt werden.
+> **Kein mitgelieferter Kontenrahmen ist „der" Basis-Rahmen.** SKR03/04 werden **nicht**
+> gebündelt (Lizenzentscheidung 2026-06-21), bleiben aber per `importChartOfAccounts` verfügbar;
+> der jurisdiktionsneutrale Rahmen ist der des `default`-Packs. Die USt-VA braucht **kein**
+> Mapping-Modul (mapping-frei).
+>
+> *Hier stand eine „kanonische Modulliste", die laut eigener Aussage in drei Dokumenten
+> byte-identisch geführt werden musste. Sie benannte Module, die es nicht gibt, und die zwei
+> anderen Dokumente existieren nicht mehr — eine Sync-Pflicht zwischen drei Orten ist genau die
+> Sorte Regel, die eine Liste veralten lässt, statt sie zu pflegen. Das Regressions-Orakel „DE
+> komponiert == DE heute" ist eine **Fixture** (F-PACK-001/002), und dort gehört es hin.*
 
 ## Offene Punkte v0.4 → v0.5
 
 - Kommunale Erweiterung (Finanzrechnungs-Kreis, Produkt-Pflichtdimension) — wartet auf Budgeting-Kontext
-- Rückfluss der SPEC-FINDINGS aus der PHP-Implementierung
+- Rückfluss der Befunde aus der PHP-Implementierung
 - Regelmodul-Inhalte als eigene Lieferaufgabe: DATEV-BWA Form 01, USt-Jahreserklärungs-Mapping, Anlage-EÜR-Vollmapping

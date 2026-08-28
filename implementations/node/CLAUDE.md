@@ -94,9 +94,9 @@ Release process: `RELEASING.md` (repo root).
 - `docs/entwicklung.md` — setup (pnpm), what CI checks, conventions, branch/commit workflow,
   „adding a new operation/projection", spec retrofit, determinism hooks.
 - `docs/konformitaet.md` — compatibility contract, how the runner works, cross-impl pitfalls,
-  cross-test (`make cross`), SPEC-FINDINGS escalation path.
-- `SPEC-FINDINGS.md` — a pointer. The register is at the repo root and split by state:
-  `SPEC-FINDINGS.md` (**open**, short enough to read whole) and `SPEC-FINDINGS-RESOLVED.md`
+  cross-test (`make cross`), findings escalation path.
+- `FINDINGS.md` — a pointer. The register is at the repo root and split by state:
+  `FINDINGS-OPEN.md` (**open**, short enough to read whole) and `FINDINGS-CLOSED.md`
   (decided, in full, with the status table). Read the first one; reach for the second only when a
   comment sends you to a specific ID.
 

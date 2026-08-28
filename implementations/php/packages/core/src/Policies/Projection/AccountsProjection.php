@@ -52,6 +52,12 @@ final readonly class AccountsProjection
                 'type' => $account->type->value,
                 'subtype' => $account->subtype,
                 'status' => $account->status()->value,
+                // The read side of the validity window (F-CORE-045), and for the same reason
+                // `status` is here: a screen offering an account picker has to be able to grey out
+                // what the posting date does not allow, rather than letting the user post and then
+                // translating `E_ACCOUNT_NOT_VALID_AT_DATE` back into a sentence.
+                'validFrom' => $account->validFrom?->iso,
+                'validTo' => $account->validTo?->iso,
             ];
         }
 

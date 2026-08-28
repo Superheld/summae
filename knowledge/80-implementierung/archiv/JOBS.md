@@ -18,7 +18,7 @@ Reihenfolge ist Abhängigkeitsreihenfolge. Akzeptanz = genannte Fixtures grün (
 | 011 | Export | `journalExport` (GoBD Z3: Manifest, SHA-256-Strom-Hashes, Feldkatalog), Schema-Validierung der Exporte gegen `schema/format.schema.json` | journal-export-z3 + Export validiert gegen Schema | datenformat.md |
 | 012 | Laravel-Adapter | ServiceProvider, Eloquent-Persistenz-Adapter (Port-Implementierung), Migrationen, Config; Kern bleibt unberührt | komplette Suite grün gegen Eloquent-Adapter (zweiter Runner-Lauf) | — |
 | 013 | CLI | Alle Operationen + Projektionen als CLI (`rw post …`, `rw report …`), Ausgaben JSON (maschinenlesbar, LLM-Operator als Zielnutzer), Exit-Codes = Fehlercodes | Smoke-Tests; SF-02 per CLI in einem Aufruf | api.md (F-IO-003) |
-| 014 | Abschlussbericht | SPEC-FINDINGS.md konsolidieren; Performance-Messung gegen NF-7; Liste der Adapter-Annahmen für Node-Portierung | Bericht liegt vor | nicht-funktional.md |
+| 014 | Abschlussbericht | FINDINGS-OPEN.md konsolidieren; Performance-Messung gegen NF-7; Liste der Adapter-Annahmen für Node-Portierung | Bericht liegt vor | nicht-funktional.md |
 
 ## Meilensteine
 

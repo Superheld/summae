@@ -153,9 +153,14 @@ festlegt, **welcher** Fehler bei mehreren Verstößen gewinnt:
    vor `replace`, in Array-Reihenfolge). Jeder Override MUSS greifen.
 2. **Modul-Referenzen auflösen** — jede `{kind, id, version?}` gegen den Modulbestand.
    Fehlt `version`, gilt die höchste verfügbare Version je `(kind, id)` nach
-   **String-Codepoint-Vergleich** (Determinismus-Sortierregel — explizit und
-   reproduzierbar, kein semver-„neuer als"-Raten). Modul/Version nicht gefunden →
-   `E_PACK_UNRESOLVED_REF`.
+   **segmentweisem Vergleich**: an `.` getrennt, numerisch wo beide Segmente Zahlen sind,
+   sonst Codepoint; ein fehlendes Segment ist kleiner als ein vorhandenes (`2026.1` vor
+   `2026.1.1`). Explizit und reproduzierbar, kein semver-„neuer als"-Raten. Modul/Version
+   nicht gefunden → `E_PACK_UNRESOLVED_REF`.
+   *Bis 2026-08-28 wurde die ganze Zeichenkette per Codepoint verglichen — damit sortierte
+   `2026.10` **unter** `2026.9`, und die zehnte Veröffentlichung eines Packs hätte
+   veröffentlicht ausgesehen, während jeder Mandant ohne Pin die neunte weiter auflöst
+   (F-CORE-048).*
 3. **Abhängigkeits-DAG bilden** aus `dependsOn`, topologisch sortiert über `(kind, id)`
    mit stabiler Tie-Break-Ordnung (Codepoint). Eine `dependsOn`-Referenz, die in der
    effektiven Liste fehlt → `E_PACK_UNRESOLVED_REF`. **Zyklus** → `E_PACK_INCOHERENT`.

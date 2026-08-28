@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { DomainError } from '../domain-error.js';
 import { mechanismFor } from '../policies/expansion/tax/tax-mechanisms.js';
+import { TaxProfile } from '../policies/expansion/tax/tax-profile.js';
 import { canonicalJson } from '../substrate/canonical-json.js';
+import { ACCOUNT_SUBTYPES, isAccountSubtype } from '../substrate/types.js';
 
 /**
  * Pack resolver (`resolvePack`) — pure, side-effect-free resolution of a
@@ -73,6 +75,7 @@ export interface ResolvedPack {
   legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
   accountCombinationRules: Record<string, unknown>[];
+  accountUsageRules: Record<string, unknown>[];
   packPolicy: Record<string, unknown>;
   profile: Record<string, unknown>;
   contentDigest: string;
@@ -96,11 +99,49 @@ function byCodepoint(a: string, b: string): number {
 }
 
 /**
+ * Order two published versions, newest last.
+ *
+ * **Segment by segment, numerically where both segments are numbers**, and by code point
+ * otherwise. This used to be a plain code-point compare over the whole string, and that was correct
+ * for every version that has ever shipped and wrong for the next one: `2026.10` sorts BELOW
+ * `2026.9` by code point, because `'1' < '9'`. A request without a version means *current*, so the
+ * tenth release of a pack would silently have resolved the ninth — the pack would look published
+ * and nobody would be running it. The German pack reached `2026.9` on 2026-08-28, which is how
+ * close this was.
+ *
+ * Nothing that exists resolves differently: with single-digit segments the two orders agree, which
+ * is why the change is safe to make in one step rather than behind a flag. A segment that is not a
+ * number (`1.0-beta`) still compares by code point, so a pack that versions itself some other way
+ * keeps the behaviour it had.
+ */
+function byVersion(a: string, b: string): number {
+  const left = a.split('.');
+  const right = b.split('.');
+  const count = Math.max(left.length, right.length);
+
+  for (let i = 0; i < count; i++) {
+    const l = left[i] ?? '';
+    const r = right[i] ?? '';
+    if (l === r) continue;
+    // A missing segment is lower than a present one: 2026.1 precedes 2026.1.1.
+    if (l === '' || r === '') return l === '' ? -1 : 1;
+    if (/^[0-9]+$/.test(l) && /^[0-9]+$/.test(r)) {
+      const dl = Number(l);
+      const dr = Number(r);
+      return dl < dr ? -1 : dl > dr ? 1 : 0;
+    }
+    return byCodepoint(l, r);
+  }
+  return 0;
+}
+
+/**
  * Pick a manifest out of a store by id, optionally pinned to a version.
  *
  * A published `(id, version)` names one bundle for good, so a library may hold several versions
  * of the same pack side by side and an old pin keeps resolving what it always resolved. A request
- * without a version means "current", and current is the **highest** version by code point — the
+ * without a version means "current", and current is the **highest** version, compared segment by
+ * segment and numerically where both segments are numbers (`byVersion`) — the
  * same rule module references already follow. Picking the first match instead would make the
  * answer depend on directory iteration order, which is not the same on two machines.
  */
@@ -109,7 +150,7 @@ export function findManifest(manifests: PackManifest[], id: string | null, versi
   if (candidates.length === 0) {
     throw new DomainError('E_PACK_UNRESOLVED_REF', `Manifest not found: ${id ?? ''}${version === null || version === undefined ? '' : `@${version}`}`);
   }
-  const sorted = [...candidates].sort((a, b) => byCodepoint(a.version, b.version));
+  const sorted = [...candidates].sort((a, b) => byVersion(a.version, b.version));
   return sorted[sorted.length - 1]!;
 }
 
@@ -150,7 +191,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     }
   }
 
-  // 2. Resolve module references against the store (version missing → highest per codepoint).
+  // 2. Resolve module references against the store (version missing → highest, see byVersion).
   const resolved: PackModule[] = [];
   for (const ref of effective) {
     const candidates = moduleSource.filter(
@@ -159,7 +200,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     if (candidates.length === 0) {
       throw new DomainError('E_PACK_UNRESOLVED_REF', `Module not found: ${refKey(ref.kind, ref.id)}`);
     }
-    candidates.sort((a, b) => byCodepoint(a.version, b.version));
+    candidates.sort((a, b) => byVersion(a.version, b.version));
     resolved.push(candidates[candidates.length - 1]!);
   }
 
@@ -198,6 +239,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
   const accountCombinationRules: Record<string, unknown>[] = [];
+  const accountUsageRules: Record<string, unknown>[] = [];
   let packPolicyModule: Record<string, unknown> | null = null;
 
   for (const m of sorted) {
@@ -209,6 +251,18 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
             throw new DomainError('E_PACK_INCOHERENT', `Duplicate account number: ${number}`);
           }
           accountNumbers.add(number);
+          const subtype = asString(account.subtype);
+          if (subtype !== null && !isAccountSubtype(subtype)) {
+            // Closed repertoire (substrate/types.ts): a misspelled subtype used to resolve into a
+            // chart where the engine read nothing from it. E_PACK_INCOHERENT because that is what
+            // it is — the modules resolve, the bundle asks for something that does not exist — and
+            // here rather than at the first posting, like every other coherence check.
+            throw new DomainError(
+              'E_PACK_INCOHERENT',
+              `Unknown account subtype "${subtype}" on account ${number}`,
+              { account: number, subtype, known: [...ACCOUNT_SUBTYPES] },
+            );
+          }
           accounts.push(account);
         }
         break;
@@ -253,6 +307,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         }
         for (const rule of Array.isArray(m.data.accountCombinationRules) ? m.data.accountCombinationRules : []) {
           if (isRecord(rule)) accountCombinationRules.push(rule);
+        }
+        for (const rule of Array.isArray(m.data.accountUsageRules) ? m.data.accountUsageRules : []) {
+          if (isRecord(rule)) accountUsageRules.push(rule);
         }
         break;
       case 'depreciation':
@@ -341,6 +398,34 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
       }
     }
   }
+  // I10: every tenant fact an `appliesWhen` names is one this bundle can actually produce.
+  // Without this a mistyped legal form leaves the rule permanently DORMANT — the pack looks like it
+  // forbids something and forbids nothing, which is the same silent failure the closed subtype
+  // repertoire and the closed mechanism repertoire were built against. The legal forms are the
+  // pack's own catalogue, so they can only be checked here, where the constraint modules and the
+  // legalForms module are in the same hand.
+  const declaredForms = legalForms !== null && isRecord(legalForms.forms) ? Object.keys(legalForms.forms) : [];
+  for (const rule of [...accountCombinationRules, ...accountUsageRules]) {
+    const conditions = isRecord(rule.appliesWhen) ? rule.appliesWhen : {};
+    for (const form of Array.isArray(conditions.legalForm) ? conditions.legalForm : []) {
+      if (!declaredForms.includes(form as string)) {
+        throw new DomainError(
+          'E_PACK_INCOHERENT',
+          `appliesWhen.legalForm names ${String(form)}, which this pack does not declare (I10)`,
+          { legalForm: form, declared: declaredForms },
+        );
+      }
+    }
+    for (const method of Array.isArray(conditions.taxationMethod) ? conditions.taxationMethod : []) {
+      if (!(TaxProfile.METHODS as readonly string[]).includes(method as string)) {
+        throw new DomainError(
+          'E_PACK_INCOHERENT',
+          `appliesWhen.taxationMethod names ${String(method)}, which is not a taxation method (I10)`,
+          { taxationMethod: method, known: [...TaxProfile.METHODS] },
+        );
+      }
+    }
+  }
   // I2: every mapping selector hits >= 1 account; fires only on a fully empty selector.
   for (const mapping of mappings) {
     checkMappingSelectors(mapping, accountNumbers);
@@ -383,6 +468,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     legalForms,
     dimensionRules,
     accountCombinationRules,
+    accountUsageRules,
     packPolicy: effectivePolicy,
     profile,
   };
@@ -420,6 +506,7 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // The first constraint plug: which accounts may not be posted without which dimension.
     dimensionRules: Array.isArray(pack.dimensionRules) ? pack.dimensionRules : [],
     accountCombinationRules: Array.isArray(pack.accountCombinationRules) ? pack.accountCombinationRules : [],
+    accountUsageRules: Array.isArray(pack.accountUsageRules) ? pack.accountUsageRules : [],
     packPolicy: pack.packPolicy,
   };
 }

@@ -1,7 +1,7 @@
 # de-pack — Germany
 
 The first complete jurisdiction pack: Germany. Selectable as `createTenant(pack: "de")`.
-**Current version: `2026.4`** — raised from `2026.3` when the chart gained seven
+**Current chart version: `2026.4`** — raised from `2026.3` when the chart gained seven
 operating-expense accounts (6030–6090) and `de-euer` moved from an explicit number list to
 ranges, so that the chart can be extended without one statement losing the accounts the other
 sees. Modules version independently; the manifest pins the exact ones it wants, and a published
@@ -44,6 +44,8 @@ the safety net, not the plan.
 | `assets/de-assets` | assetAccounts | Asset contra-accounts (addition/depreciation/low-value/disposal) on neutral numbers |
 | `policy/de` | policy | EUR, half-up per voucher (`perVoucher`), scale 2; defaults: cash (EÜR), standard taxation, quarterly |
 | `constraint/de-entgeltminderung` | constraint | § 17 UStG: an entry on 4020 must carry its output-VAT correction, one on 5010 its input-VAT correction (`E_COMBINATION_REQUIRED`) |
+| `constraint/de-kleinunternehmer` | constraint | § 19 UStG: an entry on 4040 (small-business revenue) must not touch an output-VAT account (`E_COMBINATION_FORBIDDEN`) |
+| `constraint/de-kapitalgesellschaft` | constraint | § 13 GmbHG / § 1 AktG: a capital company (`gmbh`, `ug`, `ag`, `eg`) must not post to 2400 Privat at all — its assets are separate from its shareholders', and the withdrawal is salary, a loan, or an open or hidden distribution (`E_ACCOUNT_USE_FORBIDDEN`) |
 
 The German tax/HGB background (VAT §13b, intra-community supply, small business §19, deemed
 supply, EÜR, HGB balance sheet/P&L, depreciation) is maintained internally; the rules this pack
@@ -58,7 +60,7 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 |---|---|---|
 | accounts (`de-konten`) | resolves, selectable as a pack | `de-pack-resolves-current` |
 | accounts (`de-konten`) | the chart can be extended without a statement losing the account | `de-aufwandskonten-erweiterbar` |
-| tax · USt19 standard rate | F-TAX-002 / SF-02 | `de-pack-resolves`, `de-jahresgang` |
+| tax · USt19 standard rate | F-TAX-002 / SF-02 | `de-pack-resolves-current`, `de-jahresgang-current` |
 | tax · USt7 reduced | F-TAX-002 | `de-ust7-ermaessigt` |
 | tax · VSt19 input tax | F-TAX-002 / SF-03 | `de-eingangsrechnung` |
 | tax · VSt7 reduced input tax | F-TAX-002 / SF-03 | `de-vorsteuer-ermaessigt` |
@@ -68,18 +70,19 @@ inline) and are green in **PHP and Node** (`--strict`, byte-identical double run
 | tax · IGE19/IGE7 intra-community acquisition | F-TAX-006 / SF-04 | `de-ig-erwerb` |
 | tax · AUSFUHR exempt export | F-TAX-007 / SF-04 | `de-ausfuhr` |
 | tax · VAT return | F-TAX-005 / SF-09 | `de-vat-return` |
-| de-konten · 4020 cash discount §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang` |
-| de-entgeltminderung · §17 correction enforced | F-CORE-042 | `de-entgeltminderung-erzwungen` |
+| de-konten · 4020 cash discount §17 | F-TAX-008 / SF-18 | `de-skonto`, `de-jahresgang-current` |
+| de-entgeltminderung · §17 correction enforced | F-CORE-042 | `de-entgeltminderung-erzwungen-current` |
+| de-kleinunternehmer · §19 no VAT shown | F-CORE-042 / F-TAX-004 / SF-11 | `de-kleinunternehmer-ust-verboten` |
 | de-konten · 6010/6020 entertainment §4(7) | SF-23 | `de-bewirtung` |
 | de-konten · 4040 small business §19 | F-TAX-004 / SF-11 | `de-kleinunternehmer` |
-| de-konten · 1900/3900 accruals/deferrals | HGB §266 | `de-jahresgang` |
-| mappings · de-bilanz §266 + de-guv §275 | F-CORE-015 / SF-10 | `de-bilanz-guv`, `de-jahresgang` |
+| de-konten · 1900/3900 accruals/deferrals | HGB §266 | `de-jahresgang-current` |
+| mappings · de-bilanz §266 + de-guv §275 | F-CORE-015 / SF-10 | `de-bilanz-guv`, `de-jahresgang-current` |
 | mappings · de-euer (Anlage EÜR §4 Abs. 3) | F-CORE-008/010 / SF-08 | `de-euer` |
-| depreciation + assetAccounts | F-AST-001/002/003 / SF-05 | `de-afa-lauf`, `de-jahresgang` |
-| policy · perVoucher/scale 2 | Determinism | `de-pack-resolves`; mechanism `conformance-xx` |
-| **Integration** (balance sheet + journal correct at all times) | F-CORE-016 / SF-10 | `de-jahresgang` |
+| depreciation + assetAccounts | F-AST-001/002/003 / SF-05 | `de-afa-lauf`, `de-jahresgang-current` |
+| policy · perVoucher/scale 2 | Determinism | `de-pack-resolves-current`; mechanism `conformance-xx` |
+| **Integration** (balance sheet + journal correct at all times) | F-CORE-016 / SF-10 | `de-jahresgang-current` |
 
-`de-jahresgang` is the continuous end-to-end test of a fiscal year (posting → input tax →
+`de-jahresgang-current` is the continuous end-to-end test of a fiscal year (posting → input tax →
 cash discount → asset addition → accrual/deferral → depreciation) with a balanced balance sheet
 at several reporting dates.
 

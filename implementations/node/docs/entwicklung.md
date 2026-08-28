@@ -68,7 +68,7 @@ The **recipe** is language-neutral (root `CLAUDE.md`, "Bau-Konventionen"). Concr
 1. Write the new/changed fixtures in `testing/testsuite/` (append-only) + schema.
 2. `pnpm fixtures` — see what turns red (controlled failure, no crash).
 3. Re-read the spec files in `knowledge/50-spezifikation/` fresh (not from memory).
-4. Adjust until green; on a spec/fixture contradiction → [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md),
+4. Adjust until green; on a spec/fixture contradiction → [`../FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md),
    **do not bend the fixture**.
 
 ## Determinism hooks (important for testing)

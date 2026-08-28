@@ -1,6 +1,6 @@
 # Spec-Update v0.5 (2026-06-08) — Auflösung der SPEC-FINDINGS F-001…007
 
-Reaktion auf deine eigenen Findings (`SPEC-FINDINGS.md`). Testsuite neu syncen (jetzt **43 Fixtures, 34 Fehlercodes**). Alle Punkte sind Vertragspräzisierungen — wo dein Workaround abwich, gilt ab jetzt das Folgende:
+Reaktion auf deine eigenen Findings (`FINDINGS-OPEN.md`). Testsuite neu syncen (jetzt **43 Fixtures, 34 Fehlercodes**). Alle Punkte sind Vertragspräzisierungen — wo dein Workaround abwich, gilt ab jetzt das Folgende:
 
 ## Fehlercodes (JOB-003/009/010)
 
@@ -26,4 +26,4 @@ Balance-sheet-Mappings tragen am **Wurzelknoten** `side: assets | liabilitiesAnd
 
 ## Hinweis
 
-Schema-`$id` bleibt 0.4 (additive Felder, kein Bruch); inhaltlich ist der Stand v0.5. Weitere Findings wie gehabt in SPEC-FINDINGS.md anhängen — danke fürs saubere Format, das hat die Einarbeitung trivial gemacht.
+Schema-`$id` bleibt 0.4 (additive Felder, kein Bruch); inhaltlich ist der Stand v0.5. Weitere Findings wie gehabt in FINDINGS-OPEN.md anhängen — danke fürs saubere Format, das hat die Einarbeitung trivial gemacht.

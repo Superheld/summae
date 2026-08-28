@@ -10,7 +10,7 @@ against PHP comes out byte-identical.
 
 The fixtures are the normative source and are authored in `testing/testsuite/`. They are
 **append-only**: a behaviour change is a *new* fixture, never a quiet edit to an existing one
-— see "SPEC-FINDINGS" below.
+— see "Findings" below.
 
 ## How the runner works
 
@@ -61,12 +61,12 @@ deterministic. The pack fixtures (`testing/testsuite/fixtures/pack/`) check the 
 both directions. (Concrete counts drift — they come from `pnpm fixtures` / `make cross`, not
 from this document.)
 
-## SPEC-FINDINGS — the escalation path
+## Findings — the escalation path
 
 When spec, fixture and model contradict each other or something is missing: **do not guess, do not
 change the fixture.** Instead:
 
-1. Document in [`../SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) (What / Where / chosen behavior /
+1. Document in [`../FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md) (What / Where / chosen behavior /
    proposal), as `IMPL-…`.
 2. Continue building with the next most plausible behavior.
 3. The finding flows back via the knowledge base (decision log) and returns as a refined

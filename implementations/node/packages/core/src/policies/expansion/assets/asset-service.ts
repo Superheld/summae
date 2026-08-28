@@ -1183,7 +1183,7 @@ export class AssetService {
     }
     throw new DomainError(
       'E_ASSET_UNKNOWN',
-      `No useful life for asset class "${assetClass}" in the rule module (see SPEC-FINDINGS)`,
+      `No useful life for asset class "${assetClass}" in the rule module (see FINDINGS-CLOSED.md)`,
     );
   }
 
