@@ -13,7 +13,7 @@ belongs here.**
 |---|---|---|
 | [`ledger-split-plan.md`](ledger-split-plan.md) | ✅ **done** | Nothing. Decided "go" and executed in both languages; `ledger.ts` is a facade and `core/src/CLAUDE.md` describes the result as current. The memo records what was built differently from what it proposed. |
 | [`spec-fixture-audit.md`](spec-fixture-audit.md) | ✅ **done** | Nothing pending. Depth A was chosen, executed, and came back clean. Depth B remains an option that was deliberately not taken — for assurance, not because anything is suspected. |
-| [`us-pack-signoffs.md`](us-pack-signoffs.md) | ⚠️ **open** | Six decisions, none made. Nothing blocks the build; each becomes quasi-irreversible once a tenant posts against the `us` pack. |
+| [`us-pack-signoffs.md`](us-pack-signoffs.md) | ✅ **done 2026-08-28** | All six decided. Five confirm what already ships (one of them, `EXEMPT`, had been built since 0.5.0 while the memo still asked for it); the sixth is a deliberate **non**-change — `SALETAX` reads like a typo and stays, because nine fixtures drive it as input while proving the shipped pack. The product did not move; the documents that were wrong about it did. |
 
 **Closing one:** put the state in its title, say in one line what was actually built (especially
 where that differs from the proposal), and update the row above. Do not delete the memo — the

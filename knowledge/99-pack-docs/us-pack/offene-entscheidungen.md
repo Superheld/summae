@@ -1,5 +1,26 @@
 # Offene Entscheidungen — US-Pack
 
+> **ERLEDIGT 2026-08-28. Alle Punkte entschieden.** Die Begründungen im Klartext stehen in
+> [`docs/proposals/us-pack-signoffs.md`](../../../docs/proposals/us-pack-signoffs.md); hier bleibt,
+> was beim Bau tatsächlich herauskam. **Dieses Dokument war an mehreren Stellen falsch über das
+> eigene Produkt** — es schlug Kontonummern vor (`3130`, `3140`, `4020`, `4030`, `4040`, `6020`), die
+> nie ausgeliefert wurden, und beschrieb Zustände (keine Fixtures, `EXEMPT` erzeugt eine Nullzeile),
+> die der Bau längst überholt hatte. Es waren Entwurfsnotizen von **vor** dem Bau, die niemand danach
+> abgeglichen hat. Korrigiert; die Kurzfassung je Punkt steht jetzt direkt an der Überschrift.
+>
+> | Punkt | Entscheidung |
+> |---|---|
+> | **A** Kontonummern | ✅ wie ausgeliefert: `1xxx` Assets · `2xxx` Liabilities · `3xxx` Equity · `4xxx` Revenue · `5xxx` COGS · `6xxx` Expenses, 35 Konten. Nicht die unten vorgeschlagenen Nummern — ausgeliefert sind `2100` Sales Tax Payable, `2110` Use Tax Payable, `4100` Exempt Sales, `6200` Use Tax Expense, und `3900` ist Owner's Draw |
+> | **B** Use Tax | ✅ wie ausgeliefert. Aufwand + Verbindlichkeit ist **richtig**, nicht ein Kompromiss: US-Use-Tax kennt keinen Vorsteuerabzug, die Steuer *ist* Kosten. Kein eigener `use_tax`-Mechanismus — gleiche Code, schönerer Name, und das Repertoire ist bewusst geschlossen |
+> | **C** `accrual`-Default | ✅ bestätigt, und der Grund ist die **Sales Tax**, nicht GAAP: sie entsteht mit dem Umsatz, nicht mit der Zahlung. Wo ein Staat Ist-Meldung erlaubt, ist es eine *Wahl* — und genau das ist `taxationMethod` je Mandant |
+> | **D** Mehr-Staaten | ✅ ein Satz je Mandant bleibt der Zuschnitt. Nexus, Satz-Ermittlung und Aufschlüsselung sind Sache der Anwendung (in der Praxis eines Rate-Service) — rund 13.000 Steuerjurisdiktionen mit laufend wechselnden Sätzen trägt keine Bibliothek. Jetzt **laut** im `pack-library/us-pack/README.md`, nicht nur hier |
+> | **E** `EXEMPT` | ✅ **war längst gebaut** — `mechanism: exempt` seit 0.5.0, Fixture `us-exempt-sale`. Keine Nullzeile mehr. Der Punkt unten beschreibt einen Zustand, den es seit über zwei Monaten nicht gibt |
+> | **F** Staatsgenaue Return-Kennzahlen | ✅ bleibt bei beschreibenden Keys; staatsspezifische Return-Mappings sind ein späteres, eigenes Vorhaben — dieselbe Grenze wie D |
+> | **G** Geerbte `tax_in`-Konten | ✅ dormant behalten, wie empfohlen |
+> | **H** Fixtures + CLI-Smoke | ✅ erledigt: **14** Fixtures unter `testing/testsuite/fixtures/pack/us-pack/` plus CLI-Smoke in beiden Sprachen |
+> | **I** De-minimis 2.500 vs. 5.000 | ✅ bleibt bei 2.500 (ohne AFS). Die AFS-Variante ist ein datierter Zusatzeintrag, wenn ein Anwender ein Applicable Financial Statement hat — kein Default |
+> | **Benennung** | ✅ `us`, `us-accounts-2026` bestätigt. **`SALETAX` bleibt**, obwohl US-Sprachgebrauch „sales tax" ist: neun Fixtures *treiben* den Code als Eingabe und beweisen damit das ausgelieferte Pack; ihn umzubenennen hieße, den Vertrag rückwirkend umzuschreiben. Die Lehre steht im Sign-off-Memo |
+
 Was vor / während des Builds menschlich entschieden werden muss. Konto-Nummern sind
 quasi-irreversibel (sobald gebucht), darum zuerst.
 

@@ -12,6 +12,37 @@ versioning per SemVer (0.x: minor may break).
 
 ## 0.15.1 — unreleased
 
+### The six us-pack sign-offs are decided — and the product does not move
+
+Open since 2026-06-23, they kept the `us` pack from being recommended for production. Five confirm
+what already ships; one is a deliberate **non**-change. Full reasoning:
+[`docs/proposals/us-pack-signoffs.md`](docs/proposals/us-pack-signoffs.md).
+
+- **Account numbers** — approved as shipped. `1xxx`–`6xxx` is *the* US block convention, so a US
+  accountant reads the chart without being taught it.
+- **`USETAX`** — approved. Cost plus liability is right rather than a compromise: US use tax carries
+  no input credit, so the tax **is** a cost. No dedicated `use_tax` mechanism — identical code under
+  a nicer label, and the repertoire is closed for cross-language reasons.
+- **`accrual` default** — confirmed, and the reason is the sales tax, not GAAP: the liability
+  generally arises on the date of the sale. Where a state allows cash-basis reporting it is an
+  election, which is exactly what a per-tenant `taxationMethod` is.
+- **Multi-state** — one rate per tenant stays the scope; nexus and rate lookup are the application's.
+  Now stated where somebody choosing the pack will hit it (`pack-library/us-pack/README.md`) instead
+  of only in a decisions memo.
+- **`EXEMPT`** — closed, and it had been **built since 0.5.0**. The memo asked for a decision that
+  had already been made and shipped, and nothing noticed for two months.
+- **Naming** — `us` and `us-accounts-2026` confirmed. **`SALETAX` stays**, and this is the
+  interesting one: US usage is "sales tax" without exception, so it reads like a typo, and this
+  sign-off item existed to catch exactly that. Nine conformance fixtures *drive* the code as input
+  while proving the shipped pack, so renaming it would leave nine behaviour-pinning fixtures
+  describing a product that no longer exists — and those are argued with, never retired. **The lesson
+  is the keeper:** an identifier under an open sign-off should not be pinned by a fixture until it is
+  signed off, or the sign-off is theatre.
+
+`knowledge/99-pack-docs/us-pack/offene-entscheidungen.md` was wrong about its own product — it
+proposed six account numbers the pack never shipped and described `EXEMPT` emitting a `0.00` line and
+the pack having no fixtures. Pre-build notes nobody reconciled afterwards; corrected.
+
 ### The audit trail is now *checkable*, not merely append-only (F-CORE-043, format 0.8)
 
 Until now the trail was append-only **because no code path updates or deletes it** — the port offers
