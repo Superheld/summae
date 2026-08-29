@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../policies/projection/asset-register.js';
+import { AssetScheduleProjection } from '../policies/projection/asset-schedule.js';
 import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
@@ -256,6 +257,8 @@ export class TenantOperations {
         return new CashJournalProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'assetRegister':
         return new AssetRegisterProjection(tenant.assets).compute(params);
+      case 'assetSchedule':
+        return new AssetScheduleProjection(tenant.baseCurrency, tenant.assets).compute(params);
       case 'costAllocationSheet':
         return tenant.costing.costAllocationSheet(params);
       case 'overheadRates':

@@ -8,6 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\AssetRegisterProjection;
+use Summae\Core\Policies\Projection\AssetScheduleProjection;
 use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
 use Summae\Core\Policies\Projection\AuditTrailIntegrityProjection;
@@ -227,6 +228,7 @@ final readonly class TenantOperations
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
+            'assetSchedule' => (new AssetScheduleProjection($tenant->baseCurrency, $tenant->assets))->compute($params),
             'costingRuns' => (new CostingRunsProjection($tenant->costingRuns))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'overheadRates' => $tenant->costing->overheadRates($params),

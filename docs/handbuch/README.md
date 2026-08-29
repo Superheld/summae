@@ -2522,6 +2522,40 @@ What this does **not** do is divide by a quantity. Per-unit production cost need
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
 
+### assetSchedule — the fixed-asset movement schedule
+
+`fiscalYear` (yes). Output: `fiscalYear`, `assets[]` (one row per asset), `byAccount[]` (the same
+figures per asset account) and `totals`.
+
+Each row carries the twelve figures a statutory schedule wants:
+
+| | |
+|---|---|
+| `openingCost` · `additions` · `disposals` · `transfers` · `closingCost` | the cost side of the year |
+| `openingDepreciation` · `depreciationOfYear` · `writeUpsOfYear` · `depreciationOnDisposals` · `closingDepreciation` | what has been written off it |
+| `openingBookValue` · `closingBookValue` | what is left, at both ends |
+
+**This is not `assetRegister` with different words.** The register reports the *stock* — cost,
+accumulated depreciation, book value, at a cutoff date. The schedule reports the *year*: what stood
+there at the start, what came in, what went out, what was written off, what is left. § 268 Abs. 2
+HGB asks for the second, and every figure in it was already in your journal.
+
+Three things to read carefully:
+
+- **A disposal takes its whole accumulated depreciation with it.** It is reported under
+  `depreciationOnDisposals` and the closing accumulated depreciation is zero. Netting it into the
+  year's depreciation would show a year that wrote off less than it did.
+- **A write-up is reported positive, under its own name.** Internally it is stored as a negative
+  depreciation so every other reader picks it up without a special case; a schedule that showed it
+  as "less depreciation" would hide a legally distinct event.
+- **`transfers` is always `0.00`, and that is a statement rather than an omission.** summae has no
+  operation that moves an asset between positions, so the column is *structurally* zero. It is here
+  because a schedule missing it would be incomplete for whoever files it — not because a transfer
+  could have happened and did not.
+
+Assets acquired after the year, or disposed before it, are left out entirely rather than shown as a
+row of zeros a reader has to discount.
+
 ### deferralRegister — what is deferred, over what, and how far it has run
 
 `kind` (no), `status` (no — `open` or `settled`). Output: `deferrals[]` and `outstandingTotal`.

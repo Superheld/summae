@@ -1,0 +1,138 @@
+{
+  "fixture": "asset-schedule",
+  "description": "The fixed-asset movement schedule (§ 268 Abs. 2 HGB). The register and the schedule answer different questions, and that is why both exist: `assetRegister` reports the STOCK — what an asset cost, what has been written off, what it is worth, at a cutoff — while a schedule reports the YEAR: what stood there at the start, what came in, what went out, what was written off, what is left. Every figure was already in the journal and the asset records; only the projection that shapes them was missing, which is what made this a census row rather than a feature request. Three things are pinned here. A DISPOSAL takes its whole accumulated depreciation with it — reported under `depreciationOnDisposals`, with the closing accumulated depreciation at zero — because netting it into the year's depreciation would show a year that wrote off less than it did. A WRITE-UP is reported positive under its own name rather than as less depreciation: it is stored as a negative depreciation so every other reader picks it up without a special case, but a schedule that showed it that way would hide a legally distinct event. And `transfers` is always 0.00, deliberately: summae has no operation that moves an asset between positions, so the column is STRUCTURALLY zero rather than unimplemented. Leaving it out would make the schedule incomplete for whoever files it; leaving it in without saying why would claim support that does not exist. Grouping is by asset account, because a schedule is read alongside the balance sheet position by position — the per-asset rows are where a figure is checked, the per-account totals are where it is filed.",
+  "covers": ["F-CORE-055"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "0100", "name": "Maschinen", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "0200", "name": "Betriebsausstattung", "type": "asset", "subtype": "fixed_asset" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4830", "name": "Abschreibungen", "type": "expense" },
+      { "number": "4910", "name": "Erträge aus Zuschreibungen", "type": "revenue" },
+      { "number": "6800", "name": "Außerplanmäßige Abschreibungen", "type": "expense" },
+      { "number": "6900", "name": "Verluste aus Anlagenabgang", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "AN-001", "voucherDate": "2026-01-01" },
+      { "id": "$V2", "voucherNumber": "AN-002", "voucherDate": "2027-01-01" },
+      { "id": "$V3", "voucherNumber": "AB-001", "voucherDate": "2027-06-30" }
+    ],
+    "ruleModule": {
+      "usefulLife": [ { "assetClass": "machinery", "months": 24 } ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "impairmentExpenseAccount": "6800",
+        "gwgExpenseAccount": "4830",
+        "disposalProceedsAccount": "4910",
+        "disposalLossAccount": "6900",
+        "writeUpIncomeAccount": "4910"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine A", "assetClass": "machinery", "assetAccount": "0100",
+        "acquisitionCost": { "amount": "24000.00", "currency": "EUR" },
+        "acquiredOn": "2026-01-01", "voucherId": "$V1", "usefulLifeMonths": 24
+      },
+      "expect": { "result": { "id": "$A1", "route": "capitalize" } }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Ein Jahreslauf: zwölf Monate zu 1.000,00",
+        "result": { "entriesCreated": 1, "totalDepreciation": { "amount": "12000.00", "currency": "EUR" } }
+      }
+    },
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Regal", "assetClass": "machinery", "assetAccount": "0200",
+        "acquisitionCost": { "amount": "2400.00", "currency": "EUR" },
+        "acquiredOn": "2027-01-01", "voucherId": "$V2", "usefulLifeMonths": 24
+      },
+      "expect": {
+        "comment": "Ein Zugang IM Berichtsjahr — die Zeile trennt ihn vom Anfangsbestand",
+        "result": { "id": "$A2", "route": "capitalize" }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": { "fiscalYear": 2027, "period": 6 },
+      "expect": {
+        "comment": "Ein Monatslauf: die Maschine holt ihre offenen Planmonate 13 bis 18 nach, das im Januar zugegangene Regal steht erst bei Planmonat 6",
+        "result": { "entriesCreated": 2 }
+      }
+    },
+    {
+      "op": "disposeAsset",
+      "input": { "assetId": "$A1", "disposedOn": "2027-06-30", "voucherId": "$V3" },
+      "expect": {
+        "comment": "Ein Abgang IM Berichtsjahr — die kumulierte Abschreibung geht mit ihm",
+        "result": { "status": "disposed" }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "assetSchedule",
+      "params": { "fiscalYear": 2027 },
+      "expect": {
+        "comment": "Anfangsbestand, Zugang, Abgang, Abschreibung des Jahres, Endbestand — die Zahlen lagen alle schon im Journal",
+        "fiscalYear": 2027,
+        "assets": [
+          {
+            "assetId": "$A1", "name": "Maschine A", "account": "0100",
+            "openingCost": "24000.00", "additions": "0.00", "disposals": "24000.00",
+            "transfers": "0.00", "closingCost": "0.00",
+            "openingDepreciation": "12000.00", "depreciationOfYear": "6000.00",
+            "writeUpsOfYear": "0.00", "depreciationOnDisposals": "18000.00",
+            "closingDepreciation": "0.00",
+            "openingBookValue": "12000.00", "closingBookValue": "0.00"
+          },
+          {
+            "assetId": "$A2", "name": "Regal", "account": "0200",
+            "openingCost": "0.00", "additions": "2400.00", "disposals": "0.00",
+            "transfers": "0.00", "closingCost": "2400.00",
+            "openingDepreciation": "0.00", "depreciationOfYear": "100.00",
+            "closingDepreciation": "100.00",
+            "openingBookValue": "0.00", "closingBookValue": "2300.00"
+          }
+        ],
+        "byAccount": [
+          { "account": "0100", "openingCost": "24000.00", "closingCost": "0.00", "closingBookValue": "0.00" },
+          { "account": "0200", "openingCost": "0.00", "closingCost": "2400.00", "closingBookValue": "2300.00" }
+        ],
+        "totals": {
+          "openingCost": "24000.00", "additions": "2400.00", "disposals": "24000.00",
+          "transfers": "0.00", "closingCost": "2400.00",
+          "closingBookValue": "2300.00"
+        }
+      }
+    },
+    {
+      "name": "assetSchedule",
+      "params": { "fiscalYear": 2026 },
+      "expect": {
+        "comment": "Das Vorjahr: ein Zugang, keine Abgänge, und das Regal taucht gar nicht auf statt als Nullzeile",
+        "assets": [
+          {
+            "assetId": "$A1", "openingCost": "0.00", "additions": "24000.00",
+            "disposals": "0.00", "closingCost": "24000.00",
+            "openingDepreciation": "0.00", "depreciationOfYear": "12000.00",
+            "closingDepreciation": "12000.00", "closingBookValue": "12000.00"
+          }
+        ]
+      }
+    }
+  ]
+}
