@@ -129,7 +129,7 @@ final class CostingRun
      *
      * @return array<string, mixed>
      */
-    private static function totalsToJson(array $totals): array
+    private static function totalsToJson(array $totals): array|\stdClass
     {
         $codes = array_keys($totals);
         sort($codes, SORT_STRING);
@@ -139,6 +139,12 @@ final class CostingRun
             $out[$code] = $totals[$code]->jsonSerialize();
         }
 
-        return $out;
+        // A map with no entries is `{}`, never `[]` — PHP's empty array encodes as a LIST, and a run
+        // with no cost centres wrote `"primary": []` where Node wrote `"primary": {}`. Same idiom as
+        // AuditRecord::changes, and the same defect: the two engines' stored documents stopped being
+        // byte-identical, on a shared database, with every gate green. Nothing crossed that line
+        // until the cross-test started comparing the stored aggregates (IMPL-046) — it found this on
+        // its first run, in one fixture out of 126.
+        return $out === [] ? new \stdClass() : $out;
     }
 }

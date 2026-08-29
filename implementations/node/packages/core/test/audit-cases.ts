@@ -66,6 +66,7 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       gwgExpenseAccount: '4930',
       disposalGainAccount: '8400',
       disposalLossAccount: '4930',
+      writeUpIncomeAccount: '8400',
     },
   });
   // The appropriation plug, for the same reason: without it the operation refuses with
@@ -83,6 +84,37 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       sizeClasses: ['small'],
       forms: { limited: { label: 'Limited company', resolution: { required: true, deadlineMonths: 8 } } },
     },
+  });
+  // And the stock categories, same reason again: without them `valuateInventory` refuses on a pack
+  // that declares no inventory instead of reaching the trail.
+  // And the provision accounts, same reason once more.
+  // And the deferral accounts, same reason again.
+  // And the input-tax adjustment: without its correction periods the operation refuses on the pack
+  // instead of reaching the trail.
+  tenant.inputTaxAdjustment.setRuleModule({
+    inputTaxAdjustment: {
+      correctionPeriods: [{ assetKind: 'movable', years: 5 }],
+      deMinimis: { inputTaxAtMost: '1000.00', sharePointsAtLeast: '10.00', amountAtMost: '1000.00' },
+      accounts: { taxAccount: '1500', expenseAccount: '4930', incomeAccount: '8400' },
+      reportingKey: '63',
+    },
+  });
+  tenant.deferralService.setRuleModule({
+    deferrals: {
+      kinds: [
+        { kind: 'prepaidExpense', account: '1900' },
+        { kind: 'deferredIncome', account: '3900' },
+      ],
+    },
+  });
+  tenant.provisionService.setRuleModule({
+    provisions: {
+      accounts: [{ account: '3600', expenseAccount: '4930', releaseAccount: '8400' }],
+      discounting: { fromMonths: 12, basis: 'test' },
+    },
+  });
+  tenant.inventory.setRuleModule({
+    inventory: { categories: [{ account: '1140', changeAccount: '5200' }] },
   });
   return new TenantOperations(tenant);
 }
@@ -110,6 +142,32 @@ function postOne(ops: TenantOperations, voucherId: string, date = '2026-01-20'):
     ],
   }) as Record<string, unknown>;
   return String(result.id);
+}
+
+function recognizeDeferral(ops: TenantOperations): void {
+  ops.execute('createAccount', { number: '1900', name: 'Aktive RAP', type: 'asset' });
+  ops.execute('recognizeDeferral', {
+    kind: 'prepaidExpense',
+    reason: 'Versicherung',
+    counterAccount: '4930',
+    amount: { amount: '1200.00', currency: 'EUR' },
+    recognizedOn: '2026-01-01',
+    firstFiscalYear: 2026,
+    firstPeriod: 1,
+    periods: 12,
+  });
+}
+
+function recognizeProvision(ops: TenantOperations): string {
+  ops.execute('createAccount', { number: '3600', name: 'Rückstellungen', type: 'liability', subtype: 'provision' });
+  ops.execute('createAccount', { number: '8400', name: 'Erträge', type: 'revenue' });
+  const result = ops.execute('recognizeProvision', {
+    account: '3600',
+    reason: 'Prozessrisiko',
+    amount: { amount: '500.00', currency: 'EUR' },
+    recognizedOn: '2026-01-31',
+  }) as Record<string, unknown>;
+  return String(result.provisionId);
 }
 
 /** The asset most of the asset cases need — one place, so a changed input shape moves once. */
@@ -494,6 +552,28 @@ const AUDITED: readonly Case[] = [
     },
   },
   {
+    op: 'writeUpAsset',
+    objectType: 'asset',
+    action: 'writtenUp',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      const assetId = acquire(ops, voucherId);
+      ops.execute('createAccount', { number: '8400', name: 'Erträge aus Zuschreibungen', type: 'revenue' });
+      ops.execute('writeDownAsset', {
+        assetId,
+        amount: { amount: '1000.00', currency: 'EUR' },
+        date: '2026-06-30',
+        reason: 'Wasserschaden',
+      });
+      ops.execute('writeUpAsset', {
+        assetId,
+        amount: { amount: '400.00', currency: 'EUR' },
+        date: '2026-09-30',
+        reason: 'Schaden behoben',
+      });
+    },
+  },
+  {
     op: 'bookSpecialDepreciation',
     objectType: 'asset',
     action: 'specialDepreciationBooked',
@@ -519,6 +599,104 @@ const AUDITED: readonly Case[] = [
         depreciationMethod: 'units_of_production',
       });
       ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
+    },
+  },
+  {
+    op: 'adjustInputTax',
+    objectType: 'inputTaxAdjustment',
+    action: 'adjusted',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('createAccount', { number: '1500', name: 'Vorsteuer', type: 'asset', subtype: 'tax_in' });
+      ops.execute('createAccount', { number: '8400', name: 'Erträge', type: 'revenue' });
+      ops.execute('adjustInputTax', {
+        originalInputTax: { amount: '19000.00', currency: 'EUR' },
+        originalSharePercent: '100.00',
+        currentSharePercent: '60.00',
+        assetKind: 'movable',
+        reason: 'Fahrzeug teils privat',
+        date: '2026-03-31',
+      });
+    },
+  },
+  {
+    op: 'recognizeDeferral',
+    objectType: 'deferral',
+    action: 'recognized',
+    run: (ops) => {
+      seed(ops);
+      recognizeDeferral(ops);
+    },
+  },
+  {
+    op: 'runDeferralRelease',
+    objectType: 'deferralRelease',
+    action: 'completed',
+    run: (ops) => {
+      seed(ops);
+      recognizeDeferral(ops);
+      ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
+    },
+  },
+  {
+    op: 'recognizeProvision',
+    objectType: 'provision',
+    action: 'recognized',
+    run: (ops) => {
+      seed(ops);
+      recognizeProvision(ops);
+    },
+  },
+  {
+    op: 'useProvision',
+    objectType: 'provision',
+    action: 'used',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('useProvision', {
+        provisionId: recognizeProvision(ops),
+        amount: { amount: '400.00', currency: 'EUR' },
+        settlementAccount: '1200',
+        date: '2026-03-31',
+      });
+    },
+  },
+  {
+    op: 'releaseProvision',
+    objectType: 'provision',
+    action: 'released',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('releaseProvision', { provisionId: recognizeProvision(ops), date: '2026-03-31' });
+    },
+  },
+  {
+    op: 'remeasureProvision',
+    objectType: 'provision',
+    action: 'remeasured',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('remeasureProvision', {
+        provisionId: recognizeProvision(ops),
+        amount: { amount: '800.00', currency: 'EUR' },
+        date: '2026-03-31',
+      });
+    },
+  },
+  {
+    op: 'valuateInventory',
+    objectType: 'inventoryValuation',
+    action: 'valued',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('createAccount', { number: '1140', name: 'Vorräte', type: 'asset', subtype: 'inventory' });
+      ops.execute('createAccount', { number: '5200', name: 'Bestandsveränderungen', type: 'revenue' });
+      ops.execute('valuateInventory', {
+        fiscalYear: 2026,
+        period: 12,
+        valuationDate: '2026-12-31',
+        categories: [{ account: '1140', quantity: '100', unitCost: '12.50' }],
+      });
     },
   },
   {

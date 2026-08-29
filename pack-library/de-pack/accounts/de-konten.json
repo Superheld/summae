@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.4",
+  "version": "2026.8",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -15,6 +15,30 @@
         "name": "Anlagen",
         "type": "asset",
         "subtype": "fixed_asset"
+      },
+      {
+        "number": "1100",
+        "name": "Roh-, Hilfs- und Betriebsstoffe",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1110",
+        "name": "Unfertige Erzeugnisse",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1120",
+        "name": "Fertige Erzeugnisse",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1130",
+        "name": "Waren",
+        "type": "asset",
+        "subtype": "inventory"
       },
       {
         "number": "1200",
@@ -139,6 +163,24 @@
         "type": "liability"
       },
       {
+        "number": "3600",
+        "name": "Sonstige Rückstellungen",
+        "type": "liability",
+        "subtype": "provision"
+      },
+      {
+        "number": "3610",
+        "name": "Rückstellungen für Personalaufwand",
+        "type": "liability",
+        "subtype": "provision"
+      },
+      {
+        "number": "3620",
+        "name": "Steuerrückstellungen",
+        "type": "liability",
+        "subtype": "provision"
+      },
+      {
         "number": "3900",
         "name": "Passive Rechnungsabgrenzung",
         "type": "liability"
@@ -151,6 +193,16 @@
       {
         "number": "4010",
         "name": "Erlöse ermäßigter Satz",
+        "type": "revenue"
+      },
+      {
+        "number": "4100",
+        "name": "Bestandsveränderungen fertige und unfertige Erzeugnisse",
+        "type": "revenue"
+      },
+      {
+        "number": "4200",
+        "name": "Andere aktivierte Eigenleistungen",
         "type": "revenue"
       },
       {
@@ -174,8 +226,18 @@
         "type": "revenue"
       },
       {
+        "number": "4700",
+        "name": "Sonstige Zinsen und ähnliche Erträge",
+        "type": "revenue"
+      },
+      {
         "number": "4900",
         "name": "Erträge aus Anlagenabgang",
+        "type": "revenue"
+      },
+      {
+        "number": "4910",
+        "name": "Erträge aus Zuschreibungen",
         "type": "revenue"
       },
       {
@@ -249,6 +311,21 @@
         "type": "expense"
       },
       {
+        "number": "6400",
+        "name": "Steuern vom Einkommen und vom Ertrag",
+        "type": "expense"
+      },
+      {
+        "number": "6450",
+        "name": "Sonstige Steuern",
+        "type": "expense"
+      },
+      {
+        "number": "6600",
+        "name": "Zinsen und ähnliche Aufwendungen",
+        "type": "expense"
+      },
+      {
         "number": "6500",
         "name": "Abschreibungen auf Anlagen",
         "type": "expense"
@@ -261,6 +338,16 @@
       {
         "number": "6700",
         "name": "Forderungsverluste",
+        "type": "expense"
+      },
+      {
+        "number": "6800",
+        "name": "Zuführung sonstige Rückstellungen",
+        "type": "expense"
+      },
+      {
+        "number": "6810",
+        "name": "Steueraufwand (Rückstellungszuführung)",
         "type": "expense"
       },
       {

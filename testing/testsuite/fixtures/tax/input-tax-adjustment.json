@@ -1,0 +1,134 @@
+{
+  "fixture": "input-tax-adjustment",
+  "description": "Correcting a deducted input tax when the use of the thing it was deducted for has changed (§ 15a UStG). This one is worth reading for WHERE the boundary runs, because it was argued twice and moved once. The REGISTER — which assets are under observation and until when — stays with the embedding application, and for a reason that survives inspection: the trigger is a change of use, which is never posted, and a library that sees only postings cannot see the day a van starts being driven privately. The ARITHMETIC does not stay outside. The argument that had put it there was that a figure produced wrongly would look exactly as authoritative as one produced rightly — which is a reason to compute it where figures are fixture-pinned, deterministic and verified across two languages, not a reason to compute it nowhere. It is also an EXPANSION and not a projection, which was the second correction: a projection reads the journal and this reads none of it, every input arrives from outside. As an expansion it fits exactly, and the correction gets booked rather than computed and handed back for somebody else to book. The pack carries every number — five years for movables and ten for immovables, the 1,000 threshold on the input tax itself, the ten-percentage-point-or-1,000 test on the change, the accounts, and the key the correction is reported under. Three refusals and two thresholds are pinned here, and note that a threshold answer is `due: false` WITH the threshold named rather than an amount of 0.00: `no correction is due` and `we did not compute one` are different answers and only one of them is useful. Note also the reporting key on the tax line: without it the entry would balance, sit correctly on the account, and contribute nothing to what is filed — which is exactly the defect `gapWarnings` exists to catch.",
+  "covers": ["F-CORE-056"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1500", "name": "Vorsteuer", "type": "asset", "subtype": "tax_in" },
+      { "number": "4900", "name": "Sonstige betriebliche Erträge", "type": "revenue" },
+      { "number": "6000", "name": "Sonstiger betrieblicher Aufwand", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "ruleModule": {
+      "inputTaxAdjustment": {
+        "correctionPeriods": [
+          { "assetKind": "movable", "years": 5 },
+          { "assetKind": "immovable", "years": 10 }
+        ],
+        "deMinimis": { "inputTaxAtMost": "1000.00", "sharePointsAtLeast": "10.00", "amountAtMost": "1000.00" },
+        "accounts": { "taxAccount": "1500", "expenseAccount": "6000", "incomeAccount": "4900" },
+        "reportingKey": "63"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+        "assetKind": "vehicle", "reason": "Fahrzeug teils privat", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Eine Art, für die das Pack keinen Zeitraum erklärt — geraten wird nicht, denn fünf statt zehn halbierte jede Berichtigung",
+        "error": "E_PACK_INCOHERENT"
+      }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "originalInputTax": { "amount": "800.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "0.00",
+        "assetKind": "movable", "reason": "Kleingerät ganz privat", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Erste Bagatellgrenze: unter 1.000,00 Vorsteuer wird gar nicht beobachtet — und die Antwort nennt die Schwelle, statt 0,00 zu melden",
+        "result": {
+          "due": false,
+          "notDueBecause": "inputTaxBelowThreshold",
+          "threshold": "1000.00",
+          "sharePointsChanged": "-100.00",
+          "correctionYears": 5,
+          "entryId": null
+        }
+      }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "95.00",
+        "assetKind": "movable", "reason": "geringfügig anders genutzt", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Zweite Bagatellgrenze: fünf Prozentpunkte, und 190,00 bleiben unter 1.000,00 — beides muss zutreffen, sonst wird berichtigt",
+        "result": {
+          "due": false,
+          "notDueBecause": "changeBelowThreshold",
+          "sharePointsChanged": "-5.00",
+          "entryId": null
+        }
+      }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+        "assetKind": "movable", "reason": "Fahrzeug zu 40 % privat", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "19.000,00 × −40 % ÷ 5 Jahre = −1.520,00: ein Teil des Abzugs geht zurück, gebucht statt ausgerechnet",
+        "result": {
+          "due": true,
+          "amount": { "amount": "-1520.00", "currency": "EUR" },
+          "correctionYears": 5,
+          "sharePointsChanged": "-40.00",
+          "reportingKey": "63"
+        }
+      }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "originalInputTax": { "amount": "38000.00", "currency": "EUR" },
+        "originalSharePercent": "50.00", "currentSharePercent": "90.00",
+        "assetKind": "immovable", "reason": "Gebäude stärker unternehmerisch genutzt", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Die andere Richtung und der längere Zeitraum: 38.000,00 × 40 % ÷ 10 = 1.520,00 zusätzlicher Abzug",
+        "result": {
+          "due": true,
+          "amount": { "amount": "1520.00", "currency": "EUR" },
+          "correctionYears": 10,
+          "sharePointsChanged": "40.00"
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Rückzahlung als Aufwand, zusätzlicher Abzug als Ertrag, die Vorsteuer per Saldo unverändert",
+        "rows": [
+          { "account": "1500", "balance": "0.00" },
+          { "account": "4900", "balance": "-1520.00" },
+          { "account": "6000", "balance": "1520.00" }
+        ]
+      }
+    },
+    {
+      "name": "vatReturn",
+      "params": { "year": 2026, "quarter": 4 },
+      "expect": {
+        "comment": "Unter der Kennzahl des Packs, und ohne Lückenwarnung: ohne den Tag ginge die Buchung auf, stünde richtig auf dem Konto und trüge nichts zur Voranmeldung bei",
+        "keys": { "63": { "tax": "0.00" } },
+        "gapWarnings": []
+      }
+    }
+  ]
+}

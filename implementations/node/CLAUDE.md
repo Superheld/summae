@@ -21,6 +21,13 @@ pnpm build         # tsup per package (ESM + CJS + .d.ts)
 pnpm fixtures      # conformance runner (tsx); --strict = double run byte-identical
 ```
 
+One file / one fixture while developing (from `implementations/node`):
+
+```bash
+npx vitest run <path> --coverage.enabled=false   # without the flag the coverage floors fail
+npx tsx runner/bin/run-fixtures.ts --filter=<name>
+```
+
 ## Conventions
 
 - Node ≥ 22, ESM (`"type": "module"`), pnpm workspace.

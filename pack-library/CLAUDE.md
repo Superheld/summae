@@ -23,6 +23,8 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `policy` | **parameters** (rounding/scale via `packPolicy`) |
 | `resultAppropriation` | **expansion** — which account a resolution books against and which targets the jurisdiction offers (`appropriateResult`) |
 | `legalForms` | **projection** — which legal forms the jurisdiction knows and what each owes in a resolution on the result, with its deadline and citation (`unappropriatedResult`). The only kind with **no** `dependsOn`: it names no accounts |
+| `inventory` | **expansion** — which accounts hold stock and where each one's change in inventory is booked (`valuateInventory`). The German module names two different counter-accounts (§ 275 Abs. 2 Nr. 2 for finished goods, material expense for raw materials and merchandise); the US one names the same account four times, because a US income statement has no such line. Same engine, same books, and the whole difference is those rows |
+| `provisions` | **expansion** — which accounts hold provisions, what each books its addition and its release to, and from what remaining term a long-dated one is discounted (`recognizeProvision` and its three siblings). Note what is deliberately **not** here: the discount **rate**. Germany's is republished monthly, so the pack carries the rule and its citation while the caller carries the number — a stale legal rate that looks authoritative is worse than an absent one |
 | `constraint` | **constraint** — two predicates, and a module carries at least one of them, not necessarily both: `dimensionRules` (which accounts may not be posted without which dimension) and `accountCombinationRules` (which accounts must, or must not, meet in **one** entry — `whenAccountIn` plus exactly one of `requireAccountIn`/`forbidAccountIn`). Both see one entry: no deadlines, no reach across entries, no rule about a settlement. Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
@@ -40,14 +42,30 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 - **No code/law into the substrate.** A pack is data; a new *paradigm* with its own algorithm would be a
   composable module **behind the socket** — never smeared into the core (target model, root `CLAUDE.md`).
 - Consumers **reference** a pack by name instead of copying accounts/rules inline.
-- **An account's `subtype` is a closed repertoire — eleven values, nothing else resolves.** `bank`,
-  `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation` are read by the engine and
-  branch its behaviour; `fixed_asset`, `opening_balance`, `private` are annotation nothing consults.
+- **An account's `subtype` is a closed repertoire — thirteen values, nothing else resolves.** `bank`,
+  `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`, `inventory`, `provision`
+  are read by the engine and branch its behaviour; `fixed_asset`, `opening_balance`, `private` are
+  annotation nothing consults. `inventory` and `provision` (both 2026-08-29) are the first values
+  ever *added*, and both arrived under the condition the repertoire itself named: a pack needing an
+  account role the engine genuinely did not have. Each came with its reader — `valuateInventory` and
+  `recognizeProvision` refuse an account that is not one — which is the whole difference between a
+  registered value and a free string. That two arrived on one day is not the repertoire failing: it
+  was closed while the product still had two holes in its balance sheet, and filling them added
+  exactly the two roles that were missing.
   An unknown value is `E_PACK_INCOHERENT` at `resolvePack` (since 2026-08-28, F-CORE-046). It used
   to be a free string, and the failure that closed it is the one a pack author will not otherwise
   catch: `tax-out` instead of `tax_out` resolved cleanly and produced a chart with **no output-tax
   account** — the VAT return simply reported nothing on it, and no output said anything was wrong.
   Leaving `subtype` out entirely is always fine; guessing at a value is not.
+- **Bumping a module is six edits, and `PackDocsTest` catches each separately:** the module's own
+  `version`, a snapshot of the superseded file into `versions/`
+  (`git show HEAD:<file> > <pack>/versions/<id>-<oldversion>.json`), the manifest's module
+  reference, the manifest's own version, the module doc's header, and the manifest doc's table row.
+- **Never renumber a mapping position.** Order comes from the array; a key is an identifier somebody
+  may have stored. Insert with a letter suffix (`A.Ia`, `1a`, `6a`) — the way a statute inserts a
+  provision.
+- **Adding accounts to a shipped chart breaks four pinned counts:** `CliSmokeTest` in both languages
+  and `created.accounts` in `walkthrough/de.json`, `walkthrough/us.json`, `regression/regressions.json`.
 - **Tests ship with the pack — building a pack means building its fixtures, in the same change.** Every
   capability the pack offers, **especially every legally-expected one** (tax collection, self-assessment,
   exemption/threshold, the tax **return/filing**, depreciation thresholds, cash-basis, balance-sheet &

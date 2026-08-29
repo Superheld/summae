@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { supersededFixtures } from '../src/fixture-loader.js';
+import { CoreSubject } from '../src/subject/core-subject.js';
 
 /**
  * Gate for `docs/gdpr-conformance.md`.
@@ -16,6 +17,12 @@ import { supersededFixtures } from '../src/fixture-loader.js';
  * the next person to answer an Art. 30 question copies it. So every `record.field` pair the
  * inventory names is resolved against the schema, and a row that no longer describes the format
  * turns this red.
+ *
+ * Since 2026-08-29 it carries the other half of that (IMPL-045): the inventory is held against what
+ * `personalDataDescription` actually **publishes**. Both lists stopped at the exchange format and
+ * missed the same three fields — `asset.name`, `provision.reason`, `deferral.reason` — which is what
+ * two hand-kept lists do: they agree with each other and drift from the product together. A field
+ * the projection reports and the table does not name now turns this red, and so does the reverse.
  *
  * The document is allowed to be wrong about the law. It is not allowed to be wrong about summae.
  *
@@ -128,6 +135,36 @@ describe('docs/gdpr-conformance.md keeps its promises', () => {
     }
     const unbacked = citedRequirements(readDoc()).filter((id) => !covered.has(id));
     expect(unbacked, 'the document cites these requirements as evidence but no fixture covers them').toEqual([]);
+  });
+
+  // Only the projection's direction can be total: § 1 legitimately names more than the projection
+  // reports — `partner.kind`/`status`/`accountNumbers`/`paymentTermsDays` are listed as personal *by
+  // association*, and `voucher.documents` is a reference rather than a payload. What must not happen
+  // is the reverse: the software reporting a place where operator text sits that the inventory does
+  // not mention, because § 1 is what an Art. 30 record gets copied from.
+  it('names every field the projection publishes', () => {
+    const inventory = new Set(inventoryRows(readDoc()).map((row) => `${row.record}.${row.field}`));
+
+    const subject = new CoreSubject();
+    subject.setup({
+      tenant: { name: 'Verzeichnis GmbH', baseCurrency: 'EUR' },
+      accounts: [{ number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' }],
+      fiscalYears: [{ year: 2026, start: '2026-01-01', end: '2026-12-31' }],
+    });
+
+    const description = subject.project('personalDataDescription', {}) as {
+      fields: Array<{ holder: string; field: string }>;
+    };
+    expect(description.fields.length, 'the projection reports no fields — did its shape change?').toBeGreaterThan(8);
+
+    const missing = description.fields
+      .map((field) => `${field.holder}.${field.field}`)
+      .filter((key) => !inventory.has(key));
+
+    expect(
+      missing,
+      'personalDataDescription reports these places where operator text sits and § 1 does not name them (IMPL-045)',
+    ).toEqual([]);
   });
 
   it('every status marker is one of the three defined ones', () => {

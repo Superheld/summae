@@ -2,12 +2,12 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.10",
+  "version": "2026.16",
   "modules": [
     {
       "kind": "accounts",
       "id": "de-konten",
-      "version": "2026.4"
+      "version": "2026.8"
     },
     {
       "kind": "tax",
@@ -17,17 +17,17 @@
     {
       "kind": "mapping",
       "id": "de-bilanz",
-      "version": "2026.3"
+      "version": "2026.5"
     },
     {
       "kind": "mapping",
       "id": "de-guv",
-      "version": "2026.1"
+      "version": "2026.3"
     },
     {
       "kind": "mapping",
       "id": "de-euer",
-      "version": "2026.4"
+      "version": "2026.7"
     },
     {
       "kind": "depreciation",
@@ -37,7 +37,7 @@
     {
       "kind": "assetAccounts",
       "id": "de-assets",
-      "version": "2026.1"
+      "version": "2026.2"
     },
     {
       "kind": "policy",
@@ -52,6 +52,26 @@
     {
       "kind": "productionCost",
       "id": "de-herstellungskosten",
+      "version": "2026.1"
+    },
+    {
+      "kind": "inventory",
+      "id": "de-vorraete",
+      "version": "2026.1"
+    },
+    {
+      "kind": "provisions",
+      "id": "de-rueckstellungen",
+      "version": "2026.1"
+    },
+    {
+      "kind": "deferrals",
+      "id": "de-rechnungsabgrenzung",
+      "version": "2026.1"
+    },
+    {
+      "kind": "inputTaxAdjustment",
+      "id": "de-vorsteuerberichtigung",
       "version": "2026.1"
     },
     {

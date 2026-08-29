@@ -1,0 +1,58 @@
+{
+  "fixture": "de-guv-vollstaendig",
+  "description": "The shipped German income statement carries every line of § 275 Abs. 2 that this chart can carry. Until 2026-08-29 it stopped after six positions — revenue, other operating income, material, personnel, depreciation, other operating expenses — and four of the statute's lines had no position at all. Three of them had no ACCOUNT either, which is why this fixture is about the pack rather than about the engine: the chart gained own work capitalised, interest received and paid, income taxes and other taxes, and the mapping gained a position for each. What is still absent is the block around financial assets (Nr. 9–11 and 13: income from participations, from securities, write-downs on financial assets), and that absence is deliberate rather than an oversight — the German chart this pack ships has no financial-asset accounts, and a mapping position selecting nothing is a resolver error (I2), not a courtesy. A pack that adds those accounts adds those positions with them. Note the ordering trick, used for the third time here: the new positions carry letter suffixes (`1b`, `6a`–`6d`) rather than renumbering what follows them, because the order of the statement comes from the order of the array while a key is an identifier somebody may have stored.",
+  "covers": ["F-CORE-015"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Vollständig GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "DIV-001", "voucherDate": "2026-06-30" },
+        "entryDate": "2026-06-30", "text": "Eigenleistung, Zinsen, Steuern",
+        "lines": [
+          { "account": "0100", "side": "debit", "money": { "amount": "8000.00", "currency": "EUR" } },
+          { "account": "4200", "side": "credit", "money": { "amount": "8000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "debit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "4700", "side": "credit", "money": { "amount": "500.00", "currency": "EUR" } },
+          { "account": "6600", "side": "debit", "money": { "amount": "1200.00", "currency": "EUR" } },
+          { "account": "6400", "side": "debit", "money": { "amount": "3000.00", "currency": "EUR" } },
+          { "account": "6450", "side": "debit", "money": { "amount": "400.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "4600.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": {
+        "comment": "Vier Zeilen, die es bis zum 2026-08-29 nicht gab — jede mit ihrem eigenen Konto, keine als Sammelposten",
+        "positions": [
+          { "key": "1b", "label": "Andere aktivierte Eigenleistungen", "amount": "8000.00" },
+          { "key": "6a", "label": "Sonstige Zinsen und ähnliche Erträge", "amount": "500.00" },
+          { "key": "6b", "label": "Zinsen und ähnliche Aufwendungen", "amount": "-1200.00" },
+          { "key": "6c", "label": "Steuern vom Einkommen und vom Ertrag", "amount": "-3000.00" },
+          { "key": "6d", "label": "Sonstige Steuern", "amount": "-400.00" }
+        ],
+        "netIncome": "3900.00",
+        "gapWarnings": []
+      }
+    },
+    {
+      "name": "cashBasisReport",
+      "params": { "tenant": "$T1", "year": 2026, "asOf": "2026-12-31", "mapping": "de-euer" },
+      "expect": {
+        "comment": "Dieselben Konten in der EÜR: Zinserträge sind Betriebseinnahme, Schuldzinsen und sonstige Steuern Betriebsausgabe, die Einkommensteuer nicht abziehbar — und die aktivierte Eigenleistung ohne Ansatz, weil sie kein Zahlungsvorgang ist. Keine Lücke, kein Konto unter eigenem Namen",
+        "gapWarnings": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,353 @@
+{
+  "fixture": "deferral-release",
+  "description": "Prepaid and deferred items with a release schedule (§ 250 HGB). The accounts were never the gap: the shipped German chart has carried 1900 and 3900 from the beginning and both have had a balance-sheet position. What was missing is the PLAN. An insurance premium paid in December for the following year could be deferred and then had to be released by hand, month after month, from memory — which is exactly the failure `runDepreciation` exists to prevent for arithmetic that is identical, an amount spread evenly over a known number of periods. Two mechanisms that differ only in whether the machine remembers is not a design, it is an omission. So this reads like a depreciation run on purpose, down to the answer shape: one period at a time, idempotent, `alreadyRun` where there was nothing left. The two kinds are opposites rather than variants — a prepaid expense is money already PAID for a service still to come, so it is an asset and its release is an expense; a deferred income is money already RECEIVED for a service still to be rendered, so it is a liability and its release is revenue. Every posting flips with the kind and nothing else does. The 1,200.00 premium releases at 100.00 a month over twelve months and the 900.00 of deferred rent at 300.00 over three, so period 1 books both and period 4 only the premium. Note the plan crossing a year boundary: instalments 12 and onward land in 2027 because the plan is laid out over the tenant's real periods rather than assuming twelve. Note also what the register shows — the plan AND which of its instalments have actually been released, in one place, because `when will this be gone` and `what has happened so far` are the two questions and lining up two separate lists to answer them is how a hand-kept schedule went wrong in the first place.",
+  "covers": [
+    "F-CORE-053"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "1900",
+        "name": "Aktive Rechnungsabgrenzung",
+        "type": "asset"
+      },
+      {
+        "number": "3900",
+        "name": "Passive Rechnungsabgrenzung",
+        "type": "liability"
+      },
+      {
+        "number": "4000",
+        "name": "Mieterträge",
+        "type": "revenue"
+      },
+      {
+        "number": "6080",
+        "name": "Versicherungen",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      },
+      {
+        "year": 2027,
+        "start": "2027-01-01",
+        "end": "2027-12-31"
+      }
+    ],
+    "ruleModule": {
+      "deferrals": {
+        "kinds": [
+          {
+            "kind": "prepaidExpense",
+            "account": "1900"
+          },
+          {
+            "kind": "deferredIncome",
+            "account": "3900"
+          }
+        ]
+      }
+    },
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "VERS-2026",
+        "voucherDate": "2026-01-01"
+      },
+      {
+        "id": "$V2",
+        "voucherNumber": "MIETE-2026",
+        "voucherDate": "2026-01-01"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-01",
+        "voucherId": "$V1",
+        "text": "Versicherungsprämie für zwölf Monate gezahlt",
+        "lines": [
+          {
+            "account": "6080",
+            "side": "debit",
+            "money": {
+              "amount": "1200.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "1200",
+            "side": "credit",
+            "money": {
+              "amount": "1200.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 1
+        },
+        "comment": "Erst der eigentliche Vorgang — eine Abgrenzung setzt voraus, dass gebucht wurde, was abzugrenzen ist"
+      }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-01",
+        "voucherId": "$V2",
+        "text": "Miete für ein Quartal im Voraus erhalten",
+        "lines": [
+          {
+            "account": "1200",
+            "side": "debit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          },
+          {
+            "account": "4000",
+            "side": "credit",
+            "money": {
+              "amount": "900.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "result": {
+          "sequenceNumber": 2
+        }
+      }
+    },
+    {
+      "op": "recognizeDeferral",
+      "input": {
+        "kind": "vorauszahlung",
+        "reason": "Versicherung",
+        "counterAccount": "6080",
+        "amount": {
+          "amount": "1200.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-01-01",
+        "firstFiscalYear": 2026,
+        "firstPeriod": 1,
+        "periods": 12
+      },
+      "expect": {
+        "comment": "Zwei Arten, und eine dritte wäre eine dritte Buchungsrichtung — deshalb geschlossen",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "recognizeDeferral",
+      "input": {
+        "kind": "prepaidExpense",
+        "reason": "Versicherung 2026",
+        "counterAccount": "6080",
+        "amount": {
+          "amount": "1200.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-01-01",
+        "firstFiscalYear": 2026,
+        "firstPeriod": 1,
+        "periods": 12
+      },
+      "expect": {
+        "comment": "Aktiver RAP: der Aufwand wandert auf das Vermögenskonto und kommt monatlich zurück",
+        "result": {
+          "deferralId": "$D1",
+          "kind": "prepaidExpense",
+          "periods": 12
+        }
+      }
+    },
+    {
+      "op": "recognizeDeferral",
+      "input": {
+        "kind": "deferredIncome",
+        "reason": "Miete Q1 2026 im Voraus",
+        "counterAccount": "4000",
+        "amount": {
+          "amount": "900.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-01-01",
+        "firstFiscalYear": 2026,
+        "firstPeriod": 1,
+        "periods": 3
+      },
+      "expect": {
+        "comment": "Passiver RAP, die Gegenrichtung: der Ertrag wandert auf das Schuldkonto",
+        "result": {
+          "deferralId": "$D2",
+          "kind": "deferredIncome",
+          "periods": 3
+        }
+      }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "comment": "Beide Abgrenzungen haben in Periode 1 eine Rate: 100,00 + 300,00",
+        "result": {
+          "entriesCreated": 2,
+          "totalReleased": {
+            "amount": "400.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "comment": "Dieselbe Periode noch einmal: nichts, wie beim AfA-Lauf",
+        "result": {
+          "alreadyRun": true,
+          "entriesCreated": 0
+        }
+      }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 4
+      },
+      "expect": {
+        "comment": "Die Miete ist nach drei Perioden durch — nur noch die Versicherung",
+        "result": {
+          "entriesCreated": 1,
+          "totalReleased": {
+            "amount": "100.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "deferralRegister",
+      "params": {
+        "kind": "deferredIncome"
+      },
+      "expect": {
+        "comment": "Der Plan und was davon schon gelaufen ist, in einer Liste",
+        "outstandingTotal": "600.00",
+        "deferrals": [
+          {
+            "deferralId": "$D2",
+            "kind": "deferredIncome",
+            "account": "3900",
+            "counterAccount": "4000",
+            "amount": "900.00",
+            "released": "300.00",
+            "outstanding": "600.00",
+            "status": "open",
+            "plan": [
+              {
+                "fiscalYear": 2026,
+                "period": 1,
+                "amount": "300.00",
+                "released": true
+              },
+              {
+                "fiscalYear": 2026,
+                "period": 2,
+                "amount": "300.00",
+                "released": false
+              },
+              {
+                "fiscalYear": 2026,
+                "period": 3,
+                "amount": "300.00",
+                "released": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "deferralRegister",
+      "params": {
+        "kind": "prepaidExpense"
+      },
+      "expect": {
+        "comment": "Zwölf Raten zu 100,00; die erste und die vierte sind gelaufen, die dazwischen nicht — ein Lauf ist ein Lauf, kein Nachholen",
+        "outstandingTotal": "1000.00",
+        "deferrals": [
+          {
+            "deferralId": "$D1",
+            "released": "200.00",
+            "outstanding": "1000.00",
+            "status": "open"
+          }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "1200",
+            "balance": "-300.00"
+          },
+          {
+            "account": "1900",
+            "balance": "1000.00"
+          },
+          {
+            "account": "3900",
+            "balance": "-600.00"
+          },
+          {
+            "account": "4000",
+            "balance": "-300.00"
+          },
+          {
+            "account": "6080",
+            "balance": "200.00"
+          }
+        ]
+      }
+    }
+  ]
+}

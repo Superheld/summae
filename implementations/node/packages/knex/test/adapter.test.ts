@@ -246,6 +246,273 @@ describe('costing runs survive the process', () => {
   });
 });
 
+describe('inventory valuations survive the process', () => {
+  /**
+   * The same shape of test as the costing block above, for the same reason (F-CORE-050).
+   *
+   * A valuation is the *record of how a stock figure was reached*, and a record that lives in the
+   * process which made it is not a record. So: write with one tenant instance, read with a second on
+   * the same database, and nothing in between may come from the object graph.
+   *
+   * The second test is the one worth having. `valuateInventory` posts the **difference** against the
+   * current book value, and the next version comes out of the store — so a second valuation of an
+   * unchanged period must book nothing *across a process boundary too*. With a counter that lived in
+   * the service it would have come back as version 1 and booked the full amount a second time, which
+   * on a balance sheet means the stock is there twice.
+   *
+   * PHP twin: `packages/laravel/tests/InventoryValuationPersistenceTest.php`.
+   */
+  function seedInventory(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    // Only on the first instance: the year and the accounts are in the database, which is the whole
+    // point — a second tenant object on the same connection reads them rather than creating them.
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1120', name: 'Fertige Erzeugnisse', type: 'asset', subtype: 'inventory' });
+      ops.execute('createAccount', { number: '4100', name: 'Bestandsveränderungen', type: 'revenue' });
+    }
+
+    // The pack data is NOT in the database — it arrives with the pack on every open, which is why
+    // every factory injects it and why this test has to as well.
+    tenant.inventory.setRuleModule({
+      inventory: { categories: [{ account: '1120', changeAccount: '4100' }] },
+    });
+
+    return ops;
+  }
+
+  function valuate(ops: TenantOperations): Record<string, unknown> {
+    return ops.execute('valuateInventory', {
+      fiscalYear: 2026,
+      period: 12,
+      valuationDate: '2026-12-31',
+      categories: [{ account: '1120', quantity: '400', unitCost: '12.50' }],
+    }) as Record<string, unknown>;
+  }
+
+  it('reads a valuation back through a second tenant instance', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const report = reader.project('inventoryValuation', {}) as { valuations: Array<Record<string, unknown>> };
+
+    expect(report.valuations).toHaveLength(1);
+    const first = report.valuations[0] as Record<string, unknown>;
+    expect(first.closingTotal).toBe('5000.00');
+    expect(first.change).toBe('5000.00');
+    expect(first.version).toBe(1);
+    expect(first.valuationDate).toBe('2026-12-31');
+    // Every detail of the act, back through a column: the quantity is not Money and must survive as
+    // the string it was given.
+    const categories = first.categories as Array<Record<string, unknown>>;
+    expect(categories[0]?.quantity).toBe('400');
+    expect(categories[0]?.source).toBe('input');
+    expect(categories[0]?.changeAccount).toBe('4100');
+    expect(typeof first.entryId).toBe('string');
+  });
+
+  it('books nothing on a second valuation of an unchanged period, across a process boundary', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const second = valuate(seedInventory(tenantOn(TENANT_A), false));
+
+    expect(second.version).toBe(2);
+    expect(second.posted).toBe(false);
+    expect(second.entryId).toBeNull();
+  });
+
+  it('keeps one tenant’s valuations out of another’s', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const report = other.project('inventoryValuation', {}) as { valuations: unknown[] };
+
+    expect(report.valuations).toEqual([]);
+  });
+});
+
+describe('provisions survive the process', () => {
+  /**
+   * A provision outlives the process that formed it, and so does its history (F-CORE-051).
+   *
+   * The second test is the one that matters. A provision is used, released and re-measured over
+   * *years* — the movement list is the record an auditor reads, and a list that only exists in the
+   * object graph is not a record at all.
+   *
+   * PHP twin: `packages/laravel/tests/ProvisionPersistenceTest.php`.
+   */
+  function seedProvisions(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+      ops.execute('createAccount', { number: '3600', name: 'Rückstellungen', type: 'liability', subtype: 'provision' });
+      ops.execute('createAccount', { number: '4900', name: 'Erträge', type: 'revenue' });
+      ops.execute('createAccount', { number: '6800', name: 'Zuführung', type: 'expense' });
+    }
+
+    // Pack data is not in the database — it arrives with the pack on every open.
+    tenant.provisionService.setRuleModule({
+      provisions: {
+        accounts: [{ account: '3600', expenseAccount: '6800', releaseAccount: '4900' }],
+        discounting: { fromMonths: 12, basis: 'test' },
+      },
+    });
+
+    return ops;
+  }
+
+  function recognize(ops: TenantOperations): string {
+    const result = ops.execute('recognizeProvision', {
+      account: '3600',
+      reason: 'Prozessrisiko',
+      amount: { amount: '5000.00', currency: 'EUR' },
+      recognizedOn: '2026-06-30',
+    }) as Record<string, unknown>;
+    return String(result.provisionId);
+  }
+
+  it('reads a provision and its history back through a second tenant instance', () => {
+    const ops = seedProvisions(tenantOn(TENANT_A));
+    const id = recognize(ops);
+    ops.execute('useProvision', {
+      provisionId: id,
+      amount: { amount: '2000.00', currency: 'EUR' },
+      settlementAccount: '1200',
+      date: '2026-09-30',
+    });
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const register = reader.project('provisionRegister', {}) as {
+      provisions: Array<Record<string, unknown>>;
+      total: string;
+    };
+
+    expect(register.provisions).toHaveLength(1);
+    const first = register.provisions[0] as Record<string, unknown>;
+    expect(first.carryingAmount).toBe('3000.00');
+    expect(first.status).toBe('open');
+    expect(register.total).toBe('3000.00');
+
+    const movements = first.movements as Array<Record<string, unknown>>;
+    expect(movements, 'the history is the record — it must survive the process').toHaveLength(2);
+    expect(movements.map((m) => m.kind)).toEqual(['recognized', 'used']);
+    expect(typeof movements[1]?.entryId, 'every movement names the entry it produced').toBe('string');
+  });
+
+  it('continues the history from a second instance rather than starting over', () => {
+    const id = recognize(seedProvisions(tenantOn(TENANT_A)));
+
+    const second = seedProvisions(tenantOn(TENANT_A), false);
+    const released = second.execute('releaseProvision', { provisionId: id, date: '2026-12-31' }) as Record<
+      string,
+      unknown
+    >;
+
+    // The carrying amount came out of the store, not out of a fresh object at its original value —
+    // which is what a provision service keeping its own map would have done.
+    expect((released.released as Record<string, unknown>).amount).toBe('5000.00');
+    expect(released.status).toBe('settled');
+  });
+
+  it('keeps one tenant’s provisions out of another’s', () => {
+    recognize(seedProvisions(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const register = other.project('provisionRegister', {}) as { provisions: unknown[] };
+
+    expect(register.provisions).toEqual([]);
+  });
+});
+
+describe('deferrals survive the process', () => {
+  /**
+   * The release plan survives the process, and so does the record of what has already run
+   * (F-CORE-053).
+   *
+   * The second test is the reason the port exists. `runDeferralRelease` is idempotent because each
+   * deferral *records* which periods it has released — not because it checks a balance. Get that
+   * wrong and the second process to run a period books it again, which on a prepaid item means the
+   * expense lands twice and the asset goes negative.
+   *
+   * PHP twin: `packages/laravel/tests/DeferralPersistenceTest.php`.
+   */
+  function seedDeferrals(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+      ops.execute('createAccount', { number: '1900', name: 'Aktive RAP', type: 'asset' });
+      ops.execute('createAccount', { number: '6080', name: 'Versicherungen', type: 'expense' });
+    }
+
+    tenant.deferralService.setRuleModule({
+      deferrals: { kinds: [{ kind: 'prepaidExpense', account: '1900' }] },
+    });
+
+    return ops;
+  }
+
+  function recognize(ops: TenantOperations): string {
+    const result = ops.execute('recognizeDeferral', {
+      kind: 'prepaidExpense',
+      reason: 'Versicherung',
+      counterAccount: '6080',
+      amount: { amount: '1200.00', currency: 'EUR' },
+      recognizedOn: '2026-01-01',
+      firstFiscalYear: 2026,
+      firstPeriod: 1,
+      periods: 12,
+    }) as Record<string, unknown>;
+    return String(result.deferralId);
+  }
+
+  it('reads the plan and its progress back through a second tenant instance', () => {
+    const ops = seedDeferrals(tenantOn(TENANT_A));
+    recognize(ops);
+    ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const register = reader.project('deferralRegister', {}) as { deferrals: Array<Record<string, unknown>> };
+
+    expect(register.deferrals).toHaveLength(1);
+    const first = register.deferrals[0] as Record<string, unknown>;
+    expect(first.released).toBe('100.00');
+    expect(first.outstanding).toBe('1100.00');
+
+    const plan = first.plan as Array<Record<string, unknown>>;
+    expect(plan, 'the plan is fixed at recognition and must come back whole').toHaveLength(12);
+    expect(plan[0]?.released).toBe(true);
+    expect(plan[1]?.released).toBe(false);
+  });
+
+  it('does not release a period twice from a second process', () => {
+    const ops = seedDeferrals(tenantOn(TENANT_A));
+    recognize(ops);
+    ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
+
+    // The whole reason the released periods are stored rather than inferred: a second process that
+    // decided from the balance would book period 1 again.
+    const second = seedDeferrals(tenantOn(TENANT_A), false);
+    const again = second.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 }) as Record<string, unknown>;
+
+    expect(again.alreadyRun).toBe(true);
+    expect(again.entriesCreated).toBe(0);
+  });
+
+  it('keeps one tenant’s deferrals out of another’s', () => {
+    recognize(seedDeferrals(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const register = other.project('deferralRegister', {}) as { deferrals: unknown[] };
+
+    expect(register.deferrals).toEqual([]);
+  });
+});
+
 describe('tenant scoping', () => {
   const lookup = (tenant: Tenant, port: string, id: string): unknown => {
     const uuid = Uuid.fromString(id);

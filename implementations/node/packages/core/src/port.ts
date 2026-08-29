@@ -3,6 +3,9 @@ import type { CalendarDate } from './substrate/calendar-date.js';
 import type { Uuid } from './substrate/uuid.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
+import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
+import type { Deferral } from './policies/expansion/deferrals/deferral.js';
+import type { Provision } from './policies/expansion/provisions/provision.js';
 import type { Partner } from './partner/partner.js';
 import type { Account } from './substrate/account.js';
 import type { AuditRecord } from './records/audit-record.js';
@@ -136,6 +139,57 @@ export interface CostingRunRepository {
   byId(id: Uuid): CostingRun | null;
   /** sorted by period, then version */
   all(): CostingRun[];
+}
+
+/**
+ * Inventory valuations (F-CORE-050).
+ *
+ * The same shape as `CostingRunRepository`, and for the same reason it exists at all: a valuation
+ * that lives in the process that made it cannot be read back, and the record of *how* a stock
+ * figure was reached is precisely what an inventory has to be able to show. `all()` is sorted
+ * because the next version of a period comes out of the store, not out of a counter.
+ */
+export interface InventoryValuationRepository {
+  /**
+   * Deliberately no `byId` and no `save`. A valuation is one act that never changes, and nothing
+   * asks for a single one: the projection reports them all and the version counter reads them all.
+   * An interface method nobody calls is a burden on every adapter author for a convenience the core
+   * does not have — and it is the kind of thing that reads as "supported" long after it stopped
+   * being exercised.
+   */
+  add(valuation: InventoryValuation): void;
+  /** sorted by fiscal year, then period, then version */
+  all(): InventoryValuation[];
+}
+
+/**
+ * Provisions (F-CORE-051).
+ *
+ * Shaped like `AssetRepository`, because a provision is the same kind of thing an asset is: a record
+ * with a life, whose movements matter as much as its balance. `save` exists here and not on the
+ * inventory port for exactly that reason — a valuation is one act and never changes, a provision is
+ * used, released and re-measured over years.
+ */
+/**
+ * Prepaid and deferred items (F-CORE-053).
+ *
+ * Deliberately no `byId`: the release run reads them all and the register reports them all; nothing
+ * in the core asks for a single deferral. An interface method nobody calls is a burden on every
+ * adapter author for a convenience the core does not have.
+ */
+export interface DeferralRepository {
+  add(deferral: Deferral): void;
+  save(deferral: Deferral): void;
+  /** in the order they were recognised */
+  all(): Deferral[];
+}
+
+export interface ProvisionRepository {
+  add(provision: Provision): void;
+  save(provision: Provision): void;
+  byId(id: Uuid): Provision | null;
+  /** in the order they were recognised */
+  all(): Provision[];
 }
 
 /**

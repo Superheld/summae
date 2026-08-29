@@ -155,16 +155,25 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 |---|---|---|
 | `E_ASSET_UNKNOWN` | Anlagegut existiert nicht | edge-errors |
 | `E_ASSET_DISPOSED` | Operation auf abgegangenem Anlagegut | edge-errors |
+| `E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN` | Es soll mehr zugeschrieben werden, als auf dem Anlagegut je außerplanmäßig abgeschrieben wurde. Eine Zuschreibung nach § 253 Abs. 5 HGB **macht eine frühere Abwertung rückgängig** — sie erschafft keinen Wert. `details`: `amount`, `reversible` | asset-write-up |
+| `E_ASSET_WRITE_UP_EXCEEDS_CEILING` | Die Zuschreibung führte den Buchwert über die **fortgeführten Anschaffungskosten** — den Wert, den das Anlagegut ohne die Abwertung hätte. Der Fall ist leicht zu übersehen: eine Abwertung senkt auch jede verbleibende Planrate, der Buchwert steigt also mit den Jahren über den unberührten Plan, und eine volle Rückgängigmachung führte darüber hinaus. `details`: `amount`, `bookValue`, `ceiling` | asset-write-up |
 | `E_COSTING_RUN_RELEASED` | Änderungsversuch an released Lauf | allocation-run |
 | `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/SPEC-006) | costing-run-unknown |
 | `E_COSTING_CYCLE` | Stufenleiter mit Zyklus | edge-errors |
 | `E_COSTING_UNSOLVABLE` | Gleichungsverfahren: Kostenstellen reichen alles im Kreis weiter, keine behält etwas — das Gleichungssystem hat keine Lösung | allocation-method-refused |
+| `E_COSTING_RUN_NOT_RELEASED` | Ein **draft**-Lauf soll die Bilanz bewerten (`valuateInventory.runId`). Eigener Code statt `E_COSTING_RUN_UNKNOWN`, weil die beiden **entgegengesetzte** Korrekturen verlangen: freigeben oder eine andere `runId` nennen. `details`: `runId`, `status` | inventory-valuation |
+| `E_INVENTORY_ACCOUNT_INVALID` | `valuateInventory` soll auf ein Konto bewerten, das kein Vorratskonto ist (`subtype` ≠ `inventory`). Die Buchung ginge auf, jede Invariante bliebe erfüllt — und der Betrag stünde in der falschen Bilanzposition. `details`: `account`, `subtype` | inventory-valuation |
+| `E_PROVISION_UNKNOWN` | `provisionId` existiert nicht | provisions |
+| `E_PROVISION_ACCOUNT_INVALID` | `recognizeProvision` soll eine Rückstellung auf ein Konto bilden, das keines ist (`subtype` ≠ `provision`). `details`: `account`, `subtype` | provisions |
+| `E_PROVISION_EXCEEDS_CARRYING` | Es soll mehr aufgelöst werden, als die Rückstellung trägt — die Differenz wäre erfundener Ertrag. **Nicht** beim *Verbrauch*: eine höhere Rechnung als geschätzt ist der Normalfall und wird als Aufwand des laufenden Jahres gebucht, nicht abgewiesen. `details`: `provisionId`, `carryingAmount` | provisions |
+| `E_PROVISION_DISCOUNT_RATE_REQUIRED` | Die Restlaufzeit überschreitet die vom Pack erklärte Grenze, es ist also abzuzinsen — und kein `discountRate` liegt vor. **Abgewiesen statt undiskontiert gebucht:** der Satz wird periodisch veröffentlicht und ist keine Pack-Konstante; ein veralteter Rechtssatz, der amtlich aussieht, ist schlimmer als ein fehlender. `details`: `months`, `fromMonths` | provisions |
 
 ## E_MAPPING
 
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_MAPPING_OVERLAP` | ein Konto fällt in mehrere Mapping-Positionen | mapping-import |
+| `E_MAPPING_SIDE_MIXED` | Eine Bilanz-Position zieht Konten **beider Seiten** — Saldierungsverbot (§ 246 Abs. 2 HGB). Geprüft am **Kontotyp**, nicht am Saldo: ein überzogenes Bankkonto ist immer noch ein Aktivkonto und saldiert nichts; verboten ist eine Position, die beide Sorten *auswählt*, weil dann niemand mehr sagen kann, woraus die Zahl besteht. Im Pack ist derselbe Verstoß `E_PACK_INCOHERENT` (Resolver-Invariante I11), weil ein Pack als Ganzes integer sein muss, bevor jemand darauf bucht. `details`: `position`, `side`, `account`, `type` | mapping-offsetting |
 
 (Mapping-Lücken sind kein Fehler: `gapWarnings[]` + Auffangposition.)
 

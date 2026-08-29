@@ -1,7 +1,7 @@
 # Modul 4 — GuV §275 (`mapping`)
 
 ```
-kind: mapping · id: de-guv · version: 2026.1 · formatVersion: 0.6
+kind: mapping · id: de-guv · version: 2026.3 · formatVersion: 0.6
 contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "income-statement", version, positions[] }
 ```
@@ -23,11 +23,17 @@ nach § 275 HGB (Gesamtkostenverfahren). Reine Projektions-Daten. Schaltet SF-09
 | Pos | Label im Modul | Konten |
 |---|---|---|
 | 1 | Umsatzerlöse | 4000–4099 |
+| 1a | Erhöhung oder Verminderung des Bestands an fertigen und unfertigen Erzeugnissen | 4100–4199 |
+| 1b | Andere aktivierte Eigenleistungen | 4200–4299 |
 | 2 | Sonstige betriebliche Erträge | 4900–4999 |
 | 3 | Materialaufwand | 5000–5999 |
 | 4 | Personalaufwand | 6300–6399 |
 | 5 | Abschreibungen | 6500–6599 |
 | 6 | Sonstige betriebliche Aufwendungen | 6000–6099, 6700–6999 |
+| 6a | Sonstige Zinsen und ähnliche Erträge | 4700–4799 |
+| 6b | Zinsen und ähnliche Aufwendungen | 6600–6699 |
+| 6c | Steuern vom Einkommen und vom Ertrag | 6400–6449 |
+| 6d | Sonstige Steuern | 6450–6499 |
 
 ## Beleg
 

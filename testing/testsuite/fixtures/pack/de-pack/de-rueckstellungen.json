@@ -1,0 +1,105 @@
+{
+  "fixture": "de-rueckstellungen",
+  "description": "The shipped de pack forms, discounts and releases a provision, and the figure lands in `P.B Rückstellungen` — the § 266 Abs. 3 B. position that was missing from the German balance sheet until 2026-08-29, on the same day its counterpart on the assets side arrived. Two things this fixture pins about the SHIPPED pack rather than about the mechanism. First, the accounts and their counter-accounts are the German ones: 3600 carries the provision, 6800 the addition, and a release goes to 4900 (sonstige betriebliche Erträge) — because a released provision is income the business never had to pay, and § 277 Abs. 4 HGB asks for no separate line. Second, and this is the decision worth reading: the de pack declares that provisions with more than twelve months to run are discounted (§ 253 Abs. 2 HGB) and it does NOT declare a rate. The rate is an average of the last seven years that the Bundesbank publishes monthly; a number sitting in a pack file would be stale before anybody upgraded it, and a stale legal rate that looks authoritative is worse than an absent one. So the pack carries the rule with its citation, the caller carries the rate, and a long-dated provision without one is refused by name instead of being booked undiscounted.",
+  "covers": ["F-CORE-051"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Rückstellungs GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "tenant": "$T1",
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": { "amount": "50000.00", "currency": "EUR" },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2031-12-31"
+      },
+      "expect": {
+        "comment": "Fünf Jahre Restlaufzeit: das ausgelieferte Pack verlangt Abzinsung und liefert bewusst keinen Satz",
+        "error": "E_PROVISION_DISCOUNT_RATE_REQUIRED"
+      }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "tenant": "$T1",
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": { "amount": "50000.00", "currency": "EUR" },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2031-12-31",
+        "discountRate": "1.80"
+      },
+      "expect": {
+        "comment": "50.000,00 / 1,018^5 = 45.733,15 — fünf volle Jahre, kein Stub",
+        "result": {
+          "provisionId": "$P1",
+          "carryingAmount": { "amount": "45733.15", "currency": "EUR" },
+          "discounted": true,
+          "discountRate": "1.80"
+        }
+      }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "tenant": "$T1",
+        "account": "3610",
+        "reason": "Urlaubsrückstellung",
+        "amount": { "amount": "12000.00", "currency": "EUR" },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2027-06-30"
+      },
+      "expect": {
+        "comment": "Sechs Monate: unter der Grenze, keine Abzinsung — und der Aufwand geht laut Pack auf das Personalkonto, nicht auf 6800",
+        "result": {
+          "provisionId": "$P2",
+          "carryingAmount": { "amount": "12000.00", "currency": "EUR" },
+          "discounted": false
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "provisionRegister",
+      "params": { "tenant": "$T1", "status": "open" },
+      "expect": {
+        "total": "57733.15",
+        "provisions": [
+          { "account": "3600", "reason": "Rückbauverpflichtung", "carryingAmount": "45733.15", "discountRate": "1.80" },
+          { "account": "3610", "reason": "Urlaubsrückstellung", "carryingAmount": "12000.00", "discountRate": null }
+        ]
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "comment": "Die Rückstellungen stehen als eigene Hauptposition da, wo § 266 Abs. 3 B. sie verlangt",
+        "liabilitiesAndEquity": [
+          { "key": "P.A2", "label": "Jahresergebnis / nicht verwendete Ergebnisse", "amount": "-57733.15" },
+          { "key": "P.B", "label": "Rückstellungen", "amount": "57733.15" }
+        ],
+        "liabilitiesAndEquityTotal": "0.00"
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": {
+        "comment": "Die Zuführungen treffen zwei verschiedene GuV-Zeilen, weil das Pack zwei verschiedene Aufwandskonten nennt",
+        "positions": [
+          { "key": "4", "label": "Personalaufwand", "amount": "-12000.00" },
+          { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "amount": "-45733.15" }
+        ],
+        "netIncome": "-57733.15"
+      }
+    }
+  ]
+}

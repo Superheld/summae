@@ -1,7 +1,7 @@
 # Modul 3 — Bilanz HGB §266 (`mapping`)
 
 ```
-kind: mapping · id: de-bilanz · version: 2026.3 · formatVersion: 0.6
+kind: mapping · id: de-bilanz · version: 2026.5 · formatVersion: 0.6
 contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "balance-sheet", version, positions[] }
 ```
@@ -28,6 +28,7 @@ die Bilanz selbst ist berechnet (kein Abschlusszyklus). Schaltet SF-10 frei.
 | Pos | Label im Modul | Konten |
 |---|---|---|
 | A.I | Anlagevermögen | 0000–0999 |
+| A.Ia | Vorräte | 1100–1199 |
 | A.II | Forderungen und sonstige Vermögensgegenstände | 1400–1599 |
 | A.III | Wertpapiere | 1250–1299 |
 | A.IV | Kassenbestand, Bundesbankguthaben, Guthaben bei Kreditinstituten und Schecks | 1200–1249, 1300–1349 |
@@ -39,6 +40,7 @@ die Bilanz selbst ist berechnet (kein Abschlusszyklus). Schaltet SF-10 frei.
 |---|---|---|
 | P.A1 | Eigenkapital (Kapital und Rücklagen) | 2000–2299, 2400–2499 |
 | P.A2 | Jahresergebnis / nicht verwendete Ergebnisse | 2300 + `includesNetIncome` |
+| P.B | Rückstellungen | 3600–3699 |
 | P.C | Verbindlichkeiten | 3000–3599 |
 | P.D | Rechnungsabgrenzungsposten | 3900–3999 |
 

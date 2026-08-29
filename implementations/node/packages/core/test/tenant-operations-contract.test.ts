@@ -28,17 +28,19 @@ const OPERATIONS = [
   'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
   'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
-  'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
+  'writeDownAsset', 'writeUpAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
+  'recognizeProvision', 'useProvision', 'releaseProvision', 'remeasureProvision',
+  'recognizeDeferral', 'runDeferralRelease', 'adjustInputTax',
   'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
   'appropriateResult', 'setEntityProfile', 'erasePartner',
 ] as const;
 
 const PROJECTIONS = [
-  'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'auditTrailIntegrity', 'duplicateVouchers', 'gdpduExport', 'unfinalizedEntries', 'assetRegister',
+  'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'auditTrailIntegrity', 'duplicateVouchers', 'gdpduExport', 'unfinalizedEntries', 'assetRegister', 'assetSchedule',
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
-  'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
+  'overheadRates', 'productionCost', 'measurementConsistency', 'inventoryValuation', 'provisionRegister', 'deferralRegister', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
   'tenantConfiguration', 'unappropriatedResult',
   'personalDataDescription',
 ] as const;

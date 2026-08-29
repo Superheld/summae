@@ -70,7 +70,16 @@ with one or the other port set.
 runs *all* ops (`post`, `postVoucher`, `settle`, …) and projections
 (`trialBalance`, `vatReturn`, `journalExport`, …) — names exactly per the API spec.
 CLI and conformance runner use the same dispatcher. New operation → wire it
-there.
+there — but **wiring one is about twelve places, not one**: `api-parameters.json` first, the
+parameter constant, the dispatcher, `API_OPERATIONS`/`API_PROJECTIONS`, the contract-test lists, an
+audit-completeness case, `AUDITED_EVENTS`, a handbook section, `expected-green.txt`, a declared
+requirement — each in **both** languages, each guarded by a test that names what is missing. Follow
+the red tests rather than a list from memory. **Two of those places are prose and were unguarded
+until 2026-08-29:** the language-neutral API spec (`knowledge/50-spezifikation/api.md`) and the
+policy-kind census (`knowledge/40-domaenenmodell/jurisdiction-profil.md`) had fallen 26 of 80 names
+behind while every gate stayed green — the spec even named a guard for its own completeness that
+guards something else. `ApiSpecDocTest`/`api-spec-doc.test.ts` hold both against
+`api-parameters.json` now (IMPL-044).
 
 **Reads never go through stored balances.** Every trial balance / balance sheet / EÜR / VAT return
 is recomputed from the journal.
@@ -89,7 +98,10 @@ versioned bundle of a jurisdiction
 („tzdata for accounting"; „Germany" is the *first* pack, not the built-in
 assumption). A pack is composable (take it curated / adapt it / build your own à la carte).
 **Litmus test when building:** does your code cite a statute → wrong layer, that
-belongs in the pack as data. **The stronger test, because a statute rarely arrives quoted:**
+belongs in the pack as data — and that one is *mechanically enforced*, not left to review:
+`NoJurisdictionTextTest` / `no-jurisdiction-text.test.ts` greps core `src/` for
+`§ n Abs./UStG/EStG/HGB…`, **comments included**.
+**The stronger test, because a statute rarely arrives quoted:**
 *would another jurisdiction answer this differently?* A rule translated into a plain condition
 reads like mechanism — `route !== 'pool'` was § 6 Abs. 2a EStG, and neither the code nor its
 comment gave it away (IMPL-025). Full picture + honest build status: `docs/architektur.md`.
@@ -130,6 +142,11 @@ fixture in both languages" + spec retrofit → `implementations/<language>/docs/
   injectable — tests **never** against `now()`/randomness; the runner uses `FixedClock` +
   `DeterministicIdGenerator`.
 - **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
+- **A decimal string in is a decimal string out.** `BigDecimal` keeps its input's scale, `big.js`
+  normalises (`"12.00"` → `12`), so any non-Money decimal (quantity, rate, percentage) must be
+  echoed verbatim or formatted at a fixed scale — otherwise the two languages disagree at the first
+  export. For division, PHP divides at **scale 20**, which is big.js's `Big.DP` default (`Big.RM`=1,
+  half-up): rounding twice at the same two scales is what makes the last cent equal.
 
 ## testing/testsuite/ is append-only
 
@@ -248,9 +265,18 @@ fixture coverage is necessary but not sufficient: every *contract surface* must 
 that fails loudly when the contract is broken, so authoring mistakes can't slip through
 unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligations:
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
-   streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
+   streams, the manifest, **every `pack-library/` module + manifest**, and since format 0.10 **the
+   documents the persistence adapters store** (`asset`, `assetState`, `costingRun`, `provision`,
+   `deferral`, `inventoryValuation`) — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
    does not declare is a finding (e.g. IMPL-002/SPEC-008 `includeNonCash`), not a convenience.
+   **The stored half was undeclared for two years and it cost a real defect** (IMPL-046): PHP wrote an
+   empty map as `[]` where Node wrote `{}`, on a shared database, unnoticed because the cross-test
+   compared only `journalExport`. It now compares the stored documents themselves and validates both
+   engines' against the schema, and `PersistedDocumentContractTest`/`persisted-document-contract.test.ts`
+   hold **every table the schema installer creates** against a declared document type — because the
+   recurrence risk is not that bug but the next aggregate arriving undeclared, which happened three
+   times in one day.
 2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.
@@ -269,7 +295,8 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    rejected, never coerced; an absent one keeps its documented default. The core reads no files, so
    each language carries both tables as constants — and a test per language asserts the constants
    equal that file, which is what makes drift impossible. **Adding a parameter means editing
-   `testing/testsuite/schema/api-parameters.json` first**, not the constant. The `operations` block
+   `testing/testsuite/schema/api-parameters.json` first**, not the constant. Edit it **surgically** —
+   re-serialising it with a JSON dump reformats hundreds of unrelated lines. The `operations` block
    arrived late (2026-08-24, reported from outside as F-9) and the gap it left is the lesson: for a
    year the *reads* were declared and the *writes* were not, so a mistyped projection parameter
    failed loudly while a mistyped operation input was dropped and the default stood — on the side
@@ -288,6 +315,29 @@ in a library (and therefore the embedding app's, collected in the summae-app rep
 without it — never because the code looks right; and an open row is deleted only when it is built, never
 because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
 law — the litmus test applies here too.
+
+**And since 2026-08-29 a third census asks the question the other two never did.**
+`docs/hgb-conformance.md` maps the accounting law that governs the *figures* — recognition,
+measurement, presentation (HGB Drittes Buch, with the EStG provisions that diverge). The other two
+censuses ask whether the bookkeeping is *orderly* and what personal data it holds; neither asks
+whether the balance sheet is **right**, which is why its findings were invisible while both of them
+were essentially closed and every gate green: two of § 266's main positions — stock and provisions —
+were absent from the shipped `de` mapping, and § 253 Abs. 5's write-up obligation had nothing behind
+it at all. **Ten of its twelve open rows were built on 2026-08-29** and two were decided rather than
+deferred; what remains is foreign currency, which is a decision before it is a task, and a handful of
+🟡 rows where the shape is complete and one part is not. The open questions that wait on a person
+rather than on work are collected in `docs/proposals/open-decisions.md`. It carries a fourth status the others do not need, 🟡 **partial**, for the shape most of
+its findings have: the chart carries the right account and nothing carries the rule. **Its gate is
+inverted, and that is the interesting part.** Most of what it asserts is *absence* — no
+`valuateInventory`, five asset positions and none of them stock — so §8 states those absences as
+data and `HgbConformanceDocTest`/`hgb-conformance-doc.test.ts` hold them against the real sources.
+Building any of the named gaps turns the build **red** until the census is opened and the row moved
+to ✅ with its evidence: the gate does not merely notice progress, it refuses to let progress go
+unrecorded. That matters because a census of absences rots the other way round from its siblings —
+nothing breaks when a hole is filled, the document simply understates the product from then on.
+The boundary reasoning that produced it, and the criterion that decides what belongs in this library
+at all (*summae holds an object when the law requires the books to hold it*), is
+`docs/proposals/library-boundary.md`.
 
 **The same census exists for personal data.** `docs/gdpr-conformance.md` is its twin, with the same
 three statuses and the same rule about ✅. Its §1 is an inventory of every field that can hold personal

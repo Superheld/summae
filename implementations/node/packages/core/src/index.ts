@@ -27,11 +27,14 @@ export {
   type EntryStatus,
   type PeriodStatus,
   type FiscalYearStatus,
+  type AccountSubtype,
   type OpenItemKind,
   type OpenItemStatus,
   type SettlementCause,
   type SettlementDifferenceKind,
+  ACCOUNT_SUBTYPES,
   isAccountType,
+  isAccountSubtype,
   isBalanceCarrying,
   parseOpenItemKind,
   parseSettlementCause,
@@ -74,6 +77,9 @@ export type {
   OpenItemRepository,
   AssetRepository,
   CostingRunRepository,
+  InventoryValuationRepository,
+  DeferralRepository,
+  ProvisionRepository,
   TenantRecordRepository,
   TenantRecordData,
   AuditCriteria,
@@ -98,6 +104,20 @@ export { AssetService } from './policies/expansion/assets/asset-service.js';
 // Costing
 export { CostingRun } from './policies/expansion/costing/costing-run.js';
 export {
+  InventoryValuation,
+  type InventoryCategoryRow,
+} from './policies/expansion/inventory/inventory-valuation.js';
+export { InventoryService } from './policies/expansion/inventory/inventory-service.js';
+export { Provision, type ProvisionMovement } from './policies/expansion/provisions/provision.js';
+export { ProvisionService } from './policies/expansion/provisions/provision-service.js';
+export {
+  Deferral,
+  DEFERRAL_KINDS,
+  type DeferralInstalment,
+  type DeferralRelease,
+} from './policies/expansion/deferrals/deferral.js';
+export { DeferralService } from './policies/expansion/deferrals/deferral-service.js';
+export {
   CostingService,
   type OverheadRate,
   type ProductionCostResult,
@@ -108,7 +128,13 @@ export {
 export { Partner } from './partner/partner.js';
 export { PartnerService } from './partner/partner-service.js';
 export type { PartnerRepository } from './port.js';
-export { InMemoryPartnerRepository, InMemoryCostingRunRepository } from './in-memory.js';
+export {
+  InMemoryPartnerRepository,
+  InMemoryCostingRunRepository,
+  InMemoryInventoryValuationRepository,
+  InMemoryProvisionRepository,
+  InMemoryDeferralRepository,
+} from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 
 // Projektionen

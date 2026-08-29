@@ -155,6 +155,11 @@ final readonly class TenantFactory
         $tenant->resultAppropriation->setRuleModule($this->ruleModules);
         // And the legal-form catalogue: which forms this jurisdiction knows, and what each obliges.
         $tenant->legalForms->setRuleModule($this->ruleModules);
+        // And the stock categories: which accounts hold stock, and where each one's change is booked.
+        $tenant->inventory?->setRuleModule($this->ruleModules);
+        $tenant->provisionService?->setRuleModule($this->ruleModules);
+        $tenant->deferralService?->setRuleModule($this->ruleModules);
+        $tenant->inputTaxAdjustment?->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

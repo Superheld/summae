@@ -139,6 +139,41 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
         });
 
+        self::ensure($schema, 'inventory_valuations', static function (Blueprint $table): void {
+            // Same shape and the same reasoning as costing_runs: period and version are columns
+            // because they are what a valuation is FOUND by. No `status` — a valuation has no draft
+            // state; repeating one is the next version, and its posting is the difference.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->integer('fiscal_year');
+            $table->integer('period');
+            $table->integer('version');
+            $table->json('payload');
+            $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
+        });
+
+        self::ensure($schema, 'provisions', static function (Blueprint $table): void {
+            // Account and status are columns rather than payload fields because they are what a
+            // provision is FOUND by — the open ones on a balance-sheet date, and the account they
+            // sit on. Everything else, movements included, travels in the payload.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->string('account', 32);
+            $table->string('status', 16);
+            $table->json('payload');
+        });
+
+        self::ensure($schema, 'deferrals', static function (Blueprint $table): void {
+            // Kind and status are columns because they are what a deferral is FOUND by — the open
+            // ones, and which side of the balance sheet they sit on. The plan and, crucially, the
+            // instalments already released travel in the payload.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->string('kind', 32);
+            $table->string('status', 16);
+            $table->json('payload');
+        });
+
         self::ensure($schema, 'tenants', static function (Blueprint $table): void {
             // The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
             //
@@ -176,7 +211,8 @@ final class SchemaInstaller
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'costing_runs', 'audit_log', 'tenants',
+            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'provisions', 'deferrals',
+            'audit_log', 'tenants',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);
         }

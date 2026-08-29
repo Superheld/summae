@@ -80,16 +80,28 @@
       "reason": "Pinned `tenantConfiguration.accountCombinationRules` as a list of exactly two — the COMPLETE set of combination rules the shipped `de` pack declares — so Germany could not forbid a second thing without this fixture going red. That is the weld de-pack-resolves was retired for (a pack's version and account count) and system-description-invariants after it (the length of a capability list), and this is the same defect written six days after the register said what it was: the completeness IS a contract, how long the list happens to be is the product's. It went red the moment `de` gained `de-kleinunternehmer` (§ 19 UStG: a small business's revenue account may not meet an output-VAT account). The successor drives exactly the same nine steps, pins the same two refusals, the same two correct postings, the same tax-free case that must pass, and the same trial balance — everything except how many rules the German pack happens to declare. That the rules in force are READABLE is a mechanism and moved to a fixture that owns its own pack, `xx-10-constraint-rules-readable`, where the list cannot move underneath the expectation; that fixture also pins what nothing pinned before, that two constraint modules add up rather than replace."
     },
     {
-        "fixture": "xx-8-constraint-account-combination",
-        "supersededBy": "xx-8-constraint-account-combination-current",
-        "on": "2026-08-28",
-        "reason": "The FIRST retirement for the second reason above, and not for its expectation, which is untouched. Its inline pack declared account 177 \"Umsatzsteuer\" with `subtype: \"vat\"` — a value nothing in either engine has ever read. It was inert: the VAT return did not count 177, the cash-basis projection did not treat it as tax, and the fixture passed anyway because it asserts a combination refusal that never consults a subtype. That is precisely the defect the closed repertoire exists to end (format 0.9), so the fixture that carried the defect could not survive it. The successor drives exactly the same seven steps with exactly the same expectations and writes `tax_out`, which is what 177 was all along. Worth recording plainly: the value was copied into a second fixture before anybody noticed, which is the argument for closing a vocabulary rather than reviewing uses of it."
-      },
-      {
-        "fixture": "xx-9-tax-base-inclusive",
-        "supersededBy": "xx-9-tax-base-inclusive-current",
-        "on": "2026-08-28",
-        "reason": "The copy. Same inline chart as xx-8 with the same inert `subtype: \"vat\"` on 177, same retirement, same unchanged expectations — three `expandTax` steps over an inclusive base, which reads the tax module and never the subtype."
-      }
+      "fixture": "xx-8-constraint-account-combination",
+      "supersededBy": "xx-8-constraint-account-combination-current",
+      "on": "2026-08-28",
+      "reason": "The FIRST retirement for the second reason above, and not for its expectation, which is untouched. Its inline pack declared account 177 \"Umsatzsteuer\" with `subtype: \"vat\"` — a value nothing in either engine has ever read. It was inert: the VAT return did not count 177, the cash-basis projection did not treat it as tax, and the fixture passed anyway because it asserts a combination refusal that never consults a subtype. That is precisely the defect the closed repertoire exists to end (format 0.9), so the fixture that carried the defect could not survive it. The successor drives exactly the same seven steps with exactly the same expectations and writes `tax_out`, which is what 177 was all along. Worth recording plainly: the value was copied into a second fixture before anybody noticed, which is the argument for closing a vocabulary rather than reviewing uses of it."
+    },
+    {
+      "fixture": "xx-9-tax-base-inclusive",
+      "supersededBy": "xx-9-tax-base-inclusive-current",
+      "on": "2026-08-28",
+      "reason": "The copy. Same inline chart as xx-8 with the same inert `subtype: \"vat\"` on 177, same retirement, same unchanged expectations — three `expandTax` steps over an inclusive base, which reads the tax module and never the subtype."
+    },
+    {
+      "fixture": "us-fiscal-year",
+      "supersededBy": "us-fiscal-year-current",
+      "on": "2026-08-29",
+      "reason": "Pinned `accountCount: 35` on the shipped `us` pack while testing something else entirely (a full fiscal year through the US pack). The same weld as de-jahresgang, one pack over: the chart could not gain an account without this going red, and it went red the moment `us` gained the four inventory accounts stock valuation needs. The successor drives exactly the same year — the same sale, the same deferred revenue, the same two acquisitions, the same depreciation run, the same three statements and the same trial balance — and pins everything about it except the size of the product's catalogue."
+    },
+    {
+      "fixture": "personal-data-description",
+      "supersededBy": "personal-data-description-claims",
+      "on": "2026-08-29",
+      "reason": "Pinned the COMPLETE `fields` list of `personalDataDescription` — seven rows — so the projection could not admit to a place where operator text sits without the suite going red. Retired on the same reading as system-description-claims one folder over: the completeness is the contract, the length of the list is the product's. And it went red for exactly the reason that reading predicts: the inventory stopped at the EXCHANGE format and missed three fields on stored aggregates (asset.name, provision.reason, deferral.reason — IMPL-045), each of them a place where a name really does end up; a provision is by its nature often about a named party. The successor pins the counts, the address keys and the classification sentence, and the list is guarded where a literal cannot guard it: the GDPR conformance-doc test in both languages holds the projection's rows against the document's § 1 inventory AND against format.schema.json, in both directions."
+    }
   ]
 }

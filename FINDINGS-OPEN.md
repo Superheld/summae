@@ -70,6 +70,35 @@ and a fixture proves *that*, which is checkable today. **Built in the meantime: 
 deliberately: it is a decision about what the requirement means, and the same pass has already
 decided two of those.
 
+## IMPL-047 — two persisted stores are columnar, and nothing declares what is in them
+
+**Found 2026-08-29** while closing IMPL-046, by the guard that closes it.
+
+The five aggregate stores are declared in format 0.10 and compared across engines. Two tables are
+not, and they are different in shape rather than merely overlooked: `summae_fiscal_years` keeps its
+`periods` as a JSON **column**, and `summae_tenants` keeps the whole tenant configuration
+(SPEC-015) in `config`. Neither is one-document-per-row, so neither got a `$defs` entry when the
+others did — `PersistedDocumentContractTest` / `persisted-document-contract.test.ts` carry them as
+the only two exceptions, each naming this finding.
+
+**Why `config` is the one that matters.** Its `allocationScheme` is stored close to the shape it
+arrives in, and one fixture proves what that means: a stored scheme carrying the **`actor`** that set
+it — an operator's name, in a configuration field no inventory lists and no schema describes. That
+makes this a privacy row as much as a format row (`docs/gdpr-conformance.md` §7 row 8), and it is the
+reason the fix is not simply "write the schema down": what should be stored is a *decision* (the
+scheme without the actor, or the actor kept deliberately and inventoried), and declaring today's
+shape would freeze the accident.
+
+**What is already true, so the gap is bounded:** both columns are compared **byte-exact between PHP
+and Node** by the cross-test (290 documents on the run that found this), so the two engines cannot
+drift apart on them. What is missing is a declaration a *third* reader could validate against, and
+the inventory row that follows from it.
+
+**What would close it.** Decide what `allocationScheme` may keep, drop what it may not, then declare
+`fiscalYearPeriods` and `tenantConfiguration` in `$defs`, move both tables out of the exception list,
+and add whatever survives to `docs/gdpr-conformance.md` §1. **Built in the meantime: nothing** — the
+exceptions are named, guarded and pointed here.
+
 ## What is closed, and the pattern in it
 
 Everything else that stood here is in [`FINDINGS-CLOSED.md`](FINDINGS-CLOSED.md) with what was
@@ -105,8 +134,20 @@ times the estimate; IMPL-040 was sitting on a live bug that stopped a scale-3 te
 books; IMPL-042's blocker was in the shipped pack data all along. A finding is a lead, not a
 verdict.
 
-**The one entry above is what the pass could not close by building.** IMPL-043 is a claim about
-*meaning* — whether a fixture proves what its `covers` says — and that is the exact thing the guard
-built for IMPL-039 cannot check. It is here rather than folded into a green check on purpose.
+**IMPL-043 is what that pass could not close by building.** It is a claim about *meaning* —
+whether a fixture proves what its `covers` says — and that is the exact thing the guard built for
+IMPL-039 cannot check. It is here rather than folded into a green check on purpose.
+
+**IMPL-045 and IMPL-046 came out of the doc review on 2026-08-29 and were closed the same day, in
+format 0.10 — and the closing found the defect the finding only predicted: PHP wrote an empty map as
+`[]` where Node wrote `{}`, in stored documents no test had ever compared. The pattern they share is
+one more instance of the same shape.** Three censuses, a handbook, a CHANGELOG and both gates were green and current; what was
+behind was the *normative prose underneath them* — the API spec (26 of 80 operations missing, two
+names no implementation ever carried), the module-kind enum in the format spec (four short, for the
+second time in three days), and the policy-kind census that claims to make the architecture provable
+by enumeration (nineteen operations that fit none of its three buckets, because the fourth bucket was
+never written). Those three were fixed and guarded the same day (IMPL-044). What could **not** be
+fixed by writing is the pair above: both are about records the format does not declare, and that is
+a decision about the format, not a paragraph.
 
 The next one goes here.

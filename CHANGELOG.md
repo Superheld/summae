@@ -10,6 +10,182 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
 
+## 0.18.0 — 2026-08-29
+
+> **Minor when it ships, and it will break twice.** The data format gains four record kinds
+> (inventory valuations, provisions, deferrals and the assets' shadow depreciation plan), the account
+> subtype repertoire grows from eleven to thirteen, and the shipped `de` pack moves through six
+> versions — a pinned `de@2026.10` keeps resolving, an unpinned tenant gets a chart with sixteen more
+> accounts and a balance sheet with two more main positions. Under 0.x a minor may break, and this
+> one does.
+
+### The balance sheet can now be *right*, not only balanced
+
+On 2026-08-28 summae had two censuses — GoBD (is the bookkeeping orderly?) and GDPR (what personal
+data is in here?) — both essentially closed, every gate green. Neither asked whether the balance
+sheet is **right**, which is a third body of law, so nothing in the repository asked it either. The
+third census (`docs/hgb-conformance.md`, written 2026-08-29) opened with twelve rows. **Ten of them
+are now built**, in both languages, and two are decided rather than deferred.
+
+What that means concretely: the shipped German balance sheet was missing two of § 266's main
+positions — **stock** and **provisions** — and the income statement four of § 275's lines. A
+provision could not be formed at all; the word appeared zero times in either core. An asset written
+down in a bad year stayed down for ever. A prepaid insurance premium had to be released by hand,
+month after month, from memory.
+
+**New capabilities** (F-CORE-049 … F-CORE-056):
+
+- `valuateInventory` / `inventoryValuation` — stock measured, booked, and in the balance sheet, with
+  the lower of cost and market. **No stock ledger:** quantities are input to one act of valuing, and
+  what is kept is the act.
+- `recognizeProvision` / `useProvision` / `releaseProvision` / `remeasureProvision` /
+  `provisionRegister` — four operations because there are four events that mean different things.
+- `writeUpAsset` — the counterpart `writeDownAsset` never had, capped at the amortised acquisition
+  cost, for which the asset now keeps a shadow depreciation plan.
+- `recognizeDeferral` / `runDeferralRelease` / `deferralRegister` — the release schedule the RAP
+  accounts always lacked, in the depreciation run's shape down to `alreadyRun`.
+- `adjustInputTax` — the § 15a arithmetic, as an **expansion**: the correction is booked rather than
+  handed back. The register and the deadline stay with the embedding application, because their
+  trigger is a change of use and a change of use is never posted.
+- `assetSchedule` — the fixed-asset movement schedule (§ 268 Abs. 2), over data that was all already
+  in the journal.
+- `measurementConsistency` — a changed measurement basis is **reported**, never refused: the same
+  provisions that demand consistency permit a justified departure, so refusing would enforce half a
+  rule.
+- The **offsetting prohibition** (§ 246 Abs. 2) on the balance-sheet side, as resolver invariant I11
+  and `E_MAPPING_SIDE_MIXED` — checked on the account *type*, not the balance, because an overdrawn
+  bank account is still an asset account.
+
+**The `de` pack** gains sixteen accounts, four module kinds (`inventory`, `provisions`, `deferrals`,
+`inputTaxAdjustment`), the `B. I. Vorräte` and `B. Rückstellungen` balance-sheet positions and five
+income-statement lines. `us` gains inventory accounts and its own inventory module — whose one
+difference from the German one is the whole point: Germany books a change in finished goods to its
+own P&L line and a change in raw materials against material expense; the US books all four to cost
+of goods sold. Same engine, same books, and the entire difference is eight rows of pack data.
+
+**Two subtypes were added to a repertoire closed the day before**, and that is worth stating rather
+than appending quietly: `inventory` and `provision`. The repertoire was closed while the product
+still had two holes in its balance sheet — complete for the product as it stood, incomplete for the
+product as it was meant to be. Both arrived under the condition the repertoire itself named, each
+with its reader.
+
+### The census gate is inverted, and that is the mechanism worth keeping
+
+Its two siblings guard claims of *presence*. This one is mostly ⚠️, so most of what it asserts is
+**absence** — and an absence rots the other way round: somebody builds the missing thing, nobody
+opens the census, and a row goes on describing a hole that was filled. So §8 states the absences as
+data (`operations the engine does not have`, the subtypes, the positions) and
+`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts` hold them against the real sources.
+
+It earned itself eight times in one day: every capability above turned the build **red** the moment
+it landed, and the only way back to green was to open the census and move the row with its evidence
+named. Both the operations and the projections rows of §8 are now empty; that morning they named
+nine names between them.
+
+### Three census rows were wrong about their own size, and the pattern is the finding
+
+- Bewertungsstetigkeit said a costing run does not record its election. It has recorded it since runs
+  were persisted; what nothing did was *compare two records*.
+- The provisions row predicted the Bundesbank discount rate as pack data. It cannot be: it is
+  republished monthly, and a stale legal rate that looks authoritative is worse than an absent one.
+  The pack carries the **rule**, the caller carries the rate, and a long-dated provision without one
+  is refused by name.
+- The write-up was called "small". The reversal is; the **ceiling** is not, and it needed a shadow
+  depreciation plan stored on the asset — because a write-down also lowers every remaining
+  instalment, so the book value drifts *above* the untouched plan and a full reversal years later
+  would carry the asset over its cost.
+
+Each row was a sentence about what was missing, written before anybody read the code that would have
+to change. Only the deferral row's estimate held, and for a reason: the *shape* of the problem was
+identical to depreciation.
+
+### Decisions, written down instead of left as gaps
+
+`docs/proposals/open-decisions.md`. Fifo/Lifo is **decided not built** — § 256 permits a
+simplification, it does not require the books to keep a stock record — with the cost named rather
+than discovered. The `DocumentStore` port is decided in principle and blocked on three retention
+questions. **Two wait on a person:** foreign currency (§ 256a), the only item on the whole list that
+starts at the substrate; and single-circle vs. two-circle cost accounting, which hangs on whether the
+municipal pack is still coming.
+
+### The stored half of the data format, declared and crossed (format 0.9 → 0.10)
+
+Two findings from the review above are closed, and closing them found a defect that had been true for
+as long as costing runs have been persisted.
+
+**What was wrong.** The adapters store five kinds of aggregate as JSON and read them back — assets,
+costing runs, and since this release provisions, deferrals and inventory valuations. The root
+`CLAUDE.md` calls that "the shared data format"; the format **declared none of them**, no version
+mentioned them, and the cross-test compared `journalExport` and nothing else. So the half of the data
+that a shared database (SF-15) actually carries had no oracle at all.
+
+**Format 0.10** declares six of them (`asset` and `assetState`, because the adapters keep an asset in
+two columns, plus `costingRun`, `provision`, `deferral`, `inventoryValuation`). The definitions were
+derived from real stored documents rather than from the classes, which is why they carry the fields a
+reader of the register would not expect — `originalSchedule`, the shadow depreciation plan behind the
+write-up ceiling, is in the store because nothing else can reconstruct it.
+
+**And the cross-test now compares the stored documents themselves**, byte-exact between the two
+engines, and validates every one of them against the schema — 358 documents on the run that shipped.
+Its first run found this: `costingRun.primary` was `[]` in PHP and `{}` in Node whenever a run had no
+cost centres, because PHP's empty array encodes as a list. On one database, two engines wrote two
+different documents. **PHP now emits `{}`** — the same idiom `auditRecord.changes` has used since the
+identical defect was found in the one place that *was* compared. A stored run written by an older PHP
+is re-encoded correctly the next time it is written; no figure changes.
+
+A second guard closes the recurrence rather than the instance: every table the schema installer
+creates must map to a declared document type, in both languages. Three new aggregates arrived in a
+single day and none of them was declared — that is the failure it exists for. Two columnar tables
+(`fiscal_years.periods`, `tenants.config`) stay declared-by-exception, each pointing at IMPL-047.
+
+### The personal-data inventory reached past the exchange format
+
+`personalDataDescription` and §1 of the GDPR census both listed seven fields and both stopped, unnoticed,
+at what `journalExport` carries. Three places where operator text really lands were missing:
+`asset.name`, `provision.reason`, `deferral.reason` — and a provision is by its nature often about a
+**named party**: a dispute, a warranty claim, a severance. Both lists have them now, and — the part
+that matters — **they hold each other**: the conformance-doc test compares the document's inventory
+against what the projection publishes, in both languages, in both directions. Two hand-kept lists
+agreeing with each other while drifting from the product together is exactly how this happened.
+
+`personal-data-description` is superseded by `personal-data-description-claims`: it pinned the
+complete `fields` list, so the software could not admit to holding text in a sixth place without the
+suite going red — the same weld `system-description-claims` was created for.
+
+Left open on purpose, both written down: whether an account name belongs in the inventory (a chart with
+one debtor account per customer puts a person's name in it), and the two columnar stores, where a
+stored `allocationScheme` can carry the `actor` that set it (IMPL-047).
+
+### The documents underneath the documents (2026-08-29, doc review)
+
+The HGB pass left the *gated* documentation current — handbook, all three censuses, the requirement
+list, `covers`, this changelog. The review afterwards asked what the gates do not reach, and found
+the layer everything else is defined in terms of: **26 of 80 operations and projections were missing
+from the normative API spec** (`knowledge/50-spezifikation/api.md`), which calls its own list "die
+vollständige" and names a contract test that guards something else. Two of the names it did carry
+(`writeDown`, `writeUp`) exist in no implementation, and one (`systemDocumentation`) was renamed
+before it shipped. The policy-kind census in `jurisdiction-profil.md` — the document that claims to
+make the architecture provable *by enumeration* — was fourteen expansions and eleven projections
+short and had no bucket at all for the nineteen master-data operations. And the module-kind enum in
+`datenformat.md` was four kinds behind for the **second time in three days**, in the same table row.
+
+All of it is written up and, more to the point, **guarded**: `ApiSpecDocTest` /
+`api-spec-doc.test.ts` hold both documents against `testing/testsuite/schema/api-parameters.json`,
+and `DataFormatDocTest` / `data-format-doc.test.ts` gained a fourth check for the kind enum. No
+behaviour changed; no published output moved (IMPL-044).
+
+**Two findings the review could not close by writing** are in `FINDINGS-OPEN.md`: the personal-data
+inventory in the GDPR census stops at the exchange format and misses three free-text fields on
+persisted aggregates (IMPL-045 — §1 now says so, and tells an operator to add them by hand), and the
+five aggregate kinds the adapters store as JSON are declared in no schema, written up in no format
+version, and crossed by no cross-test (IMPL-046). The second one is why the sentence above about
+"four record kinds" in the data format is truer than the format documents currently are.
+
+### Retired
+
+- `us-fiscal-year` → `us-fiscal-year-current`. It pinned `accountCount: 35` in passing and went red
+  the moment the US chart gained its inventory accounts — the `de-jahresgang` weld, one pack over.
+
 ## 0.17.0 — 2026-08-29
 
 > **Minor, not a patch.** The work below moves the data format 0.8 → 0.9, adds a projection

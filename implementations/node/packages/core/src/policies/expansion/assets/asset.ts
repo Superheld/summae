@@ -40,6 +40,19 @@ export class Asset {
 
   private reportedUnitsValue = 0;
 
+  /**
+   * The schedule as it stood before any write-down rebased it — the *shadow* plan.
+   *
+   * It exists for one purpose: the write-up ceiling. A write-down does not only reduce the book
+   * value, it lowers every remaining planned instalment, so the book value drifts *above* what it
+   * would have been without the write-down as the plan runs on. Reversing the write-down in full
+   * would therefore carry the asset higher than its amortised acquisition cost, which no write-up
+   * may do. The ceiling is `cost − Σ original shares of the booked months`, and the original shares
+   * are recoverable from nothing else once a rebase has happened: for a declining-balance or
+   * units-of-production plan they were never a flat allocate to begin with.
+   */
+  private originalSchedule: Money[] = [];
+
   private disposed = false;
   private disposedOn: CalendarDate | null = null;
 
@@ -109,7 +122,11 @@ export class Asset {
      * given and what has already been written off.
      */
     readonly totalUnits: number | null = null,
-  ) {}
+  ) {
+    // The shadow plan starts as the plan. It only diverges when a write-down rebases the live one,
+    // which is exactly when the write-up ceiling starts to need it.
+    this.originalSchedule = [...monthlySchedule];
+  }
 
   /** Units reported so far — never more than `totalUnits`, which is what caps the last booking. */
   reportedUnits(): number {
@@ -186,6 +203,11 @@ export class Asset {
     return this.depreciationStart ?? this.acquiredOn;
   }
 
+  /** When it left, or null while it is still there — read by the movement schedule (F-CORE-055). */
+  disposedOnDate(): CalendarDate | null {
+    return this.disposedOn;
+  }
+
   isDisposed(): boolean {
     return this.disposed;
   }
@@ -236,6 +258,55 @@ export class Asset {
     this.rebaseRemainingPlan(openPlanMonths);
   }
 
+  /**
+   * A write-up reverses part of an earlier write-down. It is recorded as a negative "unplanned"
+   * booking, so every existing reader — accumulated depreciation, the book value, the register —
+   * picks it up without a special case, and the plan is rebased upward the same way a write-down
+   * rebases it downward.
+   */
+  recordWriteUp(date: CalendarDate, amount: Money, entryId: Uuid, openPlanMonths: number[]): void {
+    this.depreciations.push({ planMonth: 0, date, amount: amount.negate(), entryId, kind: 'writeUp' });
+    this.rebaseRemainingPlan(openPlanMonths);
+  }
+
+  /**
+   * What the book value would be if no write-down had ever happened — the ceiling a write-up may
+   * not cross.
+   *
+   * Every month the live plan has booked is charged at its **original** share instead of the reduced
+   * one. An asset that was never written down has an identical shadow, so this equals the ordinary
+   * book value and the ceiling binds nothing.
+   */
+  amortisedCostCeiling(): Money {
+    let shadowAccumulated = this.acquisitionCost.subtract(this.acquisitionCost);
+
+    for (const booking of this.depreciations) {
+      // A write-down or a usage report is not part of any plan — the shadow ignores it, which is
+      // the whole point: the shadow is the plan that never saw the write-down.
+      if (booking.planMonth < 1) continue;
+      const share = this.originalSchedule[booking.planMonth - 1];
+      if (share !== undefined) shadowAccumulated = shadowAccumulated.add(share);
+    }
+
+    return this.acquisitionCost.subtract(shadowAccumulated);
+  }
+
+  /** What has been written down and not yet written back — nothing may be reversed twice. */
+  unreversedWriteDowns(): Money {
+    let sum = this.acquisitionCost.subtract(this.acquisitionCost);
+
+    for (const booking of this.depreciations) {
+      // A write-up booking is already negative, so adding it subtracts.
+      if (booking.kind === 'unplanned' || booking.kind === 'writeUp') sum = sum.add(booking.amount);
+    }
+
+    return sum;
+  }
+
+  originalScheduleShares(): Money[] {
+    return this.originalSchedule;
+  }
+
   /** Depreciation history in persistable form — counterpart to PHP's `depreciationsForPersistence`. */
   depreciationsForPersistence(): Array<{
     planMonth: number;
@@ -279,6 +350,10 @@ export class Asset {
     specialDepreciationWindowEnd: number | null = null,
     totalUnits: number | null = null,
     reportedUnits = 0,
+    // Null for an asset written before the shadow plan existed — and that is the right answer rather
+    // than a fallback: such an asset either has no write-down (so the shadow IS the live plan) or one
+    // booked before a write-up was possible at all.
+    originalSchedule: Money[] | null = null,
   ): Asset {
     const asset = new Asset(
       id,
@@ -310,6 +385,7 @@ export class Asset {
       });
     }
     asset.scheduleRevised = scheduleRevised;
+    asset.originalSchedule = originalSchedule ?? [...monthlySchedule];
     asset.disposed = disposed;
     asset.disposedOn = disposedOn;
     return asset;

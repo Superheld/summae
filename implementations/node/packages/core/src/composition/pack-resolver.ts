@@ -22,7 +22,7 @@ import { ACCOUNT_SUBTYPES, isAccountSubtype } from '../substrate/types.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions', 'deferrals', 'inputTaxAdjustment'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -71,6 +71,10 @@ export interface ResolvedPack {
   assetAccounts: Record<string, unknown> | null;
   depreciation: Record<string, unknown> | null;
   productionCost: Record<string, unknown> | null;
+  inventory: Record<string, unknown> | null;
+  provisions: Record<string, unknown> | null;
+  deferrals: Record<string, unknown> | null;
+  inputTaxAdjustment: Record<string, unknown> | null;
   resultAppropriation: Record<string, unknown> | null;
   legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
@@ -228,6 +232,8 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   // 4. Fold (topological). Colliding contributions → INCOHERENT (no silent overwrite).
   const accounts: Record<string, unknown>[] = [];
   const accountNumbers = new Set<string>();
+  // number -> type, for the offsetting invariant (I11).
+  const accountTypes = new Map<string, string>();
   const taxCodes: Record<string, unknown>[] = [];
   const taxCodeCodes = new Set<string>();
   const mappings: Record<string, unknown>[] = [];
@@ -235,6 +241,10 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let assetAccounts: Record<string, unknown> | null = null;
   let depreciation: Record<string, unknown> | null = null;
   let productionCost: Record<string, unknown> | null = null;
+  let inventory: Record<string, unknown> | null = null;
+  let provisions: Record<string, unknown> | null = null;
+  let deferrals: Record<string, unknown> | null = null;
+  let inputTaxAdjustment: Record<string, unknown> | null = null;
   let resultAppropriation: Record<string, unknown> | null = null;
   let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
@@ -251,6 +261,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
             throw new DomainError('E_PACK_INCOHERENT', `Duplicate account number: ${number}`);
           }
           accountNumbers.add(number);
+          accountTypes.set(number, asString(account.type) ?? '');
           const subtype = asString(account.subtype);
           if (subtype !== null && !isAccountSubtype(subtype)) {
             // Closed repertoire (substrate/types.ts): a misspelled subtype used to resolve into a
@@ -292,6 +303,18 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'productionCost':
         productionCost = m.data;
+        break;
+      case 'inventory':
+        inventory = m.data;
+        break;
+      case 'provisions':
+        provisions = m.data;
+        break;
+      case 'deferrals':
+        deferrals = m.data;
+        break;
+      case 'inputTaxAdjustment':
+        inputTaxAdjustment = m.data;
         break;
       case 'resultAppropriation':
         resultAppropriation = m.data;
@@ -429,6 +452,8 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   // I2: every mapping selector hits >= 1 account; fires only on a fully empty selector.
   for (const mapping of mappings) {
     checkMappingSelectors(mapping, accountNumbers);
+    // I11: no balance-sheet position may draw from both sides (offsetting prohibition).
+    checkBalanceSheetSides(mapping, accountNumbers, accountTypes);
   }
   // I4: every taxCode referenced by the manifest is provided by a tax module.
   for (const code of manifest.taxCodes ?? []) {
@@ -464,6 +489,10 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     assetAccounts,
     depreciation,
     productionCost,
+    inventory,
+    provisions,
+    deferrals,
+    inputTaxAdjustment,
     resultAppropriation,
     legalForms,
     dimensionRules,
@@ -497,6 +526,22 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // Not spread like depreciation: the CostingService reads it under its own key, because
     // "treatments" is a word another module could plausibly want too.
     productionCost: isRecord(pack.productionCost) ? pack.productionCost : null,
+    // Which accounts hold stock and where each one's change is booked. A pack that stays silent
+    // simply does not support `valuateInventory`, which is the right answer for a jurisdiction-free
+    // one and for a service business alike.
+    inventory: isRecord(pack.inventory) ? pack.inventory : null,
+    // Which accounts hold provisions, what each books its expense and its release to, and whether
+    // long-dated ones must be discounted. A pack that stays silent does not support
+    // `recognizeProvision` — which is the right answer for a jurisdiction-free one.
+    provisions: isRecord(pack.provisions) ? pack.provisions : null,
+    // Which account holds a prepaid expense and which a deferred income. A pack that stays silent
+    // does not support `recognizeDeferral`, which is the right answer for one that does not
+    // distinguish the two.
+    deferrals: isRecord(pack.deferrals) ? pack.deferrals : null,
+    // The correction periods, thresholds, accounts and reporting key for the input-tax adjustment. A
+    // pack that stays silent has no such rule, and `adjustInputTax` says so rather than inventing an
+    // observation period.
+    inputTaxAdjustment: isRecord(pack.inputTaxAdjustment) ? pack.inputTaxAdjustment : null,
     // The appropriation plug: which account the resolution books against, and which targets the
     // jurisdiction offers. A pack that stays silent simply does not support the operation.
     resultAppropriation: isRecord(pack.resultAppropriation) ? pack.resultAppropriation : null,
@@ -575,6 +620,79 @@ function checkMappingSelectors(mapping: Record<string, unknown>, accountNumbers:
   };
   for (const position of recordList(mapping.positions)) {
     visit(position);
+  }
+}
+
+/**
+ * The account numbers a selector actually hits, in chart order.
+ */
+function selectedNumbers(selector: Record<string, unknown>, numbers: string[]): string[] {
+  if (Array.isArray(selector.numbers)) {
+    return selector.numbers.filter((n): n is string => typeof n === 'string');
+  }
+  const from = asString(selector.from);
+  const to = asString(selector.to);
+  if (from === null || to === null) return [];
+  return numbers.filter((n) => byCodepoint(n, from) >= 0 && byCodepoint(n, to) <= 0);
+}
+
+/**
+ * I11 — a balance-sheet position may not draw from both sides of the balance sheet.
+ *
+ * **The rule everybody knows and nothing checked.** Offsetting assets against liabilities is
+ * forbidden, and until now the pack author was simply trusted: a position could pull a receivable
+ * range and a payable range and produce one netted figure, and every gate stayed green because the
+ * statement still balanced. That is the same shape as the defects the constraint policy kind was
+ * built for, one layer out — a rule so obvious that nobody wrote it down.
+ *
+ * **It is checked on the ACCOUNT TYPE, not on the balance.** A bank account that is overdrawn is
+ * still an asset account and belongs on the assets side; a position holding it is not offsetting
+ * anything. What is forbidden is a position that *selects* accounts of both kinds, because then no
+ * reader can tell what the figure is made of.
+ *
+ * Only `balance-sheet` mappings. An income statement has no sides, and a cash-basis mapping is a
+ * list of categories rather than a two-sided statement.
+ */
+function checkBalanceSheetSides(
+  mapping: Record<string, unknown>,
+  accountNumbers: Set<string>,
+  accountTypes: Map<string, string>,
+): void {
+  if (asString(mapping.kind) !== 'balance-sheet') return;
+
+  const numbers = [...accountNumbers];
+  const mappingId = asString(mapping.id) ?? '?';
+
+  const visit = (position: Record<string, unknown>, inherited: string | null): void => {
+    const side = asString(position.side) ?? inherited;
+
+    for (const selector of recordList(position.accounts)) {
+      if (side === null) continue;
+
+      for (const number of selectedNumbers(selector, numbers)) {
+        const type = accountTypes.get(number) ?? '';
+        const belongs = side === 'assets' ? type === 'asset' : type === 'liability' || type === 'equity';
+
+        if (!belongs) {
+          const positionKey = asString(position.key) ?? '?';
+          throw new DomainError(
+            'E_PACK_INCOHERENT',
+            `Mapping "${mappingId}", position "${positionKey}" is on the ${side} side and selects account ` +
+              `${number}, which is of type "${type}" (I11). A balance-sheet position that draws from both ` +
+              'sides reports one netted figure and offsets what may not be offset.',
+            { mapping: mappingId, position: positionKey, account: number, type, side },
+          );
+        }
+      }
+    }
+
+    for (const child of recordList(position.children)) {
+      visit(child, side);
+    }
+  };
+
+  for (const position of recordList(mapping.positions)) {
+    visit(position, null);
   }
 }
 

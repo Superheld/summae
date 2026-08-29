@@ -1,0 +1,65 @@
+{
+  "fixture": "de-vorsteuerberichtigung",
+  "description": "The shipped de pack corrects a deducted input tax on its own accounts and under its own reporting key. Every number in this fixture comes from the pack and none from the engine: five years for a movable asset and ten for an immovable one, the 1,000.00 threshold below which nothing is observed at all, the ten-percentage-point-or-1,000.00 test on the change, accounts 1500 / 6000 / 4900, and Kennzahl 63. The engine contributes the mechanism — a pro-rata correction over an observation period with two de-minimis thresholds — which is the same wherever such a rule exists, and it is why the `us` pack simply declares no such module and the operation says so instead of inventing a period. What the shipped pack also demonstrates is the boundary this rule is cut along: the REGISTER of which assets are under observation, and until when, is not here and not in the library, because the trigger is a change of use and a change of use is never posted. The arithmetic is here, because a figure produced wrongly would look exactly as authoritative as one produced rightly.",
+  "covers": ["F-CORE-056"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Vorsteuer GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "tenant": "$T1",
+        "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+        "assetKind": "movable", "reason": "Fahrzeug zu 40 % privat genutzt", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Fünf Jahre laut Pack: 19.000,00 × −40 % ÷ 5 = −1.520,00, gebucht auf 6000 gegen 1500",
+        "result": {
+          "due": true,
+          "amount": { "amount": "-1520.00", "currency": "EUR" },
+          "correctionYears": 5,
+          "reportingKey": "63"
+        }
+      }
+    },
+    {
+      "op": "adjustInputTax",
+      "input": {
+        "tenant": "$T1",
+        "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+        "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+        "assetKind": "immovable", "reason": "Gebäudeteil privat", "date": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Dasselbe bei einem Grundstück: zehn Jahre, also die halbe Jahresberichtigung",
+        "result": { "due": true, "amount": { "amount": "-760.00", "currency": "EUR" }, "correctionYears": 10 }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "vatReturn",
+      "params": { "tenant": "$T1", "year": 2026, "quarter": 4 },
+      "expect": {
+        "comment": "Unter Kennzahl 63 des Packs, und ohne Lückenwarnung — ohne den Meldeschlüssel trüge die Buchung nichts zur Voranmeldung bei",
+        "keys": { "63": { "tax": "-2280.00" } },
+        "gapWarnings": []
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1500", "balance": "-2280.00" },
+          { "account": "6000", "balance": "2280.00" }
+        ]
+      }
+    }
+  ]
+}

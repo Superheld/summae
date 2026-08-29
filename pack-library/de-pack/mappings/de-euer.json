@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-euer",
   "kind": "mapping",
-  "version": "2026.4",
+  "version": "2026.7",
   "name": "Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR, auf den neutralen DE-Rahmen)",
   "contributes": [
     "mappings"
@@ -17,7 +17,7 @@
     "mapping": {
       "id": "de-euer",
       "kind": "cash-basis-categories",
-      "version": "2026.3",
+      "version": "2026.6",
       "positions": [
         {
           "key": "E1",
@@ -90,6 +90,47 @@
           ]
         },
         {
+          "key": "E6a",
+          "label": "Erträge aus Zuschreibungen (bei der Einnahmen-Überschuss-Rechnung ohne Ansatz)",
+          "accounts": [
+            {
+              "numbers": [
+                "4910"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "E7",
+          "label": "Bestandsveränderungen (bei der Einnahmen-Überschuss-Rechnung ohne Ansatz)",
+          "accounts": [
+            {
+              "from": "4100",
+              "to": "4199"
+            }
+          ]
+        },
+        {
+          "key": "E7a",
+          "label": "Andere aktivierte Eigenleistungen (bei der Einnahmen-Überschuss-Rechnung ohne Ansatz)",
+          "accounts": [
+            {
+              "from": "4200",
+              "to": "4299"
+            }
+          ]
+        },
+        {
+          "key": "E8",
+          "label": "Sonstige Zinsen und ähnliche Erträge",
+          "accounts": [
+            {
+              "from": "4700",
+              "to": "4799"
+            }
+          ]
+        },
+        {
           "key": "A1",
           "label": "Wareneinsatz und Fremdleistungen",
           "accounts": [
@@ -144,6 +185,10 @@
               "to": "6099"
             },
             {
+              "from": "6450",
+              "to": "6499"
+            },
+            {
               "from": "6700",
               "to": "6899"
             }
@@ -165,7 +210,8 @@
           "accounts": [
             {
               "numbers": [
-                "6020"
+                "6020",
+                "6400"
               ]
             }
           ]
@@ -181,6 +227,16 @@
             }
           ],
           "includeNonCash": true
+        },
+        {
+          "key": "A9",
+          "label": "Schuldzinsen",
+          "accounts": [
+            {
+              "from": "6600",
+              "to": "6699"
+            }
+          ]
         }
       ]
     }

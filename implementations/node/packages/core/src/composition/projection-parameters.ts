@@ -154,6 +154,27 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   productionCost: {
     runId: { type: 'string', required: true },
   },
+  // No parameters, and a fiscalYear filter would be actively wrong rather than merely absent: the
+  // question is whether the measurement basis changed ACROSS periods, so filtering to one period
+  // would hide the only answer worth having. duplicateVouchers refuses a date window on the same
+  // grounds. Which framework demands the comparison, and what it permits by way of exception, is
+  // the pack's business and the census's — not this table's.
+  measurementConsistency: {},
+  assetSchedule: {
+    fiscalYear: { type: 'integer', required: true },
+  },
+  deferralRegister: {
+    kind: { type: 'string' },
+    status: { type: 'string' },
+  },
+  provisionRegister: {
+    status: { type: 'string' },
+    asOf: { type: 'date' },
+  },
+  inventoryValuation: {
+    fiscalYear: { type: 'integer' },
+    period: { type: 'integer' },
+  },
   // No parameters, for the third time and the same reason as systemDescription and accounts: a
   // tenant has exactly one configuration. There is nothing to select, and a filter would turn
   // "what is this tenant set up as" into a question with more than one answer.

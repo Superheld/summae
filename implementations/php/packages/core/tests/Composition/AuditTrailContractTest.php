@@ -82,6 +82,7 @@ class AuditTrailContractTest extends TestCase
                 'gwgExpenseAccount' => '4930',
                 'disposalGainAccount' => '8400',
                 'disposalLossAccount' => '4930',
+                'writeUpIncomeAccount' => '8400',
             ],
         ]);
         // The appropriation plug, for the same reason: without it the operation refuses with
@@ -103,6 +104,44 @@ class AuditTrailContractTest extends TestCase
                         'label' => 'Limited company',
                         'resolution' => ['required' => true, 'deadlineMonths' => 8],
                     ],
+                ],
+            ],
+        ]);
+
+        // And the stock categories, same reason again: without them `valuateInventory` refuses on
+        // a pack that declares no inventory instead of reaching the trail.
+        // And the provision accounts, same reason once more.
+        // And the input-tax adjustment: without its correction periods the operation refuses on the
+        // pack instead of reaching the trail.
+        $tenant->inputTaxAdjustment?->setRuleModule([
+            'inputTaxAdjustment' => [
+                'correctionPeriods' => [['assetKind' => 'movable', 'years' => 5]],
+                'deMinimis' => ['inputTaxAtMost' => '1000.00', 'sharePointsAtLeast' => '10.00', 'amountAtMost' => '1000.00'],
+                'accounts' => ['taxAccount' => '1500', 'expenseAccount' => '4930', 'incomeAccount' => '8400'],
+                'reportingKey' => '63',
+            ],
+        ]);
+        // And the deferral accounts, same reason again.
+        $tenant->deferralService?->setRuleModule([
+            'deferrals' => [
+                'kinds' => [
+                    ['kind' => 'prepaidExpense', 'account' => '1900'],
+                    ['kind' => 'deferredIncome', 'account' => '3900'],
+                ],
+            ],
+        ]);
+        $tenant->provisionService?->setRuleModule([
+            'provisions' => [
+                'accounts' => [
+                    ['account' => '3600', 'expenseAccount' => '4930', 'releaseAccount' => '8400'],
+                ],
+                'discounting' => ['fromMonths' => 12, 'basis' => 'test'],
+            ],
+        ]);
+        $tenant->inventory?->setRuleModule([
+            'inventory' => [
+                'categories' => [
+                    ['account' => '1140', 'changeAccount' => '5200'],
                 ],
             ],
         ]);
@@ -203,11 +242,53 @@ class AuditTrailContractTest extends TestCase
         yield 'acquireAsset' => ['acquireAsset', 'asset', 'acquired'];
         yield 'disposeAsset' => ['disposeAsset', 'asset', 'disposed'];
         yield 'writeDownAsset' => ['writeDownAsset', 'asset', 'writtenDown'];
+        yield 'writeUpAsset' => ['writeUpAsset', 'asset', 'writtenUp'];
         yield 'bookSpecialDepreciation' => ['bookSpecialDepreciation', 'asset', 'specialDepreciationBooked'];
         yield 'reportAssetUsage' => ['reportAssetUsage', 'asset', 'usageReported'];
+        yield 'valuateInventory' => ['valuateInventory', 'inventoryValuation', 'valued'];
+        yield 'recognizeProvision' => ['recognizeProvision', 'provision', 'recognized'];
+        yield 'useProvision' => ['useProvision', 'provision', 'used'];
+        yield 'releaseProvision' => ['releaseProvision', 'provision', 'released'];
+        yield 'remeasureProvision' => ['remeasureProvision', 'provision', 'remeasured'];
+        yield 'adjustInputTax' => ['adjustInputTax', 'inputTaxAdjustment', 'adjusted'];
+        yield 'recognizeDeferral' => ['recognizeDeferral', 'deferral', 'recognized'];
+        yield 'runDeferralRelease' => ['runDeferralRelease', 'deferralRelease', 'completed'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
         yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
         yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
+    }
+
+    private function recognizeDeferral(TenantOperations $ops): void
+    {
+        $ops->execute('createAccount', ['number' => '1900', 'name' => 'Aktive RAP', 'type' => 'asset']);
+        $ops->execute('recognizeDeferral', [
+            'kind' => 'prepaidExpense',
+            'reason' => 'Versicherung',
+            'counterAccount' => '4930',
+            'amount' => ['amount' => '1200.00', 'currency' => 'EUR'],
+            'recognizedOn' => '2026-01-01',
+            'firstFiscalYear' => 2026,
+            'firstPeriod' => 1,
+            'periods' => 12,
+        ]);
+    }
+
+    private function recognizeProvision(TenantOperations $ops): string
+    {
+        $ops->execute('createAccount', ['number' => '3600', 'name' => 'Rückstellungen', 'type' => 'liability', 'subtype' => 'provision']);
+        $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge', 'type' => 'revenue']);
+        /** @var array<string, mixed> $result */
+        $result = $ops->execute('recognizeProvision', [
+            'account' => '3600',
+            'reason' => 'Prozessrisiko',
+            'amount' => ['amount' => '500.00', 'currency' => 'EUR'],
+            'recognizedOn' => '2026-01-31',
+        ]);
+
+        $id = $result['provisionId'] ?? null;
+        self::assertIsString($id, 'recognizeProvision must return the provision id');
+
+        return $id;
     }
 
     /** @return array<string, mixed> */
@@ -506,6 +587,25 @@ class AuditTrailContractTest extends TestCase
                 ]);
 
                 return;
+            case 'writeUpAsset':
+                // `acquire` seeds by itself — seeding twice would fail on the account, not on the
+                // thing under test.
+                $assetId = $this->acquire($ops);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge aus Zuschreibungen', 'type' => 'revenue']);
+                $ops->execute('writeDownAsset', [
+                    'assetId' => $assetId,
+                    'amount' => ['amount' => '1000.00', 'currency' => 'EUR'],
+                    'date' => '2026-06-30',
+                    'reason' => 'Wasserschaden',
+                ]);
+                $ops->execute('writeUpAsset', [
+                    'assetId' => $assetId,
+                    'amount' => ['amount' => '400.00', 'currency' => 'EUR'],
+                    'date' => '2026-09-30',
+                    'reason' => 'Schaden behoben',
+                ]);
+
+                return;
             case 'bookSpecialDepreciation':
                 $ops->execute('bookSpecialDepreciation', [
                     'assetId' => $this->acquire($ops, ['specialDepreciation' => true]),
@@ -528,6 +628,77 @@ class AuditTrailContractTest extends TestCase
             case 'runDepreciation':
                 $this->seed($ops);
                 $ops->execute('runDepreciation', ['fiscalYear' => 2026, 'period' => 12]);
+
+                return;
+            case 'recognizeProvision':
+                $this->seed($ops);
+                $this->recognizeProvision($ops);
+
+                return;
+            case 'useProvision':
+                $this->seed($ops);
+                $ops->execute('useProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'amount' => ['amount' => '400.00', 'currency' => 'EUR'],
+                    'settlementAccount' => '1200',
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'releaseProvision':
+                $this->seed($ops);
+                $ops->execute('releaseProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'remeasureProvision':
+                $this->seed($ops);
+                $ops->execute('remeasureProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'amount' => ['amount' => '800.00', 'currency' => 'EUR'],
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'adjustInputTax':
+                $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1500', 'name' => 'Vorsteuer', 'type' => 'asset', 'subtype' => 'tax_in']);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge', 'type' => 'revenue']);
+                $ops->execute('adjustInputTax', [
+                    'originalInputTax' => ['amount' => '19000.00', 'currency' => 'EUR'],
+                    'originalSharePercent' => '100.00',
+                    'currentSharePercent' => '60.00',
+                    'assetKind' => 'movable',
+                    'reason' => 'Fahrzeug teils privat',
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'recognizeDeferral':
+                $this->seed($ops);
+                $this->recognizeDeferral($ops);
+
+                return;
+            case 'runDeferralRelease':
+                $this->seed($ops);
+                $this->recognizeDeferral($ops);
+                $ops->execute('runDeferralRelease', ['fiscalYear' => 2026, 'period' => 1]);
+
+                return;
+            case 'valuateInventory':
+                $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1140', 'name' => 'Vorräte', 'type' => 'asset', 'subtype' => 'inventory']);
+                $ops->execute('createAccount', ['number' => '5200', 'name' => 'Bestandsveränderungen', 'type' => 'revenue']);
+                $ops->execute('valuateInventory', [
+                    'fiscalYear' => 2026,
+                    'period' => 12,
+                    'valuationDate' => '2026-12-31',
+                    'categories' => [
+                        ['account' => '1140', 'quantity' => '100', 'unitCost' => '12.50'],
+                    ],
+                ]);
 
                 return;
             case 'runCosting':

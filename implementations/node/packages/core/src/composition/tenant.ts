@@ -2,6 +2,10 @@ import { AssetService } from '../policies/expansion/assets/asset-service.js';
 import { ResultAppropriationService } from '../policies/expansion/result-appropriation-service.js';
 import { EntityProfileService, LegalFormRegistry } from '../policies/projection/legal-forms.js';
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
+import { InventoryService } from '../policies/expansion/inventory/inventory-service.js';
+import { ProvisionService } from '../policies/expansion/provisions/provision-service.js';
+import { DeferralService } from '../policies/expansion/deferrals/deferral-service.js';
+import { InputTaxAdjustmentService } from '../policies/expansion/tax/input-tax-adjustment-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -10,6 +14,9 @@ import {
   InMemoryJournalRepository,
   InMemoryOpenItemRepository,
   InMemoryCostingRunRepository,
+  InMemoryInventoryValuationRepository,
+  InMemoryProvisionRepository,
+  InMemoryDeferralRepository,
   InMemoryPartnerRepository,
   InMemoryTenantRecordRepository,
   InMemoryVoucherRepository,
@@ -33,6 +40,9 @@ import type {
   AssetRepository,
   AuditTrail,
   CostingRunRepository,
+  InventoryValuationRepository,
+  DeferralRepository,
+  ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -63,12 +73,27 @@ export class Tenant {
     readonly partners: PartnerRepository,
     /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
     readonly costingRuns: CostingRunRepository,
+    /** Same, for stock (F-CORE-050) — `inventoryValuation` reads it. */
+    readonly inventoryValuations: InventoryValuationRepository,
+    /** Same, for provisions (F-CORE-051) — `provisionRegister` reads it. */
+    readonly provisions: ProvisionRepository,
+    /** Same, for prepaid and deferred items (F-CORE-053) — `deferralRegister` reads it. */
+    readonly deferrals: DeferralRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
     readonly assetService: AssetService,
     readonly resultAppropriation: ResultAppropriationService,
     readonly costing: CostingService,
+    readonly inventory: InventoryService,
+    readonly provisionService: ProvisionService,
+    readonly deferralService: DeferralService,
+    /**
+     * The input-tax adjustment (F-CORE-056). No repository: the register of what is under
+     * observation is the embedding application's, because its trigger — a change of use — is never
+     * posted. Only the arithmetic and the posting live here.
+     */
+    readonly inputTaxAdjustment: InputTaxAdjustmentService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
@@ -142,6 +167,9 @@ export class Tenant {
         assets: new InMemoryAssetRepository(),
         partners: new InMemoryPartnerRepository(),
         costingRuns: new InMemoryCostingRunRepository(),
+        inventoryValuations: new InMemoryInventoryValuationRepository(),
+        provisions: new InMemoryProvisionRepository(),
+        deferrals: new InMemoryDeferralRepository(),
         audit: new InMemoryAuditTrail(),
       },
       clock,
@@ -177,6 +205,9 @@ export class Tenant {
       assets: AssetRepository;
       partners: PartnerRepository;
       costingRuns: CostingRunRepository;
+      inventoryValuations: InventoryValuationRepository;
+      provisions: ProvisionRepository;
+      deferrals: DeferralRepository;
       audit: AuditTrail;
     },
     clock: Clock,
@@ -198,7 +229,20 @@ export class Tenant {
     /** The constraint socket's second plug (F-CORE-042) — see `inMemory` for why it is last. */
     combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
-    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
+    const {
+      accounts,
+      fiscalYears,
+      vouchers,
+      journal,
+      openItems,
+      assets,
+      partners,
+      costingRuns,
+      inventoryValuations,
+      provisions,
+      deferrals,
+      audit,
+    } = ports;
     // Built before the ledger, not with the other services below: the ledger reads the declared
     // legal form on every posting to evaluate conditional constraint rules (F-CORE-047), and it
     // must hold the same object `setEntityProfile` later writes to.
@@ -244,6 +288,50 @@ export class Tenant {
       auditWriter,
       configStore,
     );
+    const inventory = new InventoryService(
+      baseCurrency,
+      accounts,
+      journal,
+      vouchers,
+      costingRuns,
+      inventoryValuations,
+      ledger,
+      ids,
+      {},
+      tenantId,
+      auditWriter,
+    );
+    const provisionService = new ProvisionService(
+      baseCurrency,
+      accounts,
+      vouchers,
+      provisions,
+      ledger,
+      ids,
+      {},
+      auditWriter,
+    );
+    const deferralService = new DeferralService(
+      baseCurrency,
+      accounts,
+      fiscalYears,
+      vouchers,
+      deferrals,
+      ledger,
+      ids,
+      {},
+      tenantId,
+      auditWriter,
+    );
+    const inputTaxAdjustment = new InputTaxAdjustmentService(
+      baseCurrency,
+      accounts,
+      vouchers,
+      ledger,
+      ids,
+      {},
+      auditWriter,
+    );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
@@ -259,12 +347,19 @@ export class Tenant {
       assets,
       partners,
       costingRuns,
+      inventoryValuations,
+      provisions,
+      deferrals,
       audit,
       ledger,
       tax,
       assetService,
       resultAppropriation,
       costing,
+      inventory,
+      provisionService,
+      deferralService,
+      inputTaxAdjustment,
       partnerService,
       mappings,
       clock,

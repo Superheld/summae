@@ -135,6 +135,10 @@ export class Workspace {
     tenant.costing.setRuleModule(ruleModules);
     tenant.resultAppropriation.setRuleModule(ruleModules);
     tenant.legalForms.setRuleModule(ruleModules);
+    tenant.inventory.setRuleModule(ruleModules);
+    tenant.provisionService.setRuleModule(ruleModules);
+    tenant.deferralService.setRuleModule(ruleModules);
+    tenant.inputTaxAdjustment.setRuleModule(ruleModules);
     return tenant;
   }
 

@@ -647,6 +647,158 @@ final class AssetService
         ];
     }
 
+    /**
+     * Reverse an earlier write-down when its reason has ceased (`writeUpAsset`, F-CORE-052).
+     *
+     * **This is a duty, not an option, and its absence was the smallest of the real legal gaps.**
+     * `writeDownAsset` has existed for a long time with no counterpart, so an asset written down in
+     * a bad year stayed down for ever — which understates equity and the result exactly as
+     * permanently as the write-down was meant to state them prudently for one year.
+     *
+     * **Two caps, and the second is the one that needs the shadow plan.** Nothing may be written
+     * back that was not written down (`unreversedWriteDowns`), and the book value may not exceed
+     * what it would have been had the write-down never happened (`amortisedCostCeiling`). The
+     * second is stricter than the first and is easy to get wrong: a write-down also lowers every
+     * remaining planned instalment, so the book value climbs *above* the untouched plan as the
+     * years run on. Reversing in full would then carry the asset over its amortised cost.
+     *
+     * **What the caller decides and what the core decides.** Whether the reason has ceased, and by
+     * how much the value has recovered, is an appraisal — a judgement about the world, which no
+     * library makes. The amount is therefore an input. The ceiling is arithmetic, and that is the
+     * part that is enforced.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    public function writeUpAsset(array $input): array
+    {
+        $asset = $this->requireAsset($input['assetId'] ?? null);
+        $asset->assertActive();
+
+        $reason = is_string($input['reason'] ?? null) ? trim($input['reason']) : '';
+        if ($reason === '') {
+            throw new DomainError(
+                'E_INPUT_INVALID',
+                'writeUpAsset: "reason" is required — a write-up that does not say why the impairment ceased is not auditable',
+                ['assetId' => $asset->id->value],
+            );
+        }
+
+        $amount = $this->parseMoney($input['amount'] ?? null);
+        if ($amount->isNegative() || $amount->isZero()) {
+            throw new DomainError('E_INPUT_INVALID', 'writeUpAsset: "amount" must be greater than zero', [
+                'amount' => $amount->amountAsString(),
+            ]);
+        }
+
+        $reversible = $asset->unreversedWriteDowns();
+        if ($amount->compareTo($reversible) > 0) {
+            throw new DomainError('E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN', sprintf(
+                'writeUpAsset: %s exceeds the %s still written down on this asset',
+                $amount->amountAsString(),
+                $reversible->amountAsString(),
+            ), ['amount' => $amount->amountAsString(), 'reversible' => $reversible->amountAsString()]);
+        }
+
+        $bookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+        $ceiling = $asset->amortisedCostCeiling();
+        if ($bookValue->add($amount)->compareTo($ceiling) > 0) {
+            throw new DomainError('E_ASSET_WRITE_UP_EXCEEDS_CEILING', sprintf(
+                'writeUpAsset: %s would carry the asset to %s, above the amortised cost of %s',
+                $amount->amountAsString(),
+                $bookValue->add($amount)->amountAsString(),
+                $ceiling->amountAsString(),
+            ), [
+                'amount' => $amount->amountAsString(),
+                'bookValue' => $bookValue->amountAsString(),
+                'ceiling' => $ceiling->amountAsString(),
+            ]);
+        }
+
+        $date = CalendarDate::of(is_string($input['date'] ?? null) ? $input['date'] : '');
+
+        $openPlanMonths = [];
+        for ($planMonth = 1; $planMonth <= count($asset->monthlySchedule); $planMonth++) {
+            if (!$asset->isMonthBooked($planMonth)) {
+                $openPlanMonths[] = $planMonth;
+            }
+        }
+
+        $voucherId = is_string($input['voucherId'] ?? null) && $input['voucherId'] !== ''
+            ? $this->requireVoucherId($input['voucherId'])
+            : $this->writeUpVoucher($asset, $date);
+
+        $entry = $this->postMachineEntry(
+            $date,
+            $voucherId,
+            sprintf('Write-up %s: %s', $asset->name, $reason),
+            $this->withDimensions($asset, [
+                ['account' => $asset->assetAccount->value, 'side' => 'debit', 'money' => $amount->jsonSerialize()],
+                ['account' => $this->writeUpIncomeAccount(), 'side' => 'credit', 'money' => $amount->jsonSerialize()],
+            ]),
+        );
+
+        $asset->recordWriteUp($date, $amount, $entry, $openPlanMonths);
+        $this->assets->save($asset);
+
+        $newBookValue = $asset->acquisitionCost->subtract($asset->accumulatedDepreciationAt(null));
+
+        $this->trace($input, 'asset', $asset->id, 'writtenUp', [
+            'bookValue' => ['from' => $bookValue->amountAsString(), 'to' => $newBookValue->amountAsString()],
+            'reason' => ['from' => null, 'to' => $reason],
+        ]);
+
+        return [
+            'assetId' => $asset->id->value,
+            'entryId' => $entry->value,
+            'amount' => $amount->amountAsString(),
+            'bookValue' => $newBookValue->amountAsString(),
+            'ceiling' => $ceiling->amountAsString(),
+            'stillReversible' => $asset->unreversedWriteDowns()->amountAsString(),
+        ];
+    }
+
+    /**
+     * Where a write-up is booked. **Required from the pack**, and the asymmetry with the impairment
+     * account is deliberate rather than an oversight.
+     *
+     * A write-down that names no account falls back to ordinary depreciation, which is not wrong —
+     * only less informative, because both are a charge against the same asset. There is no
+     * equivalent on the income side: the disposal-proceeds account is specifically a *gain on
+     * disposal*, and a write-up is not one. Borrowing it would put a figure under a heading that
+     * says something untrue about it, which is worse than asking the pack to say where it goes.
+     */
+    private function writeUpIncomeAccount(): string
+    {
+        $block = is_array($this->ruleModule['assetAccounts'] ?? null) ? $this->ruleModule['assetAccounts'] : [];
+        $value = $block['writeUpIncomeAccount'] ?? null;
+
+        if (!is_string($value) || $value === '') {
+            throw new DomainError(
+                'E_PACK_INCOHERENT',
+                'assetAccounts.writeUpIncomeAccount is not set in the rule module — a write-up needs an '
+                . 'income account of its own; the disposal account would name it something it is not',
+                ['field' => 'assetAccounts.writeUpIncomeAccount'],
+            );
+        }
+
+        return $value;
+    }
+
+    private function writeUpVoucher(Asset $asset, CalendarDate $date): Uuid
+    {
+        $voucher = new Voucher(
+            $this->ids->next(),
+            sprintf('ZUSCHR-%s-%s', str_replace('-', '', $date->iso), substr($asset->id->value, -6)),
+            $date,
+            kind: 'internal',
+        );
+        $this->vouchers->add($voucher);
+
+        return $voucher->id;
+    }
+
     private function rebaseAfterSpecialWindow(Asset $asset, int $fiscalYear): void
     {
         if (

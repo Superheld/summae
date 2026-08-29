@@ -9,7 +9,7 @@
   "expect": {
     "initialized": true,
     "baseCurrency": "EUR",
-    "created.accounts": 49,
+    "created.accounts": 65,
     "created.fiscalYears": 1
   },
   "steps": [
@@ -339,6 +339,117 @@
       }
     },
     {
+      "name": "stock: the quantity is input, the valuation is booked, and the record says how it got there",
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 12,
+        "valuationDate": "2026-12-31",
+        "categories": [
+          {
+            "account": "1120",
+            "quantity": "200",
+            "unitCost": "25.00"
+          }
+        ]
+      },
+      "expect": {
+        "closingTotal.amount": "5000.00",
+        "change.amount": "5000.00",
+        "posted": true
+      }
+    },
+    {
+      "name": "the same valuation again books nothing — the posting is always the difference",
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 12,
+        "valuationDate": "2026-12-31",
+        "categories": [
+          {
+            "account": "1120",
+            "quantity": "200",
+            "unitCost": "25.00"
+          }
+        ]
+      },
+      "expect": {
+        "version": 2,
+        "change.amount": "0.00",
+        "posted": false
+      }
+    },
+    {
+      "name": "what was valued, out of what, and against which account — the pack names the last one",
+      "report": "inventoryValuation",
+      "params": {
+        "fiscalYear": 2026,
+        "period": 12
+      },
+      "expect": {
+        "valuations[0].closingTotal": "5000.00",
+        "valuations[0].categories[0].quantity": "200",
+        "valuations[0].categories[0].unitValue": "25.00",
+        "valuations[0].categories[0].source": "input",
+        "valuations[0].categories[0].changeAccount": "4100",
+        "valuations[0].categories[0].writtenDownToMarket": false,
+        "valuations[1].change": "0.00"
+      }
+    },
+    {
+      "name": "a provision that runs past a year must be discounted — and the rate is yours, not the pack's",
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": {
+          "amount": "20000.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2029-12-31"
+      },
+      "expectError": "E_PROVISION_DISCOUNT_RATE_REQUIRED"
+    },
+    {
+      "name": "the same provision with a rate: three whole years at 1.80 %",
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": {
+          "amount": "20000.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2029-12-31",
+        "discountRate": "1.80"
+      },
+      "capture": {
+        "provision": "provisionId"
+      },
+      "expect": {
+        "carryingAmount.amount": "18957.74",
+        "discounted": true,
+        "discountRate": "1.80"
+      }
+    },
+    {
+      "name": "what is set aside, for what, and what has happened to it",
+      "report": "provisionRegister",
+      "params": {
+        "status": "open"
+      },
+      "expect": {
+        "total": "18957.74",
+        "provisions[0].account": "3600",
+        "provisions[0].settlementAmount": "20000.00",
+        "provisions[0].status": "open",
+        "provisions[0].movements[0].kind": "recognized"
+      }
+    },
+    {
       "name": "postings must be finalized before periods can close",
       "op": "finalize",
       "input": {
@@ -431,7 +542,7 @@
         "fiscalYear": 2026
       },
       "expect": {
-        "manifest.formatVersion": "0.9",
+        "manifest.formatVersion": "0.10",
         "manifest.hashAlgorithm": "sha256",
         "manifest.streams": [
           "journal",

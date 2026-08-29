@@ -56,7 +56,7 @@ status, so scanning the list no longer suggests open work that is long done. Res
 keep their original text under the resolution note: why a decision was made is worth more than
 a short file.
 
-**Highest number issued: `IMPL-042`, `SPEC-022`, `SPEC-C01`** (2026-08-28). Numbers are never
+**Highest number issued: `IMPL-047`, `SPEC-022`, `SPEC-C01`** (2026-08-29). Numbers are never
 reused, so this table lists open findings too — as one line with a pointer, never with their text,
 which stays in `FINDINGS-OPEN.md` until the finding is closed.
 
@@ -129,6 +129,10 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
 | IMPL-042 F-IO-008 (DATEV import) is not built | ✅ **DECIDED 2026-08-28 — deferred, with the blocker named and verifiable in the shipped pack.** The way back needs BU key → `taxCode`, and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu` at all, and `USt19`/`USt19WA` both carry `3`. The inverse is neither total nor unique, so an import would guess — and what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real batch to verify the format against; until then the way back is the app's, the same line CAMT and XRechnung already sit on |
 | IMPL-043 F-KLR-005 is covered by fixtures about the case it excludes | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-044 the language-neutral API spec was held against nothing | ✅ **RESOLVED 2026-08-29** — `knowledge/50-spezifikation/api.md` calls its projection list *"the vollständige"* and was ten projections and sixteen operations behind, with two names (`writeDown`, `writeUp`) that no implementation ever carried and one (`systemDocumentation`) that was renamed before it shipped; the policy-kind census in `jurisdiction-profil.md` was fourteen expansions short and had **no bucket at all** for the nineteen master-data operations, which is how it could feel complete while proving nothing. Both documents completed and now held against `api-parameters.json` — the same contract the dispatcher validates against — by `ApiSpecDocTest`/`api-spec-doc.test.ts` in both languages. Same shape as IMPL-037 one folder over: the derived artefacts were guarded, the normative prose was not |
+| IMPL-045 the personal-data inventory stops at the exchange format | ✅ **RESOLVED 2026-08-29** — three fields on stored aggregates (`asset.name`, `provision.reason`, `deferral.reason`) were in neither §1 of the GDPR census nor `personalDataDescription`, because both lists had silently inherited the boundary of the *exchange* format. Added to both, once IMPL-046 made them declarable; the fixture that pinned the complete list is superseded by `personal-data-description-claims` on the same reading as `system-description-claims`, and the two lists now hold **each other** — the GDPR doc test compares the document's inventory with what the projection publishes, in both languages. Two neighbours stay open on purpose: whether an account name belongs in the inventory (§7 row 7) and the two columnar stores (IMPL-047) |
+| IMPL-046 five persisted record kinds are a shared format no oracle covers | ✅ **RESOLVED 2026-08-29, format 0.10** — six `$defs` (`asset`, `assetState`, `costingRun`, `provision`, `deferral`, `inventoryValuation`), a `## v0.10` section, and two new guards: the cross-test now compares **the stored documents themselves** between the two engines and validates each against the schema (358 documents), and `PersistedDocumentContractTest`/`persisted-document-contract.test.ts` hold every table the adapter creates against a declared document type. **The first run found a real defect** — PHP encoded an empty map as `[]`, Node as `{}`, so two engines on one database wrote two different documents; same idiom as `auditRecord.changes`, same fix. Two columnar tables stay declared-by-exception (IMPL-047) |
+| IMPL-047 two persisted stores are columnar and undeclared | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -2567,3 +2571,156 @@ from *outside*: another runtime, a restore, a hand edit. The tests therefore wri
 straight into the column and read it back through a second tenant instance, which is what the
 adapter suites are for. `fehlerkatalog.md` and `abdeckung.md` now say that instead of listing it as
 the last real gap.
+
+
+## IMPL-044 — the language-neutral API spec was held against nothing — ✅ RESOLVED 2026-08-29
+
+**Found 2026-08-29** while reviewing whether the HGB build pass had left the documents behind.
+
+It had not left the *gated* ones behind: the handbook carried all fourteen new operations and
+projections, the CHANGELOG named them, `funktional.md` declared every requirement, `covers` resolved
+in both directions, all three censuses were current and green. What was behind was the layer
+underneath — the **normative prose the whole API is supposed to be defined by**.
+
+`knowledge/50-spezifikation/api.md` was missing **26 of 80** operations and projections. Sixteen
+operations, including `writeDownAsset`, `createVoucher`, `unlockAccount`, both dimension operations
+and everything built on 2026-08-29; ten projections, including `gdpduExport` and
+`personalDataDescription`, both of which a compliance census cites as evidence. Two of the names it
+*did* carry were wrong: `writeDown` and `writeUp` exist under those names nowhere, and
+`systemDocumentation` was renamed to `systemDescription` before it shipped. The document's own words
+are *"Semantik und Namen sind bindend"*.
+
+**The sentence that makes it a finding rather than a chore.** Above the projection list stands:
+*"Diese Liste ist **die vollständige**, und sie muss es bleiben … ein Contract-Test hält sie gegen
+die Routing-Tabelle des Dispatchers."* The contract test is real and it holds `systemDescription`
+against the dispatcher. It never touched this list. A document that names its own guard, and names
+one that guards something else, is worse than an unguarded one: a reader stops checking.
+
+The same pass found the second half in `knowledge/40-domaenenmodell/jurisdiction-profil.md`, which
+`api.md` points at as the single source for the policy-kind assignment. Its census claims to make
+*"alles über dem Substrat ist genau eine von drei Sorten"* provable **by enumeration**. It was
+fourteen expansions and eleven projections short — and nineteen write operations
+(`createAccount`, every partner operation, `setTaxProfile`, `importMapping`, `setAllocationScheme`,
+…) fit none of its three buckets, because master data is not a policy kind and no bucket for it had
+ever been written. The claim was not merely stale; it could not have been true as stated.
+
+**Fixed and guarded the same day.** Both documents are complete, the two wrong names are corrected
+with a line saying what they were, and `ApiSpecDocTest` / `api-spec-doc.test.ts` hold both files
+against `testing/testsuite/schema/api-parameters.json` in both languages: every declared operation
+and projection must appear, as an inline-code token that *starts* with the name so
+`runCosting(period)` and `createFiscalYear {…}` count and prose does not. The **assignment** to a
+policy kind stays human work; that nothing is missing does not.
+
+**Two things the fix could not reach, and they are recorded rather than absorbed.** The document is
+still allowed to describe an operation wrongly — only its absence is mechanical, exactly as with the
+census guards. And `datenformat.md`'s module-kind enum was four kinds behind for the **second time in
+three days** (IMPL-037 fixed the version and the sections, not the enum); that half is closed here
+too, by extending `DataFormatDocTest` with a fourth check that holds the enum against
+`format.schema.json`. An enumeration that presents itself as closed has to be held against the
+source it is closed over.
+
+
+## IMPL-045 / IMPL-046 — the stored half of the data format — ✅ RESOLVED 2026-08-29 (format 0.10)
+
+Two findings, one fix, and they are written up together because neither could be closed without the
+other: the personal-data inventory could not name `provision.reason` while the format did not know
+what a provision was.
+
+### IMPL-045 — the personal-data inventory stops at the exchange format
+
+**Found 2026-08-29** while reviewing what the HGB build pass left in the three censuses.
+
+§1 of `docs/gdpr-conformance.md` is *"the inventory an Art. 30 record needs"*, and
+`personalDataDescription` publishes the same list as a projection. Both enumerate seven fields, and
+every one of them is a record the **exchange format** declares (`partner`, `voucher`, `journalEntry`,
+`auditRecord`). That boundary was never stated and is not where the personal data stops.
+
+summae persists five aggregate kinds the exchange format does **not** declare — `asset`,
+`costingRun`, and since 2026-08-29 `provision`, `deferral`, `inventoryValuation`. Three of them carry
+operator-supplied free text: `asset.name`, `provision.reason`, `deferral.reason`. Nothing constrains
+what goes in there, and a provision is *by its nature* often about a named party — a dispute, a
+warranty claim, a severance. An Art. 30 record assembled from §1 does not mention any of them.
+
+**Why the rows were not simply added.** `GdprConformanceDocTest` / `gdpr-conformance-doc.test.ts`
+resolve every inventory row against `$defs` in `format.schema.json`; a row for a record the format
+does not declare turns the gate red. That guard is right — it is what keeps the inventory from
+describing fields that no longer exist — and the gap is upstream of it: **the format schema does not
+declare the aggregates the persistence adapters read back** (that half is IMPL-046). Adding prose to
+§1 that the guard cannot check would put the inventory back in the state the guard exists to prevent.
+
+**Built in the meantime:** the boundary is stated in §1 with the three fields named, and an operator
+answering an Art. 30 request is told to add them by hand. That is honest and it is not a fix.
+
+**What would close it.** Either the aggregates enter the format (IMPL-046) and the three fields
+become ordinary inventory rows with the guard behind them — the clean order — or
+`personalDataDescription` grows a second list for *stored* free text with its own guard, and §1
+follows it. The first is preferable: two lists of personal-data fields is how the two drift apart.
+
+### IMPL-046 — five persisted record kinds are a shared format that no shared oracle covers
+
+**Found 2026-08-29**, from the other side of IMPL-045.
+
+The root `CLAUDE.md` calls the adapters' JSON *"the shared data format"*, and the contract
+obligations say anything the engine reads is validated against `format.schema.json`. Both
+persistence adapters store aggregates as JSON and read them back through `restore()` — `asset`,
+`costingRun`, `provision`, `deferral`, `inventoryValuation`. **None of the five is in `$defs`.**
+Three of them arrived on 2026-08-29, so this went from a two-year-old blind spot to a five-kind one
+in a day.
+
+Three things say the same gap out loud:
+
+- The `Unreleased` CHANGELOG section states *"the data format gains four record kinds"* — while
+  `FORMAT_VERSION` stayed `0.9`, `format.schema.json` gained four **module kinds** and no `$defs`
+  entry, and `datenformat.md` has no section for any of them.
+- The cross-test (SF-15, *one DB, multiple engines, one truth*) compares `journalExport` and nothing
+  else. A provision written by PHP and read by Node is a real scenario for a shared database, and no
+  test in either language crosses that line — each side tests its own adapter against itself.
+- The three fixed-asset findings that reached the register through an embedding application
+  (IMPL-021 … IMPL-026) all lived in exactly this unschema'd half.
+
+**This is not a claim that the two implementations disagree.** They are mirrored by hand and both
+adapter suites pass. It is the claim that *nothing would notice if they stopped agreeing*, which is
+the same argument that produced the fixtures in the first place.
+
+**What would close it.** `$defs` entries for the five aggregates plus a `## v0.10` section in
+`datenformat.md` and a `FORMAT_VERSION` bump (the version is what makes a reader's validator
+correct); the schema validation test extended to a persisted round trip; and the cross-test reading
+back at least one aggregate written by the other engine. **Built in the meantime: nothing** — a
+format version is a published fact and bumping it inside a doc-review pass would be the kind of
+quiet decision this register exists to prevent.
+
+### How they were closed
+
+**The format learned what the adapters store.** Six `$defs` — `asset`, `assetState` (the adapters
+keep an asset in two columns, so it is two documents), `costingRun`, `provision`, `deferral`,
+`inventoryValuation` — plus a `## v0.10` section in `datenformat.md` and a `FORMAT_VERSION` bump. The
+definitions were not written from the classes but **derived from 136 real stored documents** out of
+the cross-test databases, which is why they carry the fields a reader of `jsonSerialize()` would have
+missed: `originalSchedule` (the shadow depreciation plan behind the write-up ceiling),
+`depreciationStart`, `scheduleRevised`.
+
+**Two guards, and the cheaper one found the bug.** The cross-test now compares every stored document
+between the PHP-written and the Node-written database and validates both against the schema (358
+documents). On its first run, one fixture out of 126 disagreed: `costingRun.primary` was `[]` in PHP
+and `{}` in Node, because PHP's empty array encodes as a list. On a shared database — SF-15, *one
+store, several engines* — that is two different documents, and it had been true for as long as
+costing runs have been persisted. The fix is the idiom `AuditRecord::changes` already used, which is
+the part worth keeping: **the same defect had been found and fixed once before, in the one place that
+was compared.** The second guard is the completeness one — every table the schema installer creates
+must map to a declared document type — because the recurrence risk is not this bug but the next
+aggregate arriving undeclared, which is exactly what happened three times on 2026-08-29.
+
+**The inventory could then be honest.** `personalDataDescription` and §1 of the GDPR census gained
+`asset.name`, `provision.reason` and `deferral.reason`. The fixture that pinned the complete `fields`
+list is superseded by `personal-data-description-claims`, on the same reading that retired
+`system-description-invariants`: the *completeness* is the contract, the *length* of the list is the
+product's. And the two lists now hold each other — the conformance-doc test compares the document's
+inventory against what the projection publishes, in both languages, so the failure that produced this
+finding (two hand-kept lists agreeing with each other and drifting from the product together) is
+mechanical now.
+
+**What the fix could not settle, and did not paper over:** the fiscal year's `periods` and the
+tenant's `config` are columnar JSON, still undeclared, and `config` can carry an operator's name
+inside a stored `allocationScheme` — IMPL-047, with the exception list in both guards pointing at it.
+Whether an account name belongs in the personal-data inventory is a second open question, recorded in
+the GDPR census §7 rather than decided in passing.

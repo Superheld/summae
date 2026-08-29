@@ -1,6 +1,7 @@
 import { DomainError } from '../domain-error.js';
 import { Money } from '../substrate/money.js';
 import { AssetRegisterProjection } from '../policies/projection/asset-register.js';
+import { AssetScheduleProjection } from '../policies/projection/asset-schedule.js';
 import { AuditWriter } from '../ledger/audit-writer.js';
 import { AuditDataExportProjection } from '../policies/projection/audit-data-export.js';
 import { MappingImporter } from '../policies/projection/mapping/mapping-importer.js';
@@ -10,6 +11,7 @@ import { AuditTrailIntegrityProjection } from '../policies/projection/audit-trai
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
+import { MeasurementConsistencyProjection } from '../policies/projection/measurement-consistency.js';
 import { PersonalDataDescriptionProjection } from '../policies/projection/personal-data-description.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
 import { TenantConfigurationProjection } from '../policies/projection/tenant-configuration.js';
@@ -135,8 +137,26 @@ export class TenantOperations {
         return this.tenant.assetService.bookSpecialDepreciation(input);
       case 'writeDownAsset':
         return this.tenant.assetService.writeDownAsset(input);
+      case 'writeUpAsset':
+        return this.tenant.assetService.writeUpAsset(input);
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
+      case 'valuateInventory':
+        return this.tenant.inventory.valuate(input);
+      case 'recognizeProvision':
+        return this.tenant.provisionService.recognize(input);
+      case 'useProvision':
+        return this.tenant.provisionService.use(input);
+      case 'releaseProvision':
+        return this.tenant.provisionService.release(input);
+      case 'remeasureProvision':
+        return this.tenant.provisionService.remeasure(input);
+      case 'recognizeDeferral':
+        return this.tenant.deferralService.recognize(input);
+      case 'runDeferralRelease':
+        return this.tenant.deferralService.runRelease(input);
+      case 'adjustInputTax':
+        return this.tenant.inputTaxAdjustment.adjust(input);
       case 'allocate': {
         // Largest-remainder distribution (Money.allocate), scale from the tenant currency
         // (pack parameter currencyScale). Pure computation, no journal effect.
@@ -202,7 +222,14 @@ export class TenantOperations {
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
       case 'personalDataDescription':
-        return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
+        return new PersonalDataDescriptionProjection(
+          tenant.partners,
+          tenant.vouchers,
+          tenant.audit,
+          tenant.assets,
+          tenant.provisions,
+          tenant.deferrals,
+        ).compute(params);
       case 'auditTrailIntegrity':
         return new AuditTrailIntegrityProjection(tenant.audit).run();
       case 'duplicateVouchers':
@@ -239,12 +266,22 @@ export class TenantOperations {
         return new CashJournalProjection(tenant.baseCurrency, tenant.accounts, tenant.journal).compute(params);
       case 'assetRegister':
         return new AssetRegisterProjection(tenant.assets).compute(params);
+      case 'assetSchedule':
+        return new AssetScheduleProjection(tenant.baseCurrency, tenant.assets).compute(params);
       case 'costAllocationSheet':
         return tenant.costing.costAllocationSheet(params);
       case 'overheadRates':
         return tenant.costing.overheadRates(params);
       case 'productionCost':
         return tenant.costing.productionCost(params);
+      case 'measurementConsistency':
+        return new MeasurementConsistencyProjection(tenant.costingRuns).compute(params);
+      case 'inventoryValuation':
+        return tenant.inventory.valuationReport(params);
+      case 'provisionRegister':
+        return tenant.provisionService.register(params);
+      case 'deferralRegister':
+        return tenant.deferralService.register(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

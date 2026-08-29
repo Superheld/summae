@@ -8,6 +8,7 @@ use Summae\Core\DomainError;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Policies\Projection\AccountSheetProjection;
 use Summae\Core\Policies\Projection\AssetRegisterProjection;
+use Summae\Core\Policies\Projection\AssetScheduleProjection;
 use Summae\Core\Policies\Projection\AuditDataExportProjection;
 use Summae\Core\Policies\Projection\AuditLogProjection;
 use Summae\Core\Policies\Projection\AuditTrailIntegrityProjection;
@@ -24,6 +25,7 @@ use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountsProjection;
 use Summae\Core\Policies\Projection\CostingRunsProjection;
 use Summae\Core\Policies\Projection\JournalProjection;
+use Summae\Core\Policies\Projection\MeasurementConsistencyProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\UnappropriatedResult;
 use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
@@ -104,7 +106,24 @@ final readonly class TenantOperations
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
+            'valuateInventory' => $tenant->inventory?->valuate($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "valuateInventory" is not defined'),
+            'recognizeProvision' => $tenant->provisionService?->recognize($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "recognizeProvision" is not defined'),
+            'useProvision' => $tenant->provisionService?->use($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "useProvision" is not defined'),
+            'releaseProvision' => $tenant->provisionService?->release($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "releaseProvision" is not defined'),
+            'remeasureProvision' => $tenant->provisionService?->remeasure($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "remeasureProvision" is not defined'),
+            'recognizeDeferral' => $tenant->deferralService?->recognize($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "recognizeDeferral" is not defined'),
+            'runDeferralRelease' => $tenant->deferralService?->runRelease($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "runDeferralRelease" is not defined'),
+            'adjustInputTax' => $tenant->inputTaxAdjustment?->adjust($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "adjustInputTax" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
+            'writeUpAsset' => $tenant->assetService->writeUpAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
             'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
             'allocate' => $this->allocate($input),
@@ -171,6 +190,9 @@ final readonly class TenantOperations
                 $tenant->partners,
                 $tenant->vouchers,
                 $tenant->audit,
+                $tenant->assets,
+                $tenant->provisions,
+                $tenant->deferrals,
             ))->compute($params),
             'auditTrailIntegrity' => (new AuditTrailIntegrityProjection($tenant->audit))->run(),
             'duplicateVouchers' => (new DuplicateVouchersProjection(
@@ -211,10 +233,18 @@ final readonly class TenantOperations
             ))->compute($params),
             'cashJournal' => (new CashJournalProjection($tenant->baseCurrency, $tenant->accounts, $tenant->journal))->compute($params),
             'assetRegister' => (new AssetRegisterProjection($tenant->assets))->compute($params),
+            'assetSchedule' => (new AssetScheduleProjection($tenant->baseCurrency, $tenant->assets))->compute($params),
             'costingRuns' => (new CostingRunsProjection($tenant->costingRuns))->compute($params),
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'overheadRates' => $tenant->costing->overheadRates($params),
             'productionCost' => $tenant->costing->productionCost($params),
+            'measurementConsistency' => (new MeasurementConsistencyProjection($tenant->costingRuns))->compute($params),
+            'inventoryValuation' => $tenant->inventory?->valuationReport($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "inventoryValuation" is not defined'),
+            'provisionRegister' => $tenant->provisionService?->register($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "provisionRegister" is not defined'),
+            'deferralRegister' => $tenant->deferralService?->register($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "deferralRegister" is not defined'),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

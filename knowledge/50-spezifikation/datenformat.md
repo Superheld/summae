@@ -1,6 +1,8 @@
-# Datenformat-Spezifikation v0.9 (Entwurf)
+# Datenformat-Spezifikation v0.10 (Entwurf)
 
-> Schema-Datei `$id` → **0.9** (geschlossenes `subtype`-Repertoire, bedingte Constraints).
+> Schema-Datei `$id` → **0.10** (die fünf persistierten Aggregate sind deklariert; leere Abbildungen sind `{}`).
+>
+> **0.9** (geschlossenes `subtype`-Repertoire, bedingte Constraints).
 > Anders als die vier Schritte davor ist dies **kein rein additiver**: `account.subtype` war ein
 > freier String und ist jetzt eine Aufzählung, das Schema akzeptiert also **weniger** als vorher.
 > Bestehende Bestände, die ausschließlich kanonische Subtypen tragen — was auf jedes ausgelieferte
@@ -324,10 +326,10 @@ ein Mapping, ein AfA-Satz, eine Policy) — nicht atomar.
 |---|---|---|
 | `formatVersion` | semver | `0.6`. |
 | `id` | String, eindeutig **je `kind`** | Adresse für `dependsOn` / Pack-Manifest-Referenzen. |
-| `kind` | Enum `accounts` \| `tax` \| `mapping` \| `depreciation` \| `policy` \| `assetAccounts` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms` | Bestandteils-**Typ**; bestimmt Struktur von `data` und zulässige `contributes`. Deckt sich mit `modules/<kind>/`. Export-Adapter (DATEV/SAF-T) sind **kein** `kind` (dünner Code je Format). **Maßgeblich ist `testing/testsuite/schema/format.schema.json`** — diese Zeile ist die Erzählung dazu und war bis 2026-08-27 vier Sorten im Rückstand. |
+| `kind` | Enum `accounts` \| `tax` \| `mapping` \| `depreciation` \| `policy` \| `assetAccounts` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms` \| `inventory` \| `provisions` \| `deferrals` \| `inputTaxAdjustment` | Bestandteils-**Typ**; bestimmt Struktur von `data` und zulässige `contributes`. Deckt sich mit `modules/<kind>/`. Export-Adapter (DATEV/SAF-T) sind **kein** `kind` (dünner Code je Format). **Maßgeblich ist `testing/testsuite/schema/format.schema.json`** — diese Zeile ist die Erzählung dazu und war bis 2026-08-27 vier Sorten im Rückstand. **Am 2026-08-29 stand sie erneut vier Sorten im Rückstand** (`inventory`, `provisions`, `deferrals`, `inputTaxAdjustment`), dieselbe Zeile, dieselbe Zahl — der Gate-Test aus IMPL-037 prüfte Version, Abschnitte und `$defs`, aber nicht dieses Enum. Seither tut er es (Punkt 4 in § *Wer dieses Dokument gegen das Produkt hält*). |
 | `version` | String | Modul-Version, pinbar; Update = neue Version, nie still (erbt Profil-Pinning, v0.2). |
 | `name` | String | Menschenlesbar, nicht referenzwirksam. |
-| `contributes` | Array (Werte: `accounts` \| `taxCodes` \| `mappings` \| `assetAccounts` \| `policy` \| `depreciation` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms`) | Welche `ResolvedPack`-Felder das Modul füllt — Basis der Integritätsprüfung. I. d. R. eine Sorte, passend zum `kind`. |
+| `contributes` | Array (Werte: `accounts` \| `taxCodes` \| `mappings` \| `assetAccounts` \| `policy` \| `depreciation` \| `productionCost` \| `constraint` \| `resultAppropriation` \| `legalForms` \| `inventory` \| `provisions` \| `deferrals` \| `inputTaxAdjustment`) | Welche `ResolvedPack`-Felder das Modul füllt — Basis der Integritätsprüfung. I. d. R. eine Sorte, passend zum `kind`. |
 | `dependsOn` | Array `{kind, id, version?}` | Module, deren Beiträge dieses referenziert (Steuer→Konten). Auflösungsreihenfolge + Integritätsbasis. Fehlt `version`, gilt die im Pack-Manifest gewählte. |
 | `data` | Objekt, je `kind` | Die Regelmodul-Daten — **wortgleich** zu den heutigen Strukturen dieser Spec. |
 
@@ -335,7 +337,7 @@ ein Mapping, ein AfA-Satz, eine Policy) — nicht atomar.
 (`E_PACK_INCOHERENT`), nicht still ignorieren.
 
 **`kind` → Politiksorte (eindeutig).** Jedes Modul bedient *genau eine* Politiksorte, bestimmt durch `kind`:
-`tax`/`depreciation`/`assetAccounts`/`resultAppropriation`/`productionCost` → **Expansion** ·
+`tax`/`depreciation`/`assetAccounts`/`resultAppropriation`/`productionCost`/`inventory`/`provisions`/`deferrals`/`inputTaxAdjustment` → **Expansion** ·
 `mapping`/`legalForms` → **Projektion** · `accounts` → **Substrat** · `constraint` → **Constraint**
 (seit 2026-08-23, bislang genau ein Prädikat: `dimensionRules`) · `policy` → **Parameter (querliegend)**.
 
@@ -393,6 +395,25 @@ Struktur, nur in den Modul-Umschlag gelegt — keine erfundenen Felder):**
   (`acquisitionCounterAccount`, `depreciationExpenseAccount`, `gwgExpenseAccount`,
   `disposalProceedsAccount`, `disposalLossAccount`) per `number`, optional `perClass`.
 - `policy` → `data.packPolicy` = die drei Policy-Felder (§ `packPolicy`).
+- `inventory` → `data.categories[]` = `{account, changeAccount, label}` je Vorratsart. Der Kern
+  rechnet und bucht die **Differenz** zum Buchwert; dass Deutschland dabei zwei verschiedene
+  GuV-Zeilen trifft (Bestandsveränderung bei Erzeugnissen § 275 Abs. 2 Nr. 2, Korrektur des
+  Materialaufwands bei Roh-, Hilfs- und Betriebsstoffen und Waren, Nr. 5), steht genau hier — das
+  `us`-Pack schreibt in allen vier Zeilen dasselbe Gegenkonto (COGS) und ändert am Kern nichts.
+- `provisions` → `data.accounts[]` = `{account, expenseAccount, releaseAccount, label}` und
+  `data.discounting` = `{fromMonths, basis}`. **Der Zinssatz steht bewusst nicht im Pack** (§ 253
+  Abs. 2 HGB, monatlich von der Bundesbank bekanntgegeben): die *Regel* ist Pack-Datum, der *Satz*
+  ist Eingabe je Vorgang. Fehlt er, wo abzuzinsen ist, wird abgewiesen
+  (`E_PROVISION_DISCOUNT_RATE_REQUIRED`) statt undiskontiert gebucht.
+- `deferrals` → `data.kinds[]` = `{kind, account, label}` für genau zwei Richtungen
+  (`prepaidExpense`, `deferredIncome`). Welches Aufwands-/Ertragskonto betroffen ist, sagt der
+  Aufrufer — das ist eine Tatsache über den Vorgang, keine über die Rechtsordnung.
+- `inputTaxAdjustment` → `data.correctionPeriods[]` = `{assetKind, years, basis}`,
+  `data.deMinimis` = `{inputTaxAtMost, sharePointsAtLeast, amountAtMost, basis}`, `data.accounts`
+  = `{taxAccount, expenseAccount, incomeAccount}`, `data.reportingKey`, `data.basis`. Die Mechanik
+  (anteilige Berichtigung über einen Beobachtungszeitraum mit zwei Bagatellgrenzen) ist Kern; eine
+  dem Pack unbekannte `assetKind` ist `E_PACK_INCOHERENT`, nie ein Default — fünf Jahre statt zehn
+  halbieren jede Berichtigung.
 
 > **`dimensionRules` ist nicht Teil dieses v0.6-Schritts.** Eine `kind: dimensionRules`-
 > Modulform (mit Regel-Feldern wie `typeCode`/`required`/`allowedCodes`/`accounts`) ist
@@ -549,6 +570,41 @@ erfüllbar ist, weil die Tatsache fehlt (kein `setEntityProfile`), greift **nich
 `tenantConfiguration` meldet sie trotzdem, damit ein Aufrufer „keine Regel" von „Regel wartet auf
 eine Angabe" unterscheiden kann.
 
+## v0.10 — Die persistierten Aggregate, endlich im Format (IMPL-046)
+
+**Was fehlte, und wie lange.** Dieses Dokument beschrieb bis 2026-08-29 den **Austausch**bestand:
+Journal, Konten, Belege, Partner, offene Posten, Audit-Trail — alles, was `journalExport` auf den
+Datenträger legt. Die Persistenz-Adapter legen aber mehr ab, und lesen es zurück: **Anlagegüter**
+(seit M2), **Kostenrechnungsläufe** (seit 2026-08-24) und seit 2026-08-29 **Rückstellungen**,
+**Rechnungsabgrenzungsposten** und **Vorratsbewertungen**. Das Root-`CLAUDE.md` nennt genau dieses
+JSON „the shared data format", und die Vertragspflicht dazu lautet: was die Engine liest, wird gegen
+`format.schema.json` validiert. Fünf Dokumentsorten taten das nicht — der CHANGELOG sagte „the data
+format gains four record kinds", während `FORMAT_VERSION` unverändert stand und das Schema keine
+einzige von ihnen kannte.
+
+**Sechs neue `$defs`** (fünf Aggregate, das Anlagegut in zwei Dokumenten, weil die Adapter es in zwei
+Spalten ablegen): `asset`, `assetState`, `costingRun`, `provision`, `deferral`,
+`inventoryValuation`. Sie beschreiben **den gespeicherten Bestand**, nicht das Anlageverzeichnis, das
+ein Prüfer liest — deshalb stehen dort auch die Mechanik-Felder, deren Verlust bei einem Neustart
+still falsch rechnet: `depreciationStart`, `scheduleRevised`, `monthlySchedule` und vor allem
+`originalSchedule`, der Schattenplan, aus dem der Zuschreibungsdeckel kommt (F-CORE-052).
+
+**Und ein echter Formatunterschied, gefunden von genau der Prüfung, die es bis dahin nicht gab.**
+Eine leere Abbildung (`costingRun.primary`, `afterAllocation`) kodierte PHP als `[]` und Node als
+`{}` — PHPs leeres Array *ist* eine Liste. Auf einer geteilten Datenbank (SF-15) sind das zwei
+verschiedene Dokumente; kein Test hat je zwei Bestände miteinander verglichen, weil der Cross-Test
+nur `journalExport` gegenüberstellte. Seit 2026-08-29 vergleicht er **die gespeicherten Aggregate
+selbst**, byte-genau, in beide Richtungen, und validiert jedes Dokument beider Bestände gegen dieses
+Schema. Beim ersten Lauf: 136 Dokumente, ein Unterschied, eine Fixture von 126. Kanonisch ist `{}`;
+PHP nutzt jetzt dieselbe `stdClass`-Redewendung wie `auditRecord.changes`, wo derselbe Fehler schon
+einmal auffiel.
+
+**Migration.** Additiv für jeden Leser: die sechs Sorten waren vorher *undeklariert*, nicht anders
+deklariert. Bestehende Bestände bleiben gültig — mit einer Ausnahme, die genau die Korrektur ist: ein
+von PHP geschriebener Lauf **ohne** Kostenstellen trägt `[]` statt `{}` und validiert nicht. Er wird
+beim nächsten Schreiben korrekt abgelegt; ein Bestand, der nur gelesen wird, ist von der Änderung in
+seinen Zahlen nicht betroffen.
+
 ## Wer dieses Dokument gegen das Produkt hält
 
 Bis 2026-08-28 niemand, und das war der Befund IMPL-037: `format.schema.json` wird gegen
@@ -566,6 +622,11 @@ GoBD-Zensus) drei enge Behauptungen — keine Prosaprüfung, die wäre weder err
    Veröffentlichung kann ihren eigenen Eintrag nicht mehr überspringen.
 3. Jeder `$defs`-Schlüssel des Schemas kommt in diesem Dokument vor. Ein Objekt, das das Schema
    kennt und die Spezifikation nicht nennt, ist dieselbe Lücke aus der anderen Richtung.
+4. **Seit 2026-08-29:** das `kind`-Enum der Modul-Tabelle oben ist mengengleich mit dem `kind`-Enum
+   in `format.schema.json`. Punkt 3 fing das nicht: `module` *kam* vor, nur seine Aufzählung der
+   Modulsorten war vier Sorten im Rückstand — zum zweiten Mal, in derselben Zeile. Eine Aufzählung,
+   die sich als geschlossen ausgibt, muss gegen die Quelle gehalten werden, aus der sie geschlossen
+   ist, sonst ist sie eine Behauptung über einen Stand von gestern.
 
 ### Wo jeder `$defs`-Schlüssel spezifiziert ist
 
@@ -599,6 +660,12 @@ Formen nur als `kind` auftauchen. Ein Leser, der vom Schema herkommt, fand sie d
 | `productionCostData` | § v0.6 → `module`, `kind: productionCost` |
 | `auditRecord` | § v0.3 / § `auditLog.jsonl`; Hashes § v0.8 |
 | `manifest` | § Mandant & Export-Manifest; präzisiert § v0.5 |
+| `asset` | § v0.10 → persistierte Aggregate |
+| `assetState` | § v0.10 → persistierte Aggregate (Bewegungsteil) |
+| `costingRun` | § v0.10 → persistierte Aggregate |
+| `provision` | § v0.10 → persistierte Aggregate |
+| `deferral` | § v0.10 → persistierte Aggregate |
+| `inventoryValuation` | § v0.10 → persistierte Aggregate |
 
 ## Offene Punkte v0.4 → v0.5
 

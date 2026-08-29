@@ -49,19 +49,24 @@ final readonly class SystemDescriptionProjection
         'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
         'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
         'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
-        'erasePartner',
+        'adjustInputTax', 'erasePartner',
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
         'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-        'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
-        'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
+        'recognizeDeferral', 'recognizeProvision', 'releaseProvision', 'remeasureProvision',
+        'reverse', 'runCosting', 'runDeferralRelease', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
+        'useProvision', 'valuateInventory',
+        'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset', 'writeUpAsset'
     ];
 
     /** @var list<string> */
     public const API_PROJECTIONS = [
-        'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
-        'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'duplicateVouchers', 'ecSalesList',
-        'fiscalYears', 'gdpduExport', 'incomeStatement', 'journal', 'journalExport', 'openItems', 'personalDataDescription', 'overheadRates',
-        'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
+        'accountSheet', 'accounts', 'assetRegister', 'assetSchedule', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
+        'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'deferralRegister',
+        'duplicateVouchers', 'ecSalesList',
+        'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
+        'measurementConsistency', 'openItems',
+        'personalDataDescription', 'overheadRates',
+        'productionCost', 'provisionRegister', 'systemDescription', 'tenantConfiguration', 'trialBalance',
         'unappropriatedResult', 'unfinalizedEntries', 'vatReturn'
     ];
 
@@ -153,10 +158,15 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'entityProfile', 'actions' => ['changed']],
         ['objectType' => 'mapping', 'actions' => ['imported']],
         ['objectType' => 'allocationScheme', 'actions' => ['changed']],
-        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown']],
+        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown', 'writtenUp']],
         ['objectType' => 'dimensionType', 'actions' => ['created']],
         ['objectType' => 'dimensionValue', 'actions' => ['created']],
         ['objectType' => 'depreciationRun', 'actions' => ['completed']],
+        ['objectType' => 'inventoryValuation', 'actions' => ['valued']],
+        ['objectType' => 'provision', 'actions' => ['recognized', 'used', 'released', 'remeasured']],
+        ['objectType' => 'deferral', 'actions' => ['recognized']],
+        ['objectType' => 'deferralRelease', 'actions' => ['completed']],
+        ['objectType' => 'inputTaxAdjustment', 'actions' => ['adjusted']],
         ['objectType' => 'costingRun', 'actions' => ['created', 'released']],
     ];
 

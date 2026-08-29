@@ -1,4 +1,11 @@
-import type { AuditTrail, PartnerRepository, VoucherRepository } from '../../port.js';
+import type {
+  AssetRepository,
+  AuditTrail,
+  DeferralRepository,
+  PartnerRepository,
+  ProvisionRepository,
+  VoucherRepository,
+} from '../../port.js';
 import { FORMAT_VERSION } from '../../substrate/format-version.js';
 
 /**
@@ -34,6 +41,12 @@ export class PersonalDataDescriptionProjection {
     private readonly partners: PartnerRepository,
     private readonly vouchers: VoucherRepository,
     private readonly audit: AuditTrail,
+    // The three stores that hold operator free text OUTSIDE the exchange format (IMPL-045).
+    // Optional because a hand-built tenant may not carry them; an absent store reports
+    // `present: null` — "not counted" — never 0, which would claim there is nothing there.
+    private readonly assets?: AssetRepository,
+    private readonly provisions?: ProvisionRepository,
+    private readonly deferrals?: DeferralRepository,
   ) {}
 
   compute(_params: Record<string, unknown>): Record<string, unknown> {
@@ -85,6 +98,13 @@ export class PersonalDataDescriptionProjection {
           present: null,
           mirrors: 'the fields of whatever record changed',
         },
+        // Three fields that are NOT in the exchange format and were missing from this inventory
+        // until 2026-08-29 (IMPL-045). `journalExport` does not carry them, so an Art. 30 record
+        // assembled from the export alone misses them — and a provision is by its nature often
+        // about a named party: a dispute, a warranty claim, a severance.
+        { holder: 'asset', field: 'name', freeText: true, required: true, present: this.assets?.all().length ?? null },
+        { holder: 'provision', field: 'reason', freeText: true, required: true, present: this.provisions?.all().length ?? null },
+        { holder: 'deferral', field: 'reason', freeText: true, required: true, present: this.deferrals?.all().length ?? null },
       ],
       // Which address keys this tenant's data actually uses. The format declares a recommended
       // shape and does not forbid others, so the only truthful answer to "what is in there" is to

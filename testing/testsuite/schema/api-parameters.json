@@ -435,6 +435,81 @@
       "period": { "type": "integer" },
       "actor": { "type": "string" }
     },
+    "valuateInventory": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "valuationDate": { "type": "date", "required": true },
+      "runId": { "type": "string" },
+      "producedQuantity": { "type": "string" },
+      "categories": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "quantity": { "type": "string" },
+            "unitCost": { "type": "string" },
+            "marketValue": { "type": "string" }
+          }
+        }
+      },
+      "actor": { "type": "string" }
+    },
+    "recognizeProvision": {
+      "account": { "type": "string", "required": true },
+      "reason": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "recognizedOn": { "type": "date", "required": true },
+      "dueDate": { "type": "date" },
+      "discountRate": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "useProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "settlementAccount": { "type": "string", "required": true },
+      "date": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "releaseProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money" },
+      "date": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "remeasureProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "date": { "type": "date", "required": true },
+      "discountRate": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "adjustInputTax": {
+      "originalInputTax": { "type": "money", "required": true },
+      "originalSharePercent": { "type": "string", "required": true },
+      "currentSharePercent": { "type": "string", "required": true },
+      "assetKind": { "type": "string", "required": true },
+      "reason": { "type": "string", "required": true },
+      "date": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "recognizeDeferral": {
+      "kind": { "type": "string", "required": true },
+      "reason": { "type": "string", "required": true },
+      "counterAccount": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "recognizedOn": { "type": "date", "required": true },
+      "firstFiscalYear": { "type": "integer", "required": true },
+      "firstPeriod": { "type": "integer", "required": true },
+      "periods": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
+    "runDeferralRelease": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "actor": { "type": "string" }
+    },
     "reportAssetUsage": {
       "assetId": { "type": "string", "required": true },
       "fiscalYear": { "type": "integer", "required": true },
@@ -450,6 +525,14 @@
       "actor": { "type": "string" }
     },
     "writeDownAsset": {
+      "assetId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "date": { "type": "date", "required": true },
+      "reason": { "type": "string", "required": true },
+      "voucherId": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "writeUpAsset": {
       "assetId": { "type": "string", "required": true },
       "amount": { "type": "money", "required": true },
       "date": { "type": "date", "required": true },
@@ -792,6 +875,24 @@
         "type": "string",
         "required": true
       }
+    },
+    "assetSchedule": {
+      "fiscalYear": { "type": "integer", "required": true }
+    },
+    "deferralRegister": {
+      "kind": { "type": "string" },
+      "status": { "type": "string" }
+    },
+    "provisionRegister": {
+      "status": { "type": "string" },
+      "asOf": { "type": "date" }
+    },
+    "inventoryValuation": {
+      "fiscalYear": { "type": "integer" },
+      "period": { "type": "integer" }
+    },
+    "measurementConsistency": {
+      "$comment": "No parameters, and that is a decision rather than an omission: \u00a7 252 Abs. 1 Nr. 6 reaches ACROSS years, so a fiscalYear filter would hide exactly the change this projection exists to report. Same reasoning duplicateVouchers gives for refusing a date window."
     },
     "tenantConfiguration": {}
   }

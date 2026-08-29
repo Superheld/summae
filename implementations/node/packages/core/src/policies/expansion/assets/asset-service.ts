@@ -580,6 +580,149 @@ export class AssetService {
     };
   }
 
+  /**
+   * Reverse an earlier write-down when its reason has ceased (`writeUpAsset`, F-CORE-052).
+   *
+   * **This is a duty, not an option, and its absence was the smallest of the real legal gaps.**
+   * `writeDownAsset` has existed for a long time with no counterpart, so an asset written down in a
+   * bad year stayed down for ever — which understates equity and the result exactly as permanently
+   * as the write-down was meant to state them prudently for one year.
+   *
+   * **Two caps, and the second is the one that needs the shadow plan.** Nothing may be written back
+   * that was not written down (`unreversedWriteDowns`), and the book value may not exceed what it
+   * would have been had the write-down never happened (`amortisedCostCeiling`). The second is
+   * stricter than the first and is easy to get wrong: a write-down also lowers every remaining
+   * planned instalment, so the book value climbs *above* the untouched plan as the years run on.
+   * Reversing in full would then carry the asset over its amortised cost.
+   *
+   * **What the caller decides and what the core decides.** Whether the reason has ceased, and by how
+   * much the value has recovered, is an appraisal — a judgement about the world, which no library
+   * makes. The amount is therefore an input. The ceiling is arithmetic, and that is the part that is
+   * enforced.
+   */
+  writeUpAsset(input: Record<string, unknown>): Record<string, unknown> {
+    const asset = this.requireAsset(input.assetId);
+    asset.assertActive();
+
+    const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+    if (reason === '') {
+      throw new DomainError(
+        'E_INPUT_INVALID',
+        'writeUpAsset: "reason" is required — a write-up that does not say why the impairment ceased is not auditable',
+        { assetId: asset.id.value },
+      );
+    }
+
+    const amount = this.parseMoney(input.amount);
+    if (amount.isNegative() || amount.isZero()) {
+      throw new DomainError('E_INPUT_INVALID', 'writeUpAsset: "amount" must be greater than zero', {
+        amount: amount.amountAsString(),
+      });
+    }
+
+    const reversible = asset.unreversedWriteDowns();
+    if (amount.compareTo(reversible) > 0) {
+      throw new DomainError(
+        'E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN',
+        `writeUpAsset: ${amount.amountAsString()} exceeds the ${reversible.amountAsString()} still written down on this asset`,
+        { amount: amount.amountAsString(), reversible: reversible.amountAsString() },
+      );
+    }
+
+    const bookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+    const ceiling = asset.amortisedCostCeiling();
+    if (bookValue.add(amount).compareTo(ceiling) > 0) {
+      throw new DomainError(
+        'E_ASSET_WRITE_UP_EXCEEDS_CEILING',
+        `writeUpAsset: ${amount.amountAsString()} would carry the asset to ` +
+          `${bookValue.add(amount).amountAsString()}, above the amortised cost of ${ceiling.amountAsString()}`,
+        {
+          amount: amount.amountAsString(),
+          bookValue: bookValue.amountAsString(),
+          ceiling: ceiling.amountAsString(),
+        },
+      );
+    }
+
+    const date = CalendarDate.of(typeof input.date === 'string' ? input.date : '');
+
+    const openPlanMonths: number[] = [];
+    for (let planMonth = 1; planMonth <= asset.monthlySchedule.length; planMonth++) {
+      if (!asset.isMonthBooked(planMonth)) openPlanMonths.push(planMonth);
+    }
+
+    const voucherId =
+      typeof input.voucherId === 'string' && input.voucherId !== ''
+        ? this.requireVoucherId(input.voucherId)
+        : this.writeUpVoucher(asset, date);
+
+    const entry = this.postMachineEntry(
+      date,
+      voucherId,
+      `Write-up ${asset.name}: ${reason}`,
+      this.withDimensions(asset, [
+        { account: asset.assetAccount.value, side: 'debit', money: amount.toJSON() },
+        { account: this.writeUpIncomeAccount(), side: 'credit', money: amount.toJSON() },
+      ]),
+    );
+
+    asset.recordWriteUp(date, amount, entry, openPlanMonths);
+    this.assets.save(asset);
+
+    const newBookValue = asset.acquisitionCost.subtract(asset.accumulatedDepreciationAt(null));
+
+    this.trace(input, 'asset', asset.id, 'writtenUp', {
+      bookValue: { from: bookValue.amountAsString(), to: newBookValue.amountAsString() },
+      reason: { from: null, to: reason },
+    });
+
+    return {
+      assetId: asset.id.value,
+      entryId: entry.value,
+      amount: amount.amountAsString(),
+      bookValue: newBookValue.amountAsString(),
+      ceiling: ceiling.amountAsString(),
+      stillReversible: asset.unreversedWriteDowns().amountAsString(),
+    };
+  }
+
+  /**
+   * Where a write-up is booked. **Required from the pack**, and the asymmetry with the impairment
+   * account is deliberate rather than an oversight.
+   *
+   * A write-down that names no account falls back to ordinary depreciation, which is not wrong —
+   * only less informative, because both are a charge against the same asset. There is no equivalent
+   * on the income side: the disposal-proceeds account is specifically a *gain on disposal*, and a
+   * write-up is not one. Borrowing it would put a figure under a heading that says something untrue
+   * about it, which is worse than asking the pack to say where it goes.
+   */
+  private writeUpIncomeAccount(): string {
+    const block = isRecord(this.ruleModule.assetAccounts) ? this.ruleModule.assetAccounts : {};
+    const value = block.writeUpIncomeAccount;
+
+    if (typeof value !== 'string' || value === '') {
+      throw new DomainError(
+        'E_PACK_INCOHERENT',
+        'assetAccounts.writeUpIncomeAccount is not set in the rule module — a write-up needs an ' +
+          'income account of its own; the disposal account would name it something it is not',
+        { field: 'assetAccounts.writeUpIncomeAccount' },
+      );
+    }
+
+    return value;
+  }
+
+  private writeUpVoucher(asset: Asset, date: CalendarDate): Uuid {
+    const voucher = new Voucher({
+      id: this.ids.next(),
+      voucherNumber: `ZUSCHR-${date.iso.replaceAll('-', '')}-${asset.id.value.slice(-6)}`,
+      voucherDate: date,
+      kind: 'internal',
+    });
+    this.vouchers.add(voucher);
+    return voucher.id;
+  }
+
   private rebaseAfterSpecialWindow(asset: Asset, fiscalYear: number): void {
     if (
       asset.specialDepreciationWindowEnd === null ||

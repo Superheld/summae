@@ -14,6 +14,16 @@ import {
   CalendarDate,
   CostingRun,
   type CostingRunRepository,
+  InventoryValuation,
+  type InventoryCategoryRow,
+  type InventoryValuationRepository,
+  Provision,
+  type ProvisionMovement,
+  type ProvisionRepository,
+  Deferral,
+  type DeferralInstalment,
+  type DeferralRelease,
+  type DeferralRepository,
   type Currency,
   type EntryStatus,
   FiscalYear,
@@ -539,6 +549,244 @@ export class DatabaseCostingRunRepository implements CostingRunRepository {
   }
 }
 
+/**
+ * Inventory valuations — payload as JSON, one row per act (F-CORE-050).
+ *
+ * Period and version are columns rather than payload fields for the reason the costing runs give:
+ * they are what a valuation is *found* by, and the next version of a period comes out of the store.
+ * There is no `save` — a valuation is never edited. Repeating one produces the next version, whose
+ * posting is the difference against what the books by then already carry.
+ */
+export class DatabaseInventoryValuationRepository implements InventoryValuationRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(valuation: InventoryValuation): void {
+    this.db.run(
+      this.table().insert({
+        id: valuation.id.value,
+        tenant_id: this.tenantId.value,
+        fiscal_year: valuation.period.fiscalYear,
+        period: valuation.period.period,
+        version: valuation.version,
+        payload: H.encode(valuation.toJSON()),
+      }),
+    );
+  }
+
+  all(): InventoryValuation[] {
+    return this.db
+      .all(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .orderBy('fiscal_year')
+          .orderBy('period')
+          .orderBy('version'),
+      )
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): InventoryValuation {
+    const data = H.decode(row.payload);
+
+    return InventoryValuation.restore(
+      Uuid.fromString(str(row, 'id')),
+      new PeriodRef(Number(row.fiscal_year), Number(row.period)),
+      Number(row.version),
+      CalendarDate.of(typeof data.valuationDate === 'string' ? data.valuationDate : '1970-01-01'),
+      typeof data.runId === 'string' ? Uuid.fromString(data.runId) : null,
+      Array.isArray(data.categories) ? (data.categories as InventoryCategoryRow[]) : [],
+      H.money(H.isRecord(data.closingTotal) ? data.closingTotal : {}, this.currency),
+      H.money(H.isRecord(data.change) ? data.change : {}, this.currency),
+      typeof data.entryId === 'string' ? Uuid.fromString(data.entryId) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}inventory_valuations`);
+  }
+}
+
+/**
+ * Provisions — payload as JSON, one row per provision (F-CORE-051).
+ *
+ * `save` rewrites the payload, because a provision changes over years: used, released, re-measured.
+ * The movement list travels with it, so the register is the same history after a restart as it was
+ * before — which is the whole reason it is a record and not an account balance.
+ */
+export class DatabaseProvisionRepository implements ProvisionRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(provision: Provision): void {
+    this.db.run(
+      this.table().insert({
+        id: provision.id.value,
+        tenant_id: this.tenantId.value,
+        account: provision.account.toString(),
+        status: provision.status(),
+        payload: H.encode(provision.toJSON()),
+      }),
+    );
+  }
+
+  save(provision: Provision): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', provision.id.value)
+        .update({ status: provision.status(), payload: H.encode(provision.toJSON()) }),
+    );
+  }
+
+  byId(id: Uuid): Provision | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
+    return row === null ? null : this.hydrate(row);
+  }
+
+  all(): Provision[] {
+    return this.db
+      .all(this.table().where('tenant_id', this.tenantId.value).orderBy('id'))
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): Provision {
+    const data = H.decode(row.payload);
+
+    const movements: ProvisionMovement[] = (Array.isArray(data.movements) ? data.movements : []).flatMap(
+      (movement: unknown) => {
+        if (!H.isRecord(movement)) return [];
+        return [
+          {
+            kind: typeof movement.kind === 'string' ? movement.kind : '',
+            date: CalendarDate.of(typeof movement.date === 'string' ? movement.date : '1970-01-01'),
+            amount: H.isRecord(movement.amount)
+              ? H.money(movement.amount, this.currency)
+              : Money.zero(this.currency),
+            entryId: typeof movement.entryId === 'string' ? Uuid.fromString(movement.entryId) : null,
+            note: typeof movement.note === 'string' ? movement.note : null,
+          },
+        ];
+      },
+    );
+
+    return Provision.restore(
+      Uuid.fromString(str(row, 'id')),
+      typeof data.reason === 'string' ? data.reason : '',
+      AccountNumber.of(typeof data.account === 'string' ? data.account : ''),
+      AccountNumber.of(typeof data.expenseAccount === 'string' ? data.expenseAccount : ''),
+      AccountNumber.of(typeof data.releaseAccount === 'string' ? data.releaseAccount : ''),
+      CalendarDate.of(typeof data.recognizedOn === 'string' ? data.recognizedOn : '1970-01-01'),
+      typeof data.dueDate === 'string' ? CalendarDate.of(data.dueDate) : null,
+      H.money(H.isRecord(data.settlementAmount) ? data.settlementAmount : {}, this.currency),
+      H.money(H.isRecord(data.carryingAmount) ? data.carryingAmount : {}, this.currency),
+      typeof data.discountRate === 'string' ? data.discountRate : null,
+      movements,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}provisions`);
+  }
+}
+
+/**
+ * Prepaid and deferred items — payload as JSON, one row each (F-CORE-053).
+ *
+ * `save` rewrites the payload because the release run appends to it, month after month. What must
+ * survive is not only the plan but *which instalments have already run*: a release run that decided
+ * from a balance rather than from a record would book a period twice after a restart, and the whole
+ * point of the operation is that nobody has to remember.
+ */
+export class DatabaseDeferralRepository implements DeferralRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(deferral: Deferral): void {
+    this.db.run(
+      this.table().insert({
+        id: deferral.id.value,
+        tenant_id: this.tenantId.value,
+        kind: deferral.kind,
+        status: deferral.isSettled() ? 'settled' : 'open',
+        payload: H.encode(deferral.toJSON()),
+      }),
+    );
+  }
+
+  save(deferral: Deferral): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', deferral.id.value)
+        .update({
+          status: deferral.isSettled() ? 'settled' : 'open',
+          payload: H.encode(deferral.toJSON()),
+        }),
+    );
+  }
+
+  all(): Deferral[] {
+    return this.db
+      .all(this.table().where('tenant_id', this.tenantId.value).orderBy('id'))
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): Deferral {
+    const data = H.decode(row.payload);
+
+    const plan: DeferralInstalment[] = (Array.isArray(data.plan) ? data.plan : [])
+      .filter(H.isRecord)
+      .map((entry) => ({
+        fiscalYear: typeof entry.fiscalYear === 'number' ? entry.fiscalYear : 0,
+        period: typeof entry.period === 'number' ? entry.period : 0,
+        amount: H.money(H.isRecord(entry.amount) ? entry.amount : {}, this.currency),
+      }));
+
+    const released: DeferralRelease[] = (Array.isArray(data.released) ? data.released : [])
+      .filter(H.isRecord)
+      .flatMap((entry) =>
+        typeof entry.entryId === 'string'
+          ? [
+              {
+                fiscalYear: typeof entry.fiscalYear === 'number' ? entry.fiscalYear : 0,
+                period: typeof entry.period === 'number' ? entry.period : 0,
+                amount: H.money(H.isRecord(entry.amount) ? entry.amount : {}, this.currency),
+                date: CalendarDate.of(typeof entry.date === 'string' ? entry.date : '1970-01-01'),
+                entryId: Uuid.fromString(entry.entryId),
+              },
+            ]
+          : [],
+      );
+
+    return Deferral.restore(
+      Uuid.fromString(str(row, 'id')),
+      typeof data.kind === 'string' ? data.kind : '',
+      typeof data.reason === 'string' ? data.reason : '',
+      AccountNumber.of(typeof data.account === 'string' ? data.account : ''),
+      AccountNumber.of(typeof data.counterAccount === 'string' ? data.counterAccount : ''),
+      CalendarDate.of(typeof data.recognizedOn === 'string' ? data.recognizedOn : '1970-01-01'),
+      H.money(H.isRecord(data.amount) ? data.amount : {}, this.currency),
+      plan,
+      released,
+      typeof data.recognitionEntryId === 'string' ? Uuid.fromString(data.recognitionEntryId) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}deferrals`);
+  }
+}
+
 /** Business partners — payload as JSON. */
 export class DatabasePartnerRepository implements PartnerRepository {
   constructor(
@@ -658,6 +906,10 @@ export class DatabaseAssetRepository implements AssetRepository {
       // schedule IS the plan, and a restart that forgot this would go back to re-deriving the plan
       // from the acquisition cost — the very figure the write-down said is no longer valid.
       scheduleRevised: asset.scheduleWasRevised(),
+      // The shadow plan (F-CORE-052). Mechanics again, and lost silently again: without it a
+      // write-up after a restart would take the REBASED plan for the original one and compute a
+      // ceiling that is too high, letting an asset be carried above its amortised cost.
+      originalSchedule: asset.originalScheduleShares().map((amount) => amount.toJSON()),
       specialDepreciationBudget: asset.specialDepreciationBudget?.toJSON() ?? null,
       specialDepreciationWindowEnd: asset.specialDepreciationWindowEnd,
       totalUnits: asset.totalUnits,
@@ -680,6 +932,9 @@ export class DatabaseAssetRepository implements AssetRepository {
     const schedule = (Array.isArray(data.monthlySchedule) ? data.monthlySchedule : [])
       .filter(H.isRecord)
       .map((amount) => H.money(amount, this.currency));
+    const originalSchedule = Array.isArray(data.originalSchedule)
+      ? data.originalSchedule.filter(H.isRecord).map((amount) => H.money(amount, this.currency))
+      : null;
     const depreciations = (Array.isArray(state.depreciations) ? state.depreciations : [])
       .filter(H.isRecord)
       .map((booking) => ({
@@ -722,6 +977,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
       typeof data.totalUnits === 'number' ? data.totalUnits : null,
       typeof data.reportedUnits === 'number' ? data.reportedUnits : 0,
+      originalSchedule,
     );
   }
 

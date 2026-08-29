@@ -1,0 +1,111 @@
+{
+  "formatVersion": "0.6",
+  "id": "de",
+  "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
+  "version": "2026.12",
+  "modules": [
+    {
+      "kind": "accounts",
+      "id": "de-konten",
+      "version": "2026.6"
+    },
+    {
+      "kind": "tax",
+      "id": "de-ust",
+      "version": "2026.4"
+    },
+    {
+      "kind": "mapping",
+      "id": "de-bilanz",
+      "version": "2026.5"
+    },
+    {
+      "kind": "mapping",
+      "id": "de-guv",
+      "version": "2026.2"
+    },
+    {
+      "kind": "mapping",
+      "id": "de-euer",
+      "version": "2026.5"
+    },
+    {
+      "kind": "depreciation",
+      "id": "de-afa",
+      "version": "2026.7"
+    },
+    {
+      "kind": "assetAccounts",
+      "id": "de-assets",
+      "version": "2026.1"
+    },
+    {
+      "kind": "policy",
+      "id": "de-policy",
+      "version": "2026.1"
+    },
+    {
+      "kind": "resultAppropriation",
+      "id": "de-ergebnisverwendung",
+      "version": "2026.1"
+    },
+    {
+      "kind": "productionCost",
+      "id": "de-herstellungskosten",
+      "version": "2026.1"
+    },
+    {
+      "kind": "inventory",
+      "id": "de-vorraete",
+      "version": "2026.1"
+    },
+    {
+      "kind": "provisions",
+      "id": "de-rueckstellungen",
+      "version": "2026.1"
+    },
+    {
+      "kind": "legalForms",
+      "id": "de-rechtsformen",
+      "version": "2026.1"
+    },
+    {
+      "kind": "constraint",
+      "id": "de-entgeltminderung",
+      "version": "2026.1"
+    },
+    {
+      "kind": "constraint",
+      "id": "de-kleinunternehmer",
+      "version": "2026.1"
+    },
+    {
+      "kind": "constraint",
+      "id": "de-kapitalgesellschaft",
+      "version": "2026.1"
+    }
+  ],
+  "overrides": [],
+  "taxCodes": [
+    "USt19",
+    "USt7",
+    "VSt19",
+    "VSt7",
+    "RC13b",
+    "igL",
+    "USt19WA",
+    "IGE19",
+    "IGE7",
+    "AUSFUHR"
+  ],
+  "defaults": {
+    "taxationMethod": "cash",
+    "smallBusiness": false,
+    "vatPeriod": "quarterly"
+  },
+  "packPolicy": {
+    "roundingMode": "halfUpAwayFromZero",
+    "taxRoundingGranularity": "perVoucher",
+    "currencyScale": 2
+  }
+}

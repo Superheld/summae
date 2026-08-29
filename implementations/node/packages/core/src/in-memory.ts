@@ -4,6 +4,9 @@ import type {
   AuditCriteria,
   AuditTrail,
   CostingRunRepository,
+  InventoryValuationRepository,
+  DeferralRepository,
+  ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -15,6 +18,9 @@ import type {
 import { applyAuditCriteria } from './records/audit-filter.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
+import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
+import type { Deferral } from './policies/expansion/deferrals/deferral.js';
+import type { Provision } from './policies/expansion/provisions/provision.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';
@@ -257,6 +263,57 @@ export class InMemoryCostingRunRepository implements CostingRunRepository {
       const byPeriod = a.period.period - b.period.period;
       return byPeriod !== 0 ? byPeriod : a.version - b.version;
     });
+  }
+}
+
+export class InMemoryInventoryValuationRepository implements InventoryValuationRepository {
+  private readonly items: InventoryValuation[] = [];
+
+  add(valuation: InventoryValuation): void {
+    this.items.push(valuation);
+  }
+
+  all(): InventoryValuation[] {
+    return [...this.items].sort((a, b) => {
+      const byYear = a.period.fiscalYear - b.period.fiscalYear;
+      if (byYear !== 0) return byYear;
+      const byPeriod = a.period.period - b.period.period;
+      return byPeriod !== 0 ? byPeriod : a.version - b.version;
+    });
+  }
+}
+
+export class InMemoryDeferralRepository implements DeferralRepository {
+  private readonly items: Deferral[] = [];
+
+  add(deferral: Deferral): void {
+    this.items.push(deferral);
+  }
+
+  save(_deferral: Deferral): void {}
+
+  all(): Deferral[] {
+    return this.items;
+  }
+}
+
+export class InMemoryProvisionRepository implements ProvisionRepository {
+  private readonly items: Provision[] = [];
+  private readonly byIdMap = new Map<string, Provision>();
+
+  add(provision: Provision): void {
+    this.items.push(provision);
+    this.byIdMap.set(provision.id.value, provision);
+  }
+
+  save(_provision: Provision): void {}
+
+  byId(id: Uuid): Provision | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): Provision[] {
+    return this.items;
   }
 }
 

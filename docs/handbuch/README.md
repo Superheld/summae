@@ -430,6 +430,8 @@ want to serve, you create one module:
 | balance sheet / income statement / cash-basis (projection) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
 | depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
 | rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
+| stock valuation (expansion) | `inventory` | `categories[]` (`account`, `changeAccount`, `label?`) — which accounts hold stock and where each one's change is booked |
+| provisions (expansion) | `provisions` | `accounts[]` (`account`, `expenseAccount`, `releaseAccount`) + `discounting` (`fromMonths`, `basis`) — the discount **rate** is deliberately not pack data |
 
 `formatVersion` names the **data format the file was authored against**, not the pack's own
 version — a shipped module may declare an older one and stay perfectly valid, because a module
@@ -523,7 +525,7 @@ Validation runs in the test runners, so the core stays framework-free.
 balance-carrying (carry forward across years), `expense`/`revenue` are per
 fiscal year.
 
-`subtype` is a **closed repertoire** since format 0.9 — eleven values, and anything else is
+`subtype` is a **closed repertoire** since format 0.9 — thirteen values, and anything else is
 refused rather than stored:
 
 | Value | Read by the engine for |
@@ -536,6 +538,8 @@ refused rather than stored:
 | `tax_in` | VAT return (input side), cash-basis, DATEV export |
 | `tax_out` | VAT return (output side), cash-basis, DATEV export |
 | `result_allocation` | where an appropriated result lands |
+| `inventory` | stock — the only accounts `valuateInventory` may value onto |
+| `provision` | provisions — the only accounts `recognizeProvision` may form one on |
 | `fixed_asset` | *annotation only* — the asset expansion uses its own module |
 | `opening_balance` | *annotation only* — the chart's opening-balance account |
 | `private` | *annotation only* — owner's drawings and contributions |
@@ -1064,7 +1068,7 @@ Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `
 its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
 would be created dead; or a `subtype` outside the repertoire).
 
-**`subtype` is a closed repertoire** — one of the eleven canonical values listed under
+**`subtype` is a closed repertoire** — one of the thirteen canonical values listed under
 `chartsOfAccounts[]`, or absent. A value outside it is `E_INPUT_INVALID` with the offending value
 and the known list in `details`, rather than being stored: before format 0.9 a hyphen for an
 underscore created a liability account that no VAT return would ever count, and the only way to
@@ -1543,6 +1547,174 @@ its term, and only the proceeds are booked.
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
 
+#### recognizeProvision
+
+Form a provision. `account` (yes), `reason` (yes), `amount` (yes, Money — the **undiscounted**
+best estimate of what it will take to settle), `recognizedOn` (yes), `dueDate` (no),
+`discountRate` (no), `actor` (no). Output: `{ provisionId, settlementAmount, carryingAmount,
+discounted, discountRate, entryId }`.
+
+A provision is the one balance-sheet item you must recognise for something that has **not yet
+happened** — an obligation whose amount or timing is uncertain. That is why it is a duty and not
+an option: leaving it out overstates both your result and your equity, in the direction that
+flatters. Booked as an expense against the provision account; which expense account and which
+release account belong to which provision account is your pack's answer, not yours.
+
+`account` must carry `subtype: "provision"` and must be declared by the pack —
+`E_PROVISION_ACCOUNT_INVALID` for the first, `E_PACK_INCOHERENT` for the second, because the two
+need different fixes.
+
+**Discounting.** If your pack says long-dated provisions are discounted (Germany: from a remaining
+term of twelve months, § 253 Abs. 2 HGB) and `dueDate` puts this one past that line, a
+`discountRate` is **required** — `E_PROVISION_DISCOUNT_RATE_REQUIRED` otherwise, never a silent
+undiscounted booking. The rate is not in the pack on purpose: in Germany it is an average of the
+last seven years' market rates that the Bundesbank publishes **monthly**, and a legal rate sitting
+stale in a data file while looking authoritative is worse than one that is absent.
+
+The convention is stated rather than assumed: whole years compound, the remaining stub months
+accrue simple interest —
+
+```
+carrying = amount / ( (1 + r)^years × (1 + r × months/12) )
+```
+
+— because a genuine fractional power is a transcendental, and computing one in PHP and in Node
+would put the two a cent apart on some inputs.
+
+```json
+{ "account": "3600", "reason": "Gewährleistung 2029",
+  "amount": { "amount": "10000.00", "currency": "EUR" },
+  "recognizedOn": "2026-06-30", "dueDate": "2029-06-30", "discountRate": "2.00" }
+// → carryingAmount 9423.22 (three whole years at 2 %)
+```
+
+#### useProvision
+
+The obligation came true. `provisionId` (yes), `amount` (yes, Money — what it actually cost),
+`settlementAccount` (yes), `date` (yes), `actor` (no). Output:
+`{ provisionId, usedFromProvision, excessExpense, carryingAmount, status, entryId }`.
+
+**The overshoot is the case to understand.** If the invoice is larger than the provision, what was
+provided for comes out of the provision and the rest is an expense **of the year the invoice
+arrived** — not a retroactive correction of the year the provision was formed. Netting the two
+would move an expense across a year that is closed. `excessExpense` names that part explicitly;
+`0.00` means the estimate held.
+
+Using less than the provision carries leaves the rest standing. If the remainder is not needed,
+release it — that is a different event and it books to a different account.
+
+#### releaseProvision
+
+The reason ceased. `provisionId` (yes), `amount` (no — default: the whole carrying amount),
+`date` (yes), `actor` (no). Output: `{ provisionId, released, carryingAmount, status, entryId }`.
+
+Booked against the pack's release account: a released provision is **income the business never had
+to pay**, which is a genuinely different thing from an obligation that came true. Releasing more
+than the provision carries is `E_PROVISION_EXCEEDS_CARRYING` — the difference would be income
+invented out of a sign error.
+
+#### remeasureProvision
+
+The estimate moved while the obligation stands. `provisionId` (yes), `amount` (yes, Money — the new
+**undiscounted** estimate), `date` (yes), `discountRate` (no), `actor` (no). Output:
+`{ provisionId, change, carryingAmount, discounted, discountRate, status, entryId }`.
+
+An increase is further expense; a decrease books to the release account, because a partial reversal
+of a provision *is* a release — and using the same account keeps the two from being told apart by
+accident in the ledger. Discounting is re-applied from `date` to the original `dueDate`, so a
+provision that simply comes closer to maturity unwinds its discount here rather than silently.
+
+`change: 0.00` and `entryId: null` mean the estimate did not move; the movement is still recorded,
+because "we looked and it was still right" is part of the history.
+
+#### adjustInputTax
+
+Correct a deducted input tax when the use of the thing it was deducted for has changed.
+`originalInputTax` (yes, Money), `originalSharePercent` (yes), `currentSharePercent` (yes),
+`assetKind` (yes), `reason` (yes), `date` (yes), `actor` (no). Output:
+`{ due, amount, correctionYears, sharePointsChanged, reportingKey, entryId }` — or, where no
+correction is owed, `{ due: false, notDueBecause, threshold, ... , entryId: null }`.
+
+**The boundary runs through the middle of this rule, and knowing where saves you an argument.** The
+*register* — which assets are under observation and until when — is **yours**, and for a reason that
+survives inspection: the trigger is a change of use, which is never posted. summae sees postings; it
+cannot see the day a van starts being driven privately. The *arithmetic* is not yours to reproduce:
+a figure produced wrongly looks exactly as authoritative as one produced rightly, which is a reason
+to compute it where figures are fixture-pinned and verified across two languages.
+
+Your pack supplies every number: how many years the observation period runs for each `assetKind`
+(under the DE pack, five for movables and ten for immovables, § 15a UStG), the two de-minimis
+thresholds (§ 44 UStDV), the accounts and the reporting key. An `assetKind` your pack does not
+declare is `E_PACK_INCOHERENT` — never a default, because five years where the rule means ten halves
+every correction.
+
+**A threshold answer is `due: false` with the threshold named, not an amount of `0.00`.** "No
+correction is owed" and "we did not compute one" are different answers, and only one of them lets
+you close the file.
+
+```json
+{ "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+  "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+  "assetKind": "movable", "reason": "Fahrzeug zu 40 % privat", "date": "2026-12-31" }
+// → due: true, amount −1520.00 (19,000 × −40 % ÷ 5), booked to expense against input tax
+```
+
+The tax line carries your pack's `reportingKey`, so the correction reaches the VAT return where the
+jurisdiction expects it. Without it the entry would balance, sit correctly on the account, and
+contribute nothing to what you file — which is exactly what `vatReturn.gapWarnings` exists to catch.
+
+#### recognizeDeferral
+
+Defer an amount and fix its release plan. `kind` (yes — `prepaidExpense` or `deferredIncome`),
+`reason` (yes), `counterAccount` (yes), `amount` (yes, Money), `recognizedOn` (yes),
+`firstFiscalYear` (yes), `firstPeriod` (yes), `periods` (yes), `actor` (no). Output:
+`{ deferralId, kind, amount, periods, entryId }`.
+
+**The accounts were never the gap** — the German pack has carried both from the start. What was
+missing is the *plan*. An insurance premium paid in December for the following year could be
+deferred and then had to be released by hand, month after month, from memory: exactly the failure
+`runDepreciation` prevents for arithmetic that is identical.
+
+The two kinds are opposites, not variants:
+
+| `kind` | what it is | at recognition | at release |
+|---|---|---|---|
+| `prepaidExpense` | money already **paid** for a service still to come — an asset | debit the pack's prepaid account, credit your `counterAccount` (the expense) | the reverse |
+| `deferredIncome` | money already **received** for a service still to be rendered — a liability | debit your `counterAccount` (the revenue), credit the pack's deferred account | the reverse |
+
+Anything else is `E_INPUT_INVALID` with the known list: a third kind would be a third direction of
+posting, not a variant of these two.
+
+Which account holds each kind is your **pack's** answer; which expense or revenue the amount belongs
+to is yours, because that is a fact about the transaction rather than about the jurisdiction.
+
+The plan is laid out with `allocate` (largest remainder), so the instalments sum to the amount
+exactly, and it runs over your tenant's **real** periods — a twelve-month plan starting in period 11
+lands its last instalments in the following fiscal year rather than in periods that do not exist.
+
+```json
+{ "kind": "prepaidExpense", "reason": "Versicherung 2027", "counterAccount": "6080",
+  "amount": { "amount": "1200.00", "currency": "EUR" },
+  "recognizedOn": "2026-12-31", "firstFiscalYear": 2027, "firstPeriod": 1, "periods": 12 }
+```
+
+Note what has to have happened first: a deferral presumes the original payment or receipt was
+booked. summae defers what is there; it does not invent the transaction.
+
+#### runDeferralRelease
+
+Release what a period owes, for every deferral. `fiscalYear` (yes), `period` (yes), `actor` (no).
+Output: `{ entriesCreated, totalReleased }`, or `{ alreadyRun: true, entriesCreated: 0 }`.
+
+**Deliberately the depreciation run's shape**, down to the answer: one period at a time, idempotent,
+`alreadyRun` where there was nothing left to do. Somebody who has closed a period with
+`runDepreciation` should not have to learn a second vocabulary for the same act. Idempotent because
+each deferral records *which periods it has released* — not because a balance is checked, which
+would book twice after a restart.
+
+A run is a run, not a catch-up: releasing period 4 does not release periods 2 and 3 on the way past.
+Run each period you owe, in whatever order you like.
+
 #### reportAssetUsage
 
 Depreciation by output. `assetId` (yes), `fiscalYear` (yes), `units` (yes, a whole
@@ -1632,6 +1804,40 @@ remaining life is what a lasting impairment means.
 why is not auditable, and that is the whole difference between an impairment and a
 mistake. It goes into the entry text and the audit record.
 
+#### writeUpAsset
+
+Reverse an earlier write-down when its reason has ceased. `assetId` (yes), `amount` (yes, Money),
+`date` (yes), `reason` (yes), `voucherId` (no), `actor` (no). Output:
+`{ assetId, entryId, amount, bookValue, ceiling, stillReversible }`.
+
+**This is a duty, not an option** (§ 253 Abs. 5 HGB under the DE pack). Without it an asset written
+down in a bad year stays down for ever, which understates your equity and your result exactly as
+permanently as the write-down was meant to state them prudently for one year.
+
+Two caps, and the second is the one that surprises people:
+
+| cap | what it means |
+|---|---|
+| `stillReversible` | nothing may be written back that was not written down — a write-up **reverses**, it does not create value. Over it: `E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN` |
+| `ceiling` | the **amortised acquisition cost**: what the book value would be if the write-down had never happened. Over it: `E_ASSET_WRITE_UP_EXCEEDS_CEILING` |
+
+The ceiling is stricter than it looks. A write-down does not only lower the book value, it lowers
+every remaining planned instalment — so as the plan runs on, the book value drifts *above* the
+untouched plan. Reversing the write-down in full some years later would therefore carry the asset
+over its amortised cost. summae keeps a shadow plan for exactly this and reports `ceiling` on every
+call, so you can ask before you try.
+
+**What you decide and what summae decides.** Whether the reason has ceased, and by how much the
+value has recovered, is an appraisal — a judgement about the world, which no library makes. So the
+amount is yours. The ceiling is arithmetic, and that is the part that is enforced.
+
+Your pack must name `assetAccounts.writeUpIncomeAccount`; there is no fallback, and the asymmetry
+with `writeDownAsset` (which falls back to the depreciation account) is deliberate. A write-down
+without its own account lands on ordinary depreciation, which is merely less informative — both are
+a charge against the same asset. On the income side the only nearby account is *gain on disposal*,
+and a write-up is not one: booking it there would file the figure under a heading that says
+something untrue about it.
+
 #### runDepreciation
 
 Depreciation run, idempotent. `fiscalYear` (yes); with `period` a monthly run,
@@ -1644,6 +1850,66 @@ no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 ```json
 { "fiscalYear": 2026 }   // → entriesCreated 1, totalDepreciation 500.00 (6/36 of 3000)
 ```
+
+#### valuateInventory
+
+Value stock at a reporting date and book the change. `fiscalYear` (yes), `period` (yes),
+`valuationDate` (yes), `categories[]` (yes), `runId` (no), `producedQuantity` (no),
+`actor` (no). Output:
+`{ "valuationId", "version", "closingTotal", "change", "posted", "entryId" }`.
+
+**What summae knows and what it refuses to know.** It does not know what is in your warehouse.
+There is no product master, no goods movement, no bill of material and no stock ledger — those are
+your application's data, and nothing here carries a quantity forward. What summae owns is the *act
+of valuing*: which accounts, which quantities, at what unit value, where that value came from, what
+a comparison with a market value did, and which entry it produced. That record is kept, and it is
+kept for the same reason the asset register is: an engine that books a change in stock and cannot
+say how it reached the number has not valued anything.
+
+Each entry of `categories[]`:
+
+| key | meaning |
+|---|---|
+| `account` | the stock account, and it **must** carry `subtype: "inventory"` — otherwise `E_INVENTORY_ACCOUNT_INVALID` |
+| `quantity` | the counted quantity, as a **decimal string**. Not a JSON number: `0.1` is not `0.1`, and a quantity that reads back differently in PHP and Node breaks byte parity at the first export |
+| `unitCost` | the cost per unit, as a decimal string. Optional — see below |
+| `marketValue` | the value per unit at the reporting date, as a decimal string. Optional |
+
+**Where a unit value comes from, and it is never guessed.** Give `unitCost` and it is used. Leave it
+out and summae derives it from a **released** costing run: `runId` supplies the production cost
+(the § 255 components you configured in `setAllocationScheme`), `producedQuantity` says what output
+that total relates to, and the division happens here — the one place where both numbers are declared
+inputs of the same call. A draft run is refused with `E_COSTING_RUN_NOT_RELEASED`: valuing a balance
+sheet out of a figure its own producer has not stood behind is not a rounding question.
+
+**Lower of cost or market.** Give `marketValue` and the lower of the two is used; the row says which
+(`unitValue`, `writtenDownToMarket`). Whether comparing is a duty, an option or forbidden is your
+jurisdiction's business — the arithmetic of taking the lower of two numbers and saying which one you
+took is not.
+
+**What gets booked.** Per category: the difference between the closing value and what the accounts
+already carry, debited to the stock account and credited to the account your pack names for that
+category (or the reverse for a decrease), in **one** entry for the whole valuation, finalized
+immediately like a depreciation run. If nothing changed, nothing is booked and `posted` is `false`.
+
+**Repeating it is safe, and that is not an accident.** A second valuation of the same period is a new
+*version*; because the posting is always the difference against the current book value, an unchanged
+period books nothing and a corrected one books the correction. There is no idempotency key to get
+wrong.
+
+```json
+{ "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+  "runId": "…", "producedQuantity": "3000",
+  "categories": [
+    { "account": "1120", "quantity": "800", "marketValue": "38.00" },
+    { "account": "1130", "quantity": "150", "unitCost": "12.00" }
+  ] }
+```
+
+Errors: `E_INVENTORY_ACCOUNT_INVALID`, `E_COSTING_RUN_NOT_RELEASED`, `E_COSTING_RUN_UNKNOWN`,
+`E_ACCOUNT_UNKNOWN`, `E_PACK_INCOHERENT` (the pack declares no stock categories, or none for this
+account), `E_INPUT_INVALID` (no categories at all — a valuation of nothing is not a valuation of
+zero; a negative quantity; a missing unit value with no run to derive one from).
 
 #### setAllocationScheme
 
@@ -1932,7 +2198,7 @@ is `trialBalance`), no movements (`accountSheet`), no hashes.
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
 cash box, which receivables and payables — and it is what an application should
-use to preselect a counter account. It is one of eleven canonical values or
+use to preselect a counter account. It is one of thirteen canonical values or
 `null` (the repertoire is listed under `chartsOfAccounts[]`), so a caller may switch on it
 exhaustively rather than defensively. Reading the **pack** instead is the trap: the
 pack is the chart the tenant *started* from, and one `createAccount` later it is
@@ -2292,6 +2558,137 @@ What this does **not** do is divide by a quantity. Per-unit production cost need
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
 
+### assetSchedule — the fixed-asset movement schedule
+
+`fiscalYear` (yes). Output: `fiscalYear`, `assets[]` (one row per asset), `byAccount[]` (the same
+figures per asset account) and `totals`.
+
+Each row carries the twelve figures a statutory schedule wants:
+
+| | |
+|---|---|
+| `openingCost` · `additions` · `disposals` · `transfers` · `closingCost` | the cost side of the year |
+| `openingDepreciation` · `depreciationOfYear` · `writeUpsOfYear` · `depreciationOnDisposals` · `closingDepreciation` | what has been written off it |
+| `openingBookValue` · `closingBookValue` | what is left, at both ends |
+
+**This is not `assetRegister` with different words.** The register reports the *stock* — cost,
+accumulated depreciation, book value, at a cutoff date. The schedule reports the *year*: what stood
+there at the start, what came in, what went out, what was written off, what is left. § 268 Abs. 2
+HGB asks for the second, and every figure in it was already in your journal.
+
+Three things to read carefully:
+
+- **A disposal takes its whole accumulated depreciation with it.** It is reported under
+  `depreciationOnDisposals` and the closing accumulated depreciation is zero. Netting it into the
+  year's depreciation would show a year that wrote off less than it did.
+- **A write-up is reported positive, under its own name.** Internally it is stored as a negative
+  depreciation so every other reader picks it up without a special case; a schedule that showed it
+  as "less depreciation" would hide a legally distinct event.
+- **`transfers` is always `0.00`, and that is a statement rather than an omission.** summae has no
+  operation that moves an asset between positions, so the column is *structurally* zero. It is here
+  because a schedule missing it would be incomplete for whoever files it — not because a transfer
+  could have happened and did not.
+
+Assets acquired after the year, or disposed before it, are left out entirely rather than shown as a
+row of zeros a reader has to discount.
+
+### deferralRegister — what is deferred, over what, and how far it has run
+
+`kind` (no), `status` (no — `open` or `settled`). Output: `deferrals[]` and `outstandingTotal`.
+
+Each row: `deferralId`, `kind`, `reason`, `account`, `counterAccount`, `recognizedOn`, `amount`,
+`released`, `outstanding`, `status`, and `plan[]` — each instalment
+`{ fiscalYear, period, amount, released }`.
+
+The `released` flag on each instalment is the point. *When will this be gone* and *what has actually
+happened so far* are the two questions, and answering them from two separate lists that have to be
+lined up is how a hand-kept schedule went wrong in the first place. One list, one flag.
+
+### provisionRegister — what is set aside, for what, and what happened to it
+
+`status` (no — `open` or `settled`), `asOf` (no). Output: `provisions[]` and `total` (the sum of
+the carrying amounts reported).
+
+Each row: `provisionId`, `reason`, `account`, `recognizedOn`, `dueDate`, `settlementAmount` (the
+undiscounted estimate), `carryingAmount`, `discountRate`, `status`, and `movements[]` — each
+`{ kind, date, amount, entryId, note }` with `kind` one of `recognized`, `used`, `released`,
+`remeasured`.
+
+**The movements are the point.** The balance of a provision account answers almost nothing an
+auditor asks. Was it *used* because the obligation materialised, *released* because the reason
+ceased, or *re-measured* because the estimate moved? Three different events, three different
+postings, three different meanings — and a netted balance shows none of them. Every movement names
+the entry it produced, so the register and the journal can be walked against each other in both
+directions.
+
+`asOf` cuts the **movements**, not the provisions: a provision recognised after the date is left
+out entirely, one recognised before it appears with only the movements up to that date. That is
+what makes the register usable as at a balance-sheet date rather than only as at today.
+
+`status: "settled"` means the carrying amount is zero, however it got there — the *how* is in the
+movements, and the difference between a release and a use is exactly what a status field must not
+collapse.
+
+### inventoryValuation — what was valued, how, and out of what
+
+`fiscalYear` (no), `period` (no). Output: `valuations[]`, each
+`{ valuationId, fiscalYear, period, version, valuationDate, runId, categories[], closingTotal,
+change, entryId }`.
+
+The read side of `valuateInventory`, and the reason the act is recorded at all. Each category row
+carries `quantity`, `unitCost`, `marketValue`, the `unitValue` actually used, `source`
+(`"input"` or `"productionCost"` — where the unit cost came from), `openingValue`, `closingValue`,
+`change`, `changeAccount` and `writtenDownToMarket`.
+
+A valuation that showed only its own total would be unauditable, exactly as a production cost
+showing only its total would be — an inventory has to be able to show *how* it reached a figure,
+not just the figure. `entryId` is `null` where nothing was booked because nothing had changed;
+that is an answer, not a gap.
+
+Every version is reported, oldest first. A re-valuation is a correction somebody made, and the
+version it corrected is part of the story.
+
+### measurementConsistency — did the way you measure change?
+
+No parameters. Output: `runs[]` (each `{runId, fiscalYear, period, version, included[],
+elected[]}`), `withoutBasis[]`, `changes[]` (each `{fromRunId, toRunId, from, to, added[],
+removed[], acrossFiscalYears}`) and `consistent`.
+
+Every framework that lets you choose how to measure something also requires you to keep
+choosing the same way, and to say so when you do not (§ 252 Abs. 1 Nr. 6 HGB under the DE
+pack, with the exception in Abs. 2). summae has exactly one such choice today —
+`productionCost.include`, the optional components in `setAllocationScheme` — and it sits in
+the tenant configuration, where nothing stops you changing it between two runs. A released
+run has always **frozen** the basis it was computed under; what was missing until now was
+anyone comparing two of them.
+
+This is the comparison. It walks the **released** runs in order, states the basis each one
+used, and lists every change between two consecutive runs. `included[]` is what actually
+entered the valuation; `elected[]` is the optional subset you chose — a component that is
+`mandatory` under your pack is in the basis because the pack says so, not because you
+elected it, and mixing the two would read as a change of mind when a pack version changed.
+
+⚠ **It reports, it does not refuse.** A changed election is not an error: the same
+provisions that demand consistency allow a justified departure, so a library that rejected
+one would be enforcing half a rule. What you get is the guarantee that the departure cannot
+pass unnoticed — the same line `gapWarnings` and `duplicateVouchers` draw. `acrossFiscalYears`
+marks the case that needs an explanation in your notes: within one year the change is still
+absorbed by that year's own result, across a boundary the two years stop being comparable.
+
+`withoutBasis[]` is the third state and it is not padding: a released run configured with no
+production cost at all has not changed the basis, so it is not a `change` — but if you are
+comparing two years you need to know the second measured nothing rather than measured the
+same. An omission that is not stated reads as agreement.
+
+Every released run appears, not just the newest per period. Re-releasing a period under a
+different basis **is** a change of measurement, and one that whoever read the earlier version
+has already relied on.
+
+No parameters, and that is a decision: a `fiscalYear` filter would hide exactly the
+across-year change this exists to report. When stock and provisions arrive with measurement
+options of their own, they will appear here rather than in a second projection — the question
+"did the way you measure change" is asked once.
+
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
 `year` (yes), `quarter` (no), `month` (no, 1–12), `asOf` (no). Give **either**
@@ -2450,7 +2847,7 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.9"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.10"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
@@ -2665,6 +3062,13 @@ out — for the records themselves you already have `journalExport`.
 
 `present: null` on two rows is deliberate: a posting text and an audit diff exist per record rather
 than per holder, and a count there would be a number nobody could act on.
+
+**Three of the rows are not in `journalExport`, and that is the point of them** (since 0.18.0):
+`asset.name`, `provision.reason` and `deferral.reason` are operator free text on *stored aggregates*,
+which the Z3 export does not carry. An Art. 30 record assembled from the export alone misses them —
+and a provision is by its nature often about a named party: a dispute, a warranty claim, a severance.
+They were missing from this list too until 2026-08-29; the list and the document that mirrors it now
+hold each other, in both languages, so neither can quietly stop describing the software.
 
 ⚠ **`addressKeys` is the row worth reading.** The data format declares a recommended address shape
 (`line1`, `line2`, `postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2) and does **not**

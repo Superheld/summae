@@ -33,18 +33,30 @@ const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
  * `$comment` is documentation, not contract. It is stripped before comparing so a decision can be
  * recorded on the parameter it concerns — which is where a later reader will look — instead of
  * drifting into a file nobody opens. Everything else must match exactly.
+ *
+ * Stripped at **both** levels since 2026-08-29, and the second one was a real gap rather than
+ * tidiness: a projection that takes NO parameters had nowhere to record why. There are seven of
+ * them, every one deliberately parameterless, and the argument for each ("a tenant has exactly one
+ * configuration"; "a date window would hide the December-and-January duplicate") lived only in a
+ * code comment on the far side of the copy. `measurementConsistency` is the case that forced it: a
+ * fiscalYear filter would hide the across-year change the projection exists to report, which is
+ * precisely the kind of decision that must sit in the normative file.
  */
 function withoutComments(
-  projections: Record<string, Record<string, Record<string, unknown>>>,
-): Record<string, Record<string, Record<string, unknown>>> {
+  projections: Record<string, Record<string, unknown>>,
+): Record<string, Record<string, unknown>> {
   return Object.fromEntries(
     Object.entries(projections).map(([name, params]) => [
       name,
       Object.fromEntries(
-        Object.entries(params).map(([param, spec]) => [
-          param,
-          Object.fromEntries(Object.entries(spec).filter(([key]) => key !== '$comment')),
-        ]),
+        Object.entries(params)
+          .filter(([key]) => key !== '$comment')
+          .map(([param, spec]) => [
+            param,
+            typeof spec === 'object' && spec !== null
+              ? Object.fromEntries(Object.entries(spec).filter(([key]) => key !== '$comment'))
+              : spec,
+          ]),
       ),
     ]),
   );

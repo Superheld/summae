@@ -1,0 +1,21 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-rueckstellungen",
+  "kind": "provisions",
+  "version": "2026.1",
+  "name": "DE Rückstellungen (§ 249 HGB) — Konten und Abzinsungsregel (§ 253 Abs. 2 HGB)",
+  "contributes": ["provisions"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "comment": "Welche Konten Rückstellungen tragen, wohin ihr Aufwand und ihre Auflösung buchen, und ab welcher Restlaufzeit abzuzinsen ist. Auflösung geht auf die sonstigen betrieblichen Erträge (4900): eine aufgelöste Rückstellung ist Ertrag, den das Unternehmen nie zahlen musste, und § 277 Abs. 4 HGB verlangt keine gesonderte Zeile dafür. DER ZINSSATZ STEHT BEWUSST NICHT HIER: § 253 Abs. 2 HGB verlangt den durchschnittlichen Marktzinssatz der vergangenen sieben Geschäftsjahre, den die Deutsche Bundesbank MONATLICH bekanntgibt. Eine Zahl, die in einer Pack-Datei stünde, wäre veraltet, bevor jemand aktualisiert — und ein veralteter Rechtssatz, der amtlich aussieht, ist schlimmer als ein fehlender. Deshalb erklärt das Pack die REGEL (ab welcher Restlaufzeit) und der Aufrufer liefert den SATZ je Vorgang; fehlt er bei abzinsungspflichtiger Restlaufzeit, wird abgewiesen statt undiskontiert gebucht.",
+    "accounts": [
+      { "account": "3600", "expenseAccount": "6800", "releaseAccount": "4900", "label": "Sonstige Rückstellungen" },
+      { "account": "3610", "expenseAccount": "6300", "releaseAccount": "4900", "label": "Rückstellungen für Personalaufwand" },
+      { "account": "3620", "expenseAccount": "6810", "releaseAccount": "4900", "label": "Steuerrückstellungen" }
+    ],
+    "discounting": {
+      "fromMonths": 12,
+      "basis": "§ 253 Abs. 2 HGB — durchschnittlicher Marktzinssatz der vergangenen sieben Geschäftsjahre, monatlich von der Deutschen Bundesbank bekanntgegeben"
+    }
+  }
+}

@@ -2,22 +2,29 @@
   "formatVersion": "0.6",
   "id": "de-guv",
   "kind": "mapping",
-  "version": "2026.1",
+  "version": "2026.3",
   "name": "GuV-Gliederung HGB §275 Gesamtkostenverfahren (auf den neutralen DE-Rahmen)",
   "contributes": ["mappings"],
   "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
   "data": {
+    "comment": "2026.3: Die vier Zeilen, die § 275 Abs. 2 noch fehlten — andere aktivierte Eigenleistungen (Nr. 3), Zinserträge und Zinsaufwendungen, Steuern vom Einkommen und sonstige Steuern — sind dazugekommen, wieder mit Buchstabensuffix statt Umnummerierung. Damit ist die Gliederung inhaltlich vollständig bis auf die Positionen des Finanzanlagevermögens (Nr. 9–11, 13), die einen Kontenrahmen mit Finanzanlagen voraussetzen; dieser hat keine. · 2026.2: Die Bestandsveränderung (§ 275 Abs. 2 Nr. 2) ist dazugekommen — als `1a` an zweiter STELLE, ohne die Folgeschlüssel weiterzurücken. Reihenfolge kommt aus diesem Array, der Schlüssel ist eine Kennung: umzunummerieren hätte die Aufstellung richtig und jede gespeicherte Referenz still falsch gemacht. Die Schlüssel 1–6 sind ohnehin nie die Nummern des § 275 gewesen, sondern laufende Nummern der angebotenen Positionen; wenn die fehlenden Zeilen (Nr. 3, 12/13, Steuern) dazukommen, ist eine Umstellung auf die Nummerierung des Gesetzes eine eigene, große Pack-Version mit Snapshot — nicht ein Nebeneffekt.",
     "mapping": {
       "id": "de-guv",
       "kind": "income-statement",
-      "version": "2026.1",
+      "version": "2026.3",
       "positions": [
         { "key": "1", "label": "Umsatzerlöse", "accounts": [ { "from": "4000", "to": "4099" } ] },
+        { "key": "1a", "label": "Erhöhung oder Verminderung des Bestands an fertigen und unfertigen Erzeugnissen", "accounts": [ { "from": "4100", "to": "4199" } ] },
+        { "key": "1b", "label": "Andere aktivierte Eigenleistungen", "accounts": [ { "from": "4200", "to": "4299" } ] },
         { "key": "2", "label": "Sonstige betriebliche Erträge", "accounts": [ { "from": "4900", "to": "4999" } ] },
         { "key": "3", "label": "Materialaufwand", "accounts": [ { "from": "5000", "to": "5999" } ] },
         { "key": "4", "label": "Personalaufwand", "accounts": [ { "from": "6300", "to": "6399" } ] },
         { "key": "5", "label": "Abschreibungen", "accounts": [ { "from": "6500", "to": "6599" } ] },
-        { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "accounts": [ { "from": "6000", "to": "6099" }, { "from": "6700", "to": "6999" } ] }
+        { "key": "6", "label": "Sonstige betriebliche Aufwendungen", "accounts": [ { "from": "6000", "to": "6099" }, { "from": "6700", "to": "6999" } ] },
+        { "key": "6a", "label": "Sonstige Zinsen und ähnliche Erträge", "accounts": [ { "from": "4700", "to": "4799" } ] },
+        { "key": "6b", "label": "Zinsen und ähnliche Aufwendungen", "accounts": [ { "from": "6600", "to": "6699" } ] },
+        { "key": "6c", "label": "Steuern vom Einkommen und vom Ertrag", "accounts": [ { "from": "6400", "to": "6449" } ] },
+        { "key": "6d", "label": "Sonstige Steuern", "accounts": [ { "from": "6450", "to": "6499" } ] }
       ]
     }
   }

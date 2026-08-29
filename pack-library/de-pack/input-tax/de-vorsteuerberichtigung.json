@@ -1,0 +1,29 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-vorsteuerberichtigung",
+  "kind": "inputTaxAdjustment",
+  "version": "2026.1",
+  "name": "DE Vorsteuerberichtigung (§ 15a UStG, § 44 UStDV)",
+  "contributes": ["inputTaxAdjustment"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "comment": "Die Zahlen des § 15a UStG und der Bagatellgrenzen des § 44 UStDV. Der KERN kennt nur die Mechanik — anteilige Berichtigung über einen Beobachtungszeitraum mit zwei Bagatellgrenzen —, und die ist überall dieselbe, wo es eine solche Regel gibt. Hier steht, wie lange der Zeitraum je Art des Wirtschaftsguts läuft (fünf Jahre, bei Grundstücken zehn), wo die beiden Grenzen liegen (1.000 EUR Vorsteuer auf das Wirtschaftsgut überhaupt; darunter keine Berichtigung — und darüber nur, wenn sich der Anteil um mindestens zehn Prozentpunkte ändert ODER der Berichtigungsbetrag 1.000 EUR übersteigt), auf welche Konten gebucht wird und unter welcher Kennzahl die Berichtigung in die Voranmeldung geht. DAS REGISTER GEHÖRT NICHT HIERHER und auch nicht in die Bibliothek: welche Wirtschaftsgüter unter Beobachtung stehen und bis wann, führt die einbettende Anwendung, weil der Auslöser eine NUTZUNGSÄNDERUNG ist und die wird nie gebucht.",
+    "correctionPeriods": [
+      { "assetKind": "movable", "years": 5, "basis": "§ 15a Abs. 1 Satz 1 UStG" },
+      { "assetKind": "immovable", "years": 10, "basis": "§ 15a Abs. 1 Satz 2 UStG" }
+    ],
+    "deMinimis": {
+      "inputTaxAtMost": "1000.00",
+      "sharePointsAtLeast": "10.00",
+      "amountAtMost": "1000.00",
+      "basis": "§ 44 Abs. 1 und Abs. 2 UStDV"
+    },
+    "accounts": {
+      "taxAccount": "1500",
+      "expenseAccount": "6000",
+      "incomeAccount": "4900"
+    },
+    "reportingKey": "63",
+    "basis": "§ 15a UStG"
+  }
+}

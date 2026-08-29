@@ -92,6 +92,24 @@ const CODES: readonly string[] = [
   // which is the same argument the two combination codes were split for.
   'E_ACCOUNT_NOT_VALID_AT_DATE',
   'E_ACCOUNT_USE_FORBIDDEN',
+  // Stock (F-CORE-050). Two codes rather than one because a script reacts oppositely: a run that
+  // is merely a draft gets released, an account that is not a stock account gets replaced.
+  // Appended, never reordered — the position IS the exit code.
+  'E_COSTING_RUN_NOT_RELEASED',
+  'E_INVENTORY_ACCOUNT_INVALID',
+  // Provisions (F-CORE-051). Four codes because a caller reacts differently to each: find the
+  // right id, name a provision account, release less, or supply the rate.
+  'E_PROVISION_UNKNOWN',
+  'E_PROVISION_ACCOUNT_INVALID',
+  'E_PROVISION_EXCEEDS_CARRYING',
+  'E_PROVISION_DISCOUNT_RATE_REQUIRED',
+  // The write-up (F-CORE-052). Two codes because a caller reacts oppositely: write up less, or
+  // stop trying to write up an asset that was never written down.
+  'E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN',
+  'E_ASSET_WRITE_UP_EXCEEDS_CEILING',
+  // The offsetting prohibition at import time (F-CORE-054). Its pack-side twin is
+  // E_PACK_INCOHERENT, which already has a code.
+  'E_MAPPING_SIDE_MIXED',
 ];
 
 export function exitCodeFor(errorCode: string): number {

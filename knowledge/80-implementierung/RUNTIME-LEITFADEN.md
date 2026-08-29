@@ -4,7 +4,17 @@
 >
 > Es gibt bereits **zwei fertige, konforme Referenzen**: die **PHP/Laravel-Referenz** (`archiv/ABSCHLUSSBERICHT.md`) und die **Node/TypeScript-Runtime** — beide Goldstandard, der Cross-Test zwischen ihnen ist bidirektional grün. Deine Implementierung ist fertig, wenn sie denselben Vertrag erfüllt und denselben Datenbestand wie diese beiden lesen/fortschreiben kann (Cross-Kompatibilität).
 >
-> Stand: 2026-06-20.
+> Stand: 2026-06-20 — **und das ist inzwischen ein Stand, kein Gegenwartsbericht** (geprüft
+> 2026-08-29). Seither ist das Datenformat von 0.6 auf **0.9** gegangen, es sind rund zwanzig
+> Operationen und Projektionen dazugekommen (Rückstellungen, Vorräte, RAP, Zuschreibung,
+> Anlagengitter, § 15a, Z3-Datenträger, Partner-Löschung …), und die Politiksorten-Zuordnung steht
+> jetzt vollständig in `40-domaenenmodell/jurisdiction-profil.md`. Die **maßgeblichen** Listen für
+> eine neue Runtime sind heute `testing/testsuite/schema/api-parameters.json` (Vertrag, gegen den
+> auch der Dispatcher validiert), `50-spezifikation/api.md` und `50-spezifikation/datenformat.md` —
+> alle drei sind seit 2026-08-29 gegeneinander gated. Was dieser Leitfaden über *Vorgehen*,
+> Cross-Test und Eskalation sagt, gilt unverändert; seine Aufzählungen tun es nicht. Beispiel aus
+> dem Abschnitt „Vorläufige & bewusst offene Bereiche": `systemDocumentation` steht dort als nicht
+> zwingend — die Projektion ist längst gebaut und heißt `systemDescription`.
 
 ## Auftrag in einem Satz
 

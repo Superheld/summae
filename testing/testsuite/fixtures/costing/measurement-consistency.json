@@ -1,0 +1,222 @@
+{
+  "fixture": "measurement-consistency",
+  "description": "Consistency of measurement methods, § 252 Abs. 1 Nr. 6 HGB. A released costing run has always frozen the basis it was computed under — every configured component with the pack's treatment and whether it went in — on the stated ground that a released run which answers differently tomorrow is not released. What did not exist was anybody comparing two of those records: productionCost.include lives in the tenant configuration and could be changed between two runs, and no question you could ask would have told you. Here 2026 is valued with the administration option elected and 2027 without it, on identical books, so the same 84,000.00 of cost yields 80,000.00 of production cost in one year and 70,000.00 in the next, while the 4,000.00 of research stays out of both because the pack forbids it. The projection reports the change with its two runs, what was removed, and acrossFiscalYears — the one distinction the norm itself draws, because within a year a changed basis is a correction the year still absorbs while across a boundary it is the case the provision is written about. It REPORTS and does not refuse, and the reason is legal rather than architectural: § 252 Abs. 2 permits deviation in justified exceptional cases, so a rule that rejected a changed election would be wrong rather than merely strict, and whether a deviation is justified is a judgement about the business. Same line vatReturn.gapWarnings and duplicateVouchers already draw. Three further things are pinned. Mandatory components are not reported as elected: a pack that promotes a component from optional to mandatory must not read as the tenant having changed its mind. A released run configured with no production cost at all lands in withoutBasis rather than being dropped — a reader comparing two years needs to know the second measured nothing rather than measured the same, because an omission that is not stated reads as agreement. And electing a component for which no base is configured is now E_INPUT_INVALID: it used to pass every check and then do nothing, which is the worst possible outcome here, since the consistency report would have shown the basis as unchanged — true, and useless.",
+  "covers": ["F-CORE-049"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Fertigungsmaterial", "type": "expense" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "4900", "name": "Forschung", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "vouchers": [
+      { "id": "$V1", "voucherNumber": "KOST-2026-01", "voucherDate": "2026-01-31" },
+      { "id": "$V2", "voucherNumber": "KOST-2027-01", "voucherDate": "2027-01-31" }
+    ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [
+      { "typeCode": "costCenter", "code": "FERT", "name": "Fertigungsstelle" },
+      { "typeCode": "costCenter", "code": "VW", "name": "Verwaltung" }
+    ],
+    "ruleModule": {
+      "productionCost": {
+        "treatments": [
+          { "component": "materialDirect", "treatment": "mandatory" },
+          { "component": "productionOverhead", "treatment": "mandatory" },
+          { "component": "administration", "treatment": "optional" },
+          { "component": "research", "treatment": "forbidden" }
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-01-31", "voucherId": "$V1", "text": "Kosten Januar 2026",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "50000.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "20000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "10000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "4900", "side": "debit", "money": { "amount": "4000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "84000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2027-01-31", "voucherId": "$V2", "text": "Kosten Januar 2027",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "50000.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "20000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "4120", "side": "debit", "money": { "amount": "10000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "VW" } ] },
+          { "account": "4900", "side": "debit", "money": { "amount": "4000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "84000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "Journalnummer 1, nicht 2 — sie läuft je Geschäftsjahr, nicht über alle",
+        "result": { "sequenceNumber": 1 }
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": ["administration"],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["4000"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } }
+          ]
+        }
+      },
+      "expect": {
+        "comment": "Wahlrecht ohne Bemessungsbasis: erlaubt, existiert im Pack — und wirkungslos. Vorher still, jetzt abgelehnt",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": ["administration"],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["4000"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } },
+            { "id": "administration", "base": { "costCenters": ["VW"] } },
+            { "id": "research", "base": { "accounts": ["4900"] } }
+          ]
+        }
+      },
+      "expect": { "result": { "valid": true, "productionCostComponents": 4 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 1 },
+      "expect": { "result": { "runId": "$R1", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": [],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["4000"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } },
+            { "id": "administration", "base": { "costCenters": ["VW"] } },
+            { "id": "research", "base": { "accounts": ["4900"] } }
+          ]
+        }
+      },
+      "expect": {
+        "comment": "Dieselben Bestandteile, das Wahlrecht abgewählt — die Konfiguration nimmt es widerspruchslos an, und genau darum braucht es den Bericht",
+        "result": { "valid": true, "productionCostComponents": 4 }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2027, "period": 1 },
+      "expect": { "result": { "runId": "$R2", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R2" },
+      "expect": { "result": { "status": "released" } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": { "steps": [] },
+      "expect": {
+        "comment": "Gar keine Herstellungskosten-Konfiguration mehr",
+        "result": { "valid": true, "productionCostComponents": 0 }
+      }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2027, "period": 2 },
+      "expect": { "result": { "runId": "$R3", "status": "draft", "version": 1 } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R3" },
+      "expect": { "result": { "status": "released" } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "productionCost",
+      "params": { "runId": "$R1" },
+      "expect": {
+        "comment": "2026 mit gewähltem Verwaltungsanteil: 50.000 + 20.000 + 10.000; die 4.000 Forschung bleiben verboten draußen",
+        "total": "80000.00"
+      }
+    },
+    {
+      "name": "productionCost",
+      "params": { "runId": "$R2" },
+      "expect": {
+        "comment": "2027 ohne ihn, aus identischen Büchern: 70.000",
+        "total": "70000.00"
+      }
+    },
+    {
+      "name": "measurementConsistency",
+      "params": {},
+      "expect": {
+        "comment": "Ein Wechsel über die Jahresgrenze, gemeldet statt verweigert; der dritte Lauf hat gar keine Grundlage und steht deshalb getrennt",
+        "consistent": false,
+        "runs": [
+          {
+            "runId": "$R1",
+            "fiscalYear": 2026,
+            "period": 1,
+            "version": 1,
+            "included": ["administration", "materialDirect", "productionOverhead"],
+            "elected": ["administration"]
+          },
+          {
+            "runId": "$R2",
+            "fiscalYear": 2027,
+            "period": 1,
+            "version": 1,
+            "included": ["materialDirect", "productionOverhead"],
+            "elected": []
+          }
+        ],
+        "withoutBasis": [
+          { "runId": "$R3", "fiscalYear": 2027, "period": 2, "version": 1 }
+        ],
+        "changes": [
+          {
+            "fromRunId": "$R1",
+            "toRunId": "$R2",
+            "from": { "fiscalYear": 2026, "period": 1 },
+            "to": { "fiscalYear": 2027, "period": 1 },
+            "added": [],
+            "removed": ["administration"],
+            "acrossFiscalYears": true
+          }
+        ]
+      }
+    }
+  ]
+}

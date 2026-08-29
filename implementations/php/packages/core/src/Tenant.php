@@ -18,6 +18,9 @@ use Summae\Core\InMemory\InMemoryFiscalYearRepository;
 use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryCostingRunRepository;
+use Summae\Core\InMemory\InMemoryInventoryValuationRepository;
+use Summae\Core\InMemory\InMemoryDeferralRepository;
+use Summae\Core\InMemory\InMemoryProvisionRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryTenantRecordRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
@@ -29,6 +32,9 @@ use Summae\Core\Policies\Projection\Mapping\MappingRegistry;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\CostingRunRepository;
+use Summae\Core\Port\InventoryValuationRepository;
+use Summae\Core\Port\DeferralRepository;
+use Summae\Core\Port\ProvisionRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Partner\PartnerService;
@@ -42,8 +48,12 @@ use Summae\Core\Substrate\IdGenerator;
 use Summae\Core\Substrate\SystemClock;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\UuidV7IdGenerator;
+use Summae\Core\Policies\Expansion\Inventory\InventoryService;
+use Summae\Core\Policies\Expansion\Deferrals\DeferralService;
+use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\InputTaxAdjustmentService;
 use Summae\Core\Policies\Expansion\Tax\TaxService;
 
 /**
@@ -101,6 +111,27 @@ final readonly class Tenant
          */
         public LegalFormRegistry $legalForms = new LegalFormRegistry(),
         public ?EntityProfileService $entityProfile = null,
+        /**
+         * Stock (F-CORE-050). Appended for the reason $combinations was — a positional parameter
+         * moved to sit beside its relatives edits every call site to say what it already said — and
+         * nullable for the reason $entityProfile is: both factories always pass it, so `null`
+         * means somebody built a tenant by hand without stock, and the dispatcher says so instead
+         * of dereferencing nothing.
+         */
+        public ?InventoryValuationRepository $inventoryValuations = null,
+        public ?InventoryService $inventory = null,
+        /** Provisions (F-CORE-051) — appended for the same reason as the two above. */
+        public ?ProvisionRepository $provisions = null,
+        public ?ProvisionService $provisionService = null,
+        /** Prepaid and deferred items (F-CORE-053) — appended for the same reason as the rest. */
+        public ?DeferralRepository $deferrals = null,
+        public ?DeferralService $deferralService = null,
+        /**
+         * The input-tax adjustment (F-CORE-056). No repository: the register of what is under
+         * observation is the embedding application's, because its trigger — a change of use — is
+         * never posted. Only the arithmetic and the posting live here.
+         */
+        public ?InputTaxAdjustmentService $inputTaxAdjustment = null,
     ) {
     }
 
@@ -143,6 +174,9 @@ final readonly class Tenant
         $openItems = new InMemoryOpenItemRepository();
         $partners = new InMemoryPartnerRepository();
         $costingRuns = new InMemoryCostingRunRepository();
+        $inventoryValuations = new InMemoryInventoryValuationRepository();
+        $provisions = new InMemoryProvisionRepository();
+        $deferrals = new InMemoryDeferralRepository();
         $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
@@ -210,6 +244,54 @@ final readonly class Tenant
             $configStore,
         );
 
+        $inventory = new InventoryService(
+            $baseCurrency,
+            $accounts,
+            $journal,
+            $vouchers,
+            $costingRuns,
+            $inventoryValuations,
+            $ledger,
+            $ids,
+            [],
+            $tenantId,
+            $auditWriter,
+        );
+
+        $provisionService = new ProvisionService(
+            $baseCurrency,
+            $accounts,
+            $vouchers,
+            $provisions,
+            $ledger,
+            $ids,
+            [],
+            $auditWriter,
+        );
+
+        $deferralService = new DeferralService(
+            $baseCurrency,
+            $accounts,
+            $fiscalYears,
+            $vouchers,
+            $deferrals,
+            $ledger,
+            $ids,
+            [],
+            $tenantId,
+            $auditWriter,
+        );
+
+        $inputTaxAdjustment = new InputTaxAdjustmentService(
+            $baseCurrency,
+            $accounts,
+            $vouchers,
+            $ledger,
+            $ids,
+            [],
+            $auditWriter,
+        );
+
         return new self(
             $tenantId,
             $name,
@@ -237,6 +319,13 @@ final readonly class Tenant
             $actorAuthentication,
             $legalForms,
             $entityProfile,
+            $inventoryValuations,
+            $inventory,
+            $provisions,
+            $provisionService,
+            $deferrals,
+            $deferralService,
+            $inputTaxAdjustment,
         );
     }
 }

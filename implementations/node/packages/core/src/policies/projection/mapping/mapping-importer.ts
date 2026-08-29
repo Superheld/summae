@@ -49,6 +49,35 @@ export class MappingImporter {
       if (matches.length === 0) {
         gapWarnings.push({ account: account.number.value, assignedTo: UNASSIGNED });
       }
+
+      // The offsetting prohibition, at the one place a mapping enters a running tenant. The rule
+      // everybody knows and nothing checked: a position that draws a receivable range AND a payable
+      // range reports one netted figure, and every gate stays green because the statement still
+      // balances.
+      //
+      // Checked on the account TYPE, not on the balance. An overdrawn bank account is still an asset
+      // account and belongs on the assets side; a position holding it offsets nothing. What is
+      // forbidden is a position that SELECTS both kinds, because then no reader can tell what the
+      // figure is made of.
+      if (mapping.kind === 'balance-sheet' && matches.length === 1) {
+        const leaf = mapping.leaves.find((candidate) => candidate.key === matches[0]);
+        const side = leaf?.side ?? null;
+        if (side !== null) {
+          const belongs =
+            side === 'assets'
+              ? account.type === 'asset'
+              : account.type === 'liability' || account.type === 'equity';
+
+          if (!belongs) {
+            throw new DomainError(
+              'E_MAPPING_SIDE_MIXED',
+              `Position ${String(matches[0])} is on the ${side} side and takes account ` +
+                `${account.number.value}, which is of type "${account.type}"`,
+              { position: matches[0], side, account: account.number.value, type: account.type },
+            );
+          }
+        }
+      }
     }
 
     this.registry.add(mapping);

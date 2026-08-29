@@ -1,0 +1,86 @@
+{
+  "fixture": "de-rechnungsabgrenzung",
+  "description": "The shipped de pack defers and releases on its own accounts. Both existed from the beginning — 1900 Aktive and 3900 Passive Rechnungsabgrenzung, each with its balance-sheet position — and neither had a plan, which is what this closes. A premium of 2,400.00 paid at the end of 2026 for the whole of 2027 is deferred and released monthly at 200.00; after three periods the balance sheet shows 1,800.00 still standing in `A.V Rechnungsabgrenzungsposten` and the income statement carries 600.00 of expense, which is the point of § 250 in one sentence: the expense belongs to the periods it buys, not to the month the money left. Note the year boundary — recognition is 2026-12-31 and the plan runs entirely in 2027, over that year's real periods.",
+  "covers": ["F-CORE-053"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Abgrenzungs GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "createFiscalYear",
+      "input": { "tenant": "$T1", "year": 2027, "start": "2027-01-01", "end": "2027-12-31" },
+      "expect": { "result": { "year": 2027, "periodCount": 12 } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "VERS-2026", "voucherDate": "2026-12-31" },
+        "entryDate": "2026-12-31", "text": "Versicherungsprämie 2027 gezahlt",
+        "lines": [
+          { "account": "6080", "side": "debit", "money": { "amount": "2400.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "2400.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "recognizeDeferral",
+      "input": {
+        "tenant": "$T1", "kind": "prepaidExpense", "reason": "Versicherung 2027", "counterAccount": "6080",
+        "amount": { "amount": "2400.00", "currency": "EUR" },
+        "recognizedOn": "2026-12-31", "firstFiscalYear": 2027, "firstPeriod": 1, "periods": 12
+      },
+      "expect": { "result": { "deferralId": "$D1", "kind": "prepaidExpense", "periods": 12 } }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": { "tenant": "$T1", "fiscalYear": 2027, "period": 1 },
+      "expect": { "result": { "entriesCreated": 1, "totalReleased": { "amount": "200.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": { "tenant": "$T1", "fiscalYear": 2027, "period": 2 },
+      "expect": { "result": { "entriesCreated": 1, "totalReleased": { "amount": "200.00", "currency": "EUR" } } }
+    },
+    {
+      "op": "runDeferralRelease",
+      "input": { "tenant": "$T1", "fiscalYear": 2027, "period": 3 },
+      "expect": { "result": { "entriesCreated": 1, "totalReleased": { "amount": "200.00", "currency": "EUR" } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "deferralRegister",
+      "params": { "tenant": "$T1" },
+      "expect": {
+        "outstandingTotal": "1800.00",
+        "deferrals": [
+          { "deferralId": "$D1", "account": "1900", "counterAccount": "6080", "amount": "2400.00", "released": "600.00", "status": "open" }
+        ]
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2027-03-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "comment": "Was noch nicht aufgelöst ist, steht in A.V — genau die Position, die es immer schon gab",
+        "assets": [
+          { "key": "A.IV", "amount": "-2400.00" },
+          { "key": "A.V", "label": "Rechnungsabgrenzungsposten", "amount": "1800.00" }
+        ]
+      }
+    },
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2027, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": {
+        "comment": "Der Aufwand gehört in die Perioden, die er kauft — nicht in den Monat, in dem das Geld ging",
+        "netIncome": "-600.00"
+      }
+    }
+  ]
+}

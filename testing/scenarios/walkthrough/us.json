@@ -5,7 +5,7 @@
   "expect": {
     "initialized": true,
     "baseCurrency": "USD",
-    "created.accounts": 35,
+    "created.accounts": 39,
     "created.fiscalYears": 1
   },
   "steps": [
