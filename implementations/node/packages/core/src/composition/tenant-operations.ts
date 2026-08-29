@@ -10,6 +10,7 @@ import { AuditTrailIntegrityProjection } from '../policies/projection/audit-trai
 import { AuditLogProjection } from '../policies/projection/audit-log.js';
 import { CashJournalProjection } from '../policies/projection/cash-journal.js';
 import { CostingRunsProjection } from '../policies/projection/costing-runs.js';
+import { MeasurementConsistencyProjection } from '../policies/projection/measurement-consistency.js';
 import { PersonalDataDescriptionProjection } from '../policies/projection/personal-data-description.js';
 import { SystemDescriptionProjection } from '../policies/projection/system-description.js';
 import { TenantConfigurationProjection } from '../policies/projection/tenant-configuration.js';
@@ -245,6 +246,8 @@ export class TenantOperations {
         return tenant.costing.overheadRates(params);
       case 'productionCost':
         return tenant.costing.productionCost(params);
+      case 'measurementConsistency':
+        return new MeasurementConsistencyProjection(tenant.costingRuns).compute(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

@@ -2292,6 +2292,47 @@ What this does **not** do is divide by a quantity. Per-unit production cost need
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
 
+### measurementConsistency — did the way you measure change?
+
+No parameters. Output: `runs[]` (each `{runId, fiscalYear, period, version, included[],
+elected[]}`), `withoutBasis[]`, `changes[]` (each `{fromRunId, toRunId, from, to, added[],
+removed[], acrossFiscalYears}`) and `consistent`.
+
+Every framework that lets you choose how to measure something also requires you to keep
+choosing the same way, and to say so when you do not (§ 252 Abs. 1 Nr. 6 HGB under the DE
+pack, with the exception in Abs. 2). summae has exactly one such choice today —
+`productionCost.include`, the optional components in `setAllocationScheme` — and it sits in
+the tenant configuration, where nothing stops you changing it between two runs. A released
+run has always **frozen** the basis it was computed under; what was missing until now was
+anyone comparing two of them.
+
+This is the comparison. It walks the **released** runs in order, states the basis each one
+used, and lists every change between two consecutive runs. `included[]` is what actually
+entered the valuation; `elected[]` is the optional subset you chose — a component that is
+`mandatory` under your pack is in the basis because the pack says so, not because you
+elected it, and mixing the two would read as a change of mind when a pack version changed.
+
+⚠ **It reports, it does not refuse.** A changed election is not an error: the same
+provisions that demand consistency allow a justified departure, so a library that rejected
+one would be enforcing half a rule. What you get is the guarantee that the departure cannot
+pass unnoticed — the same line `gapWarnings` and `duplicateVouchers` draw. `acrossFiscalYears`
+marks the case that needs an explanation in your notes: within one year the change is still
+absorbed by that year's own result, across a boundary the two years stop being comparable.
+
+`withoutBasis[]` is the third state and it is not padding: a released run configured with no
+production cost at all has not changed the basis, so it is not a `change` — but if you are
+comparing two years you need to know the second measured nothing rather than measured the
+same. An omission that is not stated reads as agreement.
+
+Every released run appears, not just the newest per period. Re-releasing a period under a
+different basis **is** a change of measurement, and one that whoever read the earlier version
+has already relied on.
+
+No parameters, and that is a decision: a `fiscalYear` filter would hide exactly the
+across-year change this exists to report. When stock and provisions arrive with measurement
+options of their own, they will appear here rather than in a second projection — the question
+"did the way you measure change" is asked once.
+
 ### vatReturn — VAT return (umsatzsteuer-voranmeldung)
 
 `year` (yes), `quarter` (no), `month` (no, 1–12), `asOf` (no). Give **either**

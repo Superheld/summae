@@ -203,11 +203,19 @@ projections are ungated. A scenario for each is cheap and gates what this memo i
 
 ## 9. Order of work
 
-1. **A gate for `hgb-conformance.md`**, in the shape `GobdConformanceDocTest` already has. Without
-   it the census is prose and rots — which is how the VAT row in the GoBD census spent five green
-   days describing a product that had moved.
-2. **Bewertungsstetigkeit** (census row 1): a costing run records the election it was computed
-   under. Small, and it protects the one measurement option that ships.
+1. ~~**A gate for `hgb-conformance.md`**, in the shape `GobdConformanceDocTest` already has.~~
+   **Built 2026-08-29** (`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts`). It came out
+   inverted, which was not foreseen when this line was written: because that census is mostly ⚠️,
+   most of its facts are *absences*, so the gate pins the names of the operations and projections
+   summae does **not** have. Building any of them turns the build red until the census is opened
+   and the row moved. A census of absences rots the opposite way from one of claims — nothing
+   breaks when a hole is filled, the document just quietly understates the product — and only an
+   inverted gate catches that.
+2. ~~**Bewertungsstetigkeit** (census row 1): a costing run records the election it was computed
+   under.~~ **Built 2026-08-29** (`measurementConsistency`, F-CORE-049) — and the line above was
+   wrong about what was missing. A run has recorded its election since runs were persisted; what
+   nothing did was *compare two records*. The correction is worth keeping: a census row's size
+   estimate is a guess until somebody reads the code, and this one was right by accident.
 3. **Stock** (§4 here, census row 2). Closes a balance-sheet hole and the cost-accounting chain with
    one piece of work.
 4. **Provisions** (census row 3). The other missing main position; asset-register sized.

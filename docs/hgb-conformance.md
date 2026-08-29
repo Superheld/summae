@@ -76,7 +76,7 @@ Status vocabulary, identical to its two siblings:
 | § 252 Abs. 1 Nr. 3 — individual measurement at the reporting date | ✅ for what exists | Assets are measured individually (`assets/*`). Untestable for stock while stock does not exist. |
 | § 252 Abs. 1 Nr. 4 — prudence, realisation, **imparity** | ⚠️ | The imparity principle is what §§ 249, 253 Abs. 4 and 256a *are*. All three are open, so the principle is stated nowhere and enforced nowhere. |
 | § 252 Abs. 1 Nr. 5 — accrual (expense and income in the period they belong to) | 🟡 | Accounts exist, the mechanism does not — see § 250 above. |
-| § 252 Abs. 1 Nr. 6 — **consistency of measurement methods** (Bewertungsstetigkeit) | ⚠️ | Nothing carries a measurement election across years. The one election that exists today — `productionCost.include`, the § 255 Abs. 2 Satz 4 options — is part of the tenant configuration and can be changed between two runs with nothing noticing that last year's inventory was valued on a different basis. § 6 Abs. 1 Nr. 1b EStG additionally requires the *same* election in the tax accounts. **This row is the cheapest real win in the document.** |
+| § 252 Abs. 1 Nr. 6 — **consistency of measurement methods** (Bewertungsstetigkeit) | ✅ | `measurementConsistency`; `costing/measurement-consistency`. It walks the released costing runs, states the basis each was computed under (`included` / `elected`) and reports every change with `acrossFiscalYears`. **Half of this was already built and the earlier ⚠️ overstated the gap:** a released run has always *frozen* its components with the pack's treatment, so the record existed — what did not exist was anybody comparing two records. It **reports** rather than refuses, and that is Abs. 2 rather than leniency: the same provision that demands consistency permits a justified departure, so a refusal would enforce half a rule. Electing a component with no base configured is now `E_INPUT_INVALID` instead of silently inert. |
 | § 253 Abs. 1 — recognition at acquisition or production cost | ✅ | `acquireAsset` (`assets/gwg-and-depreciation`); production cost components `costing/production-cost` |
 | § 253 Abs. 2 — discounting of provisions with more than a year to run | ⚠️ | Follows § 249. The Bundesbank rate is pack data, the discounting is core mechanism — the same split as depreciation rates. |
 | § 253 Abs. 3 — scheduled and unscheduled depreciation of fixed assets | ✅ | `runDepreciation`, `writeDownAsset`; `assets/asset-write-down`, `assets/declining-balance-depreciation`, `assets/special-depreciation` |
@@ -113,7 +113,7 @@ tax determination beyond VAT.
 | Provision | Status | Where |
 |---|---|---|
 | § 5 Abs. 1 — authoritativeness of the commercial balance sheet | ➖ | A relationship between two balance sheets. summae keeps one. |
-| § 6 Abs. 1 Nr. 1b — the § 255 Abs. 2 Satz 4 election must match in both | ⚠️ | Follows Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6 above). |
+| § 6 Abs. 1 Nr. 1b — the § 255 Abs. 2 Satz 4 election must match in both | ➖ | A relationship between two balance sheets, like § 5 Abs. 1 above; summae keeps one. What it *can* now do is state the election a given run used (`measurementConsistency`), which is the input somebody comparing the two needs — the comparison itself is not reachable here and is not claimed. |
 | § 6 Abs. 1 Nr. 2a — Lifo permitted for tax | ⚠️ | Follows § 256. |
 | § 7 — depreciation, straight-line and declining balance | ✅ | `assets/declining-balance-asset-class`, `assets/useful-life-override` |
 | § 7 Abs. 1 Satz 6 — depreciation by output | ✅ | `assets/units-of-production` — and the reason the quantity on an asset is bookkeeping data rather than an exception |
@@ -129,7 +129,7 @@ Ordered by what unblocks what, not by severity.
 
 | # | Item | Size | Why it is where it is |
 |---|---|---|---|
-| **1** | **Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)** for the `productionCost` election | small | The election already exists and is already stored with the tenant. What is missing is that a costing run *records which election it was computed under*, so two years can be compared. Cheapest row in the document and it protects the one measurement option that is shipped. |
+| ~~**1**~~ | ~~**Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)**~~ — **built 2026-08-29** | — | `measurementConsistency` + `costing/measurement-consistency` (F-CORE-049). The row stays rather than being deleted, for what it got wrong: it said a run does not record its election. A run has recorded it since runs were persisted; the missing half was the *comparison*. The size estimate was right for the wrong reason, which is an argument for reading a census row against the code before believing it. |
 | **2** | **Stock: recognition, measurement, posting** (§§ 240, 246, 247, 253 Abs. 4, 255 Abs. 2, 266, 275) | large | The single change that closes a hole in the balance sheet *and* finishes the cost-accounting chain. Design sketch in `proposals/library-boundary.md` §4 — an `inventory` subtype, pack accounts and mapping positions, a `valuateInventory` operation shaped like `runDepreciation`, quantities as **input** and never as stock. Defers § 256 Fifo/Lifo deliberately, which stays row 6. |
 | **3** | **Provisions (§ 249, § 253 Abs. 2)** | large | The other missing main position. Formation, use, release, annual re-assessment, and discounting with the rate as pack data. Comparable in size to the asset register, and it needs an aggregate of its own for the same reason: the movement matters, not just the balance. |
 | **4** | **Write-up obligation (§ 253 Abs. 5)** | small | `writeDownAsset` has no counterpart. A mandatory rule with nothing behind it, and the smallest of the genuine legal gaps. |
@@ -142,13 +142,50 @@ Ordered by what unblocks what, not by severity.
 | **11** | **Foreign currency (§ 256a)** | decision first | A single-currency bookkeeping library is a defensible product. What is not defensible is leaving this as an unremarked hole. Either it becomes ➖ *deliberately not*, with the consequence stated, or it is the largest change in this list — it reaches `Money` and therefore everything. |
 | **12** | **§ 15a UStG arithmetic** | medium | Decided 2026-08-29 to belong here: mechanism in the core, periods and thresholds as `de` pack data, register and deadline staying with the application. |
 
-## 8. What this document is not
+## 8. The facts this document asserts, held against the product
+
+Everything above is prose, and prose is where a census rots. Its two siblings each learned that the
+hard way — §4 of the GoBD census named two tax codes as missing that had been built hours earlier and
+went on saying so through five green builds. The rows are argued in prose deliberately; the **facts
+inside them** do not have to be.
+
+`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts` parses this table and compares every row
+against its real source. Values are separated by spaces and the order must match the source.
+
+**This table is inverted relative to its siblings, and that is the whole point of it.** The GoBD and
+GDPR censuses are mostly ✅, so their facts table guards claims of *presence*. This one is mostly ⚠️,
+so most of what it asserts is **absence** — that the engine has no `valuateInventory`, that the German
+balance sheet has five asset positions and none of them is stock. An absence nothing checks is how a
+census becomes a wish list: somebody builds the thing, nobody opens this file, and the row goes on
+describing a hole that was filled. Here the opposite happens. **Building any row below turns this gate
+red**, and the only way back to green is to open this document and move the row to ✅ with its
+evidence named. The gate does not merely notice progress; it refuses to let progress go unrecorded.
+
+| Claim | Source | Value |
+|---|---|---|
+| engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `fixed_asset` `opening_balance` `private` |
+| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `valuateInventory` `writeUpAsset` `recognizeProvision` `useProvision` `releaseProvision` `remeasureProvision` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
+| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `inventoryValuation` `provisionRegister` `deferralRegister` `assetSchedule` |
+| `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.II` `A.III` `A.IV` `A.V` |
+| `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.C` `P.D` |
+| `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `2` `3` `4` `5` `6` |
+| `de` chart, subtypes actually used | `pack-library/de-pack/accounts/de-konten.json` | `ap` `ar` `bank` `cash` `fixed_asset` `opening_balance` `private` `result_allocation` `tax_in` `tax_out` `transit` |
+| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `depreciation` `legalForms` `mapping` `policy` `productionCost` `resultAppropriation` `tax` |
+
+Read the last three rows against §§ 1, 3 and 5: eleven subtypes with no `inventory` among them, five
+asset positions with no stock among them, ten module kinds with no provision and no input-tax
+adjustment among them. Those are the ⚠️ rows, stated as data instead of as an assurance.
+
+---
+
+## 9. What this document is not
 
 It is **not a claim that summae is unsuitable for bookkeeping.** Every ⚠️ above concerns a business
 that holds stock, forms provisions, invoices in foreign currency, or files under § 266. A service
 business on a cash basis meets none of them, and for that business the ✅ rows are the whole story.
 
-It is also **not yet gated.** `gobd-conformance.md` and `gdpr-conformance.md` are each held against
-the product by a test that turns the build red when a claim here stops matching the code — this one
-has no such test yet, and until it does, every row is prose that can rot. That test is the first
-thing to write after row 1, and this paragraph is deleted when it exists.
+It is **gated** since 2026-08-29, in the shape its two siblings already had:
+`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts` check that every fixture named above exists
+and still runs, that no fifth status symbol appears, and that every fact in §8 matches its source.
+What that gate cannot say is whether the *law* is stated correctly — only that the document is not
+wrong about the product it describes.

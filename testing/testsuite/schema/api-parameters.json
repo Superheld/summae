@@ -793,6 +793,9 @@
         "required": true
       }
     },
+    "measurementConsistency": {
+      "$comment": "No parameters, and that is a decision rather than an omission: \u00a7 252 Abs. 1 Nr. 6 reaches ACROSS years, so a fiscalYear filter would hide exactly the change this projection exists to report. Same reasoning duplicateVouchers gives for refusing a date window."
+    },
     "tenantConfiguration": {}
   }
 }

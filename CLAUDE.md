@@ -297,11 +297,17 @@ whether the balance sheet is **right**, which is why its findings were invisible
 were essentially closed and every gate green: two of § 266's main positions — stock and provisions —
 are absent from the shipped `de` mapping, and § 253 Abs. 5's write-up obligation has nothing behind
 it at all. It carries a fourth status the others do not need, 🟡 **partial**, for the shape most of
-its findings have: the chart carries the right account and nothing carries the rule. **It is not yet
-gated** — writing that test is the first row of its own open list, and until it exists the document
-is prose that can rot. The boundary reasoning that produced it, and the criterion that decides what
-belongs in this library at all (*summae holds an object when the law requires the books to hold it*),
-is `docs/proposals/library-boundary.md`.
+its findings have: the chart carries the right account and nothing carries the rule. **Its gate is
+inverted, and that is the interesting part.** Most of what it asserts is *absence* — no
+`valuateInventory`, five asset positions and none of them stock — so §8 states those absences as
+data and `HgbConformanceDocTest`/`hgb-conformance-doc.test.ts` hold them against the real sources.
+Building any of the named gaps turns the build **red** until the census is opened and the row moved
+to ✅ with its evidence: the gate does not merely notice progress, it refuses to let progress go
+unrecorded. That matters because a census of absences rots the other way round from its siblings —
+nothing breaks when a hole is filled, the document simply understates the product from then on.
+The boundary reasoning that produced it, and the criterion that decides what belongs in this library
+at all (*summae holds an object when the law requires the books to hold it*), is
+`docs/proposals/library-boundary.md`.
 
 **The same census exists for personal data.** `docs/gdpr-conformance.md` is its twin, with the same
 three statuses and the same rule about ✅. Its §1 is an inventory of every field that can hold personal
