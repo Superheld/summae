@@ -1,6 +1,14 @@
 # The library boundary — what belongs in summae, and the criterion that decides it
 
-**State: ⚠️ open — direction confirmed 2026-08-29, three designs proposed, none built.**
+**State: ⚠️ mostly built 2026-08-29 — two of three designs shipped, one decided and blocked.**
+
+> **What happened to the three designs on the day this memo was written.** Stock valuation and the
+> § 15a arithmetic were both built, in both languages, with their fixtures and pack data — and both
+> needed one correction the memo had not seen: the valuation had to become a *persisted aggregate*
+> rather than only a posting, and § 15a had to be an expansion rather than the projection §10
+> already suspected it could not be. The `DocumentStore` port is decided and unbuilt, blocked on
+> three retention questions rather than on effort — see [`open-decisions.md`](open-decisions.md) §2.
+> The order of work in §9 below carries the status of each step.
 
 This memo came out of a question that started narrow ("should cost accounting move to the
 application?") and turned out to be the wrong question asked of a right instinct. It records the
@@ -221,13 +229,22 @@ projections are ungated. A scenario for each is cheap and gates what this memo i
 4. **Provisions** (census row 3). The other missing main position; asset-register sized.
 5. **Write-up obligation** and the **RAP release schedule** (census rows 4 and 5). Both small, both
    the depreciation pattern.
-6. **§ 15a arithmetic** (§6 here).
-7. **`DocumentStore` port** (§5 here) — or the written decision not to, with the consequence placed
-   in the application's A-10.
-8. **Abgrenzungsrechnung**, after the single-circle/two-circle question is answered.
+3.–6. ~~Stock, provisions, write-up and the deferral schedule, § 15a~~ — **all built 2026-08-29**,
+   together with four rows this list did not name: the offsetting guard, the movement schedule, the
+   § 275 completeness and the census gate itself. Ten of the census's twelve rows.
+7. **`DocumentStore` port** (§5 here) — **decided, not built.** Blocked on three retention questions
+   (does an erasure leave a shell; is the document in the audit chain; who owns the ten years), each
+   cheap to get wrong and expensive to migrate. The consequence while it is unbuilt belongs in the
+   application's A-10 explicitly: if the document store is lost, the books are complete and
+   **unprovable**. See [`open-decisions.md`](open-decisions.md) §2.
+8. **Abgrenzungsrechnung**, after the single-circle/two-circle question is answered — and that
+   question now has a written argument on both sides rather than only a name
+   ([`open-decisions.md`](open-decisions.md) §4).
 
 Foreign currency (census row 11) is a decision before it is a task and is deliberately not in this
-order.
+order. It is now written up with both options costed and a recommendation, and it is one of the two
+questions in this repository that wait on a person rather than on work
+([`open-decisions.md`](open-decisions.md) §3).
 
 ## 10. Does the system design hold?
 
