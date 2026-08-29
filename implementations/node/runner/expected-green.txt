@@ -174,7 +174,7 @@ partner-status
 voucher-net-line-dimensions
 partner-account-link-validated
 partner-erasure
-personal-data-description
+personal-data-description-claims
 tax-profile-input-validation
 de-euer-surplus
 asset-register-special-depreciation

@@ -222,7 +222,14 @@ export class TenantOperations {
       case 'unfinalizedEntries':
         return new UnfinalizedEntriesProjection(tenant.journal, tenant.clock, tenant.audit).compute(params);
       case 'personalDataDescription':
-        return new PersonalDataDescriptionProjection(tenant.partners, tenant.vouchers, tenant.audit).compute(params);
+        return new PersonalDataDescriptionProjection(
+          tenant.partners,
+          tenant.vouchers,
+          tenant.audit,
+          tenant.assets,
+          tenant.provisions,
+          tenant.deferrals,
+        ).compute(params);
       case 'auditTrailIntegrity':
         return new AuditTrailIntegrityProjection(tenant.audit).run();
       case 'duplicateVouchers':

@@ -96,6 +96,12 @@
       "supersededBy": "us-fiscal-year-current",
       "on": "2026-08-29",
       "reason": "Pinned `accountCount: 35` on the shipped `us` pack while testing something else entirely (a full fiscal year through the US pack). The same weld as de-jahresgang, one pack over: the chart could not gain an account without this going red, and it went red the moment `us` gained the four inventory accounts stock valuation needs. The successor drives exactly the same year — the same sale, the same deferred revenue, the same two acquisitions, the same depreciation run, the same three statements and the same trial balance — and pins everything about it except the size of the product's catalogue."
+    },
+    {
+      "fixture": "personal-data-description",
+      "supersededBy": "personal-data-description-claims",
+      "on": "2026-08-29",
+      "reason": "Pinned the COMPLETE `fields` list of `personalDataDescription` — seven rows — so the projection could not admit to a place where operator text sits without the suite going red. Retired on the same reading as system-description-claims one folder over: the completeness is the contract, the length of the list is the product's. And it went red for exactly the reason that reading predicts: the inventory stopped at the EXCHANGE format and missed three fields on stored aggregates (asset.name, provision.reason, deferral.reason — IMPL-045), each of them a place where a name really does end up; a provision is by its nature often about a named party. The successor pins the counts, the address keys and the classification sentence, and the list is guarded where a literal cannot guard it: the GDPR conformance-doc test in both languages holds the projection's rows against the document's § 1 inventory AND against format.schema.json, in both directions."
     }
   ]
 }

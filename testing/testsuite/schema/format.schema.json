@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://netmechanics.de/rechnungswesen/format/0.9/format.schema.json",
-  "title": "Rechnungswesen-Datenformat v0.9",
+  "$id": "https://netmechanics.de/rechnungswesen/format/0.10/format.schema.json",
+  "title": "Rechnungswesen-Datenformat v0.10",
   "$defs": {
     "uuid": {
       "type": "string",
@@ -1570,6 +1570,795 @@
       },
       "additionalProperties": false,
       "description": "data eines constraint-Moduls (v0.6) — der Stecker der dritten Politiksorte. Zwei Prädikate. dimensionRules sagt, welche Konten nicht ohne welche Dimension bebucht werden dürfen (Kontonummern-Bereich einschließlich, Vergleich über Unicode-Codepoints). Die DIMENSIONSTYPEN und -WERTE selbst bleiben Mandanten-Stammdaten (defineDimensionType/defineDimensionValue) — eine Jurisdiktion hat keine Meinung darüber, wie ein Unternehmen seine Kostenstellen nennt; welche Buchung ohne Zuordnung unzulässig ist, kann dagegen Regel sein. Mehrere constraint-Module addieren sich, statt einander zu ersetzen: sonst wäre die Modulreihenfolge im Manifest bedeutungstragend. Seit v0.15.1 ein ZWEITES Praedikat: accountCombinationRules sagt, welche Konten in EINER Buchung zusammen auftreten muessen (requireAccountIn) oder nicht duerfen (forbidAccountIn) — genau eines von beiden je Regel, sonst waeren es zwei Regeln unter einem Namen. Geprueft ueber die ganze Buchung, nicht je Zeile, und ausdruecklich nicht ueber Seiten: der benannte Fall (gewaehrtes Skonto muss seine Steuerkorrektur tragen, A-13) hat beide Zeilen auf DERSELBEN Seite, ein Praedikat ueber Soll/Haben haette den Fall verfehlt, fuer den es gebaut wurde. Das Praedikat sieht eine Buchung: keine Fristen, kein Blick ueber Buchungen hinweg, und keine Regel ueber eine Verrechnung — settle bucht nicht. Ein Modul traegt MINDESTENS EINES der beiden Praedikate, aber nicht notwendig beide: bis v0.15.1 verlangte dieses Schema dimensionRules, womit ein Modul mit nur dem zweiten Praedikat nicht validierte — das erste Pack, das genau das brauchte, fand den Fehler sofort (de-entgeltminderung). Seit 0.9 ein DRITTES Wort und eine BEDINGUNG. accountUsageRules sagt, welche Konten dieser Mandant ueberhaupt nicht bebuchen darf (forbidAccountIn, ohne when) — bewusst KEINE Kombinationsregel mit forbidAccountIn 0000-9999, denn dieser Trick liest sich als Bereich und ist zweimal falsch: Kontonummern vergleichen ueber CODEPOINTS, also deckt 0000-9999 einen Kontenrahmen mit Buchstaben nicht ab und einen sechsstelligen nur zufaellig. Eine Verweigerung, deren Richtigkeit davon abhaengt, wie ein fremder Kontenrahmen nummeriert, ist keine Verweigerung. appliesWhen bedingt eine Regel beider Sorten auf eine GESCHLOSSENE Menge von Mandantentatsachen (legalForm, taxationMethod) — geschlossen mit Absicht: sobald Bedingungen eine Ausdruckssprache werden, traegt ein Pack Logik, und die Trennung Substrat/Pack ist dahin. smallBusiness und Betragsgrenzen sind ausdruecklich NICHT dabei, mit Begruendung in docs/proposals/constraint-vocabulary.md. Eine unbekannte Bedingung ist E_PACK_INCOHERENT; eine legalForm, die das Pack nicht deklariert, ebenfalls (Resolver-Invariante I10) — sonst waere die Regel dauerhaft SCHLAFEND, also genau der stille Fehler, gegen den das geschlossene Subtyp- und Mechanismus-Repertoire gebaut wurden. Eine Regel, deren Bedingung nicht erfuellbar ist, weil die Tatsache fehlt (kein setEntityProfile), greift NICHT — tenantConfiguration meldet sie trotzdem, damit ein Aufrufer sieht, dass sie ruht."
+    },
+    "asset": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "assetClass",
+        "assetAccount",
+        "route",
+        "acquisitionCost",
+        "acquiredOn",
+        "status",
+        "voucherId",
+        "dimensions",
+        "depreciationMethod",
+        "monthlySchedule",
+        "originalSchedule",
+        "scheduleRevised",
+        "reportedUnits"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assetClass": {
+          "type": "string"
+        },
+        "assetAccount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route": {
+          "enum": [
+            "capitalize",
+            "pool",
+            "immediate_expense"
+          ]
+        },
+        "acquisitionCost": {
+          "$ref": "#/$defs/money"
+        },
+        "acquiredOn": {
+          "$ref": "#/$defs/date"
+        },
+        "usefulLifeMonths": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "disposed"
+          ]
+        },
+        "disposedOn": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "voucherId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "code"
+            ],
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "depreciationMethod": {
+          "enum": [
+            "straight_line",
+            "declining_balance",
+            "units_of_production"
+          ]
+        },
+        "monthlySchedule": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/money"
+          }
+        },
+        "originalSchedule": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/money"
+          }
+        },
+        "depreciationStart": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scheduleRevised": {
+          "type": "boolean"
+        },
+        "specialDepreciationBudget": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "specialDepreciationWindowEnd": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "totalUnits": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reportedUnits": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "description": "Ein Anlagegut, wie es die Persistenz-Adapter ablegen und zurücklesen (v0.10). Vier Felder stehen bewusst NICHT im Anlageverzeichnis, das ein Prüfer liest, und trotzdem hier: depreciationStart (der Planbeginn — ohne ihn wandert ein Pool-Plan nach einem Neustart still auf den Anschaffungsmonat zurück), scheduleRevised und monthlySchedule (nach einer außerplanmäßigen Abwertung IST der Plan der Bestand; ein Neustart, der das vergisst, rechnet ihn aus den nicht mehr gültigen AHK neu), sowie originalSchedule — der Schattenplan (F-CORE-052), aus dem der Zuschreibungsdeckel (fortgeführte AHK) kommt und der aus nichts anderem rekonstruierbar ist. Bewegungen und Abgangsstatus liegen im zweiten Dokument, assetState."
+    },
+    "assetState": {
+      "type": "object",
+      "required": [
+        "disposed",
+        "accumulated",
+        "depreciations"
+      ],
+      "properties": {
+        "disposed": {
+          "type": "boolean"
+        },
+        "disposedOn": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accumulated": {
+          "$ref": "#/$defs/money"
+        },
+        "depreciations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "planMonth",
+              "date",
+              "amount",
+              "entryId",
+              "kind"
+            ],
+            "properties": {
+              "planMonth": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "amount": {
+                "$ref": "#/$defs/money"
+              },
+              "entryId": {
+                "$ref": "#/$defs/uuid"
+              },
+              "kind": {
+                "enum": [
+                  "planned",
+                  "special",
+                  "unplanned",
+                  "usage",
+                  "writeUp"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Der Bewegungsteil eines Anlageguts (v0.10) — jede gebuchte Abschreibung mit ihrer Art und der Buchung, aus der sie stammt. Getrennt vom asset-Dokument, weil die Adapter ihn getrennt ablegen (eigene Spalte), und die fünf kinds sind der Grund, warum das Anlagengitter (§ 268 Abs. 2 HGB) aus dem Bestand berechenbar ist statt aus dem Journal geraten: planned (Plan-AfA), special (Sonderabschreibung § 7g Abs. 5 EStG), unplanned (außerplanmäßig, § 253 Abs. 3 Satz 5 HGB), usage (Leistungsabschreibung § 7 Abs. 1 Satz 6 EStG) und writeUp (Zuschreibung § 253 Abs. 5 HGB — negativ, deshalb in derselben Liste statt in einer zweiten)."
+    },
+    "costingRun": {
+      "type": "object",
+      "required": [
+        "id",
+        "period",
+        "version",
+        "status",
+        "method",
+        "primary",
+        "afterAllocation",
+        "grandTotal",
+        "rates",
+        "rateWarnings"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "period": {
+          "type": "object",
+          "required": [
+            "fiscalYear",
+            "period"
+          ],
+          "properties": {
+            "fiscalYear": {
+              "type": "integer"
+            },
+            "period": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "released"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primary": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/money"
+          },
+          "description": "Kostenstelle → Summe. Ein LEERER Wert ist {} und nicht [] — die beiden Sprachen sind hier bis 2026-08-29 auseinandergelaufen, weil PHPs leeres Array als Liste kodiert; gefunden von genau dem Vergleich, den es bis dahin nicht gab (IMPL-046)."
+        },
+        "afterAllocation": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/money"
+          }
+        },
+        "grandTotal": {
+          "$ref": "#/$defs/money"
+        },
+        "rates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "costCenter",
+              "label",
+              "overhead",
+              "base",
+              "rate"
+            ],
+            "properties": {
+              "costCenter": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "overhead": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "base": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "rate": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "rateWarnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "costCenter",
+              "reason"
+            ],
+            "properties": {
+              "costCenter": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "productionCost": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "total",
+                "components"
+              ],
+              "properties": {
+                "total": {
+                  "type": "string",
+                  "pattern": "^-?\\d+(\\.\\d+)?$"
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "amount",
+                      "treatment",
+                      "included"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "treatment": {
+                        "type": "string"
+                      },
+                      "included": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Ein Kostenrechnungslauf, wie die Adapter ihn ablegen (v0.10). Die eingefrorenen Herstellungskosten-Komponenten eines FREIGEGEBENEN Laufs (productionCost) sind der Grund, warum measurementConsistency (§ 252 Abs. 1 Nr. 6 HGB) über Jahre vergleichen kann, unter welcher Bewertungsbasis gerechnet wurde: der Lauf trägt sie mit, statt sie beim Lesen neu aus dem heutigen Pack zu ziehen."
+    },
+    "provision": {
+      "type": "object",
+      "required": [
+        "id",
+        "reason",
+        "account",
+        "expenseAccount",
+        "releaseAccount",
+        "recognizedOn",
+        "settlementAmount",
+        "carryingAmount",
+        "movements"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expenseAccount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releaseAccount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recognizedOn": {
+          "$ref": "#/$defs/date"
+        },
+        "dueDate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "settlementAmount": {
+          "$ref": "#/$defs/money"
+        },
+        "carryingAmount": {
+          "$ref": "#/$defs/money"
+        },
+        "discountRate": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "movements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "date",
+              "amount",
+              "entryId",
+              "note"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "recognized",
+                  "used",
+                  "released",
+                  "remeasured"
+                ]
+              },
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "amount": {
+                "$ref": "#/$defs/money"
+              },
+              "entryId": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "note": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Eine Rückstellung (§ 249 HGB) mit ihrer Bewegungsliste (v0.10). settlementAmount ist der UNDISKONTIERTE Erfüllungsbetrag, carryingAmount der Bilanzansatz — bei Abzinsung (§ 253 Abs. 2 HGB) sind sie verschieden, und beide werden gehalten, weil der Unterschied selbst die Aussage ist. Der Zinssatz steht am Vorgang (discountRate), nicht im Pack: er wird monatlich neu bekanntgegeben. Die Bewegungsliste unterscheidet used von released, weil § 249 Abs. 2 Satz 2 HGB es tut — eine Auflösung ist Ertrag, den das Unternehmen nie zahlen musste, ein Verbrauch nicht. reason ist ein FREITEXT des Betreibers und kann personenbezogene Daten tragen (docs/gdpr-conformance.md § 1)."
+    },
+    "deferral": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "reason",
+        "account",
+        "counterAccount",
+        "recognizedOn",
+        "amount",
+        "plan",
+        "released"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "kind": {
+          "enum": [
+            "prepaidExpense",
+            "deferredIncome"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterAccount": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recognizedOn": {
+          "$ref": "#/$defs/date"
+        },
+        "amount": {
+          "$ref": "#/$defs/money"
+        },
+        "recognitionEntryId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "fiscalYear",
+              "period",
+              "amount"
+            ],
+            "properties": {
+              "fiscalYear": {
+                "type": "integer"
+              },
+              "period": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "amount": {
+                "$ref": "#/$defs/money"
+              }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "released": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "fiscalYear",
+              "period",
+              "amount",
+              "date",
+              "entryId"
+            ],
+            "properties": {
+              "fiscalYear": {
+                "type": "integer"
+              },
+              "period": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "amount": {
+                "$ref": "#/$defs/money"
+              },
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "entryId": {
+                "$ref": "#/$defs/uuid"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Ein Rechnungsabgrenzungsposten (§ 250 HGB) mit seinem Auflösungsplan (v0.10). Der Plan ist der eigentliche Inhalt — die Konten gab es immer, gefehlt hat die Vorschrift, welche Periode wie viel trägt. released ist die Gegenliste: WELCHE Perioden bereits aufgelöst sind, und genau daher ist runDeferralRelease idempotent, statt einen Saldo zu befragen, der nach einem Neustart zweimal buchen ließe. reason ist Betreiber-Freitext (docs/gdpr-conformance.md § 1)."
+    },
+    "inventoryValuation": {
+      "type": "object",
+      "required": [
+        "id",
+        "period",
+        "version",
+        "valuationDate",
+        "categories",
+        "closingTotal",
+        "change"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "period": {
+          "type": "object",
+          "required": [
+            "fiscalYear",
+            "period"
+          ],
+          "properties": {
+            "fiscalYear": {
+              "type": "integer"
+            },
+            "period": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "valuationDate": {
+          "$ref": "#/$defs/date"
+        },
+        "runId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "account",
+              "quantity",
+              "unitValue",
+              "source",
+              "openingValue",
+              "closingValue",
+              "change",
+              "changeAccount",
+              "writtenDownToMarket"
+            ],
+            "properties": {
+              "account": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quantity": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "unitCost": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "marketValue": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unitValue": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "source": {
+                "enum": [
+                  "input",
+                  "productionCost"
+                ]
+              },
+              "openingValue": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "closingValue": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "change": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "changeAccount": {
+                "type": "string",
+                "minLength": 1
+              },
+              "writtenDownToMarket": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "closingTotal": {
+          "$ref": "#/$defs/money"
+        },
+        "change": {
+          "$ref": "#/$defs/money"
+        },
+        "entryId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Der AKT des Bewertens von Vorräten (§ 240 Abs. 1, § 253 Abs. 4 HGB), wie die Adapter ihn ablegen (v0.10) — nicht ein Lagerbestand. summae führt KEIN Lagerkonto: Mengen sind Eingabe eines Vorgangs und werden nicht fortgeschrieben. Was bleibt, ist die Bewertung selbst: welche Menge zu welchem Wert, woher der Wert kam (source: input oder ein freigegebener Herstellungskosten-Lauf), was der Vergleich mit dem Marktwert ergab (writtenDownToMarket) und welche Buchung daraus wurde. Die Mengen- und Wertfelder sind DEZIMALSTRINGS, keine JSON-Zahlen — 0.1 ist nicht 0.1, und eine Menge, die in PHP und Node verschieden zurückliest, bricht die Byte-Parität beim ersten Export. Eine erneute Bewertung derselben Periode ist eine neue version; die alte bleibt, weil eine Korrektur zur Geschichte gehört."
     }
   }
 }

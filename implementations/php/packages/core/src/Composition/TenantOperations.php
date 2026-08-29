@@ -190,6 +190,9 @@ final readonly class TenantOperations
                 $tenant->partners,
                 $tenant->vouchers,
                 $tenant->audit,
+                $tenant->assets,
+                $tenant->provisions,
+                $tenant->deferrals,
             ))->compute($params),
             'auditTrailIntegrity' => (new AuditTrailIntegrityProjection($tenant->audit))->run(),
             'duplicateVouchers' => (new DuplicateVouchersProjection(

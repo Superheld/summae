@@ -108,6 +108,54 @@ questions. **Two wait on a person:** foreign currency (§ 256a), the only item o
 starts at the substrate; and single-circle vs. two-circle cost accounting, which hangs on whether the
 municipal pack is still coming.
 
+### The stored half of the data format, declared and crossed (format 0.9 → 0.10)
+
+Two findings from the review above are closed, and closing them found a defect that had been true for
+as long as costing runs have been persisted.
+
+**What was wrong.** The adapters store five kinds of aggregate as JSON and read them back — assets,
+costing runs, and since this release provisions, deferrals and inventory valuations. The root
+`CLAUDE.md` calls that "the shared data format"; the format **declared none of them**, no version
+mentioned them, and the cross-test compared `journalExport` and nothing else. So the half of the data
+that a shared database (SF-15) actually carries had no oracle at all.
+
+**Format 0.10** declares six of them (`asset` and `assetState`, because the adapters keep an asset in
+two columns, plus `costingRun`, `provision`, `deferral`, `inventoryValuation`). The definitions were
+derived from real stored documents rather than from the classes, which is why they carry the fields a
+reader of the register would not expect — `originalSchedule`, the shadow depreciation plan behind the
+write-up ceiling, is in the store because nothing else can reconstruct it.
+
+**And the cross-test now compares the stored documents themselves**, byte-exact between the two
+engines, and validates every one of them against the schema — 358 documents on the run that shipped.
+Its first run found this: `costingRun.primary` was `[]` in PHP and `{}` in Node whenever a run had no
+cost centres, because PHP's empty array encodes as a list. On one database, two engines wrote two
+different documents. **PHP now emits `{}`** — the same idiom `auditRecord.changes` has used since the
+identical defect was found in the one place that *was* compared. A stored run written by an older PHP
+is re-encoded correctly the next time it is written; no figure changes.
+
+A second guard closes the recurrence rather than the instance: every table the schema installer
+creates must map to a declared document type, in both languages. Three new aggregates arrived in a
+single day and none of them was declared — that is the failure it exists for. Two columnar tables
+(`fiscal_years.periods`, `tenants.config`) stay declared-by-exception, each pointing at IMPL-047.
+
+### The personal-data inventory reached past the exchange format
+
+`personalDataDescription` and §1 of the GDPR census both listed seven fields and both stopped, unnoticed,
+at what `journalExport` carries. Three places where operator text really lands were missing:
+`asset.name`, `provision.reason`, `deferral.reason` — and a provision is by its nature often about a
+**named party**: a dispute, a warranty claim, a severance. Both lists have them now, and — the part
+that matters — **they hold each other**: the conformance-doc test compares the document's inventory
+against what the projection publishes, in both languages, in both directions. Two hand-kept lists
+agreeing with each other while drifting from the product together is exactly how this happened.
+
+`personal-data-description` is superseded by `personal-data-description-claims`: it pinned the
+complete `fields` list, so the software could not admit to holding text in a sixth place without the
+suite going red — the same weld `system-description-claims` was created for.
+
+Left open on purpose, both written down: whether an account name belongs in the inventory (a chart with
+one debtor account per customer puts a person's name in it), and the two columnar stores, where a
+stored `allocationScheme` can carry the `actor` that set it (IMPL-047).
+
 ### The documents underneath the documents (2026-08-29, doc review)
 
 The HGB pass left the *gated* documentation current — handbook, all three censuses, the requirement
