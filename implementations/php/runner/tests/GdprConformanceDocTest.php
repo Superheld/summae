@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Summae\Runner\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Summae\Runner\Subject\CoreSubject;
 
 /**
  * Gate for docs/gdpr-conformance.md.
@@ -18,6 +19,12 @@ use PHPUnit\Framework\TestCase;
  * a field renamed in format.schema.json leaves the row standing, still readable, still wrong, and
  * the next person to answer an Art. 30 question copies it. So every record/field pair the inventory
  * names is resolved against the schema, and a row that no longer describes the format turns this red.
+ *
+ * Since 2026-08-29 it carries the other half of that (IMPL-045): the inventory is held against what
+ * `personalDataDescription` actually **publishes**. Both lists stopped at the exchange format and
+ * missed the same three fields — `asset.name`, `provision.reason`, `deferral.reason` — which is what
+ * two hand-kept lists do: they agree with each other and drift from the product together. A field
+ * the projection reports and the table does not name now turns this red, and so does the reverse.
  *
  * The document is allowed to be wrong about the law. It is not allowed to be wrong about summae.
  *
@@ -207,6 +214,49 @@ final class GdprConformanceDocTest extends TestCase
         ));
 
         self::assertSame([], $unbacked, 'the document cites these requirements as evidence but no fixture covers them');
+    }
+
+    /**
+     * The inventory, held against the projection that publishes the same list (IMPL-045).
+     *
+     * Only the projection's direction can be total: § 1 legitimately names more than the projection
+     * reports — `partner.kind`/`status`/`accountNumbers`/`paymentTermsDays` are listed as personal
+     * *by association*, and `voucher.documents` is a reference rather than a payload. What must not
+     * happen is the reverse: the software reporting a place where operator text sits that the
+     * inventory does not mention, because § 1 is what an Art. 30 record gets copied from.
+     */
+    public function testEveryFieldTheProjectionPublishesIsInTheInventory(): void
+    {
+        $rows = $this->inventoryRows($this->doc());
+        $inventory = [];
+        foreach ($rows as $row) {
+            $inventory[$row['record'] . '.' . $row['field']] = true;
+        }
+
+        $subject = new CoreSubject();
+        $subject->setup([
+            'tenant' => ['name' => 'Verzeichnis GmbH', 'baseCurrency' => 'EUR'],
+            'accounts' => [['number' => '1200', 'name' => 'Bank', 'type' => 'asset', 'subtype' => 'bank']],
+            'fiscalYears' => [['year' => 2026, 'start' => '2026-01-01', 'end' => '2026-12-31']],
+        ]);
+
+        /** @var array{fields: list<array{holder: string, field: string}>} $description */
+        $description = $subject->project('personalDataDescription', []);
+        self::assertGreaterThan(8, count($description['fields']), 'the projection reports no fields — did its shape change?');
+
+        $missing = [];
+        foreach ($description['fields'] as $field) {
+            $key = $field['holder'] . '.' . $field['field'];
+            if (!isset($inventory[$key])) {
+                $missing[] = $key;
+            }
+        }
+
+        self::assertSame(
+            [],
+            $missing,
+            'personalDataDescription reports these places where operator text sits and § 1 does not name them (IMPL-045)',
+        );
     }
 
     public function testEveryStatusMarkerIsOneOfTheThreeDefinedOnes(): void

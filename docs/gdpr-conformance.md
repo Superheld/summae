@@ -42,24 +42,37 @@ the guard test over this document fails if one of them stops existing.
 | `voucher` | `issuer` | who issued the document | free text |
 | `journalEntry` | `text` | posting text | free text, and in practice where names end up (*"Rechnung Meier, Beratung Mai"*) |
 | `voucher` | `documents` | references to attached documents | summae stores references, **never the document bytes** |
+| `asset` | `name` | what the operator called the asset | free text, and in practice often a person: *„Firmenwagen Herr M."*. **Not in `journalExport`** — see the note below |
+| `provision` | `reason` | why the provision was formed | free text, and by its nature often about a **named party**: a dispute, a warranty claim, a severance. Not in `journalExport` |
+| `deferral` | `reason` | what was deferred | free text. Not in `journalExport` |
 
 **Two things this list is not.** It is not a claim that summae *needs* all of it — `name` is the
 only required field in the list. And it is not exhaustive about *content*: three of these fields are
 free text, so what actually lands in them is decided by the application, not by summae.
 
-**And a third, found on 2026-08-29 and stated here rather than left implicit: the table above stops
-at the exchange format.** Every row in it resolves to a record in
-[`format.schema.json`](../testing/testsuite/schema/format.schema.json) — that is what makes the guard
-test possible, and it is also the boundary the inventory silently inherited. summae persists five
-aggregate kinds that the exchange format does not declare (`asset`, `costingRun`, and since
-2026-08-29 `provision`, `deferral`, `inventoryValuation`), and three of them carry **operator-supplied
-free text**: `asset.name` (*„Firmenwagen Herr M."*), `provision.reason` (*„Prozessrisiko Kl. ./.
-GmbH"*), `deferral.reason`. Nothing forbids a name there, the `personalDataDescription` projection
-does not report them, and an Art. 30 record copied from §1 would not mention them. The rows are
-**not** added above, because the guard would reject a field the format does not declare and a green
-test that stops describing the product is the failure mode this document exists to avoid — the gap is
-recorded as **IMPL-045** in [`FINDINGS-OPEN.md`](../FINDINGS-OPEN.md) instead, with what would close
-it. Until then: **if you answer an Art. 30 request from this table, add those three fields by hand.**
+**And a third, found on 2026-08-29: this table used to stop at the exchange format, and nothing said
+so.** Every row resolved to a record in
+[`format.schema.json`](../testing/testsuite/schema/format.schema.json) — which is what makes the guard
+test possible, and was also a boundary the inventory had silently inherited. summae persists five
+aggregate kinds that `journalExport` does **not** carry, and three of them hold operator free text.
+The last three rows above are those, and they are in the table rather than in a footnote because an
+Art. 30 record is assembled from this list: **the fields exist whether or not the list mentions
+them.** What had to happen first was the format itself — the aggregates were declared in format 0.10
+(IMPL-046), so a row for `provision.reason` now resolves the way `partner.name` always did, and the
+guard is unchanged rather than relaxed.
+
+**Two stores are still outside it, and that is written down rather than left to be discovered**
+(IMPL-047): the fiscal year's `periods` and the tenant's `config` are columnar JSON that no `$defs`
+entry describes yet. `config` is the one that matters here — an `allocationScheme` can arrive
+carrying the `actor` that set it, so an operator's name can come to rest in a configuration field
+nobody declared. It is compared byte-exact between the two engines by the cross-test; it is not yet
+schema-declared, and until it is, this inventory cannot honestly list its fields.
+
+**What guards this list now.** `GdprConformanceDocTest` / `gdpr-conformance-doc.test.ts` resolve every
+row against the schema **and** hold the table against what `personalDataDescription` actually
+publishes, in both directions and both languages. A field added to the projection and not to this
+table turns the build red, and so does the reverse — which is the failure this document was written
+to prevent, now mechanical rather than remembered.
 
 ---
 
@@ -106,7 +119,7 @@ it. Until then: **if you answer an Art. 30 request from this table, add those th
 Art. 30 asks a controller to describe categories of data subjects, categories of personal data,
 recipients and erasure periods. summae answers the structurally identical question about *auditing*
 through `systemDescription` (`system-description-claims`, F-IO-007), and now answers it about people
-through **`personalDataDescription`** (`personal-data-description`, F-CORE-041): every field where
+through **`personalDataDescription`** (`personal-data-description-claims`, F-CORE-041): every field where
 operator-supplied free text can come to rest, how many records actually carry one, which address keys
 this tenant really uses, and how many distinct actors the trail knows.
 
@@ -154,6 +167,8 @@ Three consequences worth being explicit about:
 | 4 | **No single Art. 15 answer** (scoped in [`proposals/gdpr-open-rights.md`](proposals/gdpr-open-rights.md)) | ⚠️ open | The sources all exist; the assembly does not (§2). Lower value than #1 and #3: an application that already reads four projections can join them, and the failure mode is an incomplete disclosure rather than an unlawful retention. |
 | 5 | Restriction of processing (Art. 18) has no mechanism | ➖ **deliberate for now** | `partner.status` is a commercial state on purpose and should not be overloaded into an access control — the same distinction the code already draws between `Partner.deactivate` (a state) and `Account.lock` (a control). A real restriction would need a gate in front of every read, which is a constraint-socket question, and that socket has one predicate today. |
 | 6 | Retention-period expiry | ➖ | summae holds no retention clock and will not: the periods are jurisdictional (§ 147 AO is six or ten years depending on the class of record) and the decision to erase is the controller's. The library's contribution is the entry date, which it already publishes. |
+| 7 | **Does an account name belong in the inventory?** | ⚠️ open, and small | `account.name` is operator free text, and a chart that opens one debtor account per customer puts a person's name in it — the German practice of personal accounts (`Debitorenkonten`) does exactly that. It is *not* in § 1 today, because in most charts an account name is a category (*„Erlöse 19 %"*) and listing it would flood the inventory with rows about the chart of accounts. Both readings are defensible and the answer decides one row, not a mechanism. Named here rather than settled quietly. |
+| 8 | **Two persisted stores are not schema-declared** | ⚠️ open — IMPL-047 | The fiscal year's `periods` and the tenant's `config` are columnar JSON no `$defs` entry describes. `config` can carry an `actor` — an operator's name — inside a stored `allocationScheme`, which is why it is a privacy row and not only a format row. The cross-test compares both byte-exact between engines; what is missing is the declaration that would let § 1 list their fields. |
 
 ---
 

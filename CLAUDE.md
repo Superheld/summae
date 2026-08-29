@@ -265,9 +265,18 @@ fixture coverage is necessary but not sufficient: every *contract surface* must 
 that fails loudly when the contract is broken, so authoring mistakes can't slip through
 unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligations:
 1. **Data format / pack format is schema-validated.** Anything the engine reads — journalExport
-   streams, the manifest, **and every `pack-library/` module + manifest** — is validated against
+   streams, the manifest, **every `pack-library/` module + manifest**, and since format 0.10 **the
+   documents the persistence adapters store** (`asset`, `assetState`, `costingRun`, `provision`,
+   `deferral`, `inventoryValuation`) — is validated against
    `testing/testsuite/schema/format.schema.json` in both languages. A field the engine reads but the schema
    does not declare is a finding (e.g. IMPL-002/SPEC-008 `includeNonCash`), not a convenience.
+   **The stored half was undeclared for two years and it cost a real defect** (IMPL-046): PHP wrote an
+   empty map as `[]` where Node wrote `{}`, on a shared database, unnoticed because the cross-test
+   compared only `journalExport`. It now compares the stored documents themselves and validates both
+   engines' against the schema, and `PersistedDocumentContractTest`/`persisted-document-contract.test.ts`
+   hold **every table the schema installer creates** against a declared document type — because the
+   recurrence risk is not that bug but the next aggregate arriving undeclared, which happened three
+   times in one day.
 2. **The API/dispatcher surface (`TenantOperations`) has a contract test** — every operation/projection
    named in the API spec resolves to a handler, unknown ops map to the defined error, input shape is
    validated. The runner's behavioral fixtures exercise it but do not pin the contract.

@@ -1,6 +1,8 @@
-# Datenformat-Spezifikation v0.9 (Entwurf)
+# Datenformat-Spezifikation v0.10 (Entwurf)
 
-> Schema-Datei `$id` → **0.9** (geschlossenes `subtype`-Repertoire, bedingte Constraints).
+> Schema-Datei `$id` → **0.10** (die fünf persistierten Aggregate sind deklariert; leere Abbildungen sind `{}`).
+>
+> **0.9** (geschlossenes `subtype`-Repertoire, bedingte Constraints).
 > Anders als die vier Schritte davor ist dies **kein rein additiver**: `account.subtype` war ein
 > freier String und ist jetzt eine Aufzählung, das Schema akzeptiert also **weniger** als vorher.
 > Bestehende Bestände, die ausschließlich kanonische Subtypen tragen — was auf jedes ausgelieferte
@@ -568,6 +570,41 @@ erfüllbar ist, weil die Tatsache fehlt (kein `setEntityProfile`), greift **nich
 `tenantConfiguration` meldet sie trotzdem, damit ein Aufrufer „keine Regel" von „Regel wartet auf
 eine Angabe" unterscheiden kann.
 
+## v0.10 — Die persistierten Aggregate, endlich im Format (IMPL-046)
+
+**Was fehlte, und wie lange.** Dieses Dokument beschrieb bis 2026-08-29 den **Austausch**bestand:
+Journal, Konten, Belege, Partner, offene Posten, Audit-Trail — alles, was `journalExport` auf den
+Datenträger legt. Die Persistenz-Adapter legen aber mehr ab, und lesen es zurück: **Anlagegüter**
+(seit M2), **Kostenrechnungsläufe** (seit 2026-08-24) und seit 2026-08-29 **Rückstellungen**,
+**Rechnungsabgrenzungsposten** und **Vorratsbewertungen**. Das Root-`CLAUDE.md` nennt genau dieses
+JSON „the shared data format", und die Vertragspflicht dazu lautet: was die Engine liest, wird gegen
+`format.schema.json` validiert. Fünf Dokumentsorten taten das nicht — der CHANGELOG sagte „the data
+format gains four record kinds", während `FORMAT_VERSION` unverändert stand und das Schema keine
+einzige von ihnen kannte.
+
+**Sechs neue `$defs`** (fünf Aggregate, das Anlagegut in zwei Dokumenten, weil die Adapter es in zwei
+Spalten ablegen): `asset`, `assetState`, `costingRun`, `provision`, `deferral`,
+`inventoryValuation`. Sie beschreiben **den gespeicherten Bestand**, nicht das Anlageverzeichnis, das
+ein Prüfer liest — deshalb stehen dort auch die Mechanik-Felder, deren Verlust bei einem Neustart
+still falsch rechnet: `depreciationStart`, `scheduleRevised`, `monthlySchedule` und vor allem
+`originalSchedule`, der Schattenplan, aus dem der Zuschreibungsdeckel kommt (F-CORE-052).
+
+**Und ein echter Formatunterschied, gefunden von genau der Prüfung, die es bis dahin nicht gab.**
+Eine leere Abbildung (`costingRun.primary`, `afterAllocation`) kodierte PHP als `[]` und Node als
+`{}` — PHPs leeres Array *ist* eine Liste. Auf einer geteilten Datenbank (SF-15) sind das zwei
+verschiedene Dokumente; kein Test hat je zwei Bestände miteinander verglichen, weil der Cross-Test
+nur `journalExport` gegenüberstellte. Seit 2026-08-29 vergleicht er **die gespeicherten Aggregate
+selbst**, byte-genau, in beide Richtungen, und validiert jedes Dokument beider Bestände gegen dieses
+Schema. Beim ersten Lauf: 136 Dokumente, ein Unterschied, eine Fixture von 126. Kanonisch ist `{}`;
+PHP nutzt jetzt dieselbe `stdClass`-Redewendung wie `auditRecord.changes`, wo derselbe Fehler schon
+einmal auffiel.
+
+**Migration.** Additiv für jeden Leser: die sechs Sorten waren vorher *undeklariert*, nicht anders
+deklariert. Bestehende Bestände bleiben gültig — mit einer Ausnahme, die genau die Korrektur ist: ein
+von PHP geschriebener Lauf **ohne** Kostenstellen trägt `[]` statt `{}` und validiert nicht. Er wird
+beim nächsten Schreiben korrekt abgelegt; ein Bestand, der nur gelesen wird, ist von der Änderung in
+seinen Zahlen nicht betroffen.
+
 ## Wer dieses Dokument gegen das Produkt hält
 
 Bis 2026-08-28 niemand, und das war der Befund IMPL-037: `format.schema.json` wird gegen
@@ -623,6 +660,12 @@ Formen nur als `kind` auftauchen. Ein Leser, der vom Schema herkommt, fand sie d
 | `productionCostData` | § v0.6 → `module`, `kind: productionCost` |
 | `auditRecord` | § v0.3 / § `auditLog.jsonl`; Hashes § v0.8 |
 | `manifest` | § Mandant & Export-Manifest; präzisiert § v0.5 |
+| `asset` | § v0.10 → persistierte Aggregate |
+| `assetState` | § v0.10 → persistierte Aggregate (Bewegungsteil) |
+| `costingRun` | § v0.10 → persistierte Aggregate |
+| `provision` | § v0.10 → persistierte Aggregate |
+| `deferral` | § v0.10 → persistierte Aggregate |
+| `inventoryValuation` | § v0.10 → persistierte Aggregate |
 
 ## Offene Punkte v0.4 → v0.5
 

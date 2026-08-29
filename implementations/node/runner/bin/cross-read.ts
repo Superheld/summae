@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import Ajv2020, { type ValidateFunction } from 'ajv/dist/2020.js';
 import {
   canonicalJson,
   Currency,
@@ -24,6 +25,15 @@ import { loadFixtures } from '../src/fixture-loader.js';
  * is compared byte-exact — incl. the sha256 contentHashes and the
  * exportedAt (same fixed clock on both sides). Since the timestamp canonicalization
  * (SPEC-C01 solved: UTC-Z/ms in both languages) no exceptions are needed anymore.
+ *
+ *  3. The **stored aggregates** — the half of the shared data format that never leaves through
+ *     `journalExport` and was therefore crossed by nothing until 2026-08-29 (IMPL-046). Assets,
+ *     costing runs, provisions, deferrals and inventory valuations live as JSON documents in the
+ *     `summae_*` tables; on a shared database (SF-15: one store, several engines) two engines that
+ *     write them differently are two truths. Each document is compared byte-exact between the two
+ *     stores AND validated against `format.schema.json`, whose 0.10 `$defs` describe exactly these
+ *     documents. Its first run found a difference in one fixture out of 126: PHP wrote an empty map
+ *     as `[]`, Node as `{}` — which is also why this comparison belongs here rather than in PHP.
  */
 
 const dirArg = process.argv.slice(2).find((a) => a.startsWith('--dir='));
@@ -110,6 +120,103 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.php-actual.json')
   }
 }
 
+// ── Direction 3: the stored aggregates, compared and validated ──────────────
+//
+// Byte-exact on the payload column, because that is what a second engine reads back. The schema
+// check runs over BOTH stores: a document that both engines get equally wrong is still wrong, and
+// the whole point of declaring these five kinds in the format was to have something to be wrong
+// against.
+// `null` = compared but not validated: the two columnar tables store JSON no `$defs` entry
+// describes yet (IMPL-047). Byte-equality across engines is the half that can be had today, and it
+// is the half a shared database needs first.
+const AGGREGATE_COLUMNS: ReadonlyArray<readonly [string, ReadonlyArray<readonly [string, string | null]>]> = [
+  ['assets', [['payload', 'asset'], ['state', 'assetState']]],
+  ['costing_runs', [['payload', 'costingRun']]],
+  ['provisions', [['payload', 'provision']]],
+  ['deferrals', [['payload', 'deferral']]],
+  ['inventory_valuations', [['payload', 'inventoryValuation']]],
+  ['fiscal_years', [['periods', null]]],
+  ['tenants', [['config', null]]],
+];
+
+const schema = JSON.parse(
+  readFileSync(join(dir, '..', 'testing', 'testsuite', 'schema', 'format.schema.json'), 'utf8'),
+) as Record<string, unknown>;
+const ajv = new Ajv2020({ strict: false });
+ajv.addSchema(schema, 'format');
+const validators = new Map<string, ValidateFunction>();
+function validatorFor(def: string): ValidateFunction {
+  const known = validators.get(def);
+  if (known !== undefined) return known;
+  const compiled = ajv.compile({ $ref: `format#/$defs/${def}` });
+  validators.set(def, compiled);
+  return compiled;
+}
+
+function documents(
+  file: string,
+  table: string,
+  columns: ReadonlyArray<readonly [string, string | null]>,
+): Array<[string | null, string]> {
+  const db = new SyncDb(join(dir, file));
+  try {
+    if (!db.hasTable(`${TABLE_PREFIX}${table}`)) return [];
+    const rows = db.all(db.table(`${TABLE_PREFIX}${table}`).select(...columns.map(([c]) => c), 'id').orderBy('id'));
+    const out: Array<[string | null, string]> = [];
+    for (const row of rows) {
+      for (const [column, def] of columns) {
+        const value = row[column];
+        if (typeof value === 'string') out.push([def, value]);
+      }
+    }
+    return out;
+  } finally {
+    db.close();
+  }
+}
+
+const aggregates: Result = { green: 0, red: 0, failures: [] };
+for (const file of readdirSync(dir).filter((f) => f.endsWith('.sqlite') && !f.endsWith('.node.sqlite')).sort()) {
+  const name = file.slice(0, -'.sqlite'.length);
+  const nodeFile = `${name}.node.sqlite`;
+  if (!existsSync(join(dir, nodeFile))) continue;
+
+  for (const [table, columns] of AGGREGATE_COLUMNS) {
+    const fromPhp = documents(file, table, columns);
+    const fromNode = documents(nodeFile, table, columns);
+
+    if (fromPhp.length !== fromNode.length) {
+      aggregates.red++;
+      aggregates.failures.push(`${name}/${table}: PHP wrote ${fromPhp.length} documents, Node ${fromNode.length}`);
+      continue;
+    }
+
+    for (const [index, [def, phpDoc]] of fromPhp.entries()) {
+      const [, nodeDoc] = fromNode[index] as [string | null, string];
+      let ok = true;
+
+      if (phpDoc !== nodeDoc) {
+        ok = false;
+        aggregates.failures.push(`${name}/${table}[${index}] ${def ?? 'undeclared'}: A=PHP: …${firstDiff(phpDoc, nodeDoc)}`);
+      }
+
+      for (const [engine, document] of [['PHP', phpDoc], ['Node', nodeDoc]] as const) {
+        if (def === null) continue;
+        const validate = validatorFor(def);
+        if (!validate(JSON.parse(document))) {
+          ok = false;
+          aggregates.failures.push(
+            `${name}/${table}[${index}] ${def} (${engine}) does not validate: ${ajv.errorsText(validate.errors, { separator: '; ' })}`,
+          );
+        }
+      }
+
+      if (ok) aggregates.green++;
+      else aggregates.red++;
+    }
+  }
+}
+
 function report(label: string, r: Result): void {
   console.log(`${label}: ${r.green} green, ${r.red} red`);
   for (const f of r.failures.slice(0, 5)) console.log(`  ${f}`);
@@ -118,4 +225,5 @@ function report(label: string, r: Result): void {
 console.log('');
 report('Cross-test PHP→Node (journalExport)', phpToNode);
 report('Cross-test Node→PHP (journalExport)', nodeToPhp);
-process.exit(phpToNode.red === 0 && nodeToPhp.red === 0 ? 0 : 1);
+report('Cross-test stored aggregates (byte-equal + schema)', aggregates);
+process.exit(phpToNode.red === 0 && nodeToPhp.red === 0 && aggregates.red === 0 ? 0 : 1);

@@ -2847,7 +2847,7 @@ jurisdiction's; summae's job is that the case is never invisible.
 `fiscalYear` (**yes**), `format` (no; the only accepted value is `"gobd-z3"`, which is
 also the default — anything else is `E_INPUT_INVALID` rather than silently the Z3
 stream under a wrong label). The manifest's `formatVersion` always states the current
-data-format version, `"0.9"`. Output: `manifest` (`formatVersion`,
+data-format version, `"0.10"`. Output: `manifest` (`formatVersion`,
 `tenantId`, `exportedAt`, `hashAlgorithm:"sha256"`, `streams`, `contentHashes`),
 `fieldCatalog`, `journal` (`entryCount`, `ordering`, `allFinalized`), `data`
 (`journal`, `accounts`, `vouchers`, `partners?`, `auditLog`). `contentHashes` =
@@ -3062,6 +3062,13 @@ out — for the records themselves you already have `journalExport`.
 
 `present: null` on two rows is deliberate: a posting text and an audit diff exist per record rather
 than per holder, and a count there would be a number nobody could act on.
+
+**Three of the rows are not in `journalExport`, and that is the point of them** (since 0.18.0):
+`asset.name`, `provision.reason` and `deferral.reason` are operator free text on *stored aggregates*,
+which the Z3 export does not carry. An Art. 30 record assembled from the export alone misses them —
+and a provision is by its nature often about a named party: a dispute, a warranty claim, a severance.
+They were missing from this list too until 2026-08-29; the list and the document that mirrors it now
+hold each other, in both languages, so neither can quietly stop describing the software.
 
 ⚠ **`addressKeys` is the row worth reading.** The data format declares a recommended address shape
 (`line1`, `line2`, `postalCode`, `city`, `region`, `country` as ISO 3166-1 alpha-2) and does **not**
