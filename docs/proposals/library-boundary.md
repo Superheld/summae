@@ -203,9 +203,14 @@ projections are ungated. A scenario for each is cheap and gates what this memo i
 
 ## 9. Order of work
 
-1. **A gate for `hgb-conformance.md`**, in the shape `GobdConformanceDocTest` already has. Without
-   it the census is prose and rots — which is how the VAT row in the GoBD census spent five green
-   days describing a product that had moved.
+1. ~~**A gate for `hgb-conformance.md`**, in the shape `GobdConformanceDocTest` already has.~~
+   **Built 2026-08-29** (`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts`). It came out
+   inverted, which was not foreseen when this line was written: because that census is mostly ⚠️,
+   most of its facts are *absences*, so the gate pins the names of the operations and projections
+   summae does **not** have. Building any of them turns the build red until the census is opened
+   and the row moved. A census of absences rots the opposite way from one of claims — nothing
+   breaks when a hole is filled, the document just quietly understates the product — and only an
+   inverted gate catches that.
 2. **Bewertungsstetigkeit** (census row 1): a costing run records the election it was computed
    under. Small, and it protects the one measurement option that ships.
 3. **Stock** (§4 here, census row 2). Closes a balance-sheet hole and the cost-accounting chain with

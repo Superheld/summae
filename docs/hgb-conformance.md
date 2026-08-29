@@ -142,13 +142,50 @@ Ordered by what unblocks what, not by severity.
 | **11** | **Foreign currency (§ 256a)** | decision first | A single-currency bookkeeping library is a defensible product. What is not defensible is leaving this as an unremarked hole. Either it becomes ➖ *deliberately not*, with the consequence stated, or it is the largest change in this list — it reaches `Money` and therefore everything. |
 | **12** | **§ 15a UStG arithmetic** | medium | Decided 2026-08-29 to belong here: mechanism in the core, periods and thresholds as `de` pack data, register and deadline staying with the application. |
 
-## 8. What this document is not
+## 8. The facts this document asserts, held against the product
+
+Everything above is prose, and prose is where a census rots. Its two siblings each learned that the
+hard way — §4 of the GoBD census named two tax codes as missing that had been built hours earlier and
+went on saying so through five green builds. The rows are argued in prose deliberately; the **facts
+inside them** do not have to be.
+
+`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts` parses this table and compares every row
+against its real source. Values are separated by spaces and the order must match the source.
+
+**This table is inverted relative to its siblings, and that is the whole point of it.** The GoBD and
+GDPR censuses are mostly ✅, so their facts table guards claims of *presence*. This one is mostly ⚠️,
+so most of what it asserts is **absence** — that the engine has no `valuateInventory`, that the German
+balance sheet has five asset positions and none of them is stock. An absence nothing checks is how a
+census becomes a wish list: somebody builds the thing, nobody opens this file, and the row goes on
+describing a hole that was filled. Here the opposite happens. **Building any row below turns this gate
+red**, and the only way back to green is to open this document and move the row to ✅ with its
+evidence named. The gate does not merely notice progress; it refuses to let progress go unrecorded.
+
+| Claim | Source | Value |
+|---|---|---|
+| engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `fixed_asset` `opening_balance` `private` |
+| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `valuateInventory` `writeUpAsset` `recognizeProvision` `useProvision` `releaseProvision` `remeasureProvision` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
+| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `inventoryValuation` `provisionRegister` `deferralRegister` `assetSchedule` `measurementConsistency` |
+| `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.II` `A.III` `A.IV` `A.V` |
+| `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.C` `P.D` |
+| `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `2` `3` `4` `5` `6` |
+| `de` chart, subtypes actually used | `pack-library/de-pack/accounts/de-konten.json` | `ap` `ar` `bank` `cash` `fixed_asset` `opening_balance` `private` `result_allocation` `tax_in` `tax_out` `transit` |
+| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `depreciation` `legalForms` `mapping` `policy` `productionCost` `resultAppropriation` `tax` |
+
+Read the last three rows against §§ 1, 3 and 5: eleven subtypes with no `inventory` among them, five
+asset positions with no stock among them, ten module kinds with no provision and no input-tax
+adjustment among them. Those are the ⚠️ rows, stated as data instead of as an assurance.
+
+---
+
+## 9. What this document is not
 
 It is **not a claim that summae is unsuitable for bookkeeping.** Every ⚠️ above concerns a business
 that holds stock, forms provisions, invoices in foreign currency, or files under § 266. A service
 business on a cash basis meets none of them, and for that business the ✅ rows are the whole story.
 
-It is also **not yet gated.** `gobd-conformance.md` and `gdpr-conformance.md` are each held against
-the product by a test that turns the build red when a claim here stops matching the code — this one
-has no such test yet, and until it does, every row is prose that can rot. That test is the first
-thing to write after row 1, and this paragraph is deleted when it exists.
+It is **gated** since 2026-08-29, in the shape its two siblings already had:
+`HgbConformanceDocTest` / `hgb-conformance-doc.test.ts` check that every fixture named above exists
+and still runs, that no fifth status symbol appears, and that every fact in §8 matches its source.
+What that gate cannot say is whether the *law* is stated correctly — only that the document is not
+wrong about the product it describes.
