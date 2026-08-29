@@ -155,6 +155,8 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 |---|---|---|
 | `E_ASSET_UNKNOWN` | Anlagegut existiert nicht | edge-errors |
 | `E_ASSET_DISPOSED` | Operation auf abgegangenem Anlagegut | edge-errors |
+| `E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN` | Es soll mehr zugeschrieben werden, als auf dem Anlagegut je außerplanmäßig abgeschrieben wurde. Eine Zuschreibung nach § 253 Abs. 5 HGB **macht eine frühere Abwertung rückgängig** — sie erschafft keinen Wert. `details`: `amount`, `reversible` | asset-write-up |
+| `E_ASSET_WRITE_UP_EXCEEDS_CEILING` | Die Zuschreibung führte den Buchwert über die **fortgeführten Anschaffungskosten** — den Wert, den das Anlagegut ohne die Abwertung hätte. Der Fall ist leicht zu übersehen: eine Abwertung senkt auch jede verbleibende Planrate, der Buchwert steigt also mit den Jahren über den unberührten Plan, und eine volle Rückgängigmachung führte darüber hinaus. `details`: `amount`, `bookValue`, `ceiling` | asset-write-up |
 | `E_COSTING_RUN_RELEASED` | Änderungsversuch an released Lauf | allocation-run |
 | `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/SPEC-006) | costing-run-unknown |
 | `E_COSTING_CYCLE` | Stufenleiter mit Zyklus | edge-errors |

@@ -1716,6 +1716,40 @@ remaining life is what a lasting impairment means.
 why is not auditable, and that is the whole difference between an impairment and a
 mistake. It goes into the entry text and the audit record.
 
+#### writeUpAsset
+
+Reverse an earlier write-down when its reason has ceased. `assetId` (yes), `amount` (yes, Money),
+`date` (yes), `reason` (yes), `voucherId` (no), `actor` (no). Output:
+`{ assetId, entryId, amount, bookValue, ceiling, stillReversible }`.
+
+**This is a duty, not an option** (§ 253 Abs. 5 HGB under the DE pack). Without it an asset written
+down in a bad year stays down for ever, which understates your equity and your result exactly as
+permanently as the write-down was meant to state them prudently for one year.
+
+Two caps, and the second is the one that surprises people:
+
+| cap | what it means |
+|---|---|
+| `stillReversible` | nothing may be written back that was not written down — a write-up **reverses**, it does not create value. Over it: `E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN` |
+| `ceiling` | the **amortised acquisition cost**: what the book value would be if the write-down had never happened. Over it: `E_ASSET_WRITE_UP_EXCEEDS_CEILING` |
+
+The ceiling is stricter than it looks. A write-down does not only lower the book value, it lowers
+every remaining planned instalment — so as the plan runs on, the book value drifts *above* the
+untouched plan. Reversing the write-down in full some years later would therefore carry the asset
+over its amortised cost. summae keeps a shadow plan for exactly this and reports `ceiling` on every
+call, so you can ask before you try.
+
+**What you decide and what summae decides.** Whether the reason has ceased, and by how much the
+value has recovered, is an appraisal — a judgement about the world, which no library makes. So the
+amount is yours. The ceiling is arithmetic, and that is the part that is enforced.
+
+Your pack must name `assetAccounts.writeUpIncomeAccount`; there is no fallback, and the asymmetry
+with `writeDownAsset` (which falls back to the depreciation account) is deliberate. A write-down
+without its own account lands on ordinary depreciation, which is merely less informative — both are
+a charge against the same asset. On the income side the only nearby account is *gain on disposal*,
+and a write-up is not one: booking it there would file the figure under a heading that says
+something untrue about it.
+
 #### runDepreciation
 
 Depreciation run, idempotent. `fiscalYear` (yes); with `period` a monthly run,

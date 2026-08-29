@@ -88,6 +88,13 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             // schedule IS the plan, and a restart that forgot this would go back to re-deriving the
             // plan from the acquisition cost — the very figure the write-down said is no longer valid.
             'scheduleRevised' => $asset->scheduleWasRevised(),
+            // The shadow plan (F-CORE-052). Mechanics again, and lost silently again: without it a
+            // write-up after a restart would take the REBASED plan for the original one and compute
+            // a ceiling that is too high, letting an asset be carried above its amortised cost.
+            'originalSchedule' => array_map(
+                static fn (Money $amount): array => $amount->jsonSerialize(),
+                $asset->originalSchedule(),
+            ),
             'specialDepreciationBudget' => $asset->specialDepreciationBudget?->jsonSerialize(),
             'specialDepreciationWindowEnd' => $asset->specialDepreciationWindowEnd,
             'totalUnits' => $asset->totalUnits,
@@ -117,6 +124,17 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             if (is_array($amount)) {
                 /** @var array<string, mixed> $amount */
                 $schedule[] = Hydrator::money($amount, $this->currency);
+            }
+        }
+
+        $originalSchedule = null;
+        if (is_array($data['originalSchedule'] ?? null)) {
+            $originalSchedule = [];
+            foreach ($data['originalSchedule'] as $amount) {
+                if (is_array($amount)) {
+                    /** @var array<string, mixed> $amount */
+                    $originalSchedule[] = Hydrator::money($amount, $this->currency);
+                }
             }
         }
 
@@ -166,6 +184,7 @@ final readonly class DatabaseAssetRepository implements AssetRepository
             is_int($data['specialDepreciationWindowEnd'] ?? null) ? $data['specialDepreciationWindowEnd'] : null,
             is_int($data['totalUnits'] ?? null) ? $data['totalUnits'] : null,
             is_int($data['reportedUnits'] ?? null) ? $data['reportedUnits'] : 0,
+            $originalSchedule,
         );
     }
 

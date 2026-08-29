@@ -46,7 +46,7 @@ export const API_OPERATIONS = [
    'recognizeProvision', 'releaseProvision', 'remeasureProvision',
   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
   'useProvision', 'valuateInventory', 'settle',
-   'unlockAccount', 'updatePartner', 'writeDownAsset',
+   'unlockAccount', 'updatePartner', 'writeDownAsset', 'writeUpAsset',
 ] as const;
 
 export const API_PROJECTIONS = [
@@ -142,7 +142,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'entityProfile', actions: ['changed'] },
   { objectType: 'mapping', actions: ['imported'] },
   { objectType: 'allocationScheme', actions: ['changed'] },
-  { objectType: 'asset', actions: ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown'] },
+  { objectType: 'asset', actions: ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown', 'writtenUp'] },
   { objectType: 'dimensionType', actions: ['created'] },
   { objectType: 'dimensionValue', actions: ['created'] },
   { objectType: 'depreciationRun', actions: ['completed'] },

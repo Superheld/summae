@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "us",
   "name": "United States — complete pack (own chart + sales/use tax + US-GAAP mappings + cash-basis Schedule C + MACRS)",
-  "version": "2026.8",
+  "version": "2026.7",
   "modules": [
     {
       "kind": "accounts",
@@ -37,7 +37,7 @@
     {
       "kind": "assetAccounts",
       "id": "us-asset-accounts",
-      "version": "2026.2"
+      "version": "2026.1"
     },
     {
       "kind": "policy",

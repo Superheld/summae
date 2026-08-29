@@ -18,6 +18,7 @@ stock-valuation
 de-vorraete
 provisions
 de-rueckstellungen
+asset-write-up
 production-cost
 de-herstellungskosten
 us-inventory-costing

@@ -1,7 +1,7 @@
 # Modul 7 — Anlagen-Bewegungskonten US (`assetAccounts`)
 
 ```
-kind: assetAccounts · id: us-asset-accounts · version: 2026.1 · formatVersion: 0.6
+kind: assetAccounts · id: us-asset-accounts · version: 2026.2 · formatVersion: 0.6
 contributes: ["assetAccounts"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.default = die fünf Bewegungskonten (per number); optional data.perClass
 ```

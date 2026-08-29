@@ -518,6 +518,14 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     voucherId: { type: 'string' },
     actor: { type: 'string' },
   },
+  writeUpAsset: {
+    assetId: { type: 'string', required: true },
+    amount: { type: 'money', required: true },
+    date: { type: 'date', required: true },
+    reason: { type: 'string', required: true },
+    voucherId: { type: 'string' },
+    actor: { type: 'string' },
+  },
   setAllocationScheme: {
     method: { type: 'string' },
     steps: {

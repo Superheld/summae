@@ -66,6 +66,7 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       gwgExpenseAccount: '4930',
       disposalGainAccount: '8400',
       disposalLossAccount: '4930',
+      writeUpIncomeAccount: '8400',
     },
   });
   // The appropriation plug, for the same reason: without it the operation refuses with
@@ -514,6 +515,28 @@ const AUDITED: readonly Case[] = [
         date: '2026-06-30',
         reason: 'Wasserschaden',
         voucherId,
+      });
+    },
+  },
+  {
+    op: 'writeUpAsset',
+    objectType: 'asset',
+    action: 'writtenUp',
+    run: (ops) => {
+      const { voucherId } = seed(ops);
+      const assetId = acquire(ops, voucherId);
+      ops.execute('createAccount', { number: '8400', name: 'Erträge aus Zuschreibungen', type: 'revenue' });
+      ops.execute('writeDownAsset', {
+        assetId,
+        amount: { amount: '1000.00', currency: 'EUR' },
+        date: '2026-06-30',
+        reason: 'Wasserschaden',
+      });
+      ops.execute('writeUpAsset', {
+        assetId,
+        amount: { amount: '400.00', currency: 'EUR' },
+        date: '2026-09-30',
+        reason: 'Schaden behoben',
       });
     },
   },

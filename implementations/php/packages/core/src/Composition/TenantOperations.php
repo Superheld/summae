@@ -116,6 +116,7 @@ final readonly class TenantOperations
             'remeasureProvision' => $tenant->provisionService?->remeasure($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "remeasureProvision" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
+            'writeUpAsset' => $tenant->assetService->writeUpAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
             'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
             'allocate' => $this->allocate($input),

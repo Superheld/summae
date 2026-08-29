@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-euer",
   "kind": "mapping",
-  "version": "2026.6",
+  "version": "2026.5",
   "name": "Einnahmen-Überschuss-Rechnung §4 Abs. 3 EStG (Anlage EÜR, auf den neutralen DE-Rahmen)",
   "contributes": [
     "mappings"
@@ -17,7 +17,7 @@
     "mapping": {
       "id": "de-euer",
       "kind": "cash-basis-categories",
-      "version": "2026.5",
+      "version": "2026.4",
       "positions": [
         {
           "key": "E1",
@@ -85,17 +85,6 @@
             {
               "numbers": [
                 "4900"
-              ]
-            }
-          ]
-        },
-        {
-          "key": "E6a",
-          "label": "Erträge aus Zuschreibungen (bei der Einnahmen-Überschuss-Rechnung ohne Ansatz)",
-          "accounts": [
-            {
-              "numbers": [
-                "4910"
               ]
             }
           ]

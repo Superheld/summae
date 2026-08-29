@@ -81,7 +81,7 @@ Status vocabulary, identical to its two siblings:
 | § 253 Abs. 2 — discounting of provisions with more than a year to run | ✅ | `provisions/provisions`. The split is *not* the one this row predicted, and the correction is worth recording: the **rule** is pack data (from what remaining term, with its citation), the **rate** is an input per act. It is published monthly, so a number in a pack file would be stale before anybody upgraded — and a stale legal rate that looks authoritative is worse than an absent one. A provision that must be discounted and carries no rate is refused by name (`E_PROVISION_DISCOUNT_RATE_REQUIRED`), never booked undiscounted. |
 | § 253 Abs. 3 — scheduled and unscheduled depreciation of fixed assets | ✅ | `runDepreciation`, `writeDownAsset`; `assets/asset-write-down`, `assets/declining-balance-depreciation`, `assets/special-depreciation` |
 | § 253 Abs. 4 — **strict lower-of-cost-or-market for current assets** | 🟡 | **For stock it holds:** `valuateInventory` takes a `marketValue` per unit, carries the lower of it and the cost, and says which it took (`unitValue`, `writtenDownToMarket`) — `inventory/stock-valuation`. **For receivables it does not:** `6700 Forderungsverluste` writes an item *off*, which is a different act from valuing it down at the reporting date, and there is no allowance, neither specific nor general. |
-| § 253 Abs. 5 — **write-up when the reason for a write-down ceases** | ⚠️ | **Nothing.** Zero occurrences. This is a *Gebot*, not an option (goodwill excepted), and summae has `writeDownAsset` with no counterpart. An asset written down in a bad year stays down for ever. |
+| § 253 Abs. 5 — **write-up when the reason for a write-down ceases** | ✅ | `writeUpAsset`; `assets/asset-write-up`. Two caps: nothing may be written back that was not written down, and the book value may not exceed the **amortised acquisition cost**. The second needed a shadow plan on the asset, which the census did not foresee and which is the interesting part — a write-down also lowers every remaining instalment, so the book value drifts *above* the untouched plan and a full reversal years later would carry the asset over its cost. Whether the reason has ceased stays an appraisal and therefore an input; the ceiling is arithmetic and is enforced. |
 | § 254 — hedging units (Bewertungseinheiten) | ⚠️ | Not expressible. Rare, and named rather than omitted. |
 | § 255 Abs. 1 — acquisition cost, including incidental costs and reductions | ✅ | `acquireAsset`; `core/settlement-discount` for the reduction side |
 | § 255 Abs. 2/3 — **production cost**: mandatory parts, options, prohibitions | ✅ **for the figure** | `costing/production-cost`, `pack/de-pack/de-herstellungskosten`, `pack/us-pack/us-inventory-costing`. The treatment table is the model case of this project's layering — the core adds up, the pack says what may enter. |
@@ -103,7 +103,7 @@ owes none of it, which is why these rows are separated rather than mixed into §
 | § 272 — equity, shown by its components | 🟡 | The `de-bilanz` mapping has one equity position plus the result. Subscribed capital, reserves and loss carried forward are not separated — adequate for a GbR, not for a GmbH. |
 | § 275 Abs. 2 — **income statement, Gesamtkostenverfahren** | 🟡 | **Nr. 2 changes in inventory arrived** (`de-guv` 2026.2, key `1a`) and is where the stock valuation books. Still missing: Nr. 3 own work capitalised, Nr. 12/13 interest, and taxes on income — row 9 of §7. |
 | § 275 Abs. 3 — Umsatzkostenverfahren | ⚠️ | Not offered. It is a second mapping, not a second mechanism — cheap once a business asks. |
-| § 277 Abs. 3 — unscheduled depreciation shown separately | ⚠️ | `writeDownAsset` posts to the ordinary depreciation account when the pack names no impairment account, so the two are indistinguishable in the income statement. |
+| § 277 Abs. 3 — unscheduled depreciation shown separately | 🟡 | `writeDownAsset` still falls back to the ordinary depreciation account when the pack names none, so the two remain indistinguishable for a pack that says nothing — the shipped `de` pack does name one. Note the deliberate asymmetry with the **write-up**, whose income account is *required*: a write-down without its own account lands on depreciation, which is merely less informative, while the only nearby income account is *gain on disposal* and a write-up is not one. |
 
 ## 6. What the tax accounts add (EStG)
 
@@ -132,7 +132,7 @@ Ordered by what unblocks what, not by severity.
 | ~~**1**~~ | ~~**Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)**~~ — **built 2026-08-29** | — | `measurementConsistency` + `costing/measurement-consistency` (F-CORE-049). The row stays rather than being deleted, for what it got wrong: it said a run does not record its election. A run has recorded it since runs were persisted; the missing half was the *comparison*. The size estimate was right for the wrong reason, which is an argument for reading a census row against the code before believing it. |
 | ~~**2**~~ | ~~**Stock: recognition, measurement, posting**~~ — **built 2026-08-29** | — | `valuateInventory` + `inventoryValuation` + the `inventory` subtype + `de-vorraete`/`us-inventory-accounts` + the two mapping positions (F-CORE-050). Built as sketched, with one thing the sketch did not foresee: the valuation had to become a **persisted aggregate**, not just a posting. An engine that books a change in stock and keeps no record of how it reached the number does exactly what this project refuses to let an embedder do, one level down. § 256 Fifo/Lifo stays deferred and stays row 6. |
 | ~~**3**~~ | ~~**Provisions (§ 249, § 253 Abs. 2)**~~ — **built 2026-08-29** | — | Four operations, a register, an aggregate with its movement list, the `provision` subtype and `de-rueckstellungen` (F-CORE-051). The row's guess about the discount rate was wrong in an instructive way — see § 253 Abs. 2 above: the rule is pack data, the rate cannot be, because it is republished monthly. |
-| **4** | **Write-up obligation (§ 253 Abs. 5)** | small | `writeDownAsset` has no counterpart. A mandatory rule with nothing behind it, and the smallest of the genuine legal gaps. |
+| ~~**4**~~ | ~~**Write-up obligation (§ 253 Abs. 5)**~~ — **built 2026-08-29** | — | `writeUpAsset` (F-CORE-052). Called "small" here and it was not: the amount and the reversal are trivial, the *ceiling* is not. It needed a shadow depreciation plan stored on the asset, because after a write-down rebases the live plan the original instalments are recoverable from nothing else. Third row in a row whose size estimate was wrong for an interesting reason. |
 | **5** | **Release schedule for prepaid/deferred items (§ 250, § 252 Abs. 1 Nr. 5)** | small | Exactly the `runDepreciation` pattern over the accounts that already exist. |
 | **6** | **Consumption sequence (§ 256, § 6 Abs. 1 Nr. 2a EStG)** | open question | Needs entry-value history, which needs a stock record, which the boundary says summae does not keep. Either the first cut (weighted average from the run's production cost) is enough, or the boundary moves. **Do not close this by building it silently — it is the row that decides how far the library goes.** |
 | **7** | **Offsetting prohibition (§ 246 Abs. 2)** as a checked rule | small | A mapping position must not mix asset and liability accounts. A guard over the shipped mappings, in the shape the pack schema validation already has. |
@@ -164,7 +164,7 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 | Claim | Source | Value |
 |---|---|---|
 | engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `inventory` `provision` `fixed_asset` `opening_balance` `private` |
-| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `writeUpAsset` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
+| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
 | projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `deferralRegister` `assetSchedule` |
 | `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.Ia` `A.II` `A.III` `A.IV` `A.V` |
 | `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.B` `P.C` `P.D` |
@@ -175,9 +175,9 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 This paragraph has now been rewritten twice in one day, both times because the gate refused to go
 green until it was — which is the mechanism doing exactly what it exists for. On the morning of
 2026-08-29 it read *eleven subtypes with no `inventory`, five asset positions with no stock, ten
-module kinds with no provision*. All three sentences are obsolete. What the rows say now is: twelve
-module kinds with **no input-tax adjustment** among them, and an operations list still missing the
-write-up (§ 253 Abs. 5) and the deferral schedule (§ 250).
+module kinds with no provision*. All three sentences are obsolete. What the rows say now is: twelve module
+kinds with **no input-tax adjustment** among them, and an operations list still missing the deferral
+schedule (§ 250) and the § 15a correction.
 
 ---
 

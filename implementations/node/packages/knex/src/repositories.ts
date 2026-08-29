@@ -816,6 +816,10 @@ export class DatabaseAssetRepository implements AssetRepository {
       // schedule IS the plan, and a restart that forgot this would go back to re-deriving the plan
       // from the acquisition cost — the very figure the write-down said is no longer valid.
       scheduleRevised: asset.scheduleWasRevised(),
+      // The shadow plan (F-CORE-052). Mechanics again, and lost silently again: without it a
+      // write-up after a restart would take the REBASED plan for the original one and compute a
+      // ceiling that is too high, letting an asset be carried above its amortised cost.
+      originalSchedule: asset.originalScheduleShares().map((amount) => amount.toJSON()),
       specialDepreciationBudget: asset.specialDepreciationBudget?.toJSON() ?? null,
       specialDepreciationWindowEnd: asset.specialDepreciationWindowEnd,
       totalUnits: asset.totalUnits,
@@ -838,6 +842,9 @@ export class DatabaseAssetRepository implements AssetRepository {
     const schedule = (Array.isArray(data.monthlySchedule) ? data.monthlySchedule : [])
       .filter(H.isRecord)
       .map((amount) => H.money(amount, this.currency));
+    const originalSchedule = Array.isArray(data.originalSchedule)
+      ? data.originalSchedule.filter(H.isRecord).map((amount) => H.money(amount, this.currency))
+      : null;
     const depreciations = (Array.isArray(state.depreciations) ? state.depreciations : [])
       .filter(H.isRecord)
       .map((booking) => ({
@@ -880,6 +887,7 @@ export class DatabaseAssetRepository implements AssetRepository {
       typeof data.specialDepreciationWindowEnd === 'number' ? data.specialDepreciationWindowEnd : null,
       typeof data.totalUnits === 'number' ? data.totalUnits : null,
       typeof data.reportedUnits === 'number' ? data.reportedUnits : 0,
+      originalSchedule,
     );
   }
 
