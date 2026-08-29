@@ -120,6 +120,22 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
     },
   },
   {
+    // Inventory valuations (F-CORE-050). Same shape and the same reasoning as costing_runs: period
+    // and version are columns because they are what a valuation is FOUND by. No `status` — a
+    // valuation has no draft state; repeating one is the next version, and its posting is the
+    // difference.
+    name: 'inventory_valuations',
+    define: (t) => {
+      t.uuid('id').primary();
+      t.uuid('tenant_id').index();
+      t.integer('fiscal_year');
+      t.integer('period');
+      t.integer('version');
+      t.json('payload');
+      t.unique(['tenant_id', 'fiscal_year', 'period', 'version']);
+    },
+  },
+  {
     /**
      * The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
      *

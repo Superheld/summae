@@ -339,6 +339,65 @@
       }
     },
     {
+      "name": "stock: the quantity is input, the valuation is booked, and the record says how it got there",
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 12,
+        "valuationDate": "2026-12-31",
+        "categories": [
+          {
+            "account": "1120",
+            "quantity": "200",
+            "unitCost": "25.00"
+          }
+        ]
+      },
+      "expect": {
+        "closingTotal.amount": "5000.00",
+        "change.amount": "5000.00",
+        "posted": true
+      }
+    },
+    {
+      "name": "the same valuation again books nothing — the posting is always the difference",
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 12,
+        "valuationDate": "2026-12-31",
+        "categories": [
+          {
+            "account": "1120",
+            "quantity": "200",
+            "unitCost": "25.00"
+          }
+        ]
+      },
+      "expect": {
+        "version": 2,
+        "change.amount": "0.00",
+        "posted": false
+      }
+    },
+    {
+      "name": "what was valued, out of what, and against which account — the pack names the last one",
+      "report": "inventoryValuation",
+      "params": {
+        "fiscalYear": 2026,
+        "period": 12
+      },
+      "expect": {
+        "valuations[0].closingTotal": "5000.00",
+        "valuations[0].categories[0].quantity": "200",
+        "valuations[0].categories[0].unitValue": "25.00",
+        "valuations[0].categories[0].source": "input",
+        "valuations[0].categories[0].changeAccount": "4100",
+        "valuations[0].categories[0].writtenDownToMarket": false,
+        "valuations[1].change": "0.00"
+      }
+    },
+    {
       "name": "postings must be finalized before periods can close",
       "op": "finalize",
       "input": {

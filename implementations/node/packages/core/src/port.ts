@@ -3,6 +3,7 @@ import type { CalendarDate } from './substrate/calendar-date.js';
 import type { Uuid } from './substrate/uuid.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
+import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
 import type { Partner } from './partner/partner.js';
 import type { Account } from './substrate/account.js';
 import type { AuditRecord } from './records/audit-record.js';
@@ -136,6 +137,21 @@ export interface CostingRunRepository {
   byId(id: Uuid): CostingRun | null;
   /** sorted by period, then version */
   all(): CostingRun[];
+}
+
+/**
+ * Inventory valuations (F-CORE-050).
+ *
+ * The same shape as `CostingRunRepository`, and for the same reason it exists at all: a valuation
+ * that lives in the process that made it cannot be read back, and the record of *how* a stock
+ * figure was reached is precisely what an inventory has to be able to show. `all()` is sorted
+ * because the next version of a period comes out of the store, not out of a counter.
+ */
+export interface InventoryValuationRepository {
+  add(valuation: InventoryValuation): void;
+  byId(id: Uuid): InventoryValuation | null;
+  /** sorted by fiscal year, then period, then version */
+  all(): InventoryValuation[];
 }
 
 /**

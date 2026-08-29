@@ -430,6 +430,7 @@ want to serve, you create one module:
 | balance sheet / income statement / cash-basis (projection) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
 | depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
 | rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
+| stock valuation (expansion) | `inventory` | `categories[]` (`account`, `changeAccount`, `label?`) — which accounts hold stock and where each one's change is booked |
 
 `formatVersion` names the **data format the file was authored against**, not the pack's own
 version — a shipped module may declare an older one and stay perfectly valid, because a module
@@ -523,7 +524,7 @@ Validation runs in the test runners, so the core stays framework-free.
 balance-carrying (carry forward across years), `expense`/`revenue` are per
 fiscal year.
 
-`subtype` is a **closed repertoire** since format 0.9 — eleven values, and anything else is
+`subtype` is a **closed repertoire** since format 0.9 — twelve values, and anything else is
 refused rather than stored:
 
 | Value | Read by the engine for |
@@ -536,6 +537,7 @@ refused rather than stored:
 | `tax_in` | VAT return (input side), cash-basis, DATEV export |
 | `tax_out` | VAT return (output side), cash-basis, DATEV export |
 | `result_allocation` | where an appropriated result lands |
+| `inventory` | stock — the only accounts `valuateInventory` may value onto |
 | `fixed_asset` | *annotation only* — the asset expansion uses its own module |
 | `opening_balance` | *annotation only* — the chart's opening-balance account |
 | `private` | *annotation only* — owner's drawings and contributions |
@@ -1064,7 +1066,7 @@ Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `
 its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
 would be created dead; or a `subtype` outside the repertoire).
 
-**`subtype` is a closed repertoire** — one of the eleven canonical values listed under
+**`subtype` is a closed repertoire** — one of the twelve canonical values listed under
 `chartsOfAccounts[]`, or absent. A value outside it is `E_INPUT_INVALID` with the offending value
 and the known list in `details`, rather than being stored: before format 0.9 a hyphen for an
 underscore created a liability account that no VAT return would ever count, and the only way to
@@ -1992,7 +1994,7 @@ is `trialBalance`), no movements (`accountSheet`), no hashes.
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
 cash box, which receivables and payables — and it is what an application should
-use to preselect a counter account. It is one of eleven canonical values or
+use to preselect a counter account. It is one of twelve canonical values or
 `null` (the repertoire is listed under `chartsOfAccounts[]`), so a caller may switch on it
 exhaustively rather than defensively. Reading the **pack** instead is the trap: the
 pack is the chart the tenant *started* from, and one `createAccount` later it is

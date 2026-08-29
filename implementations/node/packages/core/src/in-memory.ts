@@ -4,6 +4,7 @@ import type {
   AuditCriteria,
   AuditTrail,
   CostingRunRepository,
+  InventoryValuationRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -15,6 +16,7 @@ import type {
 import { applyAuditCriteria } from './records/audit-filter.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
+import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';
@@ -251,6 +253,27 @@ export class InMemoryCostingRunRepository implements CostingRunRepository {
   }
 
   all(): CostingRun[] {
+    return [...this.byIdMap.values()].sort((a, b) => {
+      const byYear = a.period.fiscalYear - b.period.fiscalYear;
+      if (byYear !== 0) return byYear;
+      const byPeriod = a.period.period - b.period.period;
+      return byPeriod !== 0 ? byPeriod : a.version - b.version;
+    });
+  }
+}
+
+export class InMemoryInventoryValuationRepository implements InventoryValuationRepository {
+  private readonly byIdMap = new Map<string, InventoryValuation>();
+
+  add(valuation: InventoryValuation): void {
+    this.byIdMap.set(valuation.id.value, valuation);
+  }
+
+  byId(id: Uuid): InventoryValuation | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): InventoryValuation[] {
     return [...this.byIdMap.values()].sort((a, b) => {
       const byYear = a.period.fiscalYear - b.period.fiscalYear;
       if (byYear !== 0) return byYear;

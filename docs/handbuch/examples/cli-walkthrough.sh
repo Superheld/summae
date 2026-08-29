@@ -82,6 +82,13 @@ s report vatReturn        --params '{"year":2026,"quarter":1}' | jq -c .        
 s report ecSalesList      --params '{"year":2026,"quarter":1}' | jq -c .          # intra-community supplies only
 s report cashBasisReport  --params '{"year":2026}' | jq -c .                      # year, NOT fiscalYear
 
+echo "== 6b. stock: quantities are input, the difference is booked ==" >&2
+# The quantity is not carried forward and no stock ledger exists — summae values and books.
+s op valuateInventory --input '{"fiscalYear":2026,"period":12,"valuationDate":"2026-12-31","categories":[{"account":"1120","quantity":"200","unitCost":"25.00"}]}' | jq -c '{closingTotal, posted}'
+# Running it again books nothing: the posting is always the difference against the book value.
+s op valuateInventory --input '{"fiscalYear":2026,"period":12,"valuationDate":"2026-12-31","categories":[{"account":"1120","quantity":"200","unitCost":"25.00"}]}' | jq -c '{version, posted}'
+s report inventoryValuation --params '{"fiscalYear":2026,"period":12}' | jq -c '.valuations[0].categories'
+
 echo "== 7. close: finalize → periods in order → fiscal year ==" >&2
 s op finalize --input '{"finalizeUntil":"2026-12-31"}' | jq -c .
 for p in $(seq 1 12); do

@@ -246,6 +246,92 @@ describe('costing runs survive the process', () => {
   });
 });
 
+describe('inventory valuations survive the process', () => {
+  /**
+   * The same shape of test as the costing block above, for the same reason (F-CORE-050).
+   *
+   * A valuation is the *record of how a stock figure was reached*, and a record that lives in the
+   * process which made it is not a record. So: write with one tenant instance, read with a second on
+   * the same database, and nothing in between may come from the object graph.
+   *
+   * The second test is the one worth having. `valuateInventory` posts the **difference** against the
+   * current book value, and the next version comes out of the store — so a second valuation of an
+   * unchanged period must book nothing *across a process boundary too*. With a counter that lived in
+   * the service it would have come back as version 1 and booked the full amount a second time, which
+   * on a balance sheet means the stock is there twice.
+   *
+   * PHP twin: `packages/laravel/tests/InventoryValuationPersistenceTest.php`.
+   */
+  function seedInventory(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    // Only on the first instance: the year and the accounts are in the database, which is the whole
+    // point — a second tenant object on the same connection reads them rather than creating them.
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1120', name: 'Fertige Erzeugnisse', type: 'asset', subtype: 'inventory' });
+      ops.execute('createAccount', { number: '4100', name: 'Bestandsveränderungen', type: 'revenue' });
+    }
+
+    // The pack data is NOT in the database — it arrives with the pack on every open, which is why
+    // every factory injects it and why this test has to as well.
+    tenant.inventory.setRuleModule({
+      inventory: { categories: [{ account: '1120', changeAccount: '4100' }] },
+    });
+
+    return ops;
+  }
+
+  function valuate(ops: TenantOperations): Record<string, unknown> {
+    return ops.execute('valuateInventory', {
+      fiscalYear: 2026,
+      period: 12,
+      valuationDate: '2026-12-31',
+      categories: [{ account: '1120', quantity: '400', unitCost: '12.50' }],
+    }) as Record<string, unknown>;
+  }
+
+  it('reads a valuation back through a second tenant instance', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const report = reader.project('inventoryValuation', {}) as { valuations: Array<Record<string, unknown>> };
+
+    expect(report.valuations).toHaveLength(1);
+    const first = report.valuations[0] as Record<string, unknown>;
+    expect(first.closingTotal).toBe('5000.00');
+    expect(first.change).toBe('5000.00');
+    expect(first.version).toBe(1);
+    expect(first.valuationDate).toBe('2026-12-31');
+    // Every detail of the act, back through a column: the quantity is not Money and must survive as
+    // the string it was given.
+    const categories = first.categories as Array<Record<string, unknown>>;
+    expect(categories[0]?.quantity).toBe('400');
+    expect(categories[0]?.source).toBe('input');
+    expect(categories[0]?.changeAccount).toBe('4100');
+    expect(typeof first.entryId).toBe('string');
+  });
+
+  it('books nothing on a second valuation of an unchanged period, across a process boundary', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const second = valuate(seedInventory(tenantOn(TENANT_A), false));
+
+    expect(second.version).toBe(2);
+    expect(second.posted).toBe(false);
+    expect(second.entryId).toBeNull();
+  });
+
+  it('keeps one tenant’s valuations out of another’s', () => {
+    valuate(seedInventory(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const report = other.project('inventoryValuation', {}) as { valuations: unknown[] };
+
+    expect(report.valuations).toEqual([]);
+  });
+});
+
 describe('tenant scoping', () => {
   const lookup = (tenant: Tenant, port: string, id: string): unknown => {
     const uuid = Uuid.fromString(id);

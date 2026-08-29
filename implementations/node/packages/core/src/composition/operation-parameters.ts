@@ -446,6 +446,27 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     period: { type: 'integer' },
     actor: { type: 'string' },
   },
+  valuateInventory: {
+    fiscalYear: { type: 'integer', required: true },
+    period: { type: 'integer', required: true },
+    valuationDate: { type: 'date', required: true },
+    runId: { type: 'string' },
+    producedQuantity: { type: 'string' },
+    categories: {
+      type: 'array',
+      required: true,
+      element: {
+        type: 'object',
+        fields: {
+          account: { type: 'string' },
+          quantity: { type: 'string' },
+          unitCost: { type: 'string' },
+          marketValue: { type: 'string' },
+        },
+      },
+    },
+    actor: { type: 'string' },
+  },
   reportAssetUsage: {
     assetId: { type: 'string', required: true },
     fiscalYear: { type: 'integer', required: true },

@@ -2,6 +2,7 @@ import { AssetService } from '../policies/expansion/assets/asset-service.js';
 import { ResultAppropriationService } from '../policies/expansion/result-appropriation-service.js';
 import { EntityProfileService, LegalFormRegistry } from '../policies/projection/legal-forms.js';
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
+import { InventoryService } from '../policies/expansion/inventory/inventory-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -10,6 +11,7 @@ import {
   InMemoryJournalRepository,
   InMemoryOpenItemRepository,
   InMemoryCostingRunRepository,
+  InMemoryInventoryValuationRepository,
   InMemoryPartnerRepository,
   InMemoryTenantRecordRepository,
   InMemoryVoucherRepository,
@@ -33,6 +35,7 @@ import type {
   AssetRepository,
   AuditTrail,
   CostingRunRepository,
+  InventoryValuationRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -63,12 +66,15 @@ export class Tenant {
     readonly partners: PartnerRepository,
     /** Reachable from the tenant like every other repository, so `costingRuns` can read it. */
     readonly costingRuns: CostingRunRepository,
+    /** Same, for stock (F-CORE-050) — `inventoryValuation` reads it. */
+    readonly inventoryValuations: InventoryValuationRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
     readonly assetService: AssetService,
     readonly resultAppropriation: ResultAppropriationService,
     readonly costing: CostingService,
+    readonly inventory: InventoryService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
@@ -142,6 +148,7 @@ export class Tenant {
         assets: new InMemoryAssetRepository(),
         partners: new InMemoryPartnerRepository(),
         costingRuns: new InMemoryCostingRunRepository(),
+        inventoryValuations: new InMemoryInventoryValuationRepository(),
         audit: new InMemoryAuditTrail(),
       },
       clock,
@@ -177,6 +184,7 @@ export class Tenant {
       assets: AssetRepository;
       partners: PartnerRepository;
       costingRuns: CostingRunRepository;
+      inventoryValuations: InventoryValuationRepository;
       audit: AuditTrail;
     },
     clock: Clock,
@@ -198,7 +206,8 @@ export class Tenant {
     /** The constraint socket's second plug (F-CORE-042) — see `inMemory` for why it is last. */
     combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
-    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, audit } = ports;
+    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, inventoryValuations, audit } =
+      ports;
     // Built before the ledger, not with the other services below: the ledger reads the declared
     // legal form on every posting to evaluate conditional constraint rules (F-CORE-047), and it
     // must hold the same object `setEntityProfile` later writes to.
@@ -244,6 +253,19 @@ export class Tenant {
       auditWriter,
       configStore,
     );
+    const inventory = new InventoryService(
+      baseCurrency,
+      accounts,
+      journal,
+      vouchers,
+      costingRuns,
+      inventoryValuations,
+      ledger,
+      ids,
+      {},
+      tenantId,
+      auditWriter,
+    );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
@@ -259,12 +281,14 @@ export class Tenant {
       assets,
       partners,
       costingRuns,
+      inventoryValuations,
       audit,
       ledger,
       tax,
       assetService,
       resultAppropriation,
       costing,
+      inventory,
       partnerService,
       mappings,
       clock,
