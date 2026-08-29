@@ -1,0 +1,154 @@
+# HGB conformance — can these books be *valued* correctly?
+
+**Status: 2026-08-29.** Reference: HGB, Drittes Buch (§§ 238–289f), in the version in force on
+that date, with the tax provisions that govern the same figures named where they diverge
+(EStG §§ 5–7g).
+
+This document exists for a situation the other two censuses do not cover, and the gap was
+structural rather than accidental. [`gobd-conformance.md`](gobd-conformance.md) answers *"is this
+bookkeeping orderly, traceable and unalterable?"* — process. [`gdpr-conformance.md`](gdpr-conformance.md)
+answers *"what personal data is in here?"*. Neither ever asks **"is the balance sheet right?"**,
+which is a different body of law, and so nothing in this repository asked it either. Every ⚠️ row
+below was invisible on 2026-08-28 with both other censuses essentially closed and every gate green.
+
+Status vocabulary, identical to its two siblings:
+
+| Status | Meaning |
+|---|---|
+| ✅ **verified** | A named fixture or test fails if this stops being true. |
+| 🟡 **partial** | The parts are there and the mechanism that keeps them right is not. Says which half is which. |
+| ⚠️ **open** | summae should do this and does not. Named and scoped, never hidden. |
+| ➖ **not verifiable here** | Cannot be discharged by a library — an organizational or application obligation. Listed so it is not mistaken for covered. |
+
+> **The rule that governs this file:** a ✅ means a *machine* checks it. A ⚠️ is deleted only when
+> it is built, never because it is inconvenient. And a 🟡 is the most useful status here: it marks
+> the places where a chart of accounts carries the right account and nothing carries the *rule*,
+> which is the exact shape most of the findings below have.
+
+> **Scope of the claim.** summae is a bookkeeping library. It can hold what the books must hold and
+> compute what the law fixes. It cannot count a warehouse, sign a balance sheet, or judge whether a
+> provision is probable. Those are ➖ and they are not defects.
+
+---
+
+## 1. Bookkeeping and inventory (§§ 238–241)
+
+| Obligation | Status | Where |
+|---|---|---|
+| § 238 Abs. 1 — the transactions and the state of assets are ascertainable | ✅ | `core/post-and-invariants`, `core/journal-projection`; balances are always recomputed, never stored |
+| § 239 Abs. 2 — complete, correct, timely, ordered | ✅ | `core/period-ordering`, `core/unfinalized-entries`; the deadline is reported, never enforced — see `gobd-conformance.md` §5 |
+| § 239 Abs. 3 — no change without the original remaining ascertainable | ✅ | `core/finalize-reverse-period`, `core/audit-hash-chain` |
+| § 240 Abs. 1 — inventory: **fixed assets** | ✅ | `assetRegister`; `assets/gwg-and-depreciation`, 16 fixtures in `assets/` |
+| § 240 Abs. 1 — inventory: **receivables and payables** | ✅ | `openItems`; `core/open-items-settlement`, `core/open-items-partner-and-due` |
+| § 240 Abs. 1 — inventory: **cash and bank** | ✅ | `cashJournal`, `trialBalance`; `core/money-transit` |
+| **§ 240 Abs. 1 — inventory: stock (Vorräte)** | ⚠️ | **Nothing.** No `inventory` account subtype in the closed repertoire, no stock account in the `de` chart, no `B. I. Vorräte` position in `de-bilanz`, no valuation, no posting path. See §7 below. |
+| § 240 Abs. 3 — Festwert (fixed quantity carried at a fixed value) | ⚠️ | Not expressible. A simplification, not a duty — but a business using it cannot represent it. |
+| § 240 Abs. 4 — Gruppenbewertung (weighted average for like items) | ⚠️ | Not expressible; belongs with the stock work in §7. |
+| § 241 — stocktaking simplifications (sampling, permanent, shifted) | ➖ | These are procedures for *counting*, and counting happens in the warehouse. **Permanente Inventur is the exception that is not purely ➖**: it requires a continuous stock record, and summae deliberately keeps none (see `proposals/library-boundary.md`). Whoever runs it needs a system that does. |
+
+## 2. The annual accounts (§§ 242–245)
+
+| Obligation | Status | Where |
+|---|---|---|
+| § 242 Abs. 1 — balance sheet at the start and end of the business | ✅ | `balanceSheet`; `projections/balance-sheet-mapping`, `core/opening-balance-takeover` |
+| § 242 Abs. 2 — income statement | ✅ | `incomeStatement`; `projections/monthly-income-statement` |
+| § 243 Abs. 2 — clear and well arranged | ➖ | The arrangement comes from the pack's mapping. summae guarantees no account is dropped (`projections/balance-sheet-gap`, IMPL-017) but cannot judge whether a layout is *klar und übersichtlich*. |
+| § 244 — German language, Euro | 🟡 | Statement labels come from the pack and the shipped `de` mappings are German. The currency is the tenant's and nothing ties it to the jurisdiction of its pack — a `de` tenant can be opened in USD and no rule objects. |
+| § 245 — signature by the merchant | ➖ | An act by a person. The application's. |
+
+## 3. Recognition (§§ 246–251)
+
+| Obligation | Status | Where |
+|---|---|---|
+| § 246 Abs. 1 — completeness: **all** assets, debts, prepayments, expenses and income | ⚠️ | Cannot hold while §§ 249 and 240/Vorräte are open. A balance sheet missing two of § 266's main positions is not complete, however well it balances. |
+| § 246 Abs. 2 — **prohibition of offsetting** (assets against liabilities, expenses against income) | ⚠️ | **Nothing states this as a rule.** A mapping position may pull asset *and* liability accounts, and no test objects — the pack author is trusted. This is the same shape as the defects the constraint policy kind was built for, one layer out: a rule everybody knows and nothing checks. |
+| § 247 Abs. 1 — fixed assets, current assets, equity, debts, prepayments shown separately | 🟡 | The `de-bilanz` mapping separates them — but its current-asset side has no stock position at all, so the separation is complete only for a business that holds none. |
+| § 248 Abs. 1/2 — capitalisation prohibitions; the option for internally generated intangibles | ⚠️ | Not expressible. The `productionCost` treatment table is the right mechanism and covers only production cost. |
+| **§ 249 — provisions (Rückstellungen)** | ⚠️ | **Nothing.** Zero occurrences in the core. No account in the `de` chart, no `B. Rückstellungen` position in `de-bilanz`, no formation, no use, no release, no re-assessment. § 249 Abs. 1 is a *duty*, not an option. See §7. |
+| § 250 — prepaid and deferred items (RAP) | 🟡 | The accounts exist (`1900` Aktive, `3900` Passive Rechnungsabgrenzung) and both balance-sheet positions exist. **What is missing is the release schedule.** A prepaid insurance premium can be booked and then has to be released by hand, month by month, from memory — which is precisely the failure mode `runDepreciation` exists to prevent for the identical arithmetic. |
+| § 251 — contingent liabilities below the balance sheet | ⚠️ | Not expressible. Nothing in the books, by construction — but the balance sheet must show it, and the projection has no place for it. |
+
+## 4. Measurement (§§ 252–256a)
+
+| Obligation | Status | Where |
+|---|---|---|
+| § 252 Abs. 1 Nr. 1 — opening balance equals prior closing balance | ✅ | `core/opening-balance-takeover`, `core/two-year-carryover` |
+| § 252 Abs. 1 Nr. 3 — individual measurement at the reporting date | ✅ for what exists | Assets are measured individually (`assets/*`). Untestable for stock while stock does not exist. |
+| § 252 Abs. 1 Nr. 4 — prudence, realisation, **imparity** | ⚠️ | The imparity principle is what §§ 249, 253 Abs. 4 and 256a *are*. All three are open, so the principle is stated nowhere and enforced nowhere. |
+| § 252 Abs. 1 Nr. 5 — accrual (expense and income in the period they belong to) | 🟡 | Accounts exist, the mechanism does not — see § 250 above. |
+| § 252 Abs. 1 Nr. 6 — **consistency of measurement methods** (Bewertungsstetigkeit) | ⚠️ | Nothing carries a measurement election across years. The one election that exists today — `productionCost.include`, the § 255 Abs. 2 Satz 4 options — is part of the tenant configuration and can be changed between two runs with nothing noticing that last year's inventory was valued on a different basis. § 6 Abs. 1 Nr. 1b EStG additionally requires the *same* election in the tax accounts. **This row is the cheapest real win in the document.** |
+| § 253 Abs. 1 — recognition at acquisition or production cost | ✅ | `acquireAsset` (`assets/gwg-and-depreciation`); production cost components `costing/production-cost` |
+| § 253 Abs. 2 — discounting of provisions with more than a year to run | ⚠️ | Follows § 249. The Bundesbank rate is pack data, the discounting is core mechanism — the same split as depreciation rates. |
+| § 253 Abs. 3 — scheduled and unscheduled depreciation of fixed assets | ✅ | `runDepreciation`, `writeDownAsset`; `assets/asset-write-down`, `assets/declining-balance-depreciation`, `assets/special-depreciation` |
+| § 253 Abs. 4 — **strict lower-of-cost-or-market for current assets** | ⚠️ | No write-down of receivables (`6700 Forderungsverluste` writes an item *off*, which is a different act from valuing it down at the reporting date), no allowance — neither specific nor general — and no stock to write down. |
+| § 253 Abs. 5 — **write-up when the reason for a write-down ceases** | ⚠️ | **Nothing.** Zero occurrences. This is a *Gebot*, not an option (goodwill excepted), and summae has `writeDownAsset` with no counterpart. An asset written down in a bad year stays down for ever. |
+| § 254 — hedging units (Bewertungseinheiten) | ⚠️ | Not expressible. Rare, and named rather than omitted. |
+| § 255 Abs. 1 — acquisition cost, including incidental costs and reductions | ✅ | `acquireAsset`; `core/settlement-discount` for the reduction side |
+| § 255 Abs. 2/3 — **production cost**: mandatory parts, options, prohibitions | ✅ **for the figure** | `costing/production-cost`, `pack/de-pack/de-herstellungskosten`, `pack/us-pack/us-inventory-costing`. The treatment table is the model case of this project's layering — the core adds up, the pack says what may enter. |
+| § 255 Abs. 2/3 — **and the figure reaches the balance sheet** | ⚠️ | It does not. Nothing books it, no stock account receives it, no balance-sheet position holds it. The handbook's claim that this is *"the one cost-accounting figure that reaches the balance sheet"* is true only if the embedding application posts it to an account it invented. |
+| § 255 Abs. 2a — development costs separated from research | ⚠️ | Follows § 248 Abs. 2. |
+| § 256 — **consumption sequence (Fifo, Lifo)** | ⚠️ | Follows the stock work, and is the hard part of it: a consumption sequence needs the history of entry values, which needs a stock record. See §7 for the first cut and what it defers. |
+| § 256a — **foreign currency translation at the reporting date** | ⚠️ | summae holds **one currency per tenant**; `Money` refuses arithmetic across currencies (`CurrencyMismatch`), which is right for a total and leaves no room for a receivable in USD. A German business with one foreign-currency invoice cannot represent its books here. **This one is a decision before it is a task** — see §7. |
+
+## 5. Presentation for corporations (§§ 264–278)
+
+Applies to Kapitalgesellschaften. A sole trader or partnership below the § 241a thresholds
+owes none of it, which is why these rows are separated rather than mixed into §§ 3 and 4.
+
+| Obligation | Status | Where |
+|---|---|---|
+| § 264 Abs. 1 — notes (Anhang) and management report | ➖ | Documents about the business, not derivable from the journal. The application's, and they need figures this library can supply. |
+| § 266 Abs. 2/3 — **the prescribed balance-sheet layout** | ⚠️ | The shipped `de-bilanz` mapping is missing two main positions: `B. I. Vorräte` on the assets side and `B. Rückstellungen` on the liabilities side. What it has — fixed assets, receivables, securities, cash, prepaid items · equity, result, liabilities, deferred items — is correct as far as it goes. |
+| § 268 Abs. 2 — **the fixed-asset movement schedule (Anlagengitter)** | ⚠️ | `assetRegister` reports the *stock*: acquisition cost, accumulated depreciation, book value, at a cutoff date. § 268 Abs. 2 wants the *movement*: opening cost, additions, disposals, transfers, write-ups, depreciation of the year and cumulative, closing value. The data is all in the journal; the projection that shapes it is not written. |
+| § 272 — equity, shown by its components | 🟡 | The `de-bilanz` mapping has one equity position plus the result. Subscribed capital, reserves and loss carried forward are not separated — adequate for a GbR, not for a GmbH. |
+| § 275 Abs. 2 — **income statement, Gesamtkostenverfahren** | 🟡 | The `de-guv` mapping follows the total-cost format and stops early: it has revenue, other operating income, material, personnel, depreciation and other operating expenses. Missing: **Nr. 2 changes in inventory**, Nr. 3 own work capitalised, Nr. 12/13 interest, and taxes on income. |
+| § 275 Abs. 3 — Umsatzkostenverfahren | ⚠️ | Not offered. It is a second mapping, not a second mechanism — cheap once a business asks. |
+| § 277 Abs. 3 — unscheduled depreciation shown separately | ⚠️ | `writeDownAsset` posts to the ordinary depreciation account when the pack names no impairment account, so the two are indistinguishable in the income statement. |
+
+## 6. What the tax accounts add (EStG)
+
+Named because they govern the same figures and diverge, not to claim tax scope — summae does no
+tax determination beyond VAT.
+
+| Provision | Status | Where |
+|---|---|---|
+| § 5 Abs. 1 — authoritativeness of the commercial balance sheet | ➖ | A relationship between two balance sheets. summae keeps one. |
+| § 6 Abs. 1 Nr. 1b — the § 255 Abs. 2 Satz 4 election must match in both | ⚠️ | Follows Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6 above). |
+| § 6 Abs. 1 Nr. 2a — Lifo permitted for tax | ⚠️ | Follows § 256. |
+| § 7 — depreciation, straight-line and declining balance | ✅ | `assets/declining-balance-asset-class`, `assets/useful-life-override` |
+| § 7 Abs. 1 Satz 6 — depreciation by output | ✅ | `assets/units-of-production` — and the reason the quantity on an asset is bookkeeping data rather than an exception |
+| § 7g Abs. 5 — special depreciation | ✅ | `assets/special-depreciation`, `assets/asset-register-special-depreciation` |
+| § 7g Abs. 1/2 — Investitionsabzugsbetrag | ➖ | Outside the balance sheet entirely; it never touches these books. Carried by the application (`GOBD-APP-OBLIGATIONS.md` A-15). |
+| § 15a UStG — input-tax adjustment | ⚠️ | The register and the deadline are the application's — the trigger is a change of use, which is never posted. **The arithmetic is not**, and it is open here: a mechanism with pack-supplied periods and thresholds. Also named in `gobd-conformance.md` §4 and `proposals/de-pack-vat-completeness.md`. |
+
+---
+
+## 7. The open list, in one place
+
+Ordered by what unblocks what, not by severity.
+
+| # | Item | Size | Why it is where it is |
+|---|---|---|---|
+| **1** | **Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)** for the `productionCost` election | small | The election already exists and is already stored with the tenant. What is missing is that a costing run *records which election it was computed under*, so two years can be compared. Cheapest row in the document and it protects the one measurement option that is shipped. |
+| **2** | **Stock: recognition, measurement, posting** (§§ 240, 246, 247, 253 Abs. 4, 255 Abs. 2, 266, 275) | large | The single change that closes a hole in the balance sheet *and* finishes the cost-accounting chain. Design sketch in `proposals/library-boundary.md` §4 — an `inventory` subtype, pack accounts and mapping positions, a `valuateInventory` operation shaped like `runDepreciation`, quantities as **input** and never as stock. Defers § 256 Fifo/Lifo deliberately, which stays row 6. |
+| **3** | **Provisions (§ 249, § 253 Abs. 2)** | large | The other missing main position. Formation, use, release, annual re-assessment, and discounting with the rate as pack data. Comparable in size to the asset register, and it needs an aggregate of its own for the same reason: the movement matters, not just the balance. |
+| **4** | **Write-up obligation (§ 253 Abs. 5)** | small | `writeDownAsset` has no counterpart. A mandatory rule with nothing behind it, and the smallest of the genuine legal gaps. |
+| **5** | **Release schedule for prepaid/deferred items (§ 250, § 252 Abs. 1 Nr. 5)** | small | Exactly the `runDepreciation` pattern over the accounts that already exist. |
+| **6** | **Consumption sequence (§ 256, § 6 Abs. 1 Nr. 2a EStG)** | open question | Needs entry-value history, which needs a stock record, which the boundary says summae does not keep. Either the first cut (weighted average from the run's production cost) is enough, or the boundary moves. **Do not close this by building it silently — it is the row that decides how far the library goes.** |
+| **7** | **Offsetting prohibition (§ 246 Abs. 2)** as a checked rule | small | A mapping position must not mix asset and liability accounts. A guard over the shipped mappings, in the shape the pack schema validation already has. |
+| **8** | **Anlagengitter (§ 268 Abs. 2)** | medium | A projection over data that is all present. |
+| **9** | **§ 275 Abs. 2 completeness** in the shipped `de-guv` | small | Four missing lines, three of which need accounts the chart does not have yet. Partly falls out of row 2. |
+| **10** | **§ 272 equity components**, **§ 275 Abs. 3 Umsatzkostenverfahren**, **§ 251 contingent liabilities**, **§ 248 Abs. 2 / § 255 Abs. 2a intangibles**, **§ 240 Abs. 3/4 Festwert and group measurement**, **§ 254 hedging units**, **§ 277 Abs. 3 separate disclosure** | mixed | Real, none of them blocking. Listed so the census is a census and not a to-do list of what was convenient to find. |
+| **11** | **Foreign currency (§ 256a)** | decision first | A single-currency bookkeeping library is a defensible product. What is not defensible is leaving this as an unremarked hole. Either it becomes ➖ *deliberately not*, with the consequence stated, or it is the largest change in this list — it reaches `Money` and therefore everything. |
+| **12** | **§ 15a UStG arithmetic** | medium | Decided 2026-08-29 to belong here: mechanism in the core, periods and thresholds as `de` pack data, register and deadline staying with the application. |
+
+## 8. What this document is not
+
+It is **not a claim that summae is unsuitable for bookkeeping.** Every ⚠️ above concerns a business
+that holds stock, forms provisions, invoices in foreign currency, or files under § 266. A service
+business on a cash basis meets none of them, and for that business the ✅ rows are the whole story.
+
+It is also **not yet gated.** `gobd-conformance.md` and `gdpr-conformance.md` are each held against
+the product by a test that turns the build red when a claim here stops matching the code — this one
+has no such test yet, and until it does, every row is prose that can rot. That test is the first
+thing to write after row 1, and this paragraph is deleted when it exists.
