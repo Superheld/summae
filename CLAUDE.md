@@ -70,7 +70,11 @@ with one or the other port set.
 runs *all* ops (`post`, `postVoucher`, `settle`, …) and projections
 (`trialBalance`, `vatReturn`, `journalExport`, …) — names exactly per the API spec.
 CLI and conformance runner use the same dispatcher. New operation → wire it
-there.
+there — but **wiring one is about twelve places, not one**: `api-parameters.json` first, the
+parameter constant, the dispatcher, `API_OPERATIONS`/`API_PROJECTIONS`, the contract-test lists, an
+audit-completeness case, `AUDITED_EVENTS`, a handbook section, `expected-green.txt`, a declared
+requirement — each in **both** languages, each guarded by a test that names what is missing. Follow
+the red tests rather than a list from memory.
 
 **Reads never go through stored balances.** Every trial balance / balance sheet / EÜR / VAT return
 is recomputed from the journal.
@@ -89,7 +93,10 @@ versioned bundle of a jurisdiction
 („tzdata for accounting"; „Germany" is the *first* pack, not the built-in
 assumption). A pack is composable (take it curated / adapt it / build your own à la carte).
 **Litmus test when building:** does your code cite a statute → wrong layer, that
-belongs in the pack as data. **The stronger test, because a statute rarely arrives quoted:**
+belongs in the pack as data — and that one is *mechanically enforced*, not left to review:
+`NoJurisdictionTextTest` / `no-jurisdiction-text.test.ts` greps core `src/` for
+`§ n Abs./UStG/EStG/HGB…`, **comments included**.
+**The stronger test, because a statute rarely arrives quoted:**
 *would another jurisdiction answer this differently?* A rule translated into a plain condition
 reads like mechanism — `route !== 'pool'` was § 6 Abs. 2a EStG, and neither the code nor its
 comment gave it away (IMPL-025). Full picture + honest build status: `docs/architektur.md`.
@@ -130,6 +137,11 @@ fixture in both languages" + spec retrofit → `implementations/<language>/docs/
   injectable — tests **never** against `now()`/randomness; the runner uses `FixedClock` +
   `DeterministicIdGenerator`.
 - **Posting date zoneless** (`CalendarDate`, no time/UTC shift).
+- **A decimal string in is a decimal string out.** `BigDecimal` keeps its input's scale, `big.js`
+  normalises (`"12.00"` → `12`), so any non-Money decimal (quantity, rate, percentage) must be
+  echoed verbatim or formatted at a fixed scale — otherwise the two languages disagree at the first
+  export. For division, PHP divides at **scale 20**, which is big.js's `Big.DP` default (`Big.RM`=1,
+  half-up): rounding twice at the same two scales is what makes the last cent equal.
 
 ## testing/testsuite/ is append-only
 
@@ -269,7 +281,8 @@ unnoticed (a misspelled field, an undeclared key, a routing gap). Five obligatio
    rejected, never coerced; an absent one keeps its documented default. The core reads no files, so
    each language carries both tables as constants — and a test per language asserts the constants
    equal that file, which is what makes drift impossible. **Adding a parameter means editing
-   `testing/testsuite/schema/api-parameters.json` first**, not the constant. The `operations` block
+   `testing/testsuite/schema/api-parameters.json` first**, not the constant. Edit it **surgically** —
+   re-serialising it with a JSON dump reformats hundreds of unrelated lines. The `operations` block
    arrived late (2026-08-24, reported from outside as F-9) and the gap it left is the lesson: for a
    year the *reads* were declared and the *writes* were not, so a mistyped projection parameter
    failed loudly while a mistyped operation input was dropped and the default stood — on the side

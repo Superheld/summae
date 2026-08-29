@@ -57,6 +57,15 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
   catch: `tax-out` instead of `tax_out` resolved cleanly and produced a chart with **no output-tax
   account** — the VAT return simply reported nothing on it, and no output said anything was wrong.
   Leaving `subtype` out entirely is always fine; guessing at a value is not.
+- **Bumping a module is six edits, and `PackDocsTest` catches each separately:** the module's own
+  `version`, a snapshot of the superseded file into `versions/`
+  (`git show HEAD:<file> > <pack>/versions/<id>-<oldversion>.json`), the manifest's module
+  reference, the manifest's own version, the module doc's header, and the manifest doc's table row.
+- **Never renumber a mapping position.** Order comes from the array; a key is an identifier somebody
+  may have stored. Insert with a letter suffix (`A.Ia`, `1a`, `6a`) — the way a statute inserts a
+  provision.
+- **Adding accounts to a shipped chart breaks four pinned counts:** `CliSmokeTest` in both languages
+  and `created.accounts` in `walkthrough/de.json`, `walkthrough/us.json`, `regression/regressions.json`.
 - **Tests ship with the pack — building a pack means building its fixtures, in the same change.** Every
   capability the pack offers, **especially every legally-expected one** (tax collection, self-assessment,
   exemption/threshold, the tax **return/filing**, depreciation thresholds, cash-basis, balance-sheet &
