@@ -295,8 +295,11 @@ measurement, presentation (HGB Drittes Buch, with the EStG provisions that diver
 censuses ask whether the bookkeeping is *orderly* and what personal data it holds; neither asks
 whether the balance sheet is **right**, which is why its findings were invisible while both of them
 were essentially closed and every gate green: two of § 266's main positions — stock and provisions —
-are absent from the shipped `de` mapping, and § 253 Abs. 5's write-up obligation has nothing behind
-it at all. It carries a fourth status the others do not need, 🟡 **partial**, for the shape most of
+were absent from the shipped `de` mapping, and § 253 Abs. 5's write-up obligation had nothing behind
+it at all. **Ten of its twelve open rows were built on 2026-08-29** and two were decided rather than
+deferred; what remains is foreign currency, which is a decision before it is a task, and a handful of
+🟡 rows where the shape is complete and one part is not. The open questions that wait on a person
+rather than on work are collected in `docs/proposals/open-decisions.md`. It carries a fourth status the others do not need, 🟡 **partial**, for the shape most of
 its findings have: the chart carries the right account and nothing carries the rule. **Its gate is
 inverted, and that is the interesting part.** Most of what it asserts is *absence* — no
 `valuateInventory`, five asset positions and none of them stock — so §8 states those absences as
