@@ -108,6 +108,12 @@ final class ExitCodes
         // replaced. Appended, never reordered — the position IS the exit code.
         'E_COSTING_RUN_NOT_RELEASED',
         'E_INVENTORY_ACCOUNT_INVALID',
+        // Provisions (F-CORE-051). Four codes because a caller reacts differently to each: find
+        // the right id, name a provision account, release less, or supply the rate.
+        'E_PROVISION_UNKNOWN',
+        'E_PROVISION_ACCOUNT_INVALID',
+        'E_PROVISION_EXCEEDS_CARRYING',
+        'E_PROVISION_DISCOUNT_RATE_REQUIRED',
     ];
 
     private function __construct()

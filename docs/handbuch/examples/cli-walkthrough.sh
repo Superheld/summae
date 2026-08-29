@@ -89,6 +89,12 @@ s op valuateInventory --input '{"fiscalYear":2026,"period":12,"valuationDate":"2
 s op valuateInventory --input '{"fiscalYear":2026,"period":12,"valuationDate":"2026-12-31","categories":[{"account":"1120","quantity":"200","unitCost":"25.00"}]}' | jq -c '{version, posted}'
 s report inventoryValuation --params '{"fiscalYear":2026,"period":12}' | jq -c '.valuations[0].categories'
 
+echo "== 6c. a provision: an obligation that has not happened yet ==" >&2
+# Past a year of remaining term the de pack requires discounting — and supplies no rate on purpose:
+# the German one is republished monthly, so it is yours to pass, not the pack's to go stale.
+s op recognizeProvision --input '{"account":"3600","reason":"Rückbauverpflichtung","amount":{"amount":"20000.00","currency":"EUR"},"recognizedOn":"2026-12-31","dueDate":"2029-12-31","discountRate":"1.80"}' | jq -c '{carryingAmount, discounted}'
+s report provisionRegister --params '{"status":"open"}' | jq -c '{total, first: .provisions[0].movements}'
+
 echo "== 7. close: finalize → periods in order → fiscal year ==" >&2
 s op finalize --input '{"finalizeUntil":"2026-12-31"}' | jq -c .
 for p in $(seq 1 12); do

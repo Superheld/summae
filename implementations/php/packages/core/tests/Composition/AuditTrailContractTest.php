@@ -109,6 +109,15 @@ class AuditTrailContractTest extends TestCase
 
         // And the stock categories, same reason again: without them `valuateInventory` refuses on
         // a pack that declares no inventory instead of reaching the trail.
+        // And the provision accounts, same reason once more.
+        $tenant->provisionService?->setRuleModule([
+            'provisions' => [
+                'accounts' => [
+                    ['account' => '3600', 'expenseAccount' => '4930', 'releaseAccount' => '8400'],
+                ],
+                'discounting' => ['fromMonths' => 12, 'basis' => 'test'],
+            ],
+        ]);
         $tenant->inventory?->setRuleModule([
             'inventory' => [
                 'categories' => [
@@ -216,9 +225,31 @@ class AuditTrailContractTest extends TestCase
         yield 'bookSpecialDepreciation' => ['bookSpecialDepreciation', 'asset', 'specialDepreciationBooked'];
         yield 'reportAssetUsage' => ['reportAssetUsage', 'asset', 'usageReported'];
         yield 'valuateInventory' => ['valuateInventory', 'inventoryValuation', 'valued'];
+        yield 'recognizeProvision' => ['recognizeProvision', 'provision', 'recognized'];
+        yield 'useProvision' => ['useProvision', 'provision', 'used'];
+        yield 'releaseProvision' => ['releaseProvision', 'provision', 'released'];
+        yield 'remeasureProvision' => ['remeasureProvision', 'provision', 'remeasured'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
         yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
         yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
+    }
+
+    private function recognizeProvision(TenantOperations $ops): string
+    {
+        $ops->execute('createAccount', ['number' => '3600', 'name' => 'Rückstellungen', 'type' => 'liability', 'subtype' => 'provision']);
+        $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge', 'type' => 'revenue']);
+        /** @var array<string, mixed> $result */
+        $result = $ops->execute('recognizeProvision', [
+            'account' => '3600',
+            'reason' => 'Prozessrisiko',
+            'amount' => ['amount' => '500.00', 'currency' => 'EUR'],
+            'recognizedOn' => '2026-01-31',
+        ]);
+
+        $id = $result['provisionId'] ?? null;
+        self::assertIsString($id, 'recognizeProvision must return the provision id');
+
+        return $id;
     }
 
     /** @return array<string, mixed> */
@@ -539,6 +570,38 @@ class AuditTrailContractTest extends TestCase
             case 'runDepreciation':
                 $this->seed($ops);
                 $ops->execute('runDepreciation', ['fiscalYear' => 2026, 'period' => 12]);
+
+                return;
+            case 'recognizeProvision':
+                $this->seed($ops);
+                $this->recognizeProvision($ops);
+
+                return;
+            case 'useProvision':
+                $this->seed($ops);
+                $ops->execute('useProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'amount' => ['amount' => '400.00', 'currency' => 'EUR'],
+                    'settlementAccount' => '1200',
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'releaseProvision':
+                $this->seed($ops);
+                $ops->execute('releaseProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'remeasureProvision':
+                $this->seed($ops);
+                $ops->execute('remeasureProvision', [
+                    'provisionId' => $this->recognizeProvision($ops),
+                    'amount' => ['amount' => '800.00', 'currency' => 'EUR'],
+                    'date' => '2026-03-31',
+                ]);
 
                 return;
             case 'valuateInventory':

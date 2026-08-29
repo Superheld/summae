@@ -456,6 +456,35 @@
       },
       "actor": { "type": "string" }
     },
+    "recognizeProvision": {
+      "account": { "type": "string", "required": true },
+      "reason": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "recognizedOn": { "type": "date", "required": true },
+      "dueDate": { "type": "date" },
+      "discountRate": { "type": "string" },
+      "actor": { "type": "string" }
+    },
+    "useProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "settlementAccount": { "type": "string", "required": true },
+      "date": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "releaseProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money" },
+      "date": { "type": "date", "required": true },
+      "actor": { "type": "string" }
+    },
+    "remeasureProvision": {
+      "provisionId": { "type": "string", "required": true },
+      "amount": { "type": "money", "required": true },
+      "date": { "type": "date", "required": true },
+      "discountRate": { "type": "string" },
+      "actor": { "type": "string" }
+    },
     "reportAssetUsage": {
       "assetId": { "type": "string", "required": true },
       "fiscalYear": { "type": "integer", "required": true },
@@ -813,6 +842,10 @@
         "type": "string",
         "required": true
       }
+    },
+    "provisionRegister": {
+      "status": { "type": "string" },
+      "asOf": { "type": "date" }
     },
     "inventoryValuation": {
       "fiscalYear": { "type": "integer" },

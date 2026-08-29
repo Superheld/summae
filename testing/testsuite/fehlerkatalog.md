@@ -161,6 +161,10 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | `E_COSTING_UNSOLVABLE` | Gleichungsverfahren: Kostenstellen reichen alles im Kreis weiter, keine behält etwas — das Gleichungssystem hat keine Lösung | allocation-method-refused |
 | `E_COSTING_RUN_NOT_RELEASED` | Ein **draft**-Lauf soll die Bilanz bewerten (`valuateInventory.runId`). Eigener Code statt `E_COSTING_RUN_UNKNOWN`, weil die beiden **entgegengesetzte** Korrekturen verlangen: freigeben oder eine andere `runId` nennen. `details`: `runId`, `status` | inventory-valuation |
 | `E_INVENTORY_ACCOUNT_INVALID` | `valuateInventory` soll auf ein Konto bewerten, das kein Vorratskonto ist (`subtype` ≠ `inventory`). Die Buchung ginge auf, jede Invariante bliebe erfüllt — und der Betrag stünde in der falschen Bilanzposition. `details`: `account`, `subtype` | inventory-valuation |
+| `E_PROVISION_UNKNOWN` | `provisionId` existiert nicht | provisions |
+| `E_PROVISION_ACCOUNT_INVALID` | `recognizeProvision` soll eine Rückstellung auf ein Konto bilden, das keines ist (`subtype` ≠ `provision`). `details`: `account`, `subtype` | provisions |
+| `E_PROVISION_EXCEEDS_CARRYING` | Es soll mehr aufgelöst werden, als die Rückstellung trägt — die Differenz wäre erfundener Ertrag. **Nicht** beim *Verbrauch*: eine höhere Rechnung als geschätzt ist der Normalfall und wird als Aufwand des laufenden Jahres gebucht, nicht abgewiesen. `details`: `provisionId`, `carryingAmount` | provisions |
+| `E_PROVISION_DISCOUNT_RATE_REQUIRED` | Die Restlaufzeit überschreitet die vom Pack erklärte Grenze, es ist also abzuzinsen — und kein `discountRate` liegt vor. **Abgewiesen statt undiskontiert gebucht:** der Satz wird periodisch veröffentlicht und ist keine Pack-Konstante; ein veralteter Rechtssatz, der amtlich aussieht, ist schlimmer als ein fehlender. `details`: `months`, `fromMonths` | provisions |
 
 ## E_MAPPING
 

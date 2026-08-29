@@ -157,6 +157,7 @@ final readonly class TenantFactory
         $tenant->legalForms->setRuleModule($this->ruleModules);
         // And the stock categories: which accounts hold stock, and where each one's change is booked.
         $tenant->inventory?->setRuleModule($this->ruleModules);
+        $tenant->provisionService?->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

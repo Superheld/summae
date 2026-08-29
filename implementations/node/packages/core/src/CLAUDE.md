@@ -108,10 +108,17 @@ shipped pack uses them, and a repertoire of only the eight would refuse all thre
 **What would reopen it:** a pack needing an account role the engine genuinely does not have — the
 answer then is a twelfth registered value with its reader, not a free string again.
 
-**And on 2026-08-29 exactly that happened, which is why this paragraph is worth keeping rather than
-rewriting.** Stock was the missing role: `inventory` is the twelfth value, and it arrived the way
-the sentence above said it should — registered, with its reader (`InventoryService` refuses to value
-stock onto an account that is not a stock account, `E_INVENTORY_ACCOUNT_INVALID`). Without the
-reader the posting would balance, satisfy every invariant, and land in the wrong balance-sheet
+**And on 2026-08-29 exactly that happened — twice — which is why this paragraph is worth keeping
+rather than rewriting.** The two missing roles were stock and provisions: `inventory` and
+`provision` are the twelfth and thirteenth values, and both arrived the way the sentence above said
+they should — registered, each with its reader (`InventoryService` and `ProvisionService` refuse an
+account that is not one; `E_INVENTORY_ACCOUNT_INVALID`, `E_PROVISION_ACCOUNT_INVALID`). Without the
+reader each posting would balance, satisfy every invariant, and land in the wrong balance-sheet
 position, which is the same inert-annotation defect one step worse: a wrong number instead of a
-missing one. The repertoire is closed at twelve on the same terms.
+missing one.
+
+**Two on one day is not the repertoire failing, and the distinction matters for the next time.** It
+was closed on 2026-08-28, when the shipped German balance sheet was still missing two of § 266's
+main positions — so the vocabulary was complete for the product as it stood and incomplete for the
+product as it was supposed to be. The census found the holes; filling them added exactly the two
+roles that were absent, and nothing else. The repertoire is closed at thirteen on the same terms.

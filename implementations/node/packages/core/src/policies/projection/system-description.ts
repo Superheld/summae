@@ -43,8 +43,9 @@ export const API_OPERATIONS = [
    'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
-  'valuateInventory', 'settle',
+   'recognizeProvision', 'releaseProvision', 'remeasureProvision',
+  'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
+  'useProvision', 'valuateInventory', 'settle',
    'unlockAccount', 'updatePartner', 'writeDownAsset',
 ] as const;
 
@@ -54,7 +55,7 @@ export const API_PROJECTIONS = [
   'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
   'measurementConsistency', 'openItems',
   'personalDataDescription', 'overheadRates',
-  'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
+  'productionCost', 'provisionRegister', 'systemDescription', 'tenantConfiguration', 'trialBalance',
   'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
 ] as const;
 
@@ -146,6 +147,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'dimensionValue', actions: ['created'] },
   { objectType: 'depreciationRun', actions: ['completed'] },
   { objectType: 'inventoryValuation', actions: ['valued'] },
+  { objectType: 'provision', actions: ['recognized', 'used', 'released', 'remeasured'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];
 

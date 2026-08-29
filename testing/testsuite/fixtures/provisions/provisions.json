@@ -1,0 +1,222 @@
+{
+  "fixture": "provisions",
+  "description": "Provisions: formation, use, release, re-measurement — and discounting. This is the one balance-sheet item a business must recognise for something that has NOT yet happened, which is why the law makes it a duty rather than an option: leaving it out overstates both the result and the equity, in the direction that flatters. summae had nothing at all — no account, no position, no operation, zero occurrences in either core. Four operations rather than one 'adjust', because there are four events and they mean different things: recognising is an expense for a future obligation; USING it is that obligation coming true; RELEASING it is the obligation going away, which is income the business never had to pay; RE-MEASURING is the estimate moving while the obligation stands. Netting them would produce a number that answers none of the questions an auditor asks — the same defect as reading a provision off an account balance. Two cases are worth reading closely. The overshoot: the invoice arrives at 6,500 against a provision of 5,000, so 5,000 comes out of the provision and 1,500 is an expense of the year the invoice arrived, NOT a retroactive correction of the year the provision was formed — netting those would move an expense across a closed year. And the discounting: the pack declares the RULE (from a remaining term of twelve months) and cites its basis, while the RATE arrives per act, because in Germany it is an average of seven years published monthly and a number in a pack file would be stale before anybody upgraded. A provision that must be discounted and carries no rate is refused by name rather than recognised undiscounted — a stale legal rate that looks authoritative is worse than an absent one. The compounding convention is stated rather than assumed: whole years compound, the stub months accrue simple interest, because a genuine fractional power is a transcendental and would put PHP and Node a cent apart.",
+  "covers": ["F-CORE-051"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "3600", "name": "Sonstige Rückstellungen", "type": "liability", "subtype": "provision" },
+      { "number": "4900", "name": "Sonstige betriebliche Erträge", "type": "revenue" },
+      { "number": "6800", "name": "Zuführung sonstige Rückstellungen", "type": "expense" }
+    ],
+    "fiscalYears": [
+      { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" },
+      { "year": 2027, "start": "2027-01-01", "end": "2027-12-31" }
+    ],
+    "ruleModule": {
+      "provisions": {
+        "accounts": [
+          { "account": "3600", "expenseAccount": "6800", "releaseAccount": "4900" }
+        ],
+        "discounting": { "fromMonths": 12, "basis": "§ 253 Abs. 2 HGB" }
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "account": "1200",
+        "reason": "Prozessrisiko",
+        "amount": { "amount": "5000.00", "currency": "EUR" },
+        "recognizedOn": "2026-06-30"
+      },
+      "expect": {
+        "comment": "Die Buchung ginge auf und stünde in der falschen Bilanzposition — dasselbe Argument wie beim Vorratskonto",
+        "error": "E_PROVISION_ACCOUNT_INVALID"
+      }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Gewährleistung 2029",
+        "amount": { "amount": "10000.00", "currency": "EUR" },
+        "recognizedOn": "2026-06-30",
+        "dueDate": "2029-06-30"
+      },
+      "expect": {
+        "comment": "Drei Jahre Restlaufzeit, also abzinsungspflichtig — und ohne Satz wird abgewiesen statt undiskontiert gebucht",
+        "error": "E_PROVISION_DISCOUNT_RATE_REQUIRED"
+      }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Prozessrisiko",
+        "amount": { "amount": "5000.00", "currency": "EUR" },
+        "recognizedOn": "2026-06-30",
+        "dueDate": "2027-03-31"
+      },
+      "expect": {
+        "comment": "Neun Monate Restlaufzeit: unter der Pack-Grenze, also gar keine Abzinsung",
+        "result": {
+          "provisionId": "$P1",
+          "settlementAmount": { "amount": "5000.00", "currency": "EUR" },
+          "carryingAmount": { "amount": "5000.00", "currency": "EUR" },
+          "discounted": false,
+          "discountRate": null
+        }
+      }
+    },
+    {
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Gewährleistung 2029",
+        "amount": { "amount": "10000.00", "currency": "EUR" },
+        "recognizedOn": "2026-06-30",
+        "dueDate": "2029-06-30",
+        "discountRate": "2.00"
+      },
+      "expect": {
+        "comment": "36 Monate = 3 volle Jahre, kein Stub: 10.000,00 / 1,02³ = 9.423,22",
+        "result": {
+          "provisionId": "$P2",
+          "settlementAmount": { "amount": "10000.00", "currency": "EUR" },
+          "carryingAmount": { "amount": "9423.22", "currency": "EUR" },
+          "discounted": true,
+          "discountRate": "2.00"
+        }
+      }
+    },
+    {
+      "op": "useProvision",
+      "input": {
+        "provisionId": "$P1",
+        "amount": { "amount": "6500.00", "currency": "EUR" },
+        "settlementAccount": "1200",
+        "date": "2027-03-31"
+      },
+      "expect": {
+        "comment": "Die Rechnung ist höher als geschätzt: 5.000 aus der Rückstellung, 1.500 als Aufwand des laufenden Jahres — nicht rückwirkend gegen 2026",
+        "result": {
+          "usedFromProvision": { "amount": "5000.00", "currency": "EUR" },
+          "excessExpense": { "amount": "1500.00", "currency": "EUR" },
+          "carryingAmount": { "amount": "0.00", "currency": "EUR" },
+          "status": "settled"
+        }
+      }
+    },
+    {
+      "op": "remeasureProvision",
+      "input": {
+        "provisionId": "$P2",
+        "amount": { "amount": "8000.00", "currency": "EUR" },
+        "date": "2027-06-30",
+        "discountRate": "2.00"
+      },
+      "expect": {
+        "comment": "Neue Schätzung 8.000,00 auf zwei Jahre Restlaufzeit: 8.000,00 / 1,02² = 7.689,35; die Differenz zum Buchwert ist ein Ertrag unter dem Auflösungskonto",
+        "result": {
+          "change": { "amount": "-1733.87", "currency": "EUR" },
+          "carryingAmount": { "amount": "7689.35", "currency": "EUR" },
+          "discounted": true,
+          "status": "open"
+        }
+      }
+    },
+    {
+      "op": "releaseProvision",
+      "input": {
+        "provisionId": "$P2",
+        "amount": { "amount": "9000.00", "currency": "EUR" },
+        "date": "2027-09-30"
+      },
+      "expect": {
+        "comment": "Mehr auflösen als die Rückstellung trägt wäre erfundener Ertrag",
+        "error": "E_PROVISION_EXCEEDS_CARRYING"
+      }
+    },
+    {
+      "op": "releaseProvision",
+      "input": { "provisionId": "$P2", "date": "2027-09-30" },
+      "expect": {
+        "comment": "Ohne Betrag: der ganze Buchwert. Der Grund ist entfallen, das Geld musste nie gezahlt werden",
+        "result": {
+          "released": { "amount": "7689.35", "currency": "EUR" },
+          "carryingAmount": { "amount": "0.00", "currency": "EUR" },
+          "status": "settled"
+        }
+      }
+    },
+    {
+      "op": "releaseProvision",
+      "input": { "provisionId": "00000000-0000-7000-8000-000000000000", "date": "2027-09-30" },
+      "expect": { "error": "E_PROVISION_UNKNOWN" }
+    }
+  ],
+  "projections": [
+    {
+      "name": "provisionRegister",
+      "params": {},
+      "expect": {
+        "comment": "Die Bewegungen sind der Punkt: verbraucht, neu bewertet und aufgelöst heißen Verschiedenes, und ein verrechneter Saldo zeigt keines davon",
+        "total": "0.00",
+        "provisions": [
+          {
+            "provisionId": "$P1",
+            "reason": "Prozessrisiko",
+            "account": "3600",
+            "settlementAmount": "5000.00",
+            "carryingAmount": "0.00",
+            "discountRate": null,
+            "status": "settled",
+            "movements": [
+              { "kind": "recognized", "date": "2026-06-30", "amount": "5000.00" },
+              { "kind": "used", "date": "2027-03-31", "amount": "5000.00", "note": "settled at 6500.00, 1500.00 more than provided for" }
+            ]
+          },
+          {
+            "provisionId": "$P2",
+            "reason": "Gewährleistung 2029",
+            "settlementAmount": "10000.00",
+            "carryingAmount": "0.00",
+            "discountRate": "2.00",
+            "status": "settled",
+            "movements": [
+              { "kind": "recognized", "date": "2026-06-30", "amount": "9423.22" },
+              { "kind": "remeasured", "date": "2027-06-30", "amount": "-1733.87", "note": "discounted at 2.00%" },
+              { "kind": "released", "date": "2027-09-30", "amount": "7689.35" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "provisionRegister",
+      "params": { "asOf": "2026-12-31" },
+      "expect": {
+        "comment": "Zum Stichtag standen beide noch offen; asOf schneidet die späteren Bewegungen ab, nicht die Rückstellungen selbst",
+        "provisions": [
+          { "provisionId": "$P1", "movements": [ { "kind": "recognized", "amount": "5000.00" } ] },
+          { "provisionId": "$P2", "movements": [ { "kind": "recognized", "amount": "9423.22" } ] }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2027, "throughPeriod": 12 },
+      "expect": {
+        "rows": [
+          { "account": "1200", "balance": "-6500.00" },
+          { "account": "3600", "balance": "0.00" },
+          { "account": "4900", "balance": "-9423.22" },
+          { "account": "6800", "balance": "1500.00" }
+        ]
+      }
+    }
+  ]
+}

@@ -22,7 +22,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -227,6 +227,7 @@ final class PackResolver
         /** @var array<mixed>|null $productionCost */
         $productionCost = null;
         $inventory = null;
+        $provisions = null;
         $resultAppropriation = null;
         $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
@@ -303,6 +304,9 @@ final class PackResolver
                     break;
                 case 'inventory':
                     $inventory = $data;
+                    break;
+                case 'provisions':
+                    $provisions = $data;
                     break;
                 case 'legalForms':
                     $legalForms = $data;
@@ -495,6 +499,7 @@ final class PackResolver
             'depreciation' => $depreciation,
             'productionCost' => $productionCost,
             'inventory' => $inventory,
+            'provisions' => $provisions,
             'resultAppropriation' => $resultAppropriation,
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
@@ -568,6 +573,10 @@ final class PackResolver
             // silent simply does not support `valuateInventory`, which is the right answer for a
             // jurisdiction-free one and for a service business alike.
             'inventory' => is_array($pack['inventory'] ?? null) ? $pack['inventory'] : null,
+            // Which accounts hold provisions, what each books its expense and its release to, and
+            // whether long-dated ones must be discounted. A pack that stays silent does not support
+            // `recognizeProvision` — which is the right answer for a jurisdiction-free one.
+            'provisions' => is_array($pack['provisions'] ?? null) ? $pack['provisions'] : null,
             // The appropriation plug: which account the resolution books against, and which targets
             // the jurisdiction offers. A pack that stays silent simply does not support the operation.
             'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,

@@ -24,6 +24,7 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 | `resultAppropriation` | **expansion** — which account a resolution books against and which targets the jurisdiction offers (`appropriateResult`) |
 | `legalForms` | **projection** — which legal forms the jurisdiction knows and what each owes in a resolution on the result, with its deadline and citation (`unappropriatedResult`). The only kind with **no** `dependsOn`: it names no accounts |
 | `inventory` | **expansion** — which accounts hold stock and where each one's change in inventory is booked (`valuateInventory`). The German module names two different counter-accounts (§ 275 Abs. 2 Nr. 2 for finished goods, material expense for raw materials and merchandise); the US one names the same account four times, because a US income statement has no such line. Same engine, same books, and the whole difference is those rows |
+| `provisions` | **expansion** — which accounts hold provisions, what each books its addition and its release to, and from what remaining term a long-dated one is discounted (`recognizeProvision` and its three siblings). Note what is deliberately **not** here: the discount **rate**. Germany's is republished monthly, so the pack carries the rule and its citation while the caller carries the number — a stale legal rate that looks authoritative is worse than an absent one |
 | `constraint` | **constraint** — two predicates, and a module carries at least one of them, not necessarily both: `dimensionRules` (which accounts may not be posted without which dimension) and `accountCombinationRules` (which accounts must, or must not, meet in **one** entry — `whenAccountIn` plus exactly one of `requireAccountIn`/`forbidAccountIn`). Both see one entry: no deadlines, no reach across entries, no rule about a settlement. Several constraint modules add up rather than replace, so module order in a manifest carries no meaning |
 
 - The **resolver** (`PackResolver`, byte-equal PHP↔Node) folds manifest + modules into *one* bundle and
@@ -41,13 +42,16 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 - **No code/law into the substrate.** A pack is data; a new *paradigm* with its own algorithm would be a
   composable module **behind the socket** — never smeared into the core (target model, root `CLAUDE.md`).
 - Consumers **reference** a pack by name instead of copying accounts/rules inline.
-- **An account's `subtype` is a closed repertoire — twelve values, nothing else resolves.** `bank`,
-  `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`, `inventory` are read by
-  the engine and branch its behaviour; `fixed_asset`, `opening_balance`, `private` are annotation
-  nothing consults. `inventory` (2026-08-29) is the first value ever *added*, and it arrived under
-  the condition the repertoire itself named: a pack needing an account role the engine genuinely did
-  not have. It came with its reader — `valuateInventory` refuses to value onto an account that is
-  not one — which is the whole difference between a registered value and a free string.
+- **An account's `subtype` is a closed repertoire — thirteen values, nothing else resolves.** `bank`,
+  `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`, `inventory`, `provision`
+  are read by the engine and branch its behaviour; `fixed_asset`, `opening_balance`, `private` are
+  annotation nothing consults. `inventory` and `provision` (both 2026-08-29) are the first values
+  ever *added*, and both arrived under the condition the repertoire itself named: a pack needing an
+  account role the engine genuinely did not have. Each came with its reader — `valuateInventory` and
+  `recognizeProvision` refuse an account that is not one — which is the whole difference between a
+  registered value and a free string. That two arrived on one day is not the repertoire failing: it
+  was closed while the product still had two holes in its balance sheet, and filling them added
+  exactly the two roles that were missing.
   An unknown value is `E_PACK_INCOHERENT` at `resolvePack` (since 2026-08-28, F-CORE-046). It used
   to be a free string, and the failure that closed it is the one a pack author will not otherwise
   catch: `tax-out` instead of `tax_out` resolved cleanly and produced a chart with **no output-tax

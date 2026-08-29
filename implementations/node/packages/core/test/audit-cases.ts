@@ -86,6 +86,13 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
   });
   // And the stock categories, same reason again: without them `valuateInventory` refuses on a pack
   // that declares no inventory instead of reaching the trail.
+  // And the provision accounts, same reason once more.
+  tenant.provisionService.setRuleModule({
+    provisions: {
+      accounts: [{ account: '3600', expenseAccount: '4930', releaseAccount: '8400' }],
+      discounting: { fromMonths: 12, basis: 'test' },
+    },
+  });
   tenant.inventory.setRuleModule({
     inventory: { categories: [{ account: '1140', changeAccount: '5200' }] },
   });
@@ -115,6 +122,18 @@ function postOne(ops: TenantOperations, voucherId: string, date = '2026-01-20'):
     ],
   }) as Record<string, unknown>;
   return String(result.id);
+}
+
+function recognizeProvision(ops: TenantOperations): string {
+  ops.execute('createAccount', { number: '3600', name: 'Rückstellungen', type: 'liability', subtype: 'provision' });
+  ops.execute('createAccount', { number: '8400', name: 'Erträge', type: 'revenue' });
+  const result = ops.execute('recognizeProvision', {
+    account: '3600',
+    reason: 'Prozessrisiko',
+    amount: { amount: '500.00', currency: 'EUR' },
+    recognizedOn: '2026-01-31',
+  }) as Record<string, unknown>;
+  return String(result.provisionId);
 }
 
 /** The asset most of the asset cases need — one place, so a changed input shape moves once. */
@@ -524,6 +543,51 @@ const AUDITED: readonly Case[] = [
         depreciationMethod: 'units_of_production',
       });
       ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
+    },
+  },
+  {
+    op: 'recognizeProvision',
+    objectType: 'provision',
+    action: 'recognized',
+    run: (ops) => {
+      seed(ops);
+      recognizeProvision(ops);
+    },
+  },
+  {
+    op: 'useProvision',
+    objectType: 'provision',
+    action: 'used',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('useProvision', {
+        provisionId: recognizeProvision(ops),
+        amount: { amount: '400.00', currency: 'EUR' },
+        settlementAccount: '1200',
+        date: '2026-03-31',
+      });
+    },
+  },
+  {
+    op: 'releaseProvision',
+    objectType: 'provision',
+    action: 'released',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('releaseProvision', { provisionId: recognizeProvision(ops), date: '2026-03-31' });
+    },
+  },
+  {
+    op: 'remeasureProvision',
+    objectType: 'provision',
+    action: 'remeasured',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('remeasureProvision', {
+        provisionId: recognizeProvision(ops),
+        amount: { amount: '800.00', currency: 'EUR' },
+        date: '2026-03-31',
+      });
     },
   },
   {

@@ -17,6 +17,9 @@ import {
   InventoryValuation,
   type InventoryCategoryRow,
   type InventoryValuationRepository,
+  Provision,
+  type ProvisionMovement,
+  type ProvisionRepository,
   type Currency,
   type EntryStatus,
   FiscalYear,
@@ -605,6 +608,92 @@ export class DatabaseInventoryValuationRepository implements InventoryValuationR
 
   private table() {
     return this.db.table(`${TABLE_PREFIX}inventory_valuations`);
+  }
+}
+
+/**
+ * Provisions — payload as JSON, one row per provision (F-CORE-051).
+ *
+ * `save` rewrites the payload, because a provision changes over years: used, released, re-measured.
+ * The movement list travels with it, so the register is the same history after a restart as it was
+ * before — which is the whole reason it is a record and not an account balance.
+ */
+export class DatabaseProvisionRepository implements ProvisionRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(provision: Provision): void {
+    this.db.run(
+      this.table().insert({
+        id: provision.id.value,
+        tenant_id: this.tenantId.value,
+        account: provision.account.toString(),
+        status: provision.status(),
+        payload: H.encode(provision.toJSON()),
+      }),
+    );
+  }
+
+  save(provision: Provision): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', provision.id.value)
+        .update({ status: provision.status(), payload: H.encode(provision.toJSON()) }),
+    );
+  }
+
+  byId(id: Uuid): Provision | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
+    return row === null ? null : this.hydrate(row);
+  }
+
+  all(): Provision[] {
+    return this.db
+      .all(this.table().where('tenant_id', this.tenantId.value).orderBy('id'))
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): Provision {
+    const data = H.decode(row.payload);
+
+    const movements: ProvisionMovement[] = (Array.isArray(data.movements) ? data.movements : []).flatMap(
+      (movement: unknown) => {
+        if (!H.isRecord(movement)) return [];
+        return [
+          {
+            kind: typeof movement.kind === 'string' ? movement.kind : '',
+            date: CalendarDate.of(typeof movement.date === 'string' ? movement.date : '1970-01-01'),
+            amount: H.isRecord(movement.amount)
+              ? H.money(movement.amount, this.currency)
+              : Money.zero(this.currency),
+            entryId: typeof movement.entryId === 'string' ? Uuid.fromString(movement.entryId) : null,
+            note: typeof movement.note === 'string' ? movement.note : null,
+          },
+        ];
+      },
+    );
+
+    return Provision.restore(
+      Uuid.fromString(str(row, 'id')),
+      typeof data.reason === 'string' ? data.reason : '',
+      AccountNumber.of(typeof data.account === 'string' ? data.account : ''),
+      AccountNumber.of(typeof data.expenseAccount === 'string' ? data.expenseAccount : ''),
+      AccountNumber.of(typeof data.releaseAccount === 'string' ? data.releaseAccount : ''),
+      CalendarDate.of(typeof data.recognizedOn === 'string' ? data.recognizedOn : '1970-01-01'),
+      typeof data.dueDate === 'string' ? CalendarDate.of(data.dueDate) : null,
+      H.money(H.isRecord(data.settlementAmount) ? data.settlementAmount : {}, this.currency),
+      H.money(H.isRecord(data.carryingAmount) ? data.carryingAmount : {}, this.currency),
+      typeof data.discountRate === 'string' ? data.discountRate : null,
+      movements,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}provisions`);
   }
 }
 

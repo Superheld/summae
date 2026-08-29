@@ -126,6 +126,8 @@ export type AccountSubtype =
   | 'result_allocation'
   /** Read: stock, the only account `valuateInventory` may value onto (F-CORE-050). */
   | 'inventory'
+  /** Read: provisions, the only account `recognizeProvision` may form one on (F-CORE-051). */
+  | 'provision'
   /** Annotation: the packs mark their asset accounts; the asset expansion uses its own module. */
   | 'fixed_asset'
   /** Annotation: the opening-balance account of a chart. */
@@ -148,6 +150,7 @@ export const ACCOUNT_SUBTYPES: readonly AccountSubtype[] = [
   'tax_out',
   'result_allocation',
   'inventory',
+  'provision',
   'fixed_asset',
   'opening_balance',
   'private',

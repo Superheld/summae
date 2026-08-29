@@ -136,6 +136,19 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
     },
   },
   {
+    // Provisions (F-CORE-051). Account and status are columns rather than payload fields because
+    // they are what a provision is FOUND by — the open ones on a balance-sheet date, and the
+    // account they sit on. Everything else, movements included, travels in the payload.
+    name: 'provisions',
+    define: (t) => {
+      t.uuid('id').primary();
+      t.uuid('tenant_id').index();
+      t.string('account', 32);
+      t.string('status', 16);
+      t.json('payload');
+    },
+  },
+  {
     /**
      * The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
      *

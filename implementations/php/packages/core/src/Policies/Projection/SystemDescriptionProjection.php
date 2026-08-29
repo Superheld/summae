@@ -52,8 +52,9 @@ final readonly class SystemDescriptionProjection
         'erasePartner',
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
         'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
+        'recognizeProvision', 'releaseProvision', 'remeasureProvision',
         'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
-        'valuateInventory',
+        'useProvision', 'valuateInventory',
         'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
     ];
 
@@ -64,7 +65,7 @@ final readonly class SystemDescriptionProjection
         'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
         'measurementConsistency', 'openItems',
         'personalDataDescription', 'overheadRates',
-        'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
+        'productionCost', 'provisionRegister', 'systemDescription', 'tenantConfiguration', 'trialBalance',
         'unappropriatedResult', 'unfinalizedEntries', 'vatReturn'
     ];
 
@@ -161,6 +162,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'dimensionValue', 'actions' => ['created']],
         ['objectType' => 'depreciationRun', 'actions' => ['completed']],
         ['objectType' => 'inventoryValuation', 'actions' => ['valued']],
+        ['objectType' => 'provision', 'actions' => ['recognized', 'used', 'released', 'remeasured']],
         ['objectType' => 'costingRun', 'actions' => ['created', 'released']],
     ];
 
