@@ -111,6 +111,15 @@ class AuditTrailContractTest extends TestCase
         // And the stock categories, same reason again: without them `valuateInventory` refuses on
         // a pack that declares no inventory instead of reaching the trail.
         // And the provision accounts, same reason once more.
+        // And the deferral accounts, same reason again.
+        $tenant->deferralService?->setRuleModule([
+            'deferrals' => [
+                'kinds' => [
+                    ['kind' => 'prepaidExpense', 'account' => '1900'],
+                    ['kind' => 'deferredIncome', 'account' => '3900'],
+                ],
+            ],
+        ]);
         $tenant->provisionService?->setRuleModule([
             'provisions' => [
                 'accounts' => [
@@ -231,9 +240,26 @@ class AuditTrailContractTest extends TestCase
         yield 'useProvision' => ['useProvision', 'provision', 'used'];
         yield 'releaseProvision' => ['releaseProvision', 'provision', 'released'];
         yield 'remeasureProvision' => ['remeasureProvision', 'provision', 'remeasured'];
+        yield 'recognizeDeferral' => ['recognizeDeferral', 'deferral', 'recognized'];
+        yield 'runDeferralRelease' => ['runDeferralRelease', 'deferralRelease', 'completed'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
         yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
         yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
+    }
+
+    private function recognizeDeferral(TenantOperations $ops): void
+    {
+        $ops->execute('createAccount', ['number' => '1900', 'name' => 'Aktive RAP', 'type' => 'asset']);
+        $ops->execute('recognizeDeferral', [
+            'kind' => 'prepaidExpense',
+            'reason' => 'Versicherung',
+            'counterAccount' => '4930',
+            'amount' => ['amount' => '1200.00', 'currency' => 'EUR'],
+            'recognizedOn' => '2026-01-01',
+            'firstFiscalYear' => 2026,
+            'firstPeriod' => 1,
+            'periods' => 12,
+        ]);
     }
 
     private function recognizeProvision(TenantOperations $ops): string
@@ -623,6 +649,17 @@ class AuditTrailContractTest extends TestCase
                     'amount' => ['amount' => '800.00', 'currency' => 'EUR'],
                     'date' => '2026-03-31',
                 ]);
+
+                return;
+            case 'recognizeDeferral':
+                $this->seed($ops);
+                $this->recognizeDeferral($ops);
+
+                return;
+            case 'runDeferralRelease':
+                $this->seed($ops);
+                $this->recognizeDeferral($ops);
+                $ops->execute('runDeferralRelease', ['fiscalYear' => 2026, 'period' => 1]);
 
                 return;
             case 'valuateInventory':

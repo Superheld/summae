@@ -88,6 +88,15 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
   // And the stock categories, same reason again: without them `valuateInventory` refuses on a pack
   // that declares no inventory instead of reaching the trail.
   // And the provision accounts, same reason once more.
+  // And the deferral accounts, same reason again.
+  tenant.deferralService.setRuleModule({
+    deferrals: {
+      kinds: [
+        { kind: 'prepaidExpense', account: '1900' },
+        { kind: 'deferredIncome', account: '3900' },
+      ],
+    },
+  });
   tenant.provisionService.setRuleModule({
     provisions: {
       accounts: [{ account: '3600', expenseAccount: '4930', releaseAccount: '8400' }],
@@ -123,6 +132,20 @@ function postOne(ops: TenantOperations, voucherId: string, date = '2026-01-20'):
     ],
   }) as Record<string, unknown>;
   return String(result.id);
+}
+
+function recognizeDeferral(ops: TenantOperations): void {
+  ops.execute('createAccount', { number: '1900', name: 'Aktive RAP', type: 'asset' });
+  ops.execute('recognizeDeferral', {
+    kind: 'prepaidExpense',
+    reason: 'Versicherung',
+    counterAccount: '4930',
+    amount: { amount: '1200.00', currency: 'EUR' },
+    recognizedOn: '2026-01-01',
+    firstFiscalYear: 2026,
+    firstPeriod: 1,
+    periods: 12,
+  });
 }
 
 function recognizeProvision(ops: TenantOperations): string {
@@ -566,6 +589,25 @@ const AUDITED: readonly Case[] = [
         depreciationMethod: 'units_of_production',
       });
       ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
+    },
+  },
+  {
+    op: 'recognizeDeferral',
+    objectType: 'deferral',
+    action: 'recognized',
+    run: (ops) => {
+      seed(ops);
+      recognizeDeferral(ops);
+    },
+  },
+  {
+    op: 'runDeferralRelease',
+    objectType: 'deferralRelease',
+    action: 'completed',
+    run: (ops) => {
+      seed(ops);
+      recognizeDeferral(ops);
+      ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
     },
   },
   {

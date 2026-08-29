@@ -182,6 +182,7 @@ final class Workspace
         $tenant->legalForms->setRuleModule($ruleModules);
         $tenant->inventory?->setRuleModule($ruleModules);
         $tenant->provisionService?->setRuleModule($ruleModules);
+        $tenant->deferralService?->setRuleModule($ruleModules);
 
         return $tenant;
     }

@@ -43,15 +43,6 @@ final readonly class DatabaseInventoryValuationRepository implements InventoryVa
         ]);
     }
 
-    public function byId(Uuid $id): ?InventoryValuation
-    {
-        $row = $this->table()
-            ->where('tenant_id', $this->tenantId->value)
-            ->where('id', $id->value)->first();
-
-        return $row === null ? null : $this->hydrate($row);
-    }
-
     public function all(): array
     {
         $valuations = [];

@@ -11,6 +11,7 @@ use Summae\Core\Policies\Projection\EntityProfileService;
 use Summae\Core\Policies\Projection\LegalFormRegistry;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Policies\Expansion\Inventory\InventoryService;
+use Summae\Core\Policies\Expansion\Deferrals\DeferralService;
 use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
@@ -38,6 +39,7 @@ use Summae\Laravel\Repository\DatabaseJournalRepository;
 use Summae\Laravel\Repository\DatabaseOpenItemRepository;
 use Summae\Laravel\Repository\DatabaseCostingRunRepository;
 use Summae\Laravel\Repository\DatabaseInventoryValuationRepository;
+use Summae\Laravel\Repository\DatabaseDeferralRepository;
 use Summae\Laravel\Repository\DatabaseProvisionRepository;
 use Summae\Laravel\Repository\DatabasePartnerRepository;
 use Summae\Laravel\Repository\DatabaseTenantRecordRepository;
@@ -144,6 +146,7 @@ final readonly class DatabaseTenantFactory
         $costingRuns = new DatabaseCostingRunRepository($this->connection, $tenantId, $baseCurrency);
         $inventoryValuations = new DatabaseInventoryValuationRepository($this->connection, $tenantId, $baseCurrency);
         $provisions = new DatabaseProvisionRepository($this->connection, $tenantId, $baseCurrency);
+        $deferrals = new DatabaseDeferralRepository($this->connection, $tenantId, $baseCurrency);
         $assets = new DatabaseAssetRepository($this->connection, $tenantId, $baseCurrency);
         $audit = new DatabaseAuditTrail($this->connection, $tenantId);
 
@@ -220,6 +223,19 @@ final readonly class DatabaseTenantFactory
             $auditWriter,
         );
 
+        $deferralService = new DeferralService(
+            $baseCurrency,
+            $accounts,
+            $fiscalYears,
+            $vouchers,
+            $deferrals,
+            $ledger,
+            $ids,
+            [],
+            $tenantId,
+            $auditWriter,
+        );
+
         // Replayed, not re-set: `restore…` runs the same validation without auditing a change nobody
         // made and without writing back what it just read.
         if ($config['allocationScheme'] !== null) {
@@ -263,6 +279,8 @@ final readonly class DatabaseTenantFactory
             $inventory,
             $provisions,
             $provisionService,
+            $deferrals,
+            $deferralService,
         );
     }
 }

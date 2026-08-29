@@ -115,6 +115,10 @@ final readonly class TenantOperations
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "releaseProvision" is not defined'),
             'remeasureProvision' => $tenant->provisionService?->remeasure($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "remeasureProvision" is not defined'),
+            'recognizeDeferral' => $tenant->deferralService?->recognize($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "recognizeDeferral" is not defined'),
+            'runDeferralRelease' => $tenant->deferralService?->runRelease($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "runDeferralRelease" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
             'writeUpAsset' => $tenant->assetService->writeUpAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
@@ -232,6 +236,8 @@ final readonly class TenantOperations
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "inventoryValuation" is not defined'),
             'provisionRegister' => $tenant->provisionService?->register($params)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "provisionRegister" is not defined'),
+            'deferralRegister' => $tenant->deferralService?->register($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "deferralRegister" is not defined'),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

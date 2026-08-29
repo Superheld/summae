@@ -427,6 +427,92 @@ describe('provisions survive the process', () => {
   });
 });
 
+describe('deferrals survive the process', () => {
+  /**
+   * The release plan survives the process, and so does the record of what has already run
+   * (F-CORE-053).
+   *
+   * The second test is the reason the port exists. `runDeferralRelease` is idempotent because each
+   * deferral *records* which periods it has released — not because it checks a balance. Get that
+   * wrong and the second process to run a period books it again, which on a prepaid item means the
+   * expense lands twice and the asset goes negative.
+   *
+   * PHP twin: `packages/laravel/tests/DeferralPersistenceTest.php`.
+   */
+  function seedDeferrals(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+      ops.execute('createAccount', { number: '1900', name: 'Aktive RAP', type: 'asset' });
+      ops.execute('createAccount', { number: '6080', name: 'Versicherungen', type: 'expense' });
+    }
+
+    tenant.deferralService.setRuleModule({
+      deferrals: { kinds: [{ kind: 'prepaidExpense', account: '1900' }] },
+    });
+
+    return ops;
+  }
+
+  function recognize(ops: TenantOperations): string {
+    const result = ops.execute('recognizeDeferral', {
+      kind: 'prepaidExpense',
+      reason: 'Versicherung',
+      counterAccount: '6080',
+      amount: { amount: '1200.00', currency: 'EUR' },
+      recognizedOn: '2026-01-01',
+      firstFiscalYear: 2026,
+      firstPeriod: 1,
+      periods: 12,
+    }) as Record<string, unknown>;
+    return String(result.deferralId);
+  }
+
+  it('reads the plan and its progress back through a second tenant instance', () => {
+    const ops = seedDeferrals(tenantOn(TENANT_A));
+    recognize(ops);
+    ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const register = reader.project('deferralRegister', {}) as { deferrals: Array<Record<string, unknown>> };
+
+    expect(register.deferrals).toHaveLength(1);
+    const first = register.deferrals[0] as Record<string, unknown>;
+    expect(first.released).toBe('100.00');
+    expect(first.outstanding).toBe('1100.00');
+
+    const plan = first.plan as Array<Record<string, unknown>>;
+    expect(plan, 'the plan is fixed at recognition and must come back whole').toHaveLength(12);
+    expect(plan[0]?.released).toBe(true);
+    expect(plan[1]?.released).toBe(false);
+  });
+
+  it('does not release a period twice from a second process', () => {
+    const ops = seedDeferrals(tenantOn(TENANT_A));
+    recognize(ops);
+    ops.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 });
+
+    // The whole reason the released periods are stored rather than inferred: a second process that
+    // decided from the balance would book period 1 again.
+    const second = seedDeferrals(tenantOn(TENANT_A), false);
+    const again = second.execute('runDeferralRelease', { fiscalYear: 2026, period: 1 }) as Record<string, unknown>;
+
+    expect(again.alreadyRun).toBe(true);
+    expect(again.entriesCreated).toBe(0);
+  });
+
+  it('keeps one tenant’s deferrals out of another’s', () => {
+    recognize(seedDeferrals(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const register = other.project('deferralRegister', {}) as { deferrals: unknown[] };
+
+    expect(register.deferrals).toEqual([]);
+  });
+});
+
 describe('tenant scoping', () => {
   const lookup = (tenant: Tenant, port: string, id: string): unknown => {
     const uuid = Uuid.fromString(id);

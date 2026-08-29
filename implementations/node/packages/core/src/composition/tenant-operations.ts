@@ -150,6 +150,10 @@ export class TenantOperations {
         return this.tenant.provisionService.release(input);
       case 'remeasureProvision':
         return this.tenant.provisionService.remeasure(input);
+      case 'recognizeDeferral':
+        return this.tenant.deferralService.recognize(input);
+      case 'runDeferralRelease':
+        return this.tenant.deferralService.runRelease(input);
       case 'allocate': {
         // Largest-remainder distribution (Money.allocate), scale from the tenant currency
         // (pack parameter currencyScale). Pure computation, no journal effect.
@@ -264,6 +268,8 @@ export class TenantOperations {
         return tenant.inventory.valuationReport(params);
       case 'provisionRegister':
         return tenant.provisionService.register(params);
+      case 'deferralRegister':
+        return tenant.deferralService.register(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

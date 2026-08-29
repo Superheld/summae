@@ -446,6 +446,22 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     period: { type: 'integer' },
     actor: { type: 'string' },
   },
+  recognizeDeferral: {
+    kind: { type: 'string', required: true },
+    reason: { type: 'string', required: true },
+    counterAccount: { type: 'string', required: true },
+    amount: { type: 'money', required: true },
+    recognizedOn: { type: 'date', required: true },
+    firstFiscalYear: { type: 'integer', required: true },
+    firstPeriod: { type: 'integer', required: true },
+    periods: { type: 'integer', required: true },
+    actor: { type: 'string' },
+  },
+  runDeferralRelease: {
+    fiscalYear: { type: 'integer', required: true },
+    period: { type: 'integer', required: true },
+    actor: { type: 'string' },
+  },
   recognizeProvision: {
     account: { type: 'string', required: true },
     reason: { type: 'string', required: true },

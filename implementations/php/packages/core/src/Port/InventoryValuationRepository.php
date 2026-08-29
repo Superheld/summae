@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Summae\Core\Port;
 
 use Summae\Core\Policies\Expansion\Inventory\InventoryValuation;
-use Summae\Core\Substrate\Uuid;
 
 /**
  * Inventory valuations (F-CORE-050).
@@ -17,9 +16,15 @@ use Summae\Core\Substrate\Uuid;
  */
 interface InventoryValuationRepository
 {
+    /**
+     * Deliberately no `byId` and no `save`.
+     *
+     * A valuation is one act that never changes, and nothing asks for a single one: the projection
+     * reports them all and the version counter reads them all. An interface method nobody calls is
+     * a burden on every adapter author for a convenience the core does not have — and it is the
+     * kind of thing that reads as "supported" long after it stopped being exercised.
+     */
     public function add(InventoryValuation $valuation): void;
-
-    public function byId(Uuid $id): ?InventoryValuation;
 
     /** @return list<InventoryValuation> sorted by fiscal year, then period, then version */
     public function all(): array;

@@ -158,6 +158,7 @@ final readonly class TenantFactory
         // And the stock categories: which accounts hold stock, and where each one's change is booked.
         $tenant->inventory?->setRuleModule($this->ruleModules);
         $tenant->provisionService?->setRuleModule($this->ruleModules);
+        $tenant->deferralService?->setRuleModule($this->ruleModules);
 
         return [
             'tenant' => $tenant,

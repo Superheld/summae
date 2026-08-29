@@ -1,7 +1,7 @@
 # Manifest — `de` (Deutschland)
 
 ```
-pack: de · version: 2026.13 · formatVersion: 0.9
+pack: de · version: 2026.14 · formatVersion: 0.9
 Datei: pack-library/de-pack/de.json · 14 Module · frühere Fassungen in versions/
 ```
 
@@ -36,6 +36,7 @@ Widerspruch: sie **addieren** sich, anders als `policy`, von dem es genau eines 
 | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | `inventory` | `de-vorraete` | 2026.1 |
 | `provisions` | `de-rueckstellungen` | 2026.1 |
+| `deferrals` | `de-rechnungsabgrenzung` | 2026.1 |
 | `legalForms` | `de-rechtsformen` | 2026.1 |
 | `constraint` | `de-entgeltminderung` | 2026.1 |
 | `constraint` | `de-kleinunternehmer` | 2026.1 |

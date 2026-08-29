@@ -903,7 +903,8 @@
             "resultAppropriation",
             "legalForms",
             "inventory",
-            "provisions"
+            "provisions",
+            "deferrals"
           ]
         },
         "version": {
@@ -927,7 +928,8 @@
               "resultAppropriation",
               "legalForms",
               "inventory",
-              "provisions"
+              "provisions",
+              "deferrals"
             ]
           }
         },

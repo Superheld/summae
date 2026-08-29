@@ -149,6 +149,19 @@ const TABLES: ReadonlyArray<{ name: string; define: (t: Knex.TableBuilder) => vo
     },
   },
   {
+    // Prepaid and deferred items (F-CORE-053). Kind and status are columns because they are what a
+    // deferral is FOUND by; the plan and, crucially, the instalments already released travel in the
+    // payload.
+    name: 'deferrals',
+    define: (t) => {
+      t.uuid('id').primary();
+      t.uuid('tenant_id').index();
+      t.string('kind', 32);
+      t.string('status', 16);
+      t.json('payload');
+    },
+  },
+  {
     /**
      * The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
      *
