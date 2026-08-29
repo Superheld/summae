@@ -4,6 +4,7 @@ import type { Uuid } from './substrate/uuid.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
+import type { Provision } from './policies/expansion/provisions/provision.js';
 import type { Partner } from './partner/partner.js';
 import type { Account } from './substrate/account.js';
 import type { AuditRecord } from './records/audit-record.js';
@@ -152,6 +153,22 @@ export interface InventoryValuationRepository {
   byId(id: Uuid): InventoryValuation | null;
   /** sorted by fiscal year, then period, then version */
   all(): InventoryValuation[];
+}
+
+/**
+ * Provisions (F-CORE-051).
+ *
+ * Shaped like `AssetRepository`, because a provision is the same kind of thing an asset is: a record
+ * with a life, whose movements matter as much as its balance. `save` exists here and not on the
+ * inventory port for exactly that reason — a valuation is one act and never changes, a provision is
+ * used, released and re-measured over years.
+ */
+export interface ProvisionRepository {
+  add(provision: Provision): void;
+  save(provision: Provision): void;
+  byId(id: Uuid): Provision | null;
+  /** in the order they were recognised */
+  all(): Provision[];
 }
 
 /**

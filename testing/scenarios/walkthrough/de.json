@@ -398,6 +398,58 @@
       }
     },
     {
+      "name": "a provision that runs past a year must be discounted — and the rate is yours, not the pack's",
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": {
+          "amount": "20000.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2029-12-31"
+      },
+      "expectError": "E_PROVISION_DISCOUNT_RATE_REQUIRED"
+    },
+    {
+      "name": "the same provision with a rate: three whole years at 1.80 %",
+      "op": "recognizeProvision",
+      "input": {
+        "account": "3600",
+        "reason": "Rückbauverpflichtung",
+        "amount": {
+          "amount": "20000.00",
+          "currency": "EUR"
+        },
+        "recognizedOn": "2026-12-31",
+        "dueDate": "2029-12-31",
+        "discountRate": "1.80"
+      },
+      "capture": {
+        "provision": "provisionId"
+      },
+      "expect": {
+        "carryingAmount.amount": "18957.74",
+        "discounted": true,
+        "discountRate": "1.80"
+      }
+    },
+    {
+      "name": "what is set aside, for what, and what has happened to it",
+      "report": "provisionRegister",
+      "params": {
+        "status": "open"
+      },
+      "expect": {
+        "total": "18957.74",
+        "provisions[0].account": "3600",
+        "provisions[0].settlementAmount": "20000.00",
+        "provisions[0].status": "open",
+        "provisions[0].movements[0].kind": "recognized"
+      }
+    },
+    {
       "name": "postings must be finalized before periods can close",
       "op": "finalize",
       "input": {

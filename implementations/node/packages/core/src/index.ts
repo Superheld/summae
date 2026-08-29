@@ -78,6 +78,7 @@ export type {
   AssetRepository,
   CostingRunRepository,
   InventoryValuationRepository,
+  ProvisionRepository,
   TenantRecordRepository,
   TenantRecordData,
   AuditCriteria,
@@ -106,6 +107,8 @@ export {
   type InventoryCategoryRow,
 } from './policies/expansion/inventory/inventory-valuation.js';
 export { InventoryService } from './policies/expansion/inventory/inventory-service.js';
+export { Provision, type ProvisionMovement } from './policies/expansion/provisions/provision.js';
+export { ProvisionService } from './policies/expansion/provisions/provision-service.js';
 export {
   CostingService,
   type OverheadRate,
@@ -121,6 +124,7 @@ export {
   InMemoryPartnerRepository,
   InMemoryCostingRunRepository,
   InMemoryInventoryValuationRepository,
+  InMemoryProvisionRepository,
 } from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 

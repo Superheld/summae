@@ -332,6 +332,101 @@ describe('inventory valuations survive the process', () => {
   });
 });
 
+describe('provisions survive the process', () => {
+  /**
+   * A provision outlives the process that formed it, and so does its history (F-CORE-051).
+   *
+   * The second test is the one that matters. A provision is used, released and re-measured over
+   * *years* — the movement list is the record an auditor reads, and a list that only exists in the
+   * object graph is not a record at all.
+   *
+   * PHP twin: `packages/laravel/tests/ProvisionPersistenceTest.php`.
+   */
+  function seedProvisions(tenant: Tenant, fresh = true): TenantOperations {
+    const ops = new TenantOperations(tenant);
+
+    if (fresh) {
+      ops.execute('createFiscalYear', { year: 2026, start: '2026-01-01', end: '2026-12-31' });
+      ops.execute('createAccount', { number: '1200', name: 'Bank', type: 'asset', subtype: 'bank' });
+      ops.execute('createAccount', { number: '3600', name: 'Rückstellungen', type: 'liability', subtype: 'provision' });
+      ops.execute('createAccount', { number: '4900', name: 'Erträge', type: 'revenue' });
+      ops.execute('createAccount', { number: '6800', name: 'Zuführung', type: 'expense' });
+    }
+
+    // Pack data is not in the database — it arrives with the pack on every open.
+    tenant.provisionService.setRuleModule({
+      provisions: {
+        accounts: [{ account: '3600', expenseAccount: '6800', releaseAccount: '4900' }],
+        discounting: { fromMonths: 12, basis: 'test' },
+      },
+    });
+
+    return ops;
+  }
+
+  function recognize(ops: TenantOperations): string {
+    const result = ops.execute('recognizeProvision', {
+      account: '3600',
+      reason: 'Prozessrisiko',
+      amount: { amount: '5000.00', currency: 'EUR' },
+      recognizedOn: '2026-06-30',
+    }) as Record<string, unknown>;
+    return String(result.provisionId);
+  }
+
+  it('reads a provision and its history back through a second tenant instance', () => {
+    const ops = seedProvisions(tenantOn(TENANT_A));
+    const id = recognize(ops);
+    ops.execute('useProvision', {
+      provisionId: id,
+      amount: { amount: '2000.00', currency: 'EUR' },
+      settlementAccount: '1200',
+      date: '2026-09-30',
+    });
+
+    const reader = new TenantOperations(tenantOn(TENANT_A));
+    const register = reader.project('provisionRegister', {}) as {
+      provisions: Array<Record<string, unknown>>;
+      total: string;
+    };
+
+    expect(register.provisions).toHaveLength(1);
+    const first = register.provisions[0] as Record<string, unknown>;
+    expect(first.carryingAmount).toBe('3000.00');
+    expect(first.status).toBe('open');
+    expect(register.total).toBe('3000.00');
+
+    const movements = first.movements as Array<Record<string, unknown>>;
+    expect(movements, 'the history is the record — it must survive the process').toHaveLength(2);
+    expect(movements.map((m) => m.kind)).toEqual(['recognized', 'used']);
+    expect(typeof movements[1]?.entryId, 'every movement names the entry it produced').toBe('string');
+  });
+
+  it('continues the history from a second instance rather than starting over', () => {
+    const id = recognize(seedProvisions(tenantOn(TENANT_A)));
+
+    const second = seedProvisions(tenantOn(TENANT_A), false);
+    const released = second.execute('releaseProvision', { provisionId: id, date: '2026-12-31' }) as Record<
+      string,
+      unknown
+    >;
+
+    // The carrying amount came out of the store, not out of a fresh object at its original value —
+    // which is what a provision service keeping its own map would have done.
+    expect((released.released as Record<string, unknown>).amount).toBe('5000.00');
+    expect(released.status).toBe('settled');
+  });
+
+  it('keeps one tenant’s provisions out of another’s', () => {
+    recognize(seedProvisions(tenantOn(TENANT_A)));
+
+    const other = new TenantOperations(tenantOn(TENANT_B, 'Andere GmbH'));
+    const register = other.project('provisionRegister', {}) as { provisions: unknown[] };
+
+    expect(register.provisions).toEqual([]);
+  });
+});
+
 describe('tenant scoping', () => {
   const lookup = (tenant: Tenant, port: string, id: string): unknown => {
     const uuid = Uuid.fromString(id);

@@ -434,7 +434,11 @@ final class ProvisionService
             $this->baseCurrency,
         );
 
-        return [$value, (string) $percent];
+        // The rate is reported back exactly as it was given, not re-serialised from the parsed
+        // number. `BigDecimal` keeps the scale of its input and `Big` does not, so `2.00` would
+        // come back as `2` on the other side — a difference that reaches the export and breaks
+        // byte parity for no gain at all.
+        return [$value, $rate];
     }
 
     private static function monthsBetween(CalendarDate $from, CalendarDate $to): int

@@ -3,6 +3,7 @@ import { ResultAppropriationService } from '../policies/expansion/result-appropr
 import { EntityProfileService, LegalFormRegistry } from '../policies/projection/legal-forms.js';
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
 import { InventoryService } from '../policies/expansion/inventory/inventory-service.js';
+import { ProvisionService } from '../policies/expansion/provisions/provision-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -12,6 +13,7 @@ import {
   InMemoryOpenItemRepository,
   InMemoryCostingRunRepository,
   InMemoryInventoryValuationRepository,
+  InMemoryProvisionRepository,
   InMemoryPartnerRepository,
   InMemoryTenantRecordRepository,
   InMemoryVoucherRepository,
@@ -36,6 +38,7 @@ import type {
   AuditTrail,
   CostingRunRepository,
   InventoryValuationRepository,
+  ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -68,6 +71,8 @@ export class Tenant {
     readonly costingRuns: CostingRunRepository,
     /** Same, for stock (F-CORE-050) — `inventoryValuation` reads it. */
     readonly inventoryValuations: InventoryValuationRepository,
+    /** Same, for provisions (F-CORE-051) — `provisionRegister` reads it. */
+    readonly provisions: ProvisionRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
@@ -75,6 +80,7 @@ export class Tenant {
     readonly resultAppropriation: ResultAppropriationService,
     readonly costing: CostingService,
     readonly inventory: InventoryService,
+    readonly provisionService: ProvisionService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
@@ -149,6 +155,7 @@ export class Tenant {
         partners: new InMemoryPartnerRepository(),
         costingRuns: new InMemoryCostingRunRepository(),
         inventoryValuations: new InMemoryInventoryValuationRepository(),
+        provisions: new InMemoryProvisionRepository(),
         audit: new InMemoryAuditTrail(),
       },
       clock,
@@ -185,6 +192,7 @@ export class Tenant {
       partners: PartnerRepository;
       costingRuns: CostingRunRepository;
       inventoryValuations: InventoryValuationRepository;
+      provisions: ProvisionRepository;
       audit: AuditTrail;
     },
     clock: Clock,
@@ -206,8 +214,19 @@ export class Tenant {
     /** The constraint socket's second plug (F-CORE-042) — see `inMemory` for why it is last. */
     combinations: AccountCombinationRegistry = AccountCombinationRegistry.empty(),
   ): Tenant {
-    const { accounts, fiscalYears, vouchers, journal, openItems, assets, partners, costingRuns, inventoryValuations, audit } =
-      ports;
+    const {
+      accounts,
+      fiscalYears,
+      vouchers,
+      journal,
+      openItems,
+      assets,
+      partners,
+      costingRuns,
+      inventoryValuations,
+      provisions,
+      audit,
+    } = ports;
     // Built before the ledger, not with the other services below: the ledger reads the declared
     // legal form on every posting to evaluate conditional constraint rules (F-CORE-047), and it
     // must hold the same object `setEntityProfile` later writes to.
@@ -266,6 +285,16 @@ export class Tenant {
       tenantId,
       auditWriter,
     );
+    const provisionService = new ProvisionService(
+      baseCurrency,
+      accounts,
+      vouchers,
+      provisions,
+      ledger,
+      ids,
+      {},
+      auditWriter,
+    );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
@@ -282,6 +311,7 @@ export class Tenant {
       partners,
       costingRuns,
       inventoryValuations,
+      provisions,
       audit,
       ledger,
       tax,
@@ -289,6 +319,7 @@ export class Tenant {
       resultAppropriation,
       costing,
       inventory,
+      provisionService,
       partnerService,
       mappings,
       clock,

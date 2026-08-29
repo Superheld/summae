@@ -5,6 +5,7 @@ import type {
   AuditTrail,
   CostingRunRepository,
   InventoryValuationRepository,
+  ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
   OpenItemRepository,
@@ -17,6 +18,7 @@ import { applyAuditCriteria } from './records/audit-filter.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
+import type { Provision } from './policies/expansion/provisions/provision.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
 import type { CalendarDate } from './substrate/calendar-date.js';
@@ -280,6 +282,26 @@ export class InMemoryInventoryValuationRepository implements InventoryValuationR
       const byPeriod = a.period.period - b.period.period;
       return byPeriod !== 0 ? byPeriod : a.version - b.version;
     });
+  }
+}
+
+export class InMemoryProvisionRepository implements ProvisionRepository {
+  private readonly items: Provision[] = [];
+  private readonly byIdMap = new Map<string, Provision>();
+
+  add(provision: Provision): void {
+    this.items.push(provision);
+    this.byIdMap.set(provision.id.value, provision);
+  }
+
+  save(_provision: Provision): void {}
+
+  byId(id: Uuid): Provision | null {
+    return this.byIdMap.get(id.value) ?? null;
+  }
+
+  all(): Provision[] {
+    return this.items;
   }
 }
 
