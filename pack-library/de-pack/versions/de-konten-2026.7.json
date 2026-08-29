@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.8",
+  "version": "2026.7",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -201,11 +201,6 @@
         "type": "revenue"
       },
       {
-        "number": "4200",
-        "name": "Andere aktivierte Eigenleistungen",
-        "type": "revenue"
-      },
-      {
         "number": "4020",
         "name": "Gewährte Skonti und Erlösschmälerungen (umsatzsteuerpflichtig)",
         "type": "revenue"
@@ -223,11 +218,6 @@
       {
         "number": "4050",
         "name": "Unentgeltliche Wertabgaben (Ertrag)",
-        "type": "revenue"
-      },
-      {
-        "number": "4700",
-        "name": "Sonstige Zinsen und ähnliche Erträge",
         "type": "revenue"
       },
       {
@@ -308,21 +298,6 @@
       {
         "number": "6310",
         "name": "Soziale Aufwendungen (Arbeitgeberanteil)",
-        "type": "expense"
-      },
-      {
-        "number": "6400",
-        "name": "Steuern vom Einkommen und vom Ertrag",
-        "type": "expense"
-      },
-      {
-        "number": "6450",
-        "name": "Sonstige Steuern",
-        "type": "expense"
-      },
-      {
-        "number": "6600",
-        "name": "Zinsen und ähnliche Aufwendungen",
         "type": "expense"
       },
       {
