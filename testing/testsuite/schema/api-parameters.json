@@ -867,6 +867,9 @@
         "required": true
       }
     },
+    "assetSchedule": {
+      "fiscalYear": { "type": "integer", "required": true }
+    },
     "deferralRegister": {
       "kind": { "type": "string" },
       "status": { "type": "string" }

@@ -154,6 +154,9 @@ final class ProjectionParameters
         // the same grounds. Which framework demands the comparison, and what it permits by way of
         // exception, is the pack's business and the census's — not this table's.
         'measurementConsistency' => [],
+        'assetSchedule' => [
+            'fiscalYear' => ['type' => 'integer', 'required' => true],
+        ],
         'deferralRegister' => [
             'kind' => ['type' => 'string'],
             'status' => ['type' => 'string'],

@@ -372,6 +372,12 @@ final class Asset implements \JsonSerializable
         return $this->disposed;
     }
 
+    /** When it left, or null while it is still there — read by the movement schedule (F-CORE-055). */
+    public function disposedOn(): ?CalendarDate
+    {
+        return $this->disposedOn;
+    }
+
     public function assertActive(): void
     {
         if ($this->disposed) {

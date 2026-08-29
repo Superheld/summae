@@ -99,7 +99,7 @@ owes none of it, which is why these rows are separated rather than mixed into §
 |---|---|---|
 | § 264 Abs. 1 — notes (Anhang) and management report | ➖ | Documents about the business, not derivable from the journal. The application's, and they need figures this library can supply. |
 | § 266 Abs. 2/3 — **the prescribed balance-sheet layout** | ✅ for the main positions | `pack/de-pack/de-bilanz-guv`, `provisions/provisions`. Stock arrived as `A.Ia` (2026.4) and provisions as `P.B` (2026.5). Two things are worth recording about *how*. Stock was inserted with a letter suffix rather than by renumbering what follows it, because a mapping key is an identifier somebody may have stored while the *order* of the statement comes from the order of the array — renumbering would have made the statement right and every stored reference silently wrong. Provisions needed no such trick: `P.B` had been left free from the beginning, because the liabilities side already followed § 266's own letters. Whoever left that gap was working for this day. What is still not § 266 in full is the *depth* — equity is one position where Abs. 3 A. has five (§ 272, row 10). |
-| § 268 Abs. 2 — **the fixed-asset movement schedule (Anlagengitter)** | ⚠️ | `assetRegister` reports the *stock*: acquisition cost, accumulated depreciation, book value, at a cutoff date. § 268 Abs. 2 wants the *movement*: opening cost, additions, disposals, transfers, write-ups, depreciation of the year and cumulative, closing value. The data is all in the journal; the projection that shapes it is not written. |
+| § 268 Abs. 2 — **the fixed-asset movement schedule (Anlagengitter)** | 🟡 | `assetSchedule`; `assets/asset-schedule`. All twelve figures, per asset and per asset account. **🟡 for one column:** `transfers` is structurally `0.00` because summae has no operation that moves an asset between positions. It is reported rather than omitted — a schedule missing the column is incomplete for whoever files it — and it will carry figures the day such an operation exists. A business that never reclassifies is fully served today. |
 | § 272 — equity, shown by its components | 🟡 | The `de-bilanz` mapping has one equity position plus the result. Subscribed capital, reserves and loss carried forward are not separated — adequate for a GbR, not for a GmbH. |
 | § 275 Abs. 2 — **income statement, Gesamtkostenverfahren** | 🟡 | **Nr. 2 changes in inventory arrived** (`de-guv` 2026.2, key `1a`) and is where the stock valuation books. Still missing: Nr. 3 own work capitalised, Nr. 12/13 interest, and taxes on income — row 9 of §7. |
 | § 275 Abs. 3 — Umsatzkostenverfahren | ⚠️ | Not offered. It is a second mapping, not a second mechanism — cheap once a business asks. |
@@ -136,7 +136,7 @@ Ordered by what unblocks what, not by severity.
 | ~~**5**~~ | ~~**Release schedule for prepaid/deferred items (§ 250, § 252 Abs. 1 Nr. 5)**~~ — **built 2026-08-29** | — | `recognizeDeferral` + `runDeferralRelease` + `deferralRegister` (F-CORE-053). The size estimate was right this time, and the reason is worth noting after three rows where it was not: the pattern really did transfer whole, because the *shape* of the problem — an amount spread over known periods, booked one period at a time — was identical. Where the estimates went wrong before, it was because the row described the missing feature and not the state it had to be reconciled with. |
 | **6** | **Consumption sequence (§ 256, § 6 Abs. 1 Nr. 2a EStG)** | open question | Needs entry-value history, which needs a stock record, which the boundary says summae does not keep. Either the first cut (weighted average from the run's production cost) is enough, or the boundary moves. **Do not close this by building it silently — it is the row that decides how far the library goes.** |
 | ~~**7**~~ | ~~**Offsetting prohibition (§ 246 Abs. 2)**~~ — **half built 2026-08-29** | small | The balance-sheet half is done (F-CORE-054, resolver invariant I11 plus `E_MAPPING_SIDE_MIXED`). The row stays, reduced, for the half that is not: **expenses against income** has no equivalent surface — an income statement has no sides, and netting before a posting is invisible to a mapping. Whether that half is reachable at all is worth deciding rather than leaving as an unremarked gap. |
-| **8** | **Anlagengitter (§ 268 Abs. 2)** | medium | A projection over data that is all present. |
+| ~~**8**~~ | ~~**Anlagengitter (§ 268 Abs. 2)**~~ — **built 2026-08-29** | small, in the end | `assetSchedule` (F-CORE-055). The row was right that the data was all present; "medium" was pessimistic because nothing new had to be *stored*. What remains is one column and one missing operation — a reclassification between asset positions — which is a product question rather than a legal one. |
 | **9** | **§ 275 Abs. 2 completeness** in the shipped `de-guv` | small | Four missing lines, three of which need accounts the chart does not have yet. Partly falls out of row 2. |
 | **10** | **§ 272 equity components**, **§ 275 Abs. 3 Umsatzkostenverfahren**, **§ 251 contingent liabilities**, **§ 248 Abs. 2 / § 255 Abs. 2a intangibles**, **§ 240 Abs. 3/4 Festwert and group measurement**, **§ 254 hedging units**, **§ 277 Abs. 3 separate disclosure** | mixed | Real, none of them blocking. Listed so the census is a census and not a to-do list of what was convenient to find. |
 | **11** | **Foreign currency (§ 256a)** | decision first | A single-currency bookkeeping library is a defensible product. What is not defensible is leaving this as an unremarked hole. Either it becomes ➖ *deliberately not*, with the consequence stated, or it is the largest change in this list — it reaches `Money` and therefore everything. |
@@ -165,7 +165,7 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 |---|---|---|
 | engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `inventory` `provision` `fixed_asset` `opening_balance` `private` |
 | operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `adjustInputTax` |
-| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `assetSchedule` |
+| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | — |
 | `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.Ia` `A.II` `A.III` `A.IV` `A.V` |
 | `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.B` `P.C` `P.D` |
 | `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `1a` `2` `3` `4` `5` `6` |
@@ -176,8 +176,9 @@ This paragraph has now been rewritten twice in one day, both times because the g
 green until it was — which is the mechanism doing exactly what it exists for. On the morning of
 2026-08-29 it read *eleven subtypes with no `inventory`, five asset positions with no stock, ten
 module kinds with no provision*. All three sentences are obsolete. What the rows say now is: thirteen module
-kinds with **no input-tax adjustment** among them, one operation still missing (the § 15a
-correction), and one projection (the fixed-asset movement schedule, § 268 Abs. 2).
+kinds with **no input-tax adjustment** among them, and exactly **one** operation still missing — the
+§ 15a correction. The projection row is empty, which is worth pausing on: on the morning of
+2026-08-29 it named five, and the empty cell is now itself the assertion.
 
 ---
 

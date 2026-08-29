@@ -22,6 +22,7 @@ asset-write-up
 deferral-release
 de-rechnungsabgrenzung
 mapping-offsetting
+asset-schedule
 production-cost
 de-herstellungskosten
 us-inventory-costing

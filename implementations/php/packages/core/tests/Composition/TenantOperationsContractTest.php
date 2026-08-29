@@ -40,7 +40,7 @@ final class TenantOperationsContractTest extends TestCase
 
     /** @var list<string> */
     private const PROJECTIONS = [
-        'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'auditTrailIntegrity', 'duplicateVouchers', 'gdpduExport', 'unfinalizedEntries', 'assetRegister',
+        'trialBalance', 'openItems', 'accountSheet', 'auditLog', 'auditTrailIntegrity', 'duplicateVouchers', 'gdpduExport', 'unfinalizedEntries', 'assetRegister', 'assetSchedule',
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
         'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',

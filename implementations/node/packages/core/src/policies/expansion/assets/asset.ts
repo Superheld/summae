@@ -203,6 +203,11 @@ export class Asset {
     return this.depreciationStart ?? this.acquiredOn;
   }
 
+  /** When it left, or null while it is still there — read by the movement schedule (F-CORE-055). */
+  disposedOnDate(): CalendarDate | null {
+    return this.disposedOn;
+  }
+
   isDisposed(): boolean {
     return this.disposed;
   }
