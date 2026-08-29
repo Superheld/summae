@@ -504,6 +504,15 @@ final class OperationParameters
             'discountRate' => [ 'type' => 'string' ],
             'actor' => [ 'type' => 'string' ],
         ],
+        'adjustInputTax' => [
+            'originalInputTax' => [ 'type' => 'money', 'required' => true ],
+            'originalSharePercent' => [ 'type' => 'string', 'required' => true ],
+            'currentSharePercent' => [ 'type' => 'string', 'required' => true ],
+            'assetKind' => [ 'type' => 'string', 'required' => true ],
+            'reason' => [ 'type' => 'string', 'required' => true ],
+            'date' => [ 'type' => 'date', 'required' => true ],
+            'actor' => [ 'type' => 'string' ],
+        ],
         'recognizeDeferral' => [
             'kind' => [ 'type' => 'string', 'required' => true ],
             'reason' => [ 'type' => 'string', 'required' => true ],

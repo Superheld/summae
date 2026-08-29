@@ -120,6 +120,8 @@ final readonly class TenantOperations
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "recognizeDeferral" is not defined'),
             'runDeferralRelease' => $tenant->deferralService?->runRelease($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "runDeferralRelease" is not defined'),
+            'adjustInputTax' => $tenant->inputTaxAdjustment?->adjust($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "adjustInputTax" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
             'writeUpAsset' => $tenant->assetService->writeUpAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),

@@ -119,7 +119,7 @@ tax determination beyond VAT.
 | § 7 Abs. 1 Satz 6 — depreciation by output | ✅ | `assets/units-of-production` — and the reason the quantity on an asset is bookkeeping data rather than an exception |
 | § 7g Abs. 5 — special depreciation | ✅ | `assets/special-depreciation`, `assets/asset-register-special-depreciation` |
 | § 7g Abs. 1/2 — Investitionsabzugsbetrag | ➖ | Outside the balance sheet entirely; it never touches these books. Carried by the application (`GOBD-APP-OBLIGATIONS.md` A-15). |
-| § 15a UStG — input-tax adjustment | ⚠️ | The register and the deadline are the application's — the trigger is a change of use, which is never posted. **The arithmetic is not**, and it is open here: a mechanism with pack-supplied periods and thresholds. Also named in `gobd-conformance.md` §4 and `proposals/de-pack-vat-completeness.md`. |
+| § 15a UStG — input-tax adjustment | ✅ | `adjustInputTax`; `tax/input-tax-adjustment`, `pack/de-pack/de-vorsteuerberichtigung`. The register and the deadline stay with the application — the trigger is a change of use, which is never posted — and the arithmetic came here, with the periods, both de-minimis thresholds, the accounts and the reporting key as pack data. Built as an **expansion**: it reads no journal, and the correction is booked rather than handed back. |
 
 ---
 
@@ -140,7 +140,7 @@ Ordered by what unblocks what, not by severity.
 | ~~**9**~~ | ~~**§ 275 Abs. 2 completeness** in the shipped `de-guv`~~ — **built 2026-08-29** | — | Five accounts and five positions, all data. What the row did not say, and what is worth keeping: the *remaining* absence is the financial-asset block, and it is absent for a reason rather than an oversight — the German chart this pack ships has no financial assets, so there is nothing for those positions to select. A position pointing at nothing is a resolver error (I2), not a courtesy. |
 | **10** | **§ 272 equity components**, **§ 275 Abs. 3 Umsatzkostenverfahren**, **§ 251 contingent liabilities**, **§ 248 Abs. 2 / § 255 Abs. 2a intangibles**, **§ 240 Abs. 3/4 Festwert and group measurement**, **§ 254 hedging units**, **§ 277 Abs. 3 separate disclosure** | mixed | Real, none of them blocking. Listed so the census is a census and not a to-do list of what was convenient to find. |
 | **11** | **Foreign currency (§ 256a)** | decision first | A single-currency bookkeeping library is a defensible product. What is not defensible is leaving this as an unremarked hole. Either it becomes ➖ *deliberately not*, with the consequence stated, or it is the largest change in this list — it reaches `Money` and therefore everything. |
-| **12** | **§ 15a UStG arithmetic** | medium | Decided 2026-08-29 to belong here: mechanism in the core, periods and thresholds as `de` pack data, register and deadline staying with the application. |
+| ~~**12**~~ | ~~**§ 15a UStG arithmetic**~~ — **built 2026-08-29** | — | `adjustInputTax` (F-CORE-056), exactly as the row described it. The one thing the row did not say is that it had to be an **expansion**: as a projection it fits nothing, because it reads no journal — every input comes from outside. Booking the correction rather than returning a number is the better design that fell out of getting the policy kind right. |
 
 ## 8. The facts this document asserts, held against the product
 
@@ -164,21 +164,22 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 | Claim | Source | Value |
 |---|---|---|
 | engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `inventory` `provision` `fixed_asset` `opening_balance` `private` |
-| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `adjustInputTax` |
+| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | — |
 | projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | — |
 | `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.Ia` `A.II` `A.III` `A.IV` `A.V` |
 | `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.B` `P.C` `P.D` |
 | `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `1a` `1b` `2` `3` `4` `5` `6` `6a` `6b` `6c` `6d` |
 | `de` chart, subtypes actually used | `pack-library/de-pack/accounts/de-konten.json` | `ap` `ar` `bank` `cash` `fixed_asset` `inventory` `opening_balance` `private` `provision` `result_allocation` `tax_in` `tax_out` `transit` |
-| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `deferrals` `depreciation` `inventory` `legalForms` `mapping` `policy` `productionCost` `provisions` `resultAppropriation` `tax` |
+| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `deferrals` `depreciation` `inputTaxAdjustment` `inventory` `legalForms` `mapping` `policy` `productionCost` `provisions` `resultAppropriation` `tax` |
 
 This paragraph has now been rewritten twice in one day, both times because the gate refused to go
 green until it was — which is the mechanism doing exactly what it exists for. On the morning of
 2026-08-29 it read *eleven subtypes with no `inventory`, five asset positions with no stock, ten
-module kinds with no provision*. All three sentences are obsolete. What the rows say now is: thirteen module
-kinds with **no input-tax adjustment** among them, and exactly **one** operation still missing — the
-§ 15a correction. The projection row is empty, which is worth pausing on: on the morning of
-2026-08-29 it named five, and the empty cell is now itself the assertion.
+module kinds with no provision*. All three sentences are obsolete. Both the operations row and the projections row are now **empty**, and the empty cells are the
+assertion: on the morning of 2026-08-29 they named nine names between them, every one of which was
+something the census said the balance sheet needed and the engine did not have. What the remaining
+rows say is that the German pack bundles fourteen module kinds, its chart uses thirteen subtypes,
+and its balance sheet has both of § 266's main positions.
 
 ---
 

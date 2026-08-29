@@ -173,6 +173,7 @@ export class CoreSubject implements Subject {
     tenant.inventory.setRuleModule(ruleModules);
     tenant.provisionService.setRuleModule(ruleModules);
     tenant.deferralService.setRuleModule(ruleModules);
+    tenant.inputTaxAdjustment.setRuleModule(ruleModules);
 
     for (const accountData of asRecordList(setup.accounts)) {
       tenant.accounts.add(this.buildAccount(tenant, accountData));

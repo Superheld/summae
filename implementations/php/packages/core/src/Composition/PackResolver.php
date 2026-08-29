@@ -22,7 +22,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions', 'deferrals'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions', 'deferrals', 'inputTaxAdjustment'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -231,6 +231,7 @@ final class PackResolver
         $inventory = null;
         $provisions = null;
         $deferrals = null;
+        $inputTaxAdjustment = null;
         $resultAppropriation = null;
         $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
@@ -314,6 +315,9 @@ final class PackResolver
                     break;
                 case 'deferrals':
                     $deferrals = $data;
+                    break;
+                case 'inputTaxAdjustment':
+                    $inputTaxAdjustment = $data;
                     break;
                 case 'legalForms':
                     $legalForms = $data;
@@ -510,6 +514,7 @@ final class PackResolver
             'inventory' => $inventory,
             'provisions' => $provisions,
             'deferrals' => $deferrals,
+            'inputTaxAdjustment' => $inputTaxAdjustment,
             'resultAppropriation' => $resultAppropriation,
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
@@ -591,6 +596,10 @@ final class PackResolver
             // silent does not support `recognizeDeferral`, which is the right answer for one that
             // does not distinguish the two.
             'deferrals' => is_array($pack['deferrals'] ?? null) ? $pack['deferrals'] : null,
+            // The correction periods, thresholds, accounts and reporting key for the input-tax
+            // adjustment. A pack that stays silent has no such rule, and `adjustInputTax` says so
+            // rather than inventing an observation period.
+            'inputTaxAdjustment' => is_array($pack['inputTaxAdjustment'] ?? null) ? $pack['inputTaxAdjustment'] : null,
             // The appropriation plug: which account the resolution books against, and which targets
             // the jurisdiction offers. A pack that stays silent simply does not support the operation.
             'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,

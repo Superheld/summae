@@ -155,6 +155,8 @@ export class TenantOperations {
         return this.tenant.deferralService.recognize(input);
       case 'runDeferralRelease':
         return this.tenant.deferralService.runRelease(input);
+      case 'adjustInputTax':
+        return this.tenant.inputTaxAdjustment.adjust(input);
       case 'allocate': {
         // Largest-remainder distribution (Money.allocate), scale from the tenant currency
         // (pack parameter currencyScale). Pure computation, no journal effect.

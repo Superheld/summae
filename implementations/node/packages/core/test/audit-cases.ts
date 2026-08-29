@@ -89,6 +89,16 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
   // that declares no inventory instead of reaching the trail.
   // And the provision accounts, same reason once more.
   // And the deferral accounts, same reason again.
+  // And the input-tax adjustment: without its correction periods the operation refuses on the pack
+  // instead of reaching the trail.
+  tenant.inputTaxAdjustment.setRuleModule({
+    inputTaxAdjustment: {
+      correctionPeriods: [{ assetKind: 'movable', years: 5 }],
+      deMinimis: { inputTaxAtMost: '1000.00', sharePointsAtLeast: '10.00', amountAtMost: '1000.00' },
+      accounts: { taxAccount: '1500', expenseAccount: '4930', incomeAccount: '8400' },
+      reportingKey: '63',
+    },
+  });
   tenant.deferralService.setRuleModule({
     deferrals: {
       kinds: [
@@ -589,6 +599,24 @@ const AUDITED: readonly Case[] = [
         depreciationMethod: 'units_of_production',
       });
       ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
+    },
+  },
+  {
+    op: 'adjustInputTax',
+    objectType: 'inputTaxAdjustment',
+    action: 'adjusted',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('createAccount', { number: '1500', name: 'Vorsteuer', type: 'asset', subtype: 'tax_in' });
+      ops.execute('createAccount', { number: '8400', name: 'Erträge', type: 'revenue' });
+      ops.execute('adjustInputTax', {
+        originalInputTax: { amount: '19000.00', currency: 'EUR' },
+        originalSharePercent: '100.00',
+        currentSharePercent: '60.00',
+        assetKind: 'movable',
+        reason: 'Fahrzeug teils privat',
+        date: '2026-03-31',
+      });
     },
   },
   {

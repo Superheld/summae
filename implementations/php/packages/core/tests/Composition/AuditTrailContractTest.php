@@ -111,6 +111,16 @@ class AuditTrailContractTest extends TestCase
         // And the stock categories, same reason again: without them `valuateInventory` refuses on
         // a pack that declares no inventory instead of reaching the trail.
         // And the provision accounts, same reason once more.
+        // And the input-tax adjustment: without its correction periods the operation refuses on the
+        // pack instead of reaching the trail.
+        $tenant->inputTaxAdjustment?->setRuleModule([
+            'inputTaxAdjustment' => [
+                'correctionPeriods' => [['assetKind' => 'movable', 'years' => 5]],
+                'deMinimis' => ['inputTaxAtMost' => '1000.00', 'sharePointsAtLeast' => '10.00', 'amountAtMost' => '1000.00'],
+                'accounts' => ['taxAccount' => '1500', 'expenseAccount' => '4930', 'incomeAccount' => '8400'],
+                'reportingKey' => '63',
+            ],
+        ]);
         // And the deferral accounts, same reason again.
         $tenant->deferralService?->setRuleModule([
             'deferrals' => [
@@ -240,6 +250,7 @@ class AuditTrailContractTest extends TestCase
         yield 'useProvision' => ['useProvision', 'provision', 'used'];
         yield 'releaseProvision' => ['releaseProvision', 'provision', 'released'];
         yield 'remeasureProvision' => ['remeasureProvision', 'provision', 'remeasured'];
+        yield 'adjustInputTax' => ['adjustInputTax', 'inputTaxAdjustment', 'adjusted'];
         yield 'recognizeDeferral' => ['recognizeDeferral', 'deferral', 'recognized'];
         yield 'runDeferralRelease' => ['runDeferralRelease', 'deferralRelease', 'completed'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
@@ -647,6 +658,20 @@ class AuditTrailContractTest extends TestCase
                 $ops->execute('remeasureProvision', [
                     'provisionId' => $this->recognizeProvision($ops),
                     'amount' => ['amount' => '800.00', 'currency' => 'EUR'],
+                    'date' => '2026-03-31',
+                ]);
+
+                return;
+            case 'adjustInputTax':
+                $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1500', 'name' => 'Vorsteuer', 'type' => 'asset', 'subtype' => 'tax_in']);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge', 'type' => 'revenue']);
+                $ops->execute('adjustInputTax', [
+                    'originalInputTax' => ['amount' => '19000.00', 'currency' => 'EUR'],
+                    'originalSharePercent' => '100.00',
+                    'currentSharePercent' => '60.00',
+                    'assetKind' => 'movable',
+                    'reason' => 'Fahrzeug teils privat',
                     'date' => '2026-03-31',
                 ]);
 

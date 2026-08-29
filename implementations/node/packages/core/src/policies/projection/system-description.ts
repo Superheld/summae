@@ -40,7 +40,8 @@ import type { Uuid } from '../../substrate/uuid.js';
 export const API_OPERATIONS = [
    'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
    'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
-   'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
+   'adjustInputTax', 'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
+   'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
    'recognizeDeferral', 'recognizeProvision', 'releaseProvision', 'remeasureProvision',
@@ -151,6 +152,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'provision', actions: ['recognized', 'used', 'released', 'remeasured'] },
   { objectType: 'deferral', actions: ['recognized'] },
   { objectType: 'deferralRelease', actions: ['completed'] },
+  { objectType: 'inputTaxAdjustment', actions: ['adjusted'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];
 

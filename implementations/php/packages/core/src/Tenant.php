@@ -53,6 +53,7 @@ use Summae\Core\Policies\Expansion\Deferrals\DeferralService;
 use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Policies\Expansion\Tax\InputTaxAdjustmentService;
 use Summae\Core\Policies\Expansion\Tax\TaxService;
 
 /**
@@ -125,6 +126,12 @@ final readonly class Tenant
         /** Prepaid and deferred items (F-CORE-053) — appended for the same reason as the rest. */
         public ?DeferralRepository $deferrals = null,
         public ?DeferralService $deferralService = null,
+        /**
+         * The input-tax adjustment (F-CORE-056). No repository: the register of what is under
+         * observation is the embedding application's, because its trigger — a change of use — is
+         * never posted. Only the arithmetic and the posting live here.
+         */
+        public ?InputTaxAdjustmentService $inputTaxAdjustment = null,
     ) {
     }
 
@@ -275,6 +282,16 @@ final readonly class Tenant
             $auditWriter,
         );
 
+        $inputTaxAdjustment = new InputTaxAdjustmentService(
+            $baseCurrency,
+            $accounts,
+            $vouchers,
+            $ledger,
+            $ids,
+            [],
+            $auditWriter,
+        );
+
         return new self(
             $tenantId,
             $name,
@@ -308,6 +325,7 @@ final readonly class Tenant
             $provisionService,
             $deferrals,
             $deferralService,
+            $inputTaxAdjustment,
         );
     }
 }

@@ -33,7 +33,7 @@ final class TenantOperationsContractTest extends TestCase
         'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
         'writeDownAsset', 'writeUpAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
         'recognizeProvision', 'useProvision', 'releaseProvision', 'remeasureProvision',
-        'recognizeDeferral', 'runDeferralRelease',
+        'recognizeDeferral', 'runDeferralRelease', 'adjustInputTax',
         'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
         'appropriateResult', 'setEntityProfile', 'erasePartner',
     ];
