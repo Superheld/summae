@@ -78,6 +78,7 @@ export type {
   AssetRepository,
   CostingRunRepository,
   InventoryValuationRepository,
+  DeferralRepository,
   ProvisionRepository,
   TenantRecordRepository,
   TenantRecordData,
@@ -110,6 +111,13 @@ export { InventoryService } from './policies/expansion/inventory/inventory-servi
 export { Provision, type ProvisionMovement } from './policies/expansion/provisions/provision.js';
 export { ProvisionService } from './policies/expansion/provisions/provision-service.js';
 export {
+  Deferral,
+  DEFERRAL_KINDS,
+  type DeferralInstalment,
+  type DeferralRelease,
+} from './policies/expansion/deferrals/deferral.js';
+export { DeferralService } from './policies/expansion/deferrals/deferral-service.js';
+export {
   CostingService,
   type OverheadRate,
   type ProductionCostResult,
@@ -125,6 +133,7 @@ export {
   InMemoryCostingRunRepository,
   InMemoryInventoryValuationRepository,
   InMemoryProvisionRepository,
+  InMemoryDeferralRepository,
 } from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 

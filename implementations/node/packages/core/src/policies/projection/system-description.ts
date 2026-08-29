@@ -43,15 +43,16 @@ export const API_OPERATIONS = [
    'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-   'recognizeProvision', 'releaseProvision', 'remeasureProvision',
-  'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
+   'recognizeDeferral', 'recognizeProvision', 'releaseProvision', 'remeasureProvision',
+  'reverse', 'runCosting', 'runDeferralRelease', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
   'useProvision', 'valuateInventory', 'settle',
    'unlockAccount', 'updatePartner', 'writeDownAsset', 'writeUpAsset',
 ] as const;
 
 export const API_PROJECTIONS = [
   'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
-  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'duplicateVouchers', 'ecSalesList',
+  'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'deferralRegister',
+  'duplicateVouchers', 'ecSalesList',
   'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
   'measurementConsistency', 'openItems',
   'personalDataDescription', 'overheadRates',
@@ -148,6 +149,8 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'depreciationRun', actions: ['completed'] },
   { objectType: 'inventoryValuation', actions: ['valued'] },
   { objectType: 'provision', actions: ['recognized', 'used', 'released', 'remeasured'] },
+  { objectType: 'deferral', actions: ['recognized'] },
+  { objectType: 'deferralRelease', actions: ['completed'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];
 

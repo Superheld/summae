@@ -160,6 +160,10 @@ export const PROJECTION_PARAMETERS: Readonly<Record<string, Readonly<Record<stri
   // grounds. Which framework demands the comparison, and what it permits by way of exception, is
   // the pack's business and the census's — not this table's.
   measurementConsistency: {},
+  deferralRegister: {
+    kind: { type: 'string' },
+    status: { type: 'string' },
+  },
   provisionRegister: {
     status: { type: 'string' },
     asOf: { type: 'date' },

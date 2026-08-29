@@ -20,6 +20,10 @@ import {
   Provision,
   type ProvisionMovement,
   type ProvisionRepository,
+  Deferral,
+  type DeferralInstalment,
+  type DeferralRelease,
+  type DeferralRepository,
   type Currency,
   type EntryStatus,
   FiscalYear,
@@ -573,11 +577,6 @@ export class DatabaseInventoryValuationRepository implements InventoryValuationR
     );
   }
 
-  byId(id: Uuid): InventoryValuation | null {
-    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
-    return row === null ? null : this.hydrate(row);
-  }
-
   all(): InventoryValuation[] {
     return this.db
       .all(
@@ -694,6 +693,97 @@ export class DatabaseProvisionRepository implements ProvisionRepository {
 
   private table() {
     return this.db.table(`${TABLE_PREFIX}provisions`);
+  }
+}
+
+/**
+ * Prepaid and deferred items — payload as JSON, one row each (F-CORE-053).
+ *
+ * `save` rewrites the payload because the release run appends to it, month after month. What must
+ * survive is not only the plan but *which instalments have already run*: a release run that decided
+ * from a balance rather than from a record would book a period twice after a restart, and the whole
+ * point of the operation is that nobody has to remember.
+ */
+export class DatabaseDeferralRepository implements DeferralRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(deferral: Deferral): void {
+    this.db.run(
+      this.table().insert({
+        id: deferral.id.value,
+        tenant_id: this.tenantId.value,
+        kind: deferral.kind,
+        status: deferral.isSettled() ? 'settled' : 'open',
+        payload: H.encode(deferral.toJSON()),
+      }),
+    );
+  }
+
+  save(deferral: Deferral): void {
+    this.db.run(
+      this.table()
+        .where('tenant_id', this.tenantId.value)
+        .where('id', deferral.id.value)
+        .update({
+          status: deferral.isSettled() ? 'settled' : 'open',
+          payload: H.encode(deferral.toJSON()),
+        }),
+    );
+  }
+
+  all(): Deferral[] {
+    return this.db
+      .all(this.table().where('tenant_id', this.tenantId.value).orderBy('id'))
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): Deferral {
+    const data = H.decode(row.payload);
+
+    const plan: DeferralInstalment[] = (Array.isArray(data.plan) ? data.plan : [])
+      .filter(H.isRecord)
+      .map((entry) => ({
+        fiscalYear: typeof entry.fiscalYear === 'number' ? entry.fiscalYear : 0,
+        period: typeof entry.period === 'number' ? entry.period : 0,
+        amount: H.money(H.isRecord(entry.amount) ? entry.amount : {}, this.currency),
+      }));
+
+    const released: DeferralRelease[] = (Array.isArray(data.released) ? data.released : [])
+      .filter(H.isRecord)
+      .flatMap((entry) =>
+        typeof entry.entryId === 'string'
+          ? [
+              {
+                fiscalYear: typeof entry.fiscalYear === 'number' ? entry.fiscalYear : 0,
+                period: typeof entry.period === 'number' ? entry.period : 0,
+                amount: H.money(H.isRecord(entry.amount) ? entry.amount : {}, this.currency),
+                date: CalendarDate.of(typeof entry.date === 'string' ? entry.date : '1970-01-01'),
+                entryId: Uuid.fromString(entry.entryId),
+              },
+            ]
+          : [],
+      );
+
+    return Deferral.restore(
+      Uuid.fromString(str(row, 'id')),
+      typeof data.kind === 'string' ? data.kind : '',
+      typeof data.reason === 'string' ? data.reason : '',
+      AccountNumber.of(typeof data.account === 'string' ? data.account : ''),
+      AccountNumber.of(typeof data.counterAccount === 'string' ? data.counterAccount : ''),
+      CalendarDate.of(typeof data.recognizedOn === 'string' ? data.recognizedOn : '1970-01-01'),
+      H.money(H.isRecord(data.amount) ? data.amount : {}, this.currency),
+      plan,
+      released,
+      typeof data.recognitionEntryId === 'string' ? Uuid.fromString(data.recognitionEntryId) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}deferrals`);
   }
 }
 

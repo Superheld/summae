@@ -4,6 +4,7 @@ import { EntityProfileService, LegalFormRegistry } from '../policies/projection/
 import { CostingService } from '../policies/expansion/costing/costing-service.js';
 import { InventoryService } from '../policies/expansion/inventory/inventory-service.js';
 import { ProvisionService } from '../policies/expansion/provisions/provision-service.js';
+import { DeferralService } from '../policies/expansion/deferrals/deferral-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -14,6 +15,7 @@ import {
   InMemoryCostingRunRepository,
   InMemoryInventoryValuationRepository,
   InMemoryProvisionRepository,
+  InMemoryDeferralRepository,
   InMemoryPartnerRepository,
   InMemoryTenantRecordRepository,
   InMemoryVoucherRepository,
@@ -38,6 +40,7 @@ import type {
   AuditTrail,
   CostingRunRepository,
   InventoryValuationRepository,
+  DeferralRepository,
   ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
@@ -73,6 +76,8 @@ export class Tenant {
     readonly inventoryValuations: InventoryValuationRepository,
     /** Same, for provisions (F-CORE-051) — `provisionRegister` reads it. */
     readonly provisions: ProvisionRepository,
+    /** Same, for prepaid and deferred items (F-CORE-053) — `deferralRegister` reads it. */
+    readonly deferrals: DeferralRepository,
     readonly audit: AuditTrail,
     readonly ledger: Ledger,
     readonly tax: TaxService,
@@ -81,6 +86,7 @@ export class Tenant {
     readonly costing: CostingService,
     readonly inventory: InventoryService,
     readonly provisionService: ProvisionService,
+    readonly deferralService: DeferralService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
@@ -156,6 +162,7 @@ export class Tenant {
         costingRuns: new InMemoryCostingRunRepository(),
         inventoryValuations: new InMemoryInventoryValuationRepository(),
         provisions: new InMemoryProvisionRepository(),
+        deferrals: new InMemoryDeferralRepository(),
         audit: new InMemoryAuditTrail(),
       },
       clock,
@@ -193,6 +200,7 @@ export class Tenant {
       costingRuns: CostingRunRepository;
       inventoryValuations: InventoryValuationRepository;
       provisions: ProvisionRepository;
+      deferrals: DeferralRepository;
       audit: AuditTrail;
     },
     clock: Clock,
@@ -225,6 +233,7 @@ export class Tenant {
       costingRuns,
       inventoryValuations,
       provisions,
+      deferrals,
       audit,
     } = ports;
     // Built before the ledger, not with the other services below: the ledger reads the declared
@@ -295,6 +304,18 @@ export class Tenant {
       {},
       auditWriter,
     );
+    const deferralService = new DeferralService(
+      baseCurrency,
+      accounts,
+      fiscalYears,
+      vouchers,
+      deferrals,
+      ledger,
+      ids,
+      {},
+      tenantId,
+      auditWriter,
+    );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
@@ -312,6 +333,7 @@ export class Tenant {
       costingRuns,
       inventoryValuations,
       provisions,
+      deferrals,
       audit,
       ledger,
       tax,
@@ -320,6 +342,7 @@ export class Tenant {
       costing,
       inventory,
       provisionService,
+      deferralService,
       partnerService,
       mappings,
       clock,

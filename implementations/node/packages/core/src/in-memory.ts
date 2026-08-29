@@ -5,6 +5,7 @@ import type {
   AuditTrail,
   CostingRunRepository,
   InventoryValuationRepository,
+  DeferralRepository,
   ProvisionRepository,
   FiscalYearRepository,
   JournalRepository,
@@ -18,6 +19,7 @@ import { applyAuditCriteria } from './records/audit-filter.js';
 import type { Asset } from './policies/expansion/assets/asset.js';
 import type { CostingRun } from './policies/expansion/costing/costing-run.js';
 import type { InventoryValuation } from './policies/expansion/inventory/inventory-valuation.js';
+import type { Deferral } from './policies/expansion/deferrals/deferral.js';
 import type { Provision } from './policies/expansion/provisions/provision.js';
 import type { Partner } from './partner/partner.js';
 import type { AccountNumber } from './substrate/account-number.js';
@@ -265,23 +267,33 @@ export class InMemoryCostingRunRepository implements CostingRunRepository {
 }
 
 export class InMemoryInventoryValuationRepository implements InventoryValuationRepository {
-  private readonly byIdMap = new Map<string, InventoryValuation>();
+  private readonly items: InventoryValuation[] = [];
 
   add(valuation: InventoryValuation): void {
-    this.byIdMap.set(valuation.id.value, valuation);
-  }
-
-  byId(id: Uuid): InventoryValuation | null {
-    return this.byIdMap.get(id.value) ?? null;
+    this.items.push(valuation);
   }
 
   all(): InventoryValuation[] {
-    return [...this.byIdMap.values()].sort((a, b) => {
+    return [...this.items].sort((a, b) => {
       const byYear = a.period.fiscalYear - b.period.fiscalYear;
       if (byYear !== 0) return byYear;
       const byPeriod = a.period.period - b.period.period;
       return byPeriod !== 0 ? byPeriod : a.version - b.version;
     });
+  }
+}
+
+export class InMemoryDeferralRepository implements DeferralRepository {
+  private readonly items: Deferral[] = [];
+
+  add(deferral: Deferral): void {
+    this.items.push(deferral);
+  }
+
+  save(_deferral: Deferral): void {}
+
+  all(): Deferral[] {
+    return this.items;
   }
 }
 
