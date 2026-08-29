@@ -56,6 +56,14 @@ badge off the current release (which is exactly what the backfill did once). Thi
 step that got skipped: v0.3.0 through v0.8.1 shipped to npm and Packagist with no notes on GitHub
 at all, and nothing pointed it out until 2026-08-17.
 
+> **A package still showing the old version right after the workflow is green is not a failed
+> publish.** At 0.17.0 the run logged `✅ Published package @superheld/summae-core@0.17.0` while
+> both `npm view` and the registry document itself answered `0.16.0` for several minutes — and
+> `cli` and `knex`, published seconds apart in the same run, were already current. The packument
+> replicates per package, so the three go live at different moments. Check the workflow log first;
+> it names every package it published. Only if the log itself is missing a package is there
+> anything to fix.
+
 Manual alternative (local, one-time login):
 ```bash
 cd implementations/node && pnpm install && pnpm build
