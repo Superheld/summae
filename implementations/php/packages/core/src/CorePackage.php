@@ -11,7 +11,7 @@ namespace Summae\Core;
  */
 final class CorePackage
 {
-    public const string VERSION = '0.17.0';
+    public const string VERSION = '0.18.0';
 
     private function __construct()
     {
