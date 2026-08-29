@@ -28,7 +28,7 @@ const OPERATIONS = [
   'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
   'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
   'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
-  'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
+  'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
   'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
   'appropriateResult', 'setEntityProfile', 'erasePartner',
 ] as const;
@@ -38,7 +38,7 @@ const PROJECTIONS = [
   'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
   'cashJournal',
   'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
-  'overheadRates', 'productionCost', 'measurementConsistency', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
+  'overheadRates', 'productionCost', 'measurementConsistency', 'inventoryValuation', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
   'tenantConfiguration', 'unappropriatedResult',
   'personalDataDescription',
 ] as const;

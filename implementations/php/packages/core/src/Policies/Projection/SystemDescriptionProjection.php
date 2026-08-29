@@ -53,6 +53,7 @@ final readonly class SystemDescriptionProjection
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
         'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
         'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
+        'valuateInventory',
         'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
     ];
 
@@ -60,7 +61,8 @@ final readonly class SystemDescriptionProjection
     public const API_PROJECTIONS = [
         'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
         'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'duplicateVouchers', 'ecSalesList',
-        'fiscalYears', 'gdpduExport', 'incomeStatement', 'journal', 'journalExport', 'measurementConsistency', 'openItems',
+        'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
+        'measurementConsistency', 'openItems',
         'personalDataDescription', 'overheadRates',
         'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
         'unappropriatedResult', 'unfinalizedEntries', 'vatReturn'
@@ -158,6 +160,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'dimensionType', 'actions' => ['created']],
         ['objectType' => 'dimensionValue', 'actions' => ['created']],
         ['objectType' => 'depreciationRun', 'actions' => ['completed']],
+        ['objectType' => 'inventoryValuation', 'actions' => ['valued']],
         ['objectType' => 'costingRun', 'actions' => ['created', 'released']],
     ];
 

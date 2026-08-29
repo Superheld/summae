@@ -435,6 +435,27 @@
       "period": { "type": "integer" },
       "actor": { "type": "string" }
     },
+    "valuateInventory": {
+      "fiscalYear": { "type": "integer", "required": true },
+      "period": { "type": "integer", "required": true },
+      "valuationDate": { "type": "date", "required": true },
+      "runId": { "type": "string" },
+      "producedQuantity": { "type": "string" },
+      "categories": {
+        "type": "array",
+        "required": true,
+        "element": {
+          "type": "object",
+          "fields": {
+            "account": { "type": "string" },
+            "quantity": { "type": "string" },
+            "unitCost": { "type": "string" },
+            "marketValue": { "type": "string" }
+          }
+        }
+      },
+      "actor": { "type": "string" }
+    },
     "reportAssetUsage": {
       "assetId": { "type": "string", "required": true },
       "fiscalYear": { "type": "integer", "required": true },
@@ -792,6 +813,10 @@
         "type": "string",
         "required": true
       }
+    },
+    "inventoryValuation": {
+      "fiscalYear": { "type": "integer" },
+      "period": { "type": "integer" }
     },
     "measurementConsistency": {
       "$comment": "No parameters, and that is a decision rather than an omission: \u00a7 252 Abs. 1 Nr. 6 reaches ACROSS years, so a fiscalYear filter would hide exactly the change this projection exists to report. Same reasoning duplicateVouchers gives for refusing a date window."

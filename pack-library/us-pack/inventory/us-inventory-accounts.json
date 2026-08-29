@@ -1,0 +1,18 @@
+{
+  "formatVersion": "0.6",
+  "id": "us-inventory-accounts",
+  "kind": "inventory",
+  "version": "2026.1",
+  "name": "US inventory categories and the account each change is booked to",
+  "contributes": ["inventory"],
+  "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
+  "data": {
+    "comment": "The counterpart of de-vorraete, and the contrast is the point of shipping both. Germany splits the change across two income-statement lines — its own position for finished and unfinished goods (§ 275 Abs. 2 Nr. 2), a correction of material expense for raw materials and merchandise. A US income statement has no such line: every change in inventory adjusts cost of goods sold, so all four categories name the same counter-account. The engine does not know the difference and does not need to; the same books, the same operation, two statements, and the whole of the difference is these four rows.",
+    "categories": [
+      { "account": "1300", "changeAccount": "5000", "label": "Raw Materials" },
+      { "account": "1310", "changeAccount": "5000", "label": "Work in Process" },
+      { "account": "1320", "changeAccount": "5000", "label": "Finished Goods" },
+      { "account": "1330", "changeAccount": "5000", "label": "Merchandise" }
+    ]
+  }
+}

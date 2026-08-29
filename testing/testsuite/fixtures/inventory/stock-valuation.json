@@ -1,0 +1,241 @@
+{
+  "fixture": "stock-valuation",
+  "description": "Stock: measured, booked, and reported — the outer end of the cost-accounting chain. Cost centres → allocation → overhead rates → production cost existed and stopped there; only this link makes it bookkeeping rather than controlling, because inventory is CARRIED at production cost and a figure that reaches no account reaches no balance sheet. What summae deliberately does not do is keep a stock ledger: there is no product master, no goods movement, no bill of material, and no quantity is carried forward. Quantities are INPUT to one act of valuing. What is kept is the act itself — which accounts, which quantities, at what unit value, where that value came from, what the market comparison did, which entry resulted — because an engine that books a change in stock and cannot say how it reached the number has not valued anything. Note the two ways a unit value arrives and that neither is guessed: 1130 is given an explicit unitCost (merchandise, bought in), while 1120 has none and is derived from the RELEASED run's production cost divided by the produced quantity — the division computeProductionCost refuses to do internally, done here where both numbers are declared inputs of the same call. Note also that the product is rounded once: 800 × 30.000000, not 800 × a unit value rounded to cents. Version 2 applies the lower of cost or market and books the difference DOWNWARD; version 3 repeats version 2 unchanged and books nothing, which is what makes repeating a valuation safe without an idempotency key — the posting is always the difference against what the accounts already carry. Three refusals, each replacing a silent wrong answer: a draft run may not value a balance sheet (its own producer has not stood behind the figure, and E_COSTING_RUN_NOT_RELEASED is a separate code from E_COSTING_RUN_UNKNOWN because the corrections are opposite — release it, or name another run); an account that is not a stock account is refused rather than posted to, since the entry would balance, satisfy every invariant, and put the amount in the wrong balance-sheet position; and a valuation with no categories at all is refused rather than answered 0.00.",
+  "covers": ["F-CORE-050"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1120", "name": "Fertige Erzeugnisse", "type": "asset", "subtype": "inventory" },
+      { "number": "1130", "name": "Waren", "type": "asset", "subtype": "inventory" },
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "4000", "name": "Fertigungsmaterial", "type": "expense" },
+      { "number": "4100", "name": "Bestandsveränderungen", "type": "revenue" },
+      { "number": "4120", "name": "Gehälter", "type": "expense" },
+      { "number": "5000", "name": "Wareneinsatz", "type": "expense" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ],
+    "vouchers": [ { "id": "$V1", "voucherNumber": "KOST-2026-12", "voucherDate": "2026-12-31" } ],
+    "dimensionTypes": [ { "code": "costCenter", "name": "Kostenstelle" } ],
+    "dimensionValues": [ { "typeCode": "costCenter", "code": "FERT", "name": "Fertigungsstelle" } ],
+    "ruleModule": {
+      "productionCost": {
+        "treatments": [
+          { "component": "materialDirect", "treatment": "mandatory" },
+          { "component": "productionOverhead", "treatment": "mandatory" }
+        ]
+      },
+      "inventory": {
+        "categories": [
+          { "account": "1120", "changeAccount": "4100" },
+          { "account": "1130", "changeAccount": "5000" }
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "post",
+      "input": {
+        "entryDate": "2026-12-31", "voucherId": "$V1", "text": "Fertigungskosten",
+        "lines": [
+          { "account": "4000", "side": "debit", "money": { "amount": "60000.00", "currency": "EUR" } },
+          { "account": "4120", "side": "debit", "money": { "amount": "30000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "90000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "sequenceNumber": 1 } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "steps": [],
+        "productionCost": {
+          "include": [],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["4000"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } }
+          ]
+        }
+      },
+      "expect": { "result": { "valid": true, "productionCostComponents": 2 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "fiscalYear": 2026, "period": 12 },
+      "expect": { "result": { "runId": "$R1", "status": "draft" } }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "runId": "$R1", "producedQuantity": "3000",
+        "categories": [ { "account": "1120", "quantity": "800" } ]
+      },
+      "expect": {
+        "comment": "Ein draft-Lauf bewertet keine Bilanz — eigener Code, weil die Korrektur eine andere ist als bei einer unbekannten runId",
+        "error": "E_COSTING_RUN_NOT_RELEASED"
+      }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "categories": [ { "account": "1200", "quantity": "1", "unitCost": "1.00" } ]
+      },
+      "expect": {
+        "comment": "Die Buchung ginge auf und stünde in der falschen Bilanzposition — genau der inerte Defekt, für den das subtype-Repertoire geschlossen wurde",
+        "error": "E_INVENTORY_ACCOUNT_INVALID"
+      }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "categories": []
+      },
+      "expect": {
+        "comment": "Eine Bewertung von nichts ist keine Bewertung von null",
+        "error": "E_INPUT_INVALID"
+      }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "runId": "$R1", "producedQuantity": "3000",
+        "categories": [
+          { "account": "1120", "quantity": "800" },
+          { "account": "1130", "quantity": "150", "unitCost": "12.00" }
+        ]
+      },
+      "expect": {
+        "comment": "800 × (90.000,00 / 3.000) = 24.000,00 aus dem Lauf, 150 × 12,00 = 1.800,00 aus der Eingabe",
+        "result": {
+          "version": 1,
+          "closingTotal": { "amount": "25800.00", "currency": "EUR" },
+          "change": { "amount": "25800.00", "currency": "EUR" },
+          "posted": true
+        }
+      }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "runId": "$R1", "producedQuantity": "3000",
+        "categories": [
+          { "account": "1120", "quantity": "800", "marketValue": "25.00" },
+          { "account": "1130", "quantity": "150", "unitCost": "12.00" }
+        ]
+      },
+      "expect": {
+        "comment": "Niedrigerer Marktwert schlägt die Herstellungskosten: 800 × 25,00 = 20.000,00; die Differenz von −4.000,00 wird gebucht",
+        "result": {
+          "version": 2,
+          "closingTotal": { "amount": "21800.00", "currency": "EUR" },
+          "change": { "amount": "-4000.00", "currency": "EUR" },
+          "posted": true
+        }
+      }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "runId": "$R1", "producedQuantity": "3000",
+        "categories": [
+          { "account": "1120", "quantity": "800", "marketValue": "25.00" },
+          { "account": "1130", "quantity": "150", "unitCost": "12.00" }
+        ]
+      },
+      "expect": {
+        "comment": "Dieselbe Bewertung noch einmal: neue Version, keine Buchung — die Differenz gegen den Buchwert ist null",
+        "result": {
+          "version": 3,
+          "closingTotal": { "amount": "21800.00", "currency": "EUR" },
+          "change": { "amount": "0.00", "currency": "EUR" },
+          "posted": false,
+          "entryId": null
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "productionCost",
+      "params": { "runId": "$R1" },
+      "expect": { "total": "90000.00" }
+    },
+    {
+      "name": "inventoryValuation",
+      "params": { "fiscalYear": 2026, "period": 12 },
+      "expect": {
+        "comment": "Jede Version, älteste zuerst — eine Neubewertung ist eine Korrektur, die jemand vorgenommen hat, und die korrigierte Version gehört zur Geschichte",
+        "valuations": [
+          {
+            "fiscalYear": 2026, "period": 12, "version": 1, "valuationDate": "2026-12-31",
+            "closingTotal": "25800.00", "change": "25800.00",
+            "categories": [
+              {
+                "account": "1120", "quantity": "800", "unitCost": "30.000000", "marketValue": null,
+                "unitValue": "30.000000", "source": "productionCost",
+                "openingValue": "0.00", "closingValue": "24000.00", "change": "24000.00",
+                "changeAccount": "4100", "writtenDownToMarket": false
+              },
+              {
+                "account": "1130", "quantity": "150", "unitCost": "12.00", "marketValue": null,
+                "unitValue": "12.00", "source": "input",
+                "openingValue": "0.00", "closingValue": "1800.00", "change": "1800.00",
+                "changeAccount": "5000", "writtenDownToMarket": false
+              }
+            ]
+          },
+          {
+            "fiscalYear": 2026, "period": 12, "version": 2,
+            "closingTotal": "21800.00", "change": "-4000.00",
+            "categories": [
+              {
+                "account": "1120", "quantity": "800", "unitCost": "30.000000", "marketValue": "25.00",
+                "unitValue": "25.00", "source": "productionCost",
+                "openingValue": "24000.00", "closingValue": "20000.00", "change": "-4000.00",
+                "changeAccount": "4100", "writtenDownToMarket": true
+              },
+              {
+                "account": "1130", "quantity": "150", "unitCost": "12.00", "marketValue": null,
+                "unitValue": "12.00", "source": "input",
+                "openingValue": "1800.00", "closingValue": "1800.00", "change": "0.00",
+                "changeAccount": "5000", "writtenDownToMarket": false
+              }
+            ]
+          },
+          {
+            "fiscalYear": 2026, "period": 12, "version": 3,
+            "closingTotal": "21800.00", "change": "0.00", "entryId": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": { "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "Die Bestandsveränderung steht auf 4100 als Ertrag und auf 5000 als Aufwandsminderung — welches Konto welche ist, sagt das Pack, nicht der Kern",
+        "rows": [
+          { "account": "1120", "balance": "20000.00" },
+          { "account": "1130", "balance": "1800.00" },
+          { "account": "1200", "balance": "-90000.00" },
+          { "account": "4000", "balance": "60000.00" },
+          { "account": "4100", "balance": "-20000.00" },
+          { "account": "4120", "balance": "30000.00" },
+          { "account": "5000", "balance": "-1800.00" }
+        ]
+      }
+    }
+  ]
+}

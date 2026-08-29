@@ -1,7 +1,7 @@
 # Manifest — `us` (USA)
 
 ```
-pack: us · version: 2026.6 · formatVersion: 0.6
+pack: us · version: 2026.7 · formatVersion: 0.6
 Datei: pack-library/us-pack/us.json · 11 Module · frühere Fassungen in versions/
 ```
 
@@ -29,6 +29,7 @@ trägt nur die Nachkommastellen.
 | `assetAccounts` | `us-asset-accounts` | 2026.1 |
 | `policy` | `us-usd` | 2026.1 |
 | `productionCost` | `us-inventory-costing` | 2026.1 |
+| `inventory` | `us-inventory-accounts` | 2026.1 |
 | `resultAppropriation` | `us-appropriation` | 2026.1 |
 | `legalForms` | `us-legal-forms` | 2026.1 |
 

@@ -9,7 +9,7 @@
   "expect": {
     "initialized": true,
     "baseCurrency": "EUR",
-    "created.accounts": 49,
+    "created.accounts": 54,
     "created.fiscalYears": 1
   },
   "steps": [

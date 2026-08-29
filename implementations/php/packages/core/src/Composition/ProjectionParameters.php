@@ -154,6 +154,10 @@ final class ProjectionParameters
         // the same grounds. Which framework demands the comparison, and what it permits by way of
         // exception, is the pack's business and the census's — not this table's.
         'measurementConsistency' => [],
+        'inventoryValuation' => [
+            'fiscalYear' => ['type' => 'integer'],
+            'period' => ['type' => 'integer'],
+        ],
         // No parameters, for the third time and the same reason as systemDescription and accounts:
         // a tenant has exactly one configuration. There is nothing to select, and a filter would
         // turn "what is this tenant set up as" into a question with more than one answer.

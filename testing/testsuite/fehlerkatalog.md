@@ -159,6 +159,8 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | `E_COSTING_RUN_UNKNOWN` | runId existiert nicht (release/Projektion) (v0.5/SPEC-006) | costing-run-unknown |
 | `E_COSTING_CYCLE` | Stufenleiter mit Zyklus | edge-errors |
 | `E_COSTING_UNSOLVABLE` | Gleichungsverfahren: Kostenstellen reichen alles im Kreis weiter, keine behält etwas — das Gleichungssystem hat keine Lösung | allocation-method-refused |
+| `E_COSTING_RUN_NOT_RELEASED` | Ein **draft**-Lauf soll die Bilanz bewerten (`valuateInventory.runId`). Eigener Code statt `E_COSTING_RUN_UNKNOWN`, weil die beiden **entgegengesetzte** Korrekturen verlangen: freigeben oder eine andere `runId` nennen. `details`: `runId`, `status` | inventory-valuation |
+| `E_INVENTORY_ACCOUNT_INVALID` | `valuateInventory` soll auf ein Konto bewerten, das kein Vorratskonto ist (`subtype` ≠ `inventory`). Die Buchung ginge auf, jede Invariante bliebe erfüllt — und der Betrag stünde in der falschen Bilanzposition. `details`: `account`, `subtype` | inventory-valuation |
 
 ## E_MAPPING
 

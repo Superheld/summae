@@ -107,6 +107,16 @@ class AuditTrailContractTest extends TestCase
             ],
         ]);
 
+        // And the stock categories, same reason again: without them `valuateInventory` refuses on
+        // a pack that declares no inventory instead of reaching the trail.
+        $tenant->inventory?->setRuleModule([
+            'inventory' => [
+                'categories' => [
+                    ['account' => '1140', 'changeAccount' => '5200'],
+                ],
+            ],
+        ]);
+
         return new TenantOperations($tenant);
     }
 
@@ -205,6 +215,7 @@ class AuditTrailContractTest extends TestCase
         yield 'writeDownAsset' => ['writeDownAsset', 'asset', 'writtenDown'];
         yield 'bookSpecialDepreciation' => ['bookSpecialDepreciation', 'asset', 'specialDepreciationBooked'];
         yield 'reportAssetUsage' => ['reportAssetUsage', 'asset', 'usageReported'];
+        yield 'valuateInventory' => ['valuateInventory', 'inventoryValuation', 'valued'];
         yield 'runDepreciation' => ['runDepreciation', 'depreciationRun', 'completed'];
         yield 'runCosting' => ['runCosting', 'costingRun', 'created'];
         yield 'releaseCosting' => ['releaseCosting', 'costingRun', 'released'];
@@ -528,6 +539,20 @@ class AuditTrailContractTest extends TestCase
             case 'runDepreciation':
                 $this->seed($ops);
                 $ops->execute('runDepreciation', ['fiscalYear' => 2026, 'period' => 12]);
+
+                return;
+            case 'valuateInventory':
+                $this->seed($ops);
+                $ops->execute('createAccount', ['number' => '1140', 'name' => 'Vorräte', 'type' => 'asset', 'subtype' => 'inventory']);
+                $ops->execute('createAccount', ['number' => '5200', 'name' => 'Bestandsveränderungen', 'type' => 'revenue']);
+                $ops->execute('valuateInventory', [
+                    'fiscalYear' => 2026,
+                    'period' => 12,
+                    'valuationDate' => '2026-12-31',
+                    'categories' => [
+                        ['account' => '1140', 'quantity' => '100', 'unitCost' => '12.50'],
+                    ],
+                ]);
 
                 return;
             case 'runCosting':

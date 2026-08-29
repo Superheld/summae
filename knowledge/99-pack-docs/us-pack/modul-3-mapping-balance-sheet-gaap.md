@@ -1,7 +1,7 @@
 # Modul 3 — Balance Sheet US-GAAP (`mapping`)
 
 ```
-kind: mapping · id: us-gaap-balance-sheet · version: 2026.2 · formatVersion: 0.6
+kind: mapping · id: us-gaap-balance-sheet · version: 2026.3 · formatVersion: 0.6
 contributes: ["mappings"] · dependsOn: [{kind: accounts, id: us-accounts-2026}]
 data.mapping = { id, kind: "balance-sheet", version, positions[] }
 ```
@@ -35,6 +35,7 @@ beginnt. Außerdem klassifiziert GAAP explizit **current vs. non-current**.
 |---|---|---|
 | A.I | Cash and Cash Equivalents | 1000–1099 |
 | A.II | Accounts Receivable and Other Current Assets | 1200–1299 |
+| A.IIa | Inventory | 1300–1399 |
 | A.III | Prepaid Expenses | 1400–1499 |
 | A.IV | Property, Plant and Equipment | 1500–1599 |
 

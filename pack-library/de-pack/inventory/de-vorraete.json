@@ -1,0 +1,18 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-vorraete",
+  "kind": "inventory",
+  "version": "2026.1",
+  "name": "DE Vorratskategorien (§ 266 Abs. 2 B. I. HGB) und ihre Bestandsveränderungskonten",
+  "contributes": ["inventory"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "comment": "Welches Konto eine Vorratsart hält und wohin ihre Bestandsveränderung gebucht wird. Der Kern rechnet und bucht die Differenz; DASS Deutschland dabei zwei verschiedene GuV-Zeilen trifft, ist genau der Teil, der hier steht: die Veränderung bei fertigen und unfertigen Erzeugnissen ist eine eigene Position (§ 275 Abs. 2 Nr. 2), die bei Roh-, Hilfs- und Betriebsstoffen und bei Waren korrigiert dagegen den Materialaufwand (Nr. 5) — der Verbrauch ist Einkauf minus Bestandsaufbau. Eine Jurisdiktion, die beides in eine Zeile legt, schreibt hier zweimal dasselbe Gegenkonto und ändert am Kern nichts.",
+    "categories": [
+      { "account": "1100", "changeAccount": "5000", "label": "Roh-, Hilfs- und Betriebsstoffe" },
+      { "account": "1110", "changeAccount": "4100", "label": "Unfertige Erzeugnisse" },
+      { "account": "1120", "changeAccount": "4100", "label": "Fertige Erzeugnisse" },
+      { "account": "1130", "changeAccount": "5000", "label": "Waren" }
+    ]
+  }
+}

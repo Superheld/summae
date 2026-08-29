@@ -180,6 +180,7 @@ final class Workspace
         $tenant->costing->setRuleModule($ruleModules);
         $tenant->resultAppropriation->setRuleModule($ruleModules);
         $tenant->legalForms->setRuleModule($ruleModules);
+        $tenant->inventory?->setRuleModule($ruleModules);
 
         return $tenant;
     }
