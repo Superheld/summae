@@ -6,26 +6,20 @@ namespace Summae\Core\InMemory;
 
 use Summae\Core\Policies\Expansion\Inventory\InventoryValuation;
 use Summae\Core\Port\InventoryValuationRepository;
-use Summae\Core\Substrate\Uuid;
 
 final class InMemoryInventoryValuationRepository implements InventoryValuationRepository
 {
-    /** @var array<string, InventoryValuation> */
-    private array $byId = [];
+    /** @var list<InventoryValuation> */
+    private array $valuations = [];
 
     public function add(InventoryValuation $valuation): void
     {
-        $this->byId[$valuation->id->value] = $valuation;
-    }
-
-    public function byId(Uuid $id): ?InventoryValuation
-    {
-        return $this->byId[$id->value] ?? null;
+        $this->valuations[] = $valuation;
     }
 
     public function all(): array
     {
-        $valuations = array_values($this->byId);
+        $valuations = $this->valuations;
         usort($valuations, static function (InventoryValuation $a, InventoryValuation $b): int {
             $byYear = $a->period->fiscalYear <=> $b->period->fiscalYear;
             if ($byYear !== 0) {

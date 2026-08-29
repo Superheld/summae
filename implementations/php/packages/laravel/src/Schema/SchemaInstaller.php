@@ -163,6 +163,17 @@ final class SchemaInstaller
             $table->json('payload');
         });
 
+        self::ensure($schema, 'deferrals', static function (Blueprint $table): void {
+            // Kind and status are columns because they are what a deferral is FOUND by — the open
+            // ones, and which side of the balance sheet they sit on. The plan and, crucially, the
+            // instalments already released travel in the payload.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->string('kind', 32);
+            $table->string('status', 16);
+            $table->json('payload');
+        });
+
         self::ensure($schema, 'tenants', static function (Blueprint $table): void {
             // The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
             //
@@ -200,7 +211,7 @@ final class SchemaInstaller
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'provisions',
+            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'provisions', 'deferrals',
             'audit_log', 'tenants',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);

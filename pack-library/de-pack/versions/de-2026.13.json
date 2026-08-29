@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.14",
+  "version": "2026.13",
   "modules": [
     {
       "kind": "accounts",
@@ -62,11 +62,6 @@
     {
       "kind": "provisions",
       "id": "de-rueckstellungen",
-      "version": "2026.1"
-    },
-    {
-      "kind": "deferrals",
-      "id": "de-rechnungsabgrenzung",
       "version": "2026.1"
     },
     {

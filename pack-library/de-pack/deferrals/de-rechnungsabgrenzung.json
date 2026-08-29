@@ -1,0 +1,16 @@
+{
+  "formatVersion": "0.6",
+  "id": "de-rechnungsabgrenzung",
+  "kind": "deferrals",
+  "version": "2026.1",
+  "name": "DE Rechnungsabgrenzungsposten (§ 250 HGB) — welches Konto welche Seite trägt",
+  "contributes": ["deferrals"],
+  "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
+  "data": {
+    "comment": "Beide Konten gab es von Anfang an, beide hatten ihre Bilanzposition — gefehlt hat der PLAN. Eine im Dezember gezahlte Versicherungsprämie fürs Folgejahr ließ sich abgrenzen und musste dann Monat für Monat aus dem Gedächtnis aufgelöst werden, also genau der Fehler, den `runDepreciation` für dieselbe Arithmetik verhindert. Was hier steht, ist nur die Zuordnung der beiden Richtungen: aktiver RAP ist ein Vermögensgegenstand (gezahlt, Leistung steht aus), passiver RAP eine Verbindlichkeit (erhalten, Leistung steht aus). Welches Aufwands- oder Ertragskonto betroffen ist, sagt der Aufrufer — das ist eine Tatsache über den Vorgang, nicht über die Rechtsordnung.",
+    "kinds": [
+      { "kind": "prepaidExpense", "account": "1900", "label": "Aktive Rechnungsabgrenzung" },
+      { "kind": "deferredIncome", "account": "3900", "label": "Passive Rechnungsabgrenzung" }
+    ]
+  }
+}

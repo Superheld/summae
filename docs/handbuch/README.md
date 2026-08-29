@@ -1627,6 +1627,58 @@ provision that simply comes closer to maturity unwinds its discount here rather 
 `change: 0.00` and `entryId: null` mean the estimate did not move; the movement is still recorded,
 because "we looked and it was still right" is part of the history.
 
+#### recognizeDeferral
+
+Defer an amount and fix its release plan. `kind` (yes — `prepaidExpense` or `deferredIncome`),
+`reason` (yes), `counterAccount` (yes), `amount` (yes, Money), `recognizedOn` (yes),
+`firstFiscalYear` (yes), `firstPeriod` (yes), `periods` (yes), `actor` (no). Output:
+`{ deferralId, kind, amount, periods, entryId }`.
+
+**The accounts were never the gap** — the German pack has carried both from the start. What was
+missing is the *plan*. An insurance premium paid in December for the following year could be
+deferred and then had to be released by hand, month after month, from memory: exactly the failure
+`runDepreciation` prevents for arithmetic that is identical.
+
+The two kinds are opposites, not variants:
+
+| `kind` | what it is | at recognition | at release |
+|---|---|---|---|
+| `prepaidExpense` | money already **paid** for a service still to come — an asset | debit the pack's prepaid account, credit your `counterAccount` (the expense) | the reverse |
+| `deferredIncome` | money already **received** for a service still to be rendered — a liability | debit your `counterAccount` (the revenue), credit the pack's deferred account | the reverse |
+
+Anything else is `E_INPUT_INVALID` with the known list: a third kind would be a third direction of
+posting, not a variant of these two.
+
+Which account holds each kind is your **pack's** answer; which expense or revenue the amount belongs
+to is yours, because that is a fact about the transaction rather than about the jurisdiction.
+
+The plan is laid out with `allocate` (largest remainder), so the instalments sum to the amount
+exactly, and it runs over your tenant's **real** periods — a twelve-month plan starting in period 11
+lands its last instalments in the following fiscal year rather than in periods that do not exist.
+
+```json
+{ "kind": "prepaidExpense", "reason": "Versicherung 2027", "counterAccount": "6080",
+  "amount": { "amount": "1200.00", "currency": "EUR" },
+  "recognizedOn": "2026-12-31", "firstFiscalYear": 2027, "firstPeriod": 1, "periods": 12 }
+```
+
+Note what has to have happened first: a deferral presumes the original payment or receipt was
+booked. summae defers what is there; it does not invent the transaction.
+
+#### runDeferralRelease
+
+Release what a period owes, for every deferral. `fiscalYear` (yes), `period` (yes), `actor` (no).
+Output: `{ entriesCreated, totalReleased }`, or `{ alreadyRun: true, entriesCreated: 0 }`.
+
+**Deliberately the depreciation run's shape**, down to the answer: one period at a time, idempotent,
+`alreadyRun` where there was nothing left to do. Somebody who has closed a period with
+`runDepreciation` should not have to learn a second vocabulary for the same act. Idempotent because
+each deferral records *which periods it has released* — not because a balance is checked, which
+would book twice after a restart.
+
+A run is a run, not a catch-up: releasing period 4 does not release periods 2 and 3 on the way past.
+Run each period you owe, in whatever order you like.
+
 #### reportAssetUsage
 
 Depreciation by output. `assetId` (yes), `fiscalYear` (yes), `units` (yes, a whole
@@ -2469,6 +2521,18 @@ administration, and that single row of pack data is the whole difference.
 What this does **not** do is divide by a quantity. Per-unit production cost needs
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
+
+### deferralRegister — what is deferred, over what, and how far it has run
+
+`kind` (no), `status` (no — `open` or `settled`). Output: `deferrals[]` and `outstandingTotal`.
+
+Each row: `deferralId`, `kind`, `reason`, `account`, `counterAccount`, `recognizedOn`, `amount`,
+`released`, `outstanding`, `status`, and `plan[]` — each instalment
+`{ fiscalYear, period, amount, released }`.
+
+The `released` flag on each instalment is the point. *When will this be gone* and *what has actually
+happened so far* are the two questions, and answering them from two separate lists that have to be
+lined up is how a hand-kept schedule went wrong in the first place. One list, one flag.
 
 ### provisionRegister — what is set aside, for what, and what happened to it
 

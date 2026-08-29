@@ -19,6 +19,7 @@ use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryCostingRunRepository;
 use Summae\Core\InMemory\InMemoryInventoryValuationRepository;
+use Summae\Core\InMemory\InMemoryDeferralRepository;
 use Summae\Core\InMemory\InMemoryProvisionRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryTenantRecordRepository;
@@ -32,6 +33,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\CostingRunRepository;
 use Summae\Core\Port\InventoryValuationRepository;
+use Summae\Core\Port\DeferralRepository;
 use Summae\Core\Port\ProvisionRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
@@ -47,6 +49,7 @@ use Summae\Core\Substrate\SystemClock;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Core\Policies\Expansion\Inventory\InventoryService;
+use Summae\Core\Policies\Expansion\Deferrals\DeferralService;
 use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
@@ -119,6 +122,9 @@ final readonly class Tenant
         /** Provisions (F-CORE-051) — appended for the same reason as the two above. */
         public ?ProvisionRepository $provisions = null,
         public ?ProvisionService $provisionService = null,
+        /** Prepaid and deferred items (F-CORE-053) — appended for the same reason as the rest. */
+        public ?DeferralRepository $deferrals = null,
+        public ?DeferralService $deferralService = null,
     ) {
     }
 
@@ -163,6 +169,7 @@ final readonly class Tenant
         $costingRuns = new InMemoryCostingRunRepository();
         $inventoryValuations = new InMemoryInventoryValuationRepository();
         $provisions = new InMemoryProvisionRepository();
+        $deferrals = new InMemoryDeferralRepository();
         $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
@@ -255,6 +262,19 @@ final readonly class Tenant
             $auditWriter,
         );
 
+        $deferralService = new DeferralService(
+            $baseCurrency,
+            $accounts,
+            $fiscalYears,
+            $vouchers,
+            $deferrals,
+            $ledger,
+            $ids,
+            [],
+            $tenantId,
+            $auditWriter,
+        );
+
         return new self(
             $tenantId,
             $name,
@@ -286,6 +306,8 @@ final readonly class Tenant
             $inventory,
             $provisions,
             $provisionService,
+            $deferrals,
+            $deferralService,
         );
     }
 }

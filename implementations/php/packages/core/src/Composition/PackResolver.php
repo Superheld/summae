@@ -22,7 +22,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions', 'deferrals'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -228,6 +228,7 @@ final class PackResolver
         $productionCost = null;
         $inventory = null;
         $provisions = null;
+        $deferrals = null;
         $resultAppropriation = null;
         $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
@@ -307,6 +308,9 @@ final class PackResolver
                     break;
                 case 'provisions':
                     $provisions = $data;
+                    break;
+                case 'deferrals':
+                    $deferrals = $data;
                     break;
                 case 'legalForms':
                     $legalForms = $data;
@@ -500,6 +504,7 @@ final class PackResolver
             'productionCost' => $productionCost,
             'inventory' => $inventory,
             'provisions' => $provisions,
+            'deferrals' => $deferrals,
             'resultAppropriation' => $resultAppropriation,
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
@@ -577,6 +582,10 @@ final class PackResolver
             // whether long-dated ones must be discounted. A pack that stays silent does not support
             // `recognizeProvision` — which is the right answer for a jurisdiction-free one.
             'provisions' => is_array($pack['provisions'] ?? null) ? $pack['provisions'] : null,
+            // Which account holds a prepaid expense and which a deferred income. A pack that stays
+            // silent does not support `recognizeDeferral`, which is the right answer for one that
+            // does not distinguish the two.
+            'deferrals' => is_array($pack['deferrals'] ?? null) ? $pack['deferrals'] : null,
             // The appropriation plug: which account the resolution books against, and which targets
             // the jurisdiction offers. A pack that stays silent simply does not support the operation.
             'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,

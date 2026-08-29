@@ -19,6 +19,8 @@ de-vorraete
 provisions
 de-rueckstellungen
 asset-write-up
+deferral-release
+de-rechnungsabgrenzung
 production-cost
 de-herstellungskosten
 us-inventory-costing

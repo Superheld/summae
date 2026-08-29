@@ -22,7 +22,7 @@ import { ACCOUNT_SUBTYPES, isAccountSubtype } from '../substrate/types.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions', 'deferrals'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -73,6 +73,7 @@ export interface ResolvedPack {
   productionCost: Record<string, unknown> | null;
   inventory: Record<string, unknown> | null;
   provisions: Record<string, unknown> | null;
+  deferrals: Record<string, unknown> | null;
   resultAppropriation: Record<string, unknown> | null;
   legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
@@ -239,6 +240,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let productionCost: Record<string, unknown> | null = null;
   let inventory: Record<string, unknown> | null = null;
   let provisions: Record<string, unknown> | null = null;
+  let deferrals: Record<string, unknown> | null = null;
   let resultAppropriation: Record<string, unknown> | null = null;
   let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
@@ -302,6 +304,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'provisions':
         provisions = m.data;
+        break;
+      case 'deferrals':
+        deferrals = m.data;
         break;
       case 'resultAppropriation':
         resultAppropriation = m.data;
@@ -476,6 +481,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     productionCost,
     inventory,
     provisions,
+    deferrals,
     resultAppropriation,
     legalForms,
     dimensionRules,
@@ -517,6 +523,10 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // long-dated ones must be discounted. A pack that stays silent does not support
     // `recognizeProvision` — which is the right answer for a jurisdiction-free one.
     provisions: isRecord(pack.provisions) ? pack.provisions : null,
+    // Which account holds a prepaid expense and which a deferred income. A pack that stays silent
+    // does not support `recognizeDeferral`, which is the right answer for one that does not
+    // distinguish the two.
+    deferrals: isRecord(pack.deferrals) ? pack.deferrals : null,
     // The appropriation plug: which account the resolution books against, and which targets the
     // jurisdiction offers. A pack that stays silent simply does not support the operation.
     resultAppropriation: isRecord(pack.resultAppropriation) ? pack.resultAppropriation : null,
