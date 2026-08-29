@@ -49,7 +49,7 @@ final readonly class SystemDescriptionProjection
         'acquireAsset', 'allocate', 'appropriateResult', 'bookSpecialDepreciation', 'closeFiscalYear', 'closePeriod',
         'correct', 'createAccount', 'createFiscalYear', 'createPartner', 'createVoucher',
         'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset',
-        'erasePartner',
+        'adjustInputTax', 'erasePartner',
         'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
         'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
         'recognizeDeferral', 'recognizeProvision', 'releaseProvision', 'remeasureProvision',
@@ -166,6 +166,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'provision', 'actions' => ['recognized', 'used', 'released', 'remeasured']],
         ['objectType' => 'deferral', 'actions' => ['recognized']],
         ['objectType' => 'deferralRelease', 'actions' => ['completed']],
+        ['objectType' => 'inputTaxAdjustment', 'actions' => ['adjusted']],
         ['objectType' => 'costingRun', 'actions' => ['created', 'released']],
     ];
 

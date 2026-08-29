@@ -5,6 +5,7 @@ import { CostingService } from '../policies/expansion/costing/costing-service.js
 import { InventoryService } from '../policies/expansion/inventory/inventory-service.js';
 import { ProvisionService } from '../policies/expansion/provisions/provision-service.js';
 import { DeferralService } from '../policies/expansion/deferrals/deferral-service.js';
+import { InputTaxAdjustmentService } from '../policies/expansion/tax/input-tax-adjustment-service.js';
 import {
   InMemoryAccountRepository,
   InMemoryAssetRepository,
@@ -87,6 +88,12 @@ export class Tenant {
     readonly inventory: InventoryService,
     readonly provisionService: ProvisionService,
     readonly deferralService: DeferralService,
+    /**
+     * The input-tax adjustment (F-CORE-056). No repository: the register of what is under
+     * observation is the embedding application's, because its trigger — a change of use — is never
+     * posted. Only the arithmetic and the posting live here.
+     */
+    readonly inputTaxAdjustment: InputTaxAdjustmentService,
     readonly partnerService: PartnerService,
     readonly mappings: MappingRegistry,
     readonly clock: Clock,
@@ -316,6 +323,15 @@ export class Tenant {
       tenantId,
       auditWriter,
     );
+    const inputTaxAdjustment = new InputTaxAdjustmentService(
+      baseCurrency,
+      accounts,
+      vouchers,
+      ledger,
+      ids,
+      {},
+      auditWriter,
+    );
     const partnerService = new PartnerService(partners, audit, clock, ids, accounts, vouchers, openItems);
     const entityProfile = new EntityProfileService(legalForms, auditWriter, tenantId, configStore);
 
@@ -343,6 +359,7 @@ export class Tenant {
       inventory,
       provisionService,
       deferralService,
+      inputTaxAdjustment,
       partnerService,
       mappings,
       clock,

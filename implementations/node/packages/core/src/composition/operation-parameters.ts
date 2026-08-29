@@ -446,6 +446,15 @@ export const OPERATION_PARAMETERS: Readonly<Record<string, Readonly<Record<strin
     period: { type: 'integer' },
     actor: { type: 'string' },
   },
+  adjustInputTax: {
+    originalInputTax: { type: 'money', required: true },
+    originalSharePercent: { type: 'string', required: true },
+    currentSharePercent: { type: 'string', required: true },
+    assetKind: { type: 'string', required: true },
+    reason: { type: 'string', required: true },
+    date: { type: 'date', required: true },
+    actor: { type: 'string' },
+  },
   recognizeDeferral: {
     kind: { type: 'string', required: true },
     reason: { type: 'string', required: true },

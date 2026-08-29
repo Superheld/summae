@@ -147,6 +147,7 @@ export class TenantFactory {
     tenant.inventory.setRuleModule(this.ruleModules);
     tenant.provisionService.setRuleModule(this.ruleModules);
     tenant.deferralService.setRuleModule(this.ruleModules);
+    tenant.inputTaxAdjustment.setRuleModule(this.ruleModules);
 
     return {
       tenant,

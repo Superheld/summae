@@ -1627,6 +1627,42 @@ provision that simply comes closer to maturity unwinds its discount here rather 
 `change: 0.00` and `entryId: null` mean the estimate did not move; the movement is still recorded,
 because "we looked and it was still right" is part of the history.
 
+#### adjustInputTax
+
+Correct a deducted input tax when the use of the thing it was deducted for has changed.
+`originalInputTax` (yes, Money), `originalSharePercent` (yes), `currentSharePercent` (yes),
+`assetKind` (yes), `reason` (yes), `date` (yes), `actor` (no). Output:
+`{ due, amount, correctionYears, sharePointsChanged, reportingKey, entryId }` — or, where no
+correction is owed, `{ due: false, notDueBecause, threshold, ... , entryId: null }`.
+
+**The boundary runs through the middle of this rule, and knowing where saves you an argument.** The
+*register* — which assets are under observation and until when — is **yours**, and for a reason that
+survives inspection: the trigger is a change of use, which is never posted. summae sees postings; it
+cannot see the day a van starts being driven privately. The *arithmetic* is not yours to reproduce:
+a figure produced wrongly looks exactly as authoritative as one produced rightly, which is a reason
+to compute it where figures are fixture-pinned and verified across two languages.
+
+Your pack supplies every number: how many years the observation period runs for each `assetKind`
+(under the DE pack, five for movables and ten for immovables, § 15a UStG), the two de-minimis
+thresholds (§ 44 UStDV), the accounts and the reporting key. An `assetKind` your pack does not
+declare is `E_PACK_INCOHERENT` — never a default, because five years where the rule means ten halves
+every correction.
+
+**A threshold answer is `due: false` with the threshold named, not an amount of `0.00`.** "No
+correction is owed" and "we did not compute one" are different answers, and only one of them lets
+you close the file.
+
+```json
+{ "originalInputTax": { "amount": "19000.00", "currency": "EUR" },
+  "originalSharePercent": "100.00", "currentSharePercent": "60.00",
+  "assetKind": "movable", "reason": "Fahrzeug zu 40 % privat", "date": "2026-12-31" }
+// → due: true, amount −1520.00 (19,000 × −40 % ÷ 5), booked to expense against input tax
+```
+
+The tax line carries your pack's `reportingKey`, so the correction reaches the VAT return where the
+jurisdiction expects it. Without it the entry would balance, sit correctly on the account, and
+contribute nothing to what you file — which is exactly what `vatReturn.gapWarnings` exists to catch.
+
 #### recognizeDeferral
 
 Defer an amount and fix its release plan. `kind` (yes — `prepaidExpense` or `deferredIncome`),

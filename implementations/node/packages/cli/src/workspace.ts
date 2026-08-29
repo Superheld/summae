@@ -138,6 +138,7 @@ export class Workspace {
     tenant.inventory.setRuleModule(ruleModules);
     tenant.provisionService.setRuleModule(ruleModules);
     tenant.deferralService.setRuleModule(ruleModules);
+    tenant.inputTaxAdjustment.setRuleModule(ruleModules);
     return tenant;
   }
 

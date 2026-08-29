@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.16",
+  "version": "2026.15",
   "modules": [
     {
       "kind": "accounts",
@@ -67,11 +67,6 @@
     {
       "kind": "deferrals",
       "id": "de-rechnungsabgrenzung",
-      "version": "2026.1"
-    },
-    {
-      "kind": "inputTaxAdjustment",
-      "id": "de-vorsteuerberichtigung",
       "version": "2026.1"
     },
     {

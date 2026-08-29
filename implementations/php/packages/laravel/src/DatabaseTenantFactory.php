@@ -12,6 +12,7 @@ use Summae\Core\Policies\Projection\LegalFormRegistry;
 use Summae\Core\Policies\Expansion\Costing\CostingService;
 use Summae\Core\Policies\Expansion\Inventory\InventoryService;
 use Summae\Core\Policies\Expansion\Deferrals\DeferralService;
+use Summae\Core\Policies\Expansion\Tax\InputTaxAdjustmentService;
 use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Constraint\DimensionRegistry;
 use Summae\Core\Ledger\AuditWriter;
@@ -236,6 +237,16 @@ final readonly class DatabaseTenantFactory
             $auditWriter,
         );
 
+        $inputTaxAdjustment = new InputTaxAdjustmentService(
+            $baseCurrency,
+            $accounts,
+            $vouchers,
+            $ledger,
+            $ids,
+            [],
+            $auditWriter,
+        );
+
         // Replayed, not re-set: `restore…` runs the same validation without auditing a change nobody
         // made and without writing back what it just read.
         if ($config['allocationScheme'] !== null) {
@@ -281,6 +292,7 @@ final readonly class DatabaseTenantFactory
             $provisionService,
             $deferrals,
             $deferralService,
+            $inputTaxAdjustment,
         );
     }
 }

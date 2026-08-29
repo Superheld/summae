@@ -24,6 +24,8 @@ de-rechnungsabgrenzung
 mapping-offsetting
 asset-schedule
 de-guv-vollstaendig
+input-tax-adjustment
+de-vorsteuerberichtigung
 production-cost
 de-herstellungskosten
 us-inventory-costing

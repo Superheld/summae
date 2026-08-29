@@ -904,7 +904,8 @@
             "legalForms",
             "inventory",
             "provisions",
-            "deferrals"
+            "deferrals",
+            "inputTaxAdjustment"
           ]
         },
         "version": {
@@ -929,7 +930,8 @@
               "legalForms",
               "inventory",
               "provisions",
-              "deferrals"
+              "deferrals",
+              "inputTaxAdjustment"
             ]
           }
         },
