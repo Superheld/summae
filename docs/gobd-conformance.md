@@ -6,6 +6,11 @@
 This document exists for one situation: an audit asks *"is this bookkeeping GoBD-compliant,
 and where is the proof?"* — and the answer should be mechanical, not a promise.
 
+> **This census asks whether the bookkeeping is *orderly*, not whether the figures are *right*.**
+> Recognition, measurement and presentation are HGB accounting law and live in a census of their
+> own: [`hgb-conformance.md`](hgb-conformance.md). The two do not overlap, and the split is worth
+> knowing before reading a green row here as a statement about the balance sheet.
+
 Every row below carries one of three statuses, and the distinction is the point of the
 document:
 

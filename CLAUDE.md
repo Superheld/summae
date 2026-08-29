@@ -289,6 +289,20 @@ without it — never because the code looks right; and an open row is deleted on
 because it is inconvenient. Most ✅ rows are substrate mechanism that holds in every pack, not German
 law — the litmus test applies here too.
 
+**And since 2026-08-29 a third census asks the question the other two never did.**
+`docs/hgb-conformance.md` maps the accounting law that governs the *figures* — recognition,
+measurement, presentation (HGB Drittes Buch, with the EStG provisions that diverge). The other two
+censuses ask whether the bookkeeping is *orderly* and what personal data it holds; neither asks
+whether the balance sheet is **right**, which is why its findings were invisible while both of them
+were essentially closed and every gate green: two of § 266's main positions — stock and provisions —
+are absent from the shipped `de` mapping, and § 253 Abs. 5's write-up obligation has nothing behind
+it at all. It carries a fourth status the others do not need, 🟡 **partial**, for the shape most of
+its findings have: the chart carries the right account and nothing carries the rule. **It is not yet
+gated** — writing that test is the first row of its own open list, and until it exists the document
+is prose that can rot. The boundary reasoning that produced it, and the criterion that decides what
+belongs in this library at all (*summae holds an object when the law requires the books to hold it*),
+is `docs/proposals/library-boundary.md`.
+
 **The same census exists for personal data.** `docs/gdpr-conformance.md` is its twin, with the same
 three statuses and the same rule about ✅. Its §1 is an inventory of every field that can hold personal
 data, and that inventory is machine-checked against `format.schema.json` — a renamed field turns
