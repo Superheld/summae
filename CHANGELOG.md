@@ -10,7 +10,14 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
 
-## Unreleased
+## 0.17.0 — 2026-08-29
+
+> **Minor, not a patch.** The work below moves the data format 0.8 → 0.9, adds a projection
+> (`duplicateVouchers`), **closes** the account subtype repertoire — a pack that used a subtype word
+> the core does not know now fails to resolve instead of being carried along — and changes the
+> shipped `de` pack's behaviour: revenue booked as a small business (§ 19 UStG) together with an
+> output-VAT account is refused where it used to go through. Under 0.x a minor may break, and this
+> one does, in both places.
 
 ### Six open findings closed, one opened
 
