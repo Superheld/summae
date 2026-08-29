@@ -55,7 +55,7 @@ final readonly class SystemDescriptionProjection
         'recognizeProvision', 'releaseProvision', 'remeasureProvision',
         'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
         'useProvision', 'valuateInventory',
-        'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset'
+        'settle', 'unlockAccount', 'updatePartner', 'writeDownAsset', 'writeUpAsset'
     ];
 
     /** @var list<string> */
@@ -157,7 +157,7 @@ final readonly class SystemDescriptionProjection
         ['objectType' => 'entityProfile', 'actions' => ['changed']],
         ['objectType' => 'mapping', 'actions' => ['imported']],
         ['objectType' => 'allocationScheme', 'actions' => ['changed']],
-        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown']],
+        ['objectType' => 'asset', 'actions' => ['acquired', 'disposed', 'usageReported', 'specialDepreciationBooked', 'writtenDown', 'writtenUp']],
         ['objectType' => 'dimensionType', 'actions' => ['created']],
         ['objectType' => 'dimensionValue', 'actions' => ['created']],
         ['objectType' => 'depreciationRun', 'actions' => ['completed']],

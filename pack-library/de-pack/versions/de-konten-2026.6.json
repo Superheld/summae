@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.7",
+  "version": "2026.6",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -223,11 +223,6 @@
       {
         "number": "4900",
         "name": "Erträge aus Anlagenabgang",
-        "type": "revenue"
-      },
-      {
-        "number": "4910",
-        "name": "Erträge aus Zuschreibungen",
         "type": "revenue"
       },
       {

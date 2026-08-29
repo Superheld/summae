@@ -82,6 +82,7 @@ class AuditTrailContractTest extends TestCase
                 'gwgExpenseAccount' => '4930',
                 'disposalGainAccount' => '8400',
                 'disposalLossAccount' => '4930',
+                'writeUpIncomeAccount' => '8400',
             ],
         ]);
         // The appropriation plug, for the same reason: without it the operation refuses with
@@ -222,6 +223,7 @@ class AuditTrailContractTest extends TestCase
         yield 'acquireAsset' => ['acquireAsset', 'asset', 'acquired'];
         yield 'disposeAsset' => ['disposeAsset', 'asset', 'disposed'];
         yield 'writeDownAsset' => ['writeDownAsset', 'asset', 'writtenDown'];
+        yield 'writeUpAsset' => ['writeUpAsset', 'asset', 'writtenUp'];
         yield 'bookSpecialDepreciation' => ['bookSpecialDepreciation', 'asset', 'specialDepreciationBooked'];
         yield 'reportAssetUsage' => ['reportAssetUsage', 'asset', 'usageReported'];
         yield 'valuateInventory' => ['valuateInventory', 'inventoryValuation', 'valued'];
@@ -545,6 +547,25 @@ class AuditTrailContractTest extends TestCase
                     'amount' => ['amount' => '1000.00', 'currency' => 'EUR'],
                     'date' => '2026-06-30',
                     'reason' => 'Wasserschaden',
+                ]);
+
+                return;
+            case 'writeUpAsset':
+                // `acquire` seeds by itself — seeding twice would fail on the account, not on the
+                // thing under test.
+                $assetId = $this->acquire($ops);
+                $ops->execute('createAccount', ['number' => '8400', 'name' => 'Erträge aus Zuschreibungen', 'type' => 'revenue']);
+                $ops->execute('writeDownAsset', [
+                    'assetId' => $assetId,
+                    'amount' => ['amount' => '1000.00', 'currency' => 'EUR'],
+                    'date' => '2026-06-30',
+                    'reason' => 'Wasserschaden',
+                ]);
+                $ops->execute('writeUpAsset', [
+                    'assetId' => $assetId,
+                    'amount' => ['amount' => '400.00', 'currency' => 'EUR'],
+                    'date' => '2026-09-30',
+                    'reason' => 'Schaden behoben',
                 ]);
 
                 return;

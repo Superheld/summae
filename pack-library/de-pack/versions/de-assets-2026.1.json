@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-assets",
   "kind": "assetAccounts",
-  "version": "2026.2",
+  "version": "2026.1",
   "name": "DE Anlagen-Gegenkonten (Zugang, AfA-Aufwand, GWG, Abgang)",
   "contributes": ["assetAccounts"],
   "dependsOn": [{ "kind": "accounts", "id": "de-konten" }],
@@ -12,8 +12,7 @@
       "depreciationExpenseAccount": "6500",
       "gwgExpenseAccount": "6510",
       "disposalProceedsAccount": "4900",
-      "disposalLossAccount": "6900",
-      "writeUpIncomeAccount": "4910"
+      "disposalLossAccount": "6900"
     }
   }
 }

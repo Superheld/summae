@@ -1,7 +1,7 @@
 # Manifest — `us` (USA)
 
 ```
-pack: us · version: 2026.7 · formatVersion: 0.6
+pack: us · version: 2026.8 · formatVersion: 0.6
 Datei: pack-library/us-pack/us.json · 11 Module · frühere Fassungen in versions/
 ```
 
@@ -26,7 +26,7 @@ trägt nur die Nachkommastellen.
 | `mapping` | `us-gaap-income-statement` | 2026.1 |
 | `mapping` | `us-schedule-c-2026` | 2026.2 |
 | `depreciation` | `macrs-us` | 2026.2 |
-| `assetAccounts` | `us-asset-accounts` | 2026.1 |
+| `assetAccounts` | `us-asset-accounts` | 2026.2 |
 | `policy` | `us-usd` | 2026.1 |
 | `productionCost` | `us-inventory-costing` | 2026.1 |
 | `inventory` | `us-inventory-accounts` | 2026.1 |

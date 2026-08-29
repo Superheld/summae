@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "us-asset-accounts",
   "kind": "assetAccounts",
-  "version": "2026.2",
+  "version": "2026.1",
   "name": "US asset movement accounts (acquisition counter, depreciation, de minimis, disposal)",
   "contributes": ["assetAccounts"],
   "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
@@ -12,7 +12,7 @@
       "depreciationExpenseAccount": "6300",
       "gwgExpenseAccount": "6310",
       "disposalProceedsAccount": "4900",
-      "disposalLossAccount": "6900", "writeUpIncomeAccount": "4900"
+      "disposalLossAccount": "6900"
     }
   }
 }

@@ -114,6 +114,10 @@ final class ExitCodes
         'E_PROVISION_ACCOUNT_INVALID',
         'E_PROVISION_EXCEEDS_CARRYING',
         'E_PROVISION_DISCOUNT_RATE_REQUIRED',
+        // The write-up (F-CORE-052). Two codes because a caller reacts oppositely: write up less,
+        // or stop trying to write up an asset that was never written down.
+        'E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN',
+        'E_ASSET_WRITE_UP_EXCEEDS_CEILING',
     ];
 
     private function __construct()

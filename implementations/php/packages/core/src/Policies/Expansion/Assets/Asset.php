@@ -30,6 +30,21 @@ final class Asset implements \JsonSerializable
 
     private int $reportedUnits = 0;
 
+    /**
+     * The schedule as it stood before any write-down rebased it — the *shadow* plan.
+     *
+     * It exists for one purpose: the write-up ceiling. A write-down does not only
+     * reduce the book value, it lowers every remaining planned instalment, so the book value drifts
+     * *above* what it would have been without the write-down as the plan runs on. Reversing the
+     * write-down in full would therefore carry the asset higher than its amortised acquisition cost,
+     * which no write-up may do. The ceiling is `cost − Σ original shares of the booked months`, and
+     * the original shares are recoverable from nothing else once a rebase has happened: for a
+     * declining-balance or units-of-production plan they were never a flat allocate to begin with.
+     *
+     * @var list<Money>
+     */
+    private array $originalSchedule;
+
     private bool $disposed = false;
 
     private ?CalendarDate $disposedOn = null;
@@ -106,6 +121,82 @@ final class Asset implements \JsonSerializable
          */
         public readonly ?int $totalUnits = null,
     ) {
+        // The shadow plan starts as the plan. It only diverges when a write-down rebases the live
+        // one, which is exactly when the write-up ceiling starts to need it.
+        $this->originalSchedule = $monthlySchedule;
+    }
+
+    /**
+     * What the book value would be if no write-down had ever happened — the ceiling a write-up may
+     * not cross.
+     *
+     * Every month the live plan has booked is charged at its **original** share instead of the
+     * reduced one. An asset that was never written down has an identical shadow, so this equals the
+     * ordinary book value and the ceiling binds nothing.
+     */
+    public function amortisedCostCeiling(): Money
+    {
+        $shadowAccumulated = $this->acquisitionCost->subtract($this->acquisitionCost);
+
+        foreach ($this->depreciations as $booking) {
+            $planMonth = $booking['planMonth'];
+            if ($planMonth < 1) {
+                // A write-down or a usage report is not part of any plan — the shadow ignores it,
+                // which is the whole point: the shadow is the plan that never saw the write-down.
+                continue;
+            }
+            $share = $this->originalSchedule[$planMonth - 1] ?? null;
+            if ($share !== null) {
+                $shadowAccumulated = $shadowAccumulated->add($share);
+            }
+        }
+
+        return $this->acquisitionCost->subtract($shadowAccumulated);
+    }
+
+    /** @return list<Money> */
+    public function originalSchedule(): array
+    {
+        return $this->originalSchedule;
+    }
+
+    /**
+     * A write-up reverses part of an earlier write-down. It is recorded as a
+     * negative "unplanned" booking, so every existing reader — accumulated depreciation, the book
+     * value, the register — picks it up without a special case, and the plan is rebased upward the
+     * same way a write-down rebases it downward.
+     *
+     * @param list<int> $openPlanMonths
+     */
+    public function recordWriteUp(CalendarDate $date, Money $amount, Uuid $entryId, array $openPlanMonths): void
+    {
+        $this->depreciations[] = [
+            'planMonth' => 0,
+            'date' => $date,
+            'amount' => $amount->negate(),
+            'entryId' => $entryId,
+            'kind' => 'writeUp',
+        ];
+
+        $this->rebaseRemainingPlan($openPlanMonths);
+    }
+
+    /** What has been written down and not yet written back — nothing may be reversed twice. */
+    public function unreversedWriteDowns(): Money
+    {
+        $sum = $this->acquisitionCost->subtract($this->acquisitionCost);
+
+        foreach ($this->depreciations as $booking) {
+            if ($booking['kind'] === 'unplanned') {
+                $sum = $sum->add($booking['amount']);
+            }
+            if ($booking['kind'] === 'writeUp') {
+                // Already negative, so adding it subtracts.
+                $sum = $sum->add($booking['amount']);
+            }
+        }
+
+        return $sum;
     }
 
     /** Units reported so far — never more than `totalUnits`, which is what caps the last booking. */
@@ -231,6 +322,7 @@ final class Asset implements \JsonSerializable
      * @param list<array{type: string, code: string}> $dimensions
      *
      * @param list<Money> $monthlySchedule
+     * @param list<Money>|null $originalSchedule
      * @param list<array{planMonth: int, date: CalendarDate, amount: Money, entryId: Uuid}> $depreciations
      */
     public static function restore(
@@ -255,6 +347,10 @@ final class Asset implements \JsonSerializable
         ?int $specialDepreciationWindowEnd = null,
         ?int $totalUnits = null,
         int $reportedUnits = 0,
+        // Null for an asset written before the shadow plan existed — and that is the right answer
+        // rather than a fallback: such an asset either has no write-down (so the shadow IS the live
+        // plan) or one booked before a write-up was possible at all.
+        ?array $originalSchedule = null,
     ): self {
         $asset = new self($id, $name, $assetClass, $assetAccount, $acquisitionCost, $acquiredOn, $route, $usefulLifeMonths, $monthlySchedule, $voucherId, $dimensions, $depreciationStart, $depreciationMethod, $specialDepreciationBudget, $specialDepreciationWindowEnd, $totalUnits);
         $asset->reportedUnits = $reportedUnits;
@@ -266,6 +362,7 @@ final class Asset implements \JsonSerializable
         $asset->disposed = $disposed;
         $asset->disposedOn = $disposedOn;
         $asset->scheduleRevised = $scheduleRevised;
+        $asset->originalSchedule = $originalSchedule ?? $monthlySchedule;
 
         return $asset;
     }

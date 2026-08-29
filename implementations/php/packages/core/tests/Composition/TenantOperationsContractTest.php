@@ -31,7 +31,7 @@ final class TenantOperationsContractTest extends TestCase
         'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
         'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
         'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
-        'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
+        'writeDownAsset', 'writeUpAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
         'recognizeProvision', 'useProvision', 'releaseProvision', 'remeasureProvision',
         'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
         'appropriateResult', 'setEntityProfile', 'erasePartner',

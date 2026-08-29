@@ -1,0 +1,415 @@
+{
+  "fixture": "asset-write-up",
+  "description": "The write-up (§ 253 Abs. 5 HGB): when the reason for an unplanned write-down ceases, the lower value MAY NOT be retained. `writeDownAsset` had existed for a long time with no counterpart, so an asset written down in a bad year stayed down for ever — which understates equity and the result exactly as permanently as the write-down was meant to state them prudently for one year. What this fixture is really about is the SECOND cap, because it is the one that is easy to get wrong. A write-down does not only lower the book value: it rebases the remaining plan, so every later instalment is smaller and the book value drifts ABOVE what the untouched plan would have reached. Here a 12,000.00 machine over twelve months is written down by 3,000.00 after six, the remaining six months fall from 1,000.00 to 500.00 each, and after three more months the book value is 1,500.00 while the plan that never saw the write-down would have been at 3,000.00. Reversing the full 3,000.00 would carry the asset to 4,500.00 — half again over its amortised acquisition cost. So the operation reports a `ceiling` on every call and refuses anything above it, and it does so on a SHADOW plan the asset keeps for this purpose alone: after a rebase the original instalments are recoverable from nothing else, because a declining-balance or units-of-production plan was never a flat allocate to begin with. The first cap is the obvious one and is here too: nothing may be written back that was not written down — a write-up reverses, it does not create value. What the caller decides and what the core decides is the other half of the design: whether the reason has ceased, and by how much the value has recovered, is an appraisal about the world, so the amount is an input; the ceiling is arithmetic, and that is what is enforced. Note also that the pack MUST name a write-up income account, with no fallback — the asymmetry with the write-down (which falls back to ordinary depreciation) is deliberate, because the only nearby income account is `gain on disposal` and a write-up is not one.",
+  "covers": [
+    "F-CORE-052"
+  ],
+  "setup": {
+    "tenant": {
+      "name": "Fixture GmbH",
+      "baseCurrency": "EUR"
+    },
+    "accounts": [
+      {
+        "number": "0400",
+        "name": "Maschinen",
+        "type": "asset",
+        "subtype": "fixed_asset"
+      },
+      {
+        "number": "1200",
+        "name": "Bank",
+        "type": "asset",
+        "subtype": "bank"
+      },
+      {
+        "number": "4830",
+        "name": "Abschreibungen",
+        "type": "expense"
+      },
+      {
+        "number": "4910",
+        "name": "Erträge aus Zuschreibungen",
+        "type": "revenue"
+      },
+      {
+        "number": "6800",
+        "name": "Außerplanmäßige Abschreibungen",
+        "type": "expense"
+      }
+    ],
+    "fiscalYears": [
+      {
+        "year": 2026,
+        "start": "2026-01-01",
+        "end": "2026-12-31"
+      }
+    ],
+    "vouchers": [
+      {
+        "id": "$V1",
+        "voucherNumber": "AN-001",
+        "voucherDate": "2026-01-01"
+      }
+    ],
+    "ruleModule": {
+      "usefulLife": [
+        {
+          "assetClass": "machinery",
+          "months": 12
+        }
+      ],
+      "assetAccounts": {
+        "acquisitionCounterAccount": "1200",
+        "depreciationExpenseAccount": "4830",
+        "impairmentExpenseAccount": "6800",
+        "gwgExpenseAccount": "4830",
+        "disposalProceedsAccount": "4910",
+        "disposalLossAccount": "4830",
+        "writeUpIncomeAccount": "4910"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "acquireAsset",
+      "input": {
+        "name": "Maschine",
+        "assetClass": "machinery",
+        "assetAccount": "0400",
+        "acquisitionCost": {
+          "amount": "12000.00",
+          "currency": "EUR"
+        },
+        "acquiredOn": "2026-01-01",
+        "voucherId": "$V1",
+        "usefulLifeMonths": 12
+      },
+      "expect": {
+        "result": {
+          "id": "$A1",
+          "route": "capitalize",
+          "usefulLifeMonths": 12
+        }
+      }
+    },
+    {
+      "op": "writeUpAsset",
+      "input": {
+        "assetId": "$A1",
+        "amount": {
+          "amount": "100.00",
+          "currency": "EUR"
+        },
+        "date": "2026-06-30",
+        "reason": "nichts abgewertet"
+      },
+      "expect": {
+        "comment": "Eine Zuschreibung macht eine Abwertung rückgängig — sie erschafft keinen Wert",
+        "error": "E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN"
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 1
+      },
+      "expect": {
+        "comment": "Monat 1 zu 1.000,00",
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 2
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 3
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 4
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 5
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 6
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "writeDownAsset",
+      "input": {
+        "assetId": "$A1",
+        "amount": {
+          "amount": "3000.00",
+          "currency": "EUR"
+        },
+        "date": "2026-06-30",
+        "reason": "Wasserschaden"
+      },
+      "expect": {
+        "comment": "Buchwert 6.000,00 − 3.000,00 = 3.000,00; die sechs offenen Monate fallen von 1.000,00 auf 500,00",
+        "result": {
+          "bookValue": "3000.00",
+          "remainingPlanMonths": 6
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 7
+      },
+      "expect": {
+        "comment": "Monat 7 — die Rate ist nach der Abwertung halbiert",
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "500.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 8
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "500.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 9
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "500.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "writeUpAsset",
+      "input": {
+        "assetId": "$A1",
+        "amount": {
+          "amount": "3000.00",
+          "currency": "EUR"
+        },
+        "date": "2026-09-30",
+        "reason": "Schaden vollständig behoben"
+      },
+      "expect": {
+        "comment": "Buchwert 1.500,00 + 3.000,00 = 4.500,00 — über den fortgeführten Anschaffungskosten von 3.000,00, die der unberührte Plan erreicht hätte",
+        "error": "E_ASSET_WRITE_UP_EXCEEDS_CEILING"
+      }
+    },
+    {
+      "op": "writeUpAsset",
+      "input": {
+        "assetId": "$A1",
+        "amount": {
+          "amount": "1500.00",
+          "currency": "EUR"
+        },
+        "date": "2026-09-30",
+        "reason": "Schaden vollständig behoben"
+      },
+      "expect": {
+        "comment": "Genau bis an die Obergrenze: 1.500,00 + 1.500,00 = 3.000,00. Es bleiben 1.500,00 der Abwertung stehen, die nie mehr zugeschrieben werden dürfen — der Plan hat sie inzwischen selbst verbraucht",
+        "result": {
+          "amount": "1500.00",
+          "bookValue": "3000.00",
+          "ceiling": "3000.00",
+          "stillReversible": "1500.00"
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 10
+      },
+      "expect": {
+        "comment": "Monat 10 — nach der Zuschreibung wieder 1.000,00",
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 11
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    },
+    {
+      "op": "runDepreciation",
+      "input": {
+        "fiscalYear": 2026,
+        "period": 12
+      },
+      "expect": {
+        "result": {
+          "entriesCreated": 1,
+          "totalDepreciation": {
+            "amount": "1000.00",
+            "currency": "EUR"
+          }
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "assetRegister",
+      "params": {
+        "asOf": "2026-12-31"
+      },
+      "expect": {
+        "comment": "Am Ende ist das Anlagegut vollständig abgeschrieben — die Zuschreibung hat nichts erfunden, nur die Verteilung verschoben",
+        "assets": [
+          {
+            "name": "Maschine",
+            "bookValue": {
+              "amount": "0.00",
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "trialBalance",
+      "params": {
+        "fiscalYear": 2026,
+        "throughPeriod": 12
+      },
+      "expect": {
+        "rows": [
+          {
+            "account": "0400",
+            "balance": "0.00"
+          },
+          {
+            "account": "1200",
+            "balance": "-12000.00"
+          },
+          {
+            "account": "4830",
+            "balance": "10500.00"
+          },
+          {
+            "account": "4910",
+            "balance": "-1500.00"
+          },
+          {
+            "account": "6800",
+            "balance": "3000.00"
+          }
+        ]
+      }
+    }
+  ]
+}

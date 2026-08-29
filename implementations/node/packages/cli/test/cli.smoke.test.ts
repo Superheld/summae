@@ -74,7 +74,7 @@ test('init --pack de → post → balance sheet balances (pack library chosen by
   const init = capture(['init', '--name', 'DE GmbH', '--pack', 'de', '--first-fiscal-year', '2026', '--dir', dir]);
   expect(JSON.parse(init[0] ?? '{}')).toMatchObject({
     initialized: true,
-    created: { accounts: 59, fiscalYears: 1 },
+    created: { accounts: 60, fiscalYears: 1 },
   });
 
   capture([
