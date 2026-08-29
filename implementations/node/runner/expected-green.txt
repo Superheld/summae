@@ -23,6 +23,7 @@ deferral-release
 de-rechnungsabgrenzung
 mapping-offsetting
 asset-schedule
+de-guv-vollstaendig
 production-cost
 de-herstellungskosten
 us-inventory-costing

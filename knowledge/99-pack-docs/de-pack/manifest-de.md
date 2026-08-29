@@ -1,7 +1,7 @@
 # Manifest — `de` (Deutschland)
 
 ```
-pack: de · version: 2026.14 · formatVersion: 0.9
+pack: de · version: 2026.15 · formatVersion: 0.9
 Datei: pack-library/de-pack/de.json · 14 Module · frühere Fassungen in versions/
 ```
 
@@ -24,11 +24,11 @@ Widerspruch: sie **addieren** sich, anders als `policy`, von dem es genau eines 
 
 | `kind` | `id` | Version |
 |---|---|---|
-| `accounts` | `de-konten` | 2026.7 |
+| `accounts` | `de-konten` | 2026.8 |
 | `tax` | `de-ust` | 2026.4 |
 | `mapping` | `de-bilanz` | 2026.5 |
-| `mapping` | `de-guv` | 2026.2 |
-| `mapping` | `de-euer` | 2026.6 |
+| `mapping` | `de-guv` | 2026.3 |
+| `mapping` | `de-euer` | 2026.7 |
 | `depreciation` | `de-afa` | 2026.7 |
 | `assetAccounts` | `de-assets` | 2026.2 |
 | `policy` | `de-policy` | 2026.1 |
