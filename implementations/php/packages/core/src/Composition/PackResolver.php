@@ -214,6 +214,8 @@ final class PackResolver
         /** @var list<array<mixed>> $accounts */
         $accounts = [];
         $accountNumbers = [];
+        /** @var array<string, string> $accountTypes number -> type, for the offsetting invariant (I11) */
+        $accountTypes = [];
         /** @var list<array<mixed>> $taxCodes */
         $taxCodes = [];
         $taxCodeCodes = [];
@@ -253,6 +255,7 @@ final class PackResolver
                             throw new DomainError('E_PACK_INCOHERENT', 'Duplicate account number: ' . $number);
                         }
                         $accountNumbers[$number] = true;
+                        $accountTypes[$number] = self::str($account['type'] ?? null) ?? '';
                         $subtype = self::str($account['subtype'] ?? null);
                         if ($subtype !== null && !AccountSubtype::isKnown($subtype)) {
                             // Closed repertoire (Substrate/AccountSubtype): a misspelled subtype
@@ -461,6 +464,8 @@ final class PackResolver
         $numbers = array_keys($accountNumbers);
         foreach ($mappings as $mapping) {
             self::checkMappingSelectors($mapping, $accountNumbers, $numbers);
+            // I11: no balance-sheet position may draw from both sides (offsetting prohibition).
+            self::checkBalanceSheetSides($mapping, $accountTypes, $numbers);
         }
         // I4: every taxCode referenced by the manifest is provided by a tax module.
         foreach (is_array($manifest['taxCodes'] ?? null) ? $manifest['taxCodes'] : [] as $code) {
@@ -748,6 +753,119 @@ final class PackResolver
                 $visit($position);
             }
         }
+    }
+
+    /**
+     * I11 — a balance-sheet position may not draw from both sides of the balance sheet.
+     *
+     * **The rule everybody knows and nothing checked.** Offsetting assets against liabilities is
+     * forbidden, and until now the pack author was simply trusted: a position could pull a receivable
+     * range and a payable range and produce one netted figure, and every gate stayed green because
+     * the statement still balanced. That is the same shape as the defects the constraint policy kind
+     * was built for, one layer out — a rule so obvious that nobody wrote it down.
+     *
+     * **It is checked on the ACCOUNT TYPE, not on the balance.** A bank account that is overdrawn is
+     * still an asset account and belongs on the assets side; a position holding it is not offsetting
+     * anything. What is forbidden is a position that *selects* accounts of both kinds, because then
+     * no reader can tell what the figure is made of.
+     *
+     * Only `balance-sheet` mappings. An income statement has no sides, and a cash-basis mapping is a
+     * list of categories rather than a two-sided statement.
+     *
+     * @param array<mixed> $mapping
+     * @param array<string, string> $accountTypes
+     * @param list<int|string> $numbers
+     */
+    private static function checkBalanceSheetSides(array $mapping, array $accountTypes, array $numbers): void
+    {
+        if (self::str($mapping['kind'] ?? null) !== 'balance-sheet') {
+            return;
+        }
+
+        $mappingId = self::str($mapping['id'] ?? null) ?? '?';
+
+        $visit = static function (array $position, ?string $side) use (&$visit, $accountTypes, $numbers, $mappingId): void {
+            $side = self::str($position['side'] ?? null) ?? $side;
+
+            foreach (is_array($position['accounts'] ?? null) ? $position['accounts'] : [] as $selector) {
+                if (!is_array($selector) || $side === null) {
+                    continue;
+                }
+
+                foreach (self::selectedNumbers($selector, $numbers) as $number) {
+                    $type = $accountTypes[$number] ?? '';
+                    $belongs = $side === 'assets'
+                        ? $type === 'asset'
+                        : in_array($type, ['liability', 'equity'], true);
+
+                    if (!$belongs) {
+                        $positionKey = self::str($position['key'] ?? null) ?? '?';
+
+                        throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                            'Mapping "%s", position "%s" is on the %s side and selects account %s, which is '
+                            . 'of type "%s" (I11). A balance-sheet position that draws from both sides reports '
+                            . 'one netted figure and offsets what may not be offset.',
+                            $mappingId,
+                            $positionKey,
+                            $side,
+                            $number,
+                            $type,
+                        ), ['mapping' => $mappingId, 'position' => $positionKey, 'account' => $number, 'type' => $type, 'side' => $side]);
+                    }
+                }
+            }
+
+            foreach (is_array($position['children'] ?? null) ? $position['children'] : [] as $child) {
+                if (is_array($child)) {
+                    $visit($child, $side);
+                }
+            }
+        };
+
+        foreach (is_array($mapping['positions'] ?? null) ? $mapping['positions'] : [] as $position) {
+            if (is_array($position)) {
+                $visit($position, null);
+            }
+        }
+    }
+
+    /**
+     * The account numbers a selector actually hits, in chart order.
+     *
+     * @param array<mixed> $selector
+     * @param list<int|string> $numbers
+     *
+     * @return list<string>
+     */
+    private static function selectedNumbers(array $selector, array $numbers): array
+    {
+        if (is_array($selector['numbers'] ?? null)) {
+            $out = [];
+            foreach ($selector['numbers'] as $n) {
+                if (is_string($n)) {
+                    $out[] = $n;
+                }
+            }
+
+            return $out;
+        }
+
+        $from = self::str($selector['from'] ?? null);
+        $to = self::str($selector['to'] ?? null);
+        if ($from === null || $to === null) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($numbers as $n) {
+            // PHP casts numeric array keys to int → back to string before strcmp.
+            $ns = (string) $n;
+            if (strcmp($ns, $from) >= 0 && strcmp($ns, $to) <= 0) {
+                $out[] = $ns;
+            }
+        }
+
+        return $out;
     }
 
     /**

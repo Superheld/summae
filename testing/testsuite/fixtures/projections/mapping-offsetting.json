@@ -1,0 +1,86 @@
+{
+  "fixture": "mapping-offsetting",
+  "description": "The offsetting prohibition (§ 246 Abs. 2 HGB), checked instead of assumed. It is the rule everybody knows and nothing checked: a balance-sheet position could draw a receivable range AND a payable range, report one netted figure, and leave every gate green — because the statement still balances. That is the same shape as the defects the constraint policy kind was built for, one layer out, and it went unnoticed for exactly that reason. Two things are worth reading closely. FIRST, it is checked on the account TYPE and not on the balance. An overdrawn bank account is still an asset account and belongs on the assets side; a position holding it offsets nothing, and a rule that looked at balances would refuse a perfectly ordinary set of books. What is forbidden is a position that SELECTS accounts of both kinds, because then no reader can tell what the figure is made of. SECOND, the same violation has two codes depending on where it arrives: from a pack it is E_PACK_INCOHERENT at resolvePack (resolver invariant I11, like every other coherence check — a pack must be integral as a whole before anybody posts on it), and from importMapping it is E_MAPPING_SIDE_MIXED, because the caller can fix that one and needs to know which position and which account. A correct mapping over the same chart is imported afterwards, so the guard is shown to forbid the right thing and not merely to forbid.",
+  "covers": ["F-CORE-054"],
+  "setup": {
+    "tenant": { "name": "Fixture GmbH", "baseCurrency": "EUR" },
+    "accounts": [
+      { "number": "1200", "name": "Bank", "type": "asset", "subtype": "bank" },
+      { "number": "1400", "name": "Forderungen", "type": "asset", "subtype": "ar" },
+      { "number": "1500", "name": "Verbindlichkeiten", "type": "liability", "subtype": "ap" },
+      { "number": "2000", "name": "Kapital", "type": "equity" }
+    ],
+    "fiscalYears": [ { "year": 2026, "start": "2026-01-01", "end": "2026-12-31" } ]
+  },
+  "steps": [
+    {
+      "op": "importMapping",
+      "input": {
+        "mapping": {
+          "id": "netted", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "side": "assets", "children": [
+              { "key": "A.I", "label": "Forderungen und Verbindlichkeiten, saldiert", "accounts": [ { "from": "1400", "to": "1599" } ] },
+              { "key": "A.II", "label": "Bank", "accounts": [ { "numbers": ["1200"] } ] }
+            ] },
+            { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [
+              { "key": "P.A", "label": "Eigenkapital", "accounts": [ { "from": "2000", "to": "2999" } ], "includesNetIncome": true }
+            ] }
+          ]
+        }
+      },
+      "expect": {
+        "comment": "1400 bis 1599 zieht die Forderung UND die Verbindlichkeit in eine Aktivposition — genau die Saldierung, die § 246 Abs. 2 verbietet",
+        "error": "E_MAPPING_SIDE_MIXED"
+      }
+    },
+    {
+      "op": "importMapping",
+      "input": {
+        "mapping": {
+          "id": "sauber", "kind": "balance-sheet", "version": "1",
+          "positions": [
+            { "key": "A", "label": "Aktiva", "side": "assets", "children": [
+              { "key": "A.I", "label": "Forderungen", "accounts": [ { "from": "1400", "to": "1499" } ] },
+              { "key": "A.II", "label": "Bank", "accounts": [ { "numbers": ["1200"] } ] }
+            ] },
+            { "key": "P", "label": "Passiva", "side": "liabilitiesAndEquity", "children": [
+              { "key": "P.A", "label": "Eigenkapital", "accounts": [ { "from": "2000", "to": "2999" } ], "includesNetIncome": true },
+              { "key": "P.B", "label": "Verbindlichkeiten", "accounts": [ { "from": "1500", "to": "1599" } ] }
+            ] }
+          ]
+        }
+      },
+      "expect": {
+        "comment": "Dieselben Konten, sauber getrennt — der Wächter verbietet das Richtige, nicht einfach alles",
+        "result": { "imported": true, "gapWarnings": [] }
+      }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "voucher": { "voucherNumber": "ER-001", "voucherDate": "2026-03-01" },
+        "entryDate": "2026-03-01", "text": "Bank überzogen",
+        "lines": [
+          { "account": "1400", "side": "debit", "money": { "amount": "5000.00", "currency": "EUR" } },
+          { "account": "1200", "side": "credit", "money": { "amount": "5000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    }
+  ],
+  "projections": [
+    {
+      "name": "balanceSheet",
+      "params": { "asOf": "2026-12-31", "mapping": "sauber" },
+      "expect": {
+        "comment": "Das Bankkonto steht mit −5.000,00 auf der AKTIVSEITE, wo es hingehört: überzogen ist es immer noch ein Aktivkonto, und eine Regel über Salden hätte hier ganz normale Bücher abgewiesen",
+        "assets": [
+          { "key": "A.I", "amount": "5000.00" },
+          { "key": "A.II", "amount": "-5000.00" }
+        ],
+        "assetsTotal": "0.00"
+      }
+    }
+  ]
+}

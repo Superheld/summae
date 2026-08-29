@@ -107,6 +107,9 @@ const CODES: readonly string[] = [
   // stop trying to write up an asset that was never written down.
   'E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN',
   'E_ASSET_WRITE_UP_EXCEEDS_CEILING',
+  // The offsetting prohibition at import time (F-CORE-054). Its pack-side twin is
+  // E_PACK_INCOHERENT, which already has a code.
+  'E_MAPPING_SIDE_MIXED',
 ];
 
 export function exitCodeFor(errorCode: string): number {

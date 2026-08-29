@@ -173,6 +173,7 @@ nicht obendrauf — deshalb bleiben Skonto- und Forderungsverlustfälle gültig.
 | Code | Invariante | Fixture |
 |---|---|---|
 | `E_MAPPING_OVERLAP` | ein Konto fällt in mehrere Mapping-Positionen | mapping-import |
+| `E_MAPPING_SIDE_MIXED` | Eine Bilanz-Position zieht Konten **beider Seiten** — Saldierungsverbot (§ 246 Abs. 2 HGB). Geprüft am **Kontotyp**, nicht am Saldo: ein überzogenes Bankkonto ist immer noch ein Aktivkonto und saldiert nichts; verboten ist eine Position, die beide Sorten *auswählt*, weil dann niemand mehr sagen kann, woraus die Zahl besteht. Im Pack ist derselbe Verstoß `E_PACK_INCOHERENT` (Resolver-Invariante I11), weil ein Pack als Ganzes integer sein muss, bevor jemand darauf bucht. `details`: `position`, `side`, `account`, `type` | mapping-offsetting |
 
 (Mapping-Lücken sind kein Fehler: `gapWarnings[]` + Auffangposition.)
 
