@@ -108,6 +108,31 @@ questions. **Two wait on a person:** foreign currency (§ 256a), the only item o
 starts at the substrate; and single-circle vs. two-circle cost accounting, which hangs on whether the
 municipal pack is still coming.
 
+### The documents underneath the documents (2026-08-29, doc review)
+
+The HGB pass left the *gated* documentation current — handbook, all three censuses, the requirement
+list, `covers`, this changelog. The review afterwards asked what the gates do not reach, and found
+the layer everything else is defined in terms of: **26 of 80 operations and projections were missing
+from the normative API spec** (`knowledge/50-spezifikation/api.md`), which calls its own list "die
+vollständige" and names a contract test that guards something else. Two of the names it did carry
+(`writeDown`, `writeUp`) exist in no implementation, and one (`systemDocumentation`) was renamed
+before it shipped. The policy-kind census in `jurisdiction-profil.md` — the document that claims to
+make the architecture provable *by enumeration* — was fourteen expansions and eleven projections
+short and had no bucket at all for the nineteen master-data operations. And the module-kind enum in
+`datenformat.md` was four kinds behind for the **second time in three days**, in the same table row.
+
+All of it is written up and, more to the point, **guarded**: `ApiSpecDocTest` /
+`api-spec-doc.test.ts` hold both documents against `testing/testsuite/schema/api-parameters.json`,
+and `DataFormatDocTest` / `data-format-doc.test.ts` gained a fourth check for the kind enum. No
+behaviour changed; no published output moved (IMPL-044).
+
+**Two findings the review could not close by writing** are in `FINDINGS-OPEN.md`: the personal-data
+inventory in the GDPR census stops at the exchange format and misses three free-text fields on
+persisted aggregates (IMPL-045 — §1 now says so, and tells an operator to add them by hand), and the
+five aggregate kinds the adapters store as JSON are declared in no schema, written up in no format
+version, and crossed by no cross-test (IMPL-046). The second one is why the sentence above about
+"four record kinds" in the data format is truer than the format documents currently are.
+
 ### Retired
 
 - `us-fiscal-year` → `us-fiscal-year-current`. It pinned `accountCount: 35` in passing and went red

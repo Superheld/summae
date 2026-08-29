@@ -47,6 +47,20 @@ the guard test over this document fails if one of them stops existing.
 only required field in the list. And it is not exhaustive about *content*: three of these fields are
 free text, so what actually lands in them is decided by the application, not by summae.
 
+**And a third, found on 2026-08-29 and stated here rather than left implicit: the table above stops
+at the exchange format.** Every row in it resolves to a record in
+[`format.schema.json`](../testing/testsuite/schema/format.schema.json) — that is what makes the guard
+test possible, and it is also the boundary the inventory silently inherited. summae persists five
+aggregate kinds that the exchange format does not declare (`asset`, `costingRun`, and since
+2026-08-29 `provision`, `deferral`, `inventoryValuation`), and three of them carry **operator-supplied
+free text**: `asset.name` (*„Firmenwagen Herr M."*), `provision.reason` (*„Prozessrisiko Kl. ./.
+GmbH"*), `deferral.reason`. Nothing forbids a name there, the `personalDataDescription` projection
+does not report them, and an Art. 30 record copied from §1 would not mention them. The rows are
+**not** added above, because the guard would reject a field the format does not declare and a green
+test that stops describing the product is the failure mode this document exists to avoid — the gap is
+recorded as **IMPL-045** in [`FINDINGS-OPEN.md`](../FINDINGS-OPEN.md) instead, with what would close
+it. Until then: **if you answer an Art. 30 request from this table, add those three fields by hand.**
+
 ---
 
 ## 2. Data-subject rights (Art. 15–22)

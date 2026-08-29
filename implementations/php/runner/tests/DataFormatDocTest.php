@@ -22,7 +22,13 @@ use Summae\Core\Substrate\FormatVersion;
  *   1. the version in the document's title and in its `$id` line equals `FORMAT_VERSION`;
  *   2. no `## v0.x` section is missing between the oldest documented version and the current one,
  *      so a release cannot skip its own write-up the way 0.7 did;
- *   3. every `$defs` key the schema declares is named in the document.
+ *   3. every `$defs` key the schema declares is named in the document;
+ *   4. the module `kind` enum in the document is set-equal to the one in the schema.
+ *
+ * Check 4 was added on 2026-08-29 (IMPL-044), after the same table line fell four module kinds
+ * behind for the second time in three days. Check 3 could not see it: `module` *is* named, only its
+ * enumeration of the kinds was stale. An enumeration that presents itself as closed has to be held
+ * against the source it is closed over.
  *
  * The SAME checks live in the Node data-format-doc.test.ts.
  */
@@ -152,5 +158,70 @@ final class DataFormatDocTest extends TestCase
         }
 
         self::assertSame([], $unnamed, 'the schema declares these and the normative document never names them');
+    }
+
+    /**
+     * The module-kind enum, held against the schema's (IMPL-044).
+     *
+     * The document's own table row says "Maßgeblich ist format.schema.json" and then repeats the
+     * list — which is exactly the construction that drifts: a reader takes the prose, the prose
+     * points at the source, and nobody compares the two. It fell four kinds behind twice: on
+     * 2026-08-27 (`productionCost`, `constraint`, `resultAppropriation`, `legalForms`) and again on
+     * 2026-08-29 (`inventory`, `provisions`, `deferrals`, `inputTaxAdjustment`).
+     *
+     * @return list<string>
+     */
+    private static function schemaModuleKinds(): array
+    {
+        /** @var array<string, mixed> $defs */
+        $defs = self::schema()['$defs'] ?? [];
+        /** @var array<string, mixed> $module */
+        $module = $defs['module'] ?? [];
+        /** @var array<string, mixed> $properties */
+        $properties = $module['properties'] ?? [];
+        /** @var array<string, mixed> $kind */
+        $kind = $properties['kind'] ?? [];
+        /** @var list<string> $enum */
+        $enum = $kind['enum'] ?? [];
+
+        self::assertNotSame([], $enum, 'the schema declares no module kinds — did it change shape?');
+        sort($enum);
+
+        return $enum;
+    }
+
+    /** @return list<string> */
+    private static function documentedModuleKinds(): array
+    {
+        $line = null;
+        foreach (explode("\n", self::doc()) as $candidate) {
+            if (str_starts_with($candidate, '| `kind` | Enum ')) {
+                $line = $candidate;
+                break;
+            }
+        }
+
+        self::assertIsString($line, 'the module table has no `kind` row — did § v0.6 change shape?');
+
+        // The cell separates its values with escaped pipes, so the escaped ones are parked before
+        // the row is split on the real column separator.
+        $cells = explode('|', str_replace('\\|', "\x00", $line));
+        self::assertArrayHasKey(2, $cells, 'the `kind` row has no enum cell');
+
+        preg_match_all('/`([a-zA-Z]+)`/u', $cells[2], $kinds);
+        $found = array_values(array_unique($kinds[1]));
+        sort($found);
+
+        return $found;
+    }
+
+    public function testTheModuleKindEnumMatchesTheSchema(): void
+    {
+        self::assertSame(
+            self::schemaModuleKinds(),
+            self::documentedModuleKinds(),
+            'the normative document enumerates other module kinds than the schema (IMPL-044) — '
+            . 'the same row fell four kinds behind on 2026-08-27 and again on 2026-08-29',
+        );
     }
 }

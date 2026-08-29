@@ -74,7 +74,12 @@ there — but **wiring one is about twelve places, not one**: `api-parameters.js
 parameter constant, the dispatcher, `API_OPERATIONS`/`API_PROJECTIONS`, the contract-test lists, an
 audit-completeness case, `AUDITED_EVENTS`, a handbook section, `expected-green.txt`, a declared
 requirement — each in **both** languages, each guarded by a test that names what is missing. Follow
-the red tests rather than a list from memory.
+the red tests rather than a list from memory. **Two of those places are prose and were unguarded
+until 2026-08-29:** the language-neutral API spec (`knowledge/50-spezifikation/api.md`) and the
+policy-kind census (`knowledge/40-domaenenmodell/jurisdiction-profil.md`) had fallen 26 of 80 names
+behind while every gate stayed green — the spec even named a guard for its own completeness that
+guards something else. `ApiSpecDocTest`/`api-spec-doc.test.ts` hold both against
+`api-parameters.json` now (IMPL-044).
 
 **Reads never go through stored balances.** Every trial balance / balance sheet / EÜR / VAT return
 is recomputed from the journal.

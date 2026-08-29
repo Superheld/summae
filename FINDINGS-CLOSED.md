@@ -56,7 +56,7 @@ status, so scanning the list no longer suggests open work that is long done. Res
 keep their original text under the resolution note: why a decision was made is worth more than
 a short file.
 
-**Highest number issued: `IMPL-042`, `SPEC-022`, `SPEC-C01`** (2026-08-28). Numbers are never
+**Highest number issued: `IMPL-046`, `SPEC-022`, `SPEC-C01`** (2026-08-29). Numbers are never
 reused, so this table lists open findings too — as one line with a pointer, never with their text,
 which stays in `FINDINGS-OPEN.md` until the finding is closed.
 
@@ -129,6 +129,9 @@ which stays in `FINDINGS-OPEN.md` until the finding is closed.
 | IMPL-041 F-KLR-002 (Abgrenzungsrechnung) is not built | ✅ **DECIDED 2026-08-28 — it is wanted, and the 2026-08-23 scope decision did not retire it.** That decision excluded three *decision-support* methods; the Abgrenzungsrechnung is the intake stage BAB and Umlage (both built) sit on, and `F-KLR-005` — kalkulatorische Kosten, the content of its *replace* and *add* rules — stands unretired in the same list. What its absence means is now written down rather than left implied: **in summae, Kosten == Aufwand**, so the ACL that justifies costing as its own bounded context does not exist. The requirement row says so, `lieferumfang.md` stops promising "Abgrenzung", and the design already exists (`costing-modell.md` § 2) — what is open is a build, not a question |
 | IMPL-042 F-IO-008 (DATEV import) is not built | ✅ **DECIDED 2026-08-28 — deferred, with the blocker named and verifiable in the shipped pack.** The way back needs BU key → `taxCode`, and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu` at all, and `USt19`/`USt19WA` both carry `3`. The inverse is neither total nor unique, so an import would guess — and what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real batch to verify the format against; until then the way back is the app's, the same line CAMT and XRechnung already sit on |
 | IMPL-043 F-KLR-005 is covered by fixtures about the case it excludes | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-044 the language-neutral API spec was held against nothing | ✅ **RESOLVED 2026-08-29** — `knowledge/50-spezifikation/api.md` calls its projection list *"the vollständige"* and was ten projections and sixteen operations behind, with two names (`writeDown`, `writeUp`) that no implementation ever carried and one (`systemDocumentation`) that was renamed before it shipped; the policy-kind census in `jurisdiction-profil.md` was fourteen expansions short and had **no bucket at all** for the nineteen master-data operations, which is how it could feel complete while proving nothing. Both documents completed and now held against `api-parameters.json` — the same contract the dispatcher validates against — by `ApiSpecDocTest`/`api-spec-doc.test.ts` in both languages. Same shape as IMPL-037 one folder over: the derived artefacts were guarded, the normative prose was not |
+| IMPL-045 the personal-data inventory stops at the exchange format | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
+| IMPL-046 five persisted record kinds are a shared format no oracle covers | ⚠️ **OPEN** — see [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) |
 
 SPEC-004, IMPL-008, the IMPL-005 remainder, IMPL-015 and IMPL-018 were all closed on 2026-08-16, and IMPL-019 +
 IMPL-020 were **found and closed** the same day while closing the gate gaps below.
@@ -2567,3 +2570,50 @@ from *outside*: another runtime, a restore, a hand edit. The tests therefore wri
 straight into the column and read it back through a second tenant instance, which is what the
 adapter suites are for. `fehlerkatalog.md` and `abdeckung.md` now say that instead of listing it as
 the last real gap.
+
+
+## IMPL-044 — the language-neutral API spec was held against nothing — ✅ RESOLVED 2026-08-29
+
+**Found 2026-08-29** while reviewing whether the HGB build pass had left the documents behind.
+
+It had not left the *gated* ones behind: the handbook carried all fourteen new operations and
+projections, the CHANGELOG named them, `funktional.md` declared every requirement, `covers` resolved
+in both directions, all three censuses were current and green. What was behind was the layer
+underneath — the **normative prose the whole API is supposed to be defined by**.
+
+`knowledge/50-spezifikation/api.md` was missing **26 of 80** operations and projections. Sixteen
+operations, including `writeDownAsset`, `createVoucher`, `unlockAccount`, both dimension operations
+and everything built on 2026-08-29; ten projections, including `gdpduExport` and
+`personalDataDescription`, both of which a compliance census cites as evidence. Two of the names it
+*did* carry were wrong: `writeDown` and `writeUp` exist under those names nowhere, and
+`systemDocumentation` was renamed to `systemDescription` before it shipped. The document's own words
+are *"Semantik und Namen sind bindend"*.
+
+**The sentence that makes it a finding rather than a chore.** Above the projection list stands:
+*"Diese Liste ist **die vollständige**, und sie muss es bleiben … ein Contract-Test hält sie gegen
+die Routing-Tabelle des Dispatchers."* The contract test is real and it holds `systemDescription`
+against the dispatcher. It never touched this list. A document that names its own guard, and names
+one that guards something else, is worse than an unguarded one: a reader stops checking.
+
+The same pass found the second half in `knowledge/40-domaenenmodell/jurisdiction-profil.md`, which
+`api.md` points at as the single source for the policy-kind assignment. Its census claims to make
+*"alles über dem Substrat ist genau eine von drei Sorten"* provable **by enumeration**. It was
+fourteen expansions and eleven projections short — and nineteen write operations
+(`createAccount`, every partner operation, `setTaxProfile`, `importMapping`, `setAllocationScheme`,
+…) fit none of its three buckets, because master data is not a policy kind and no bucket for it had
+ever been written. The claim was not merely stale; it could not have been true as stated.
+
+**Fixed and guarded the same day.** Both documents are complete, the two wrong names are corrected
+with a line saying what they were, and `ApiSpecDocTest` / `api-spec-doc.test.ts` hold both files
+against `testing/testsuite/schema/api-parameters.json` in both languages: every declared operation
+and projection must appear, as an inline-code token that *starts* with the name so
+`runCosting(period)` and `createFiscalYear {…}` count and prose does not. The **assignment** to a
+policy kind stays human work; that nothing is missing does not.
+
+**Two things the fix could not reach, and they are recorded rather than absorbed.** The document is
+still allowed to describe an operation wrongly — only its absence is mechanical, exactly as with the
+census guards. And `datenformat.md`'s module-kind enum was four kinds behind for the **second time in
+three days** (IMPL-037 fixed the version and the sections, not the enum); that half is closed here
+too, by extending `DataFormatDocTest` with a fourth check that holds the enum against
+`format.schema.json`. An enumeration that presents itself as closed has to be held against the
+source it is closed over.

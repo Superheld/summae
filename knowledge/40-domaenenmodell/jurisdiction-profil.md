@@ -80,15 +80,29 @@ Die Rosetta oben sortiert nach **Schicht** (Kern/Pack/App). Diese Ansicht sortie
 **Substrat (keine Politiksorte — die Mechanik darunter):** `post` (Buchung anlegen), Journal-Append, Saldo-Faltung, `sequenceNumber`-Vergabe, `correct` (Entwurf im Status `entered` ändern). Jurisdiktionsfrei, ohne Stecker.
 
 **Expansionen** (Absicht → ausbalancierte Buchungen; Sockel Kern + Stecker Pack):
-`expandTax` · `postVoucher`-Komposition · `settle`/`settleVoucher` mit Differenz (Skonto/§ 17) · `runDepreciation` (AfA-Lauf) · GWG-Weiche bei `acquireAsset` · `disposeAsset` (Abgangsbuchung) · `reverse` (Generalumkehr-Gegenbuchung) · Costing-Umlagen/kalkulatorische Kosten.
+`expandTax` · `postVoucher`-Komposition · `settle`/`settleVoucher` mit Differenz (Skonto/§ 17) · `runDepreciation` (AfA-Lauf) · GWG-Weiche bei `acquireAsset` · `disposeAsset` (Abgangsbuchung) · `reverse` (Generalumkehr-Gegenbuchung) · Costing-Umlagen/kalkulatorische Kosten · `appropriateResult` (Ergebnisverwendung; Konten aus dem `resultAppropriation`-Modul) · `writeDownAsset`/`writeUpAsset` (außerplanmäßige Abwertung und Zuschreibung) · `bookSpecialDepreciation` (Sonderabschreibung) · `reportAssetUsage` (Leistungsabschreibung) · `valuateInventory` (Vorratsbewertung; Kategorien und Bestandsveränderungskonten aus dem `inventory`-Modul) · `recognizeProvision`/`useProvision`/`releaseProvision`/`remeasureProvision` (Rückstellungen; Konten und Abzinsungs*regel* aus dem `provisions`-Modul, der *Satz* je Vorgang) · `recognizeDeferral`/`runDeferralRelease` (RAP und Auflösungsplan) · `adjustInputTax` (§ 15a-Berichtigung; Zeiträume, Grenzen, Konten, Kennzahl aus dem `inputTaxAdjustment`-Modul) · `runCosting`/`releaseCosting` (die Läufe hinter den Costing-Umlagen; `setAllocationScheme` ist ihre Konfiguration).
+
+**Stammdaten und Konfiguration (keine Politiksorte — sie tragen keinen Stecker; sie *sind* der Bestand, über den die drei Sorten laufen):**
+`createTenant` · `createAccount`/`lockAccount`/`unlockAccount` · `importChartOfAccounts` · `createVoucher` · `createPartner`/`updatePartner`/`deactivatePartner`/`reactivatePartner`/`erasePartner` · `defineDimensionType`/`defineDimensionValue` (Mandanten-, nicht Pack-Daten) · `createFiscalYear` · `setTaxProfile`/`setEntityProfile` (Eingaben, die gegen den **Pack**-Katalog geprüft werden — `legalForms`) · `importMapping` (bringt einen Projektions-Stecker in den Mandanten) · `setAllocationScheme`. Diese Zeile fehlte bis 2026-08-29 ganz, und das ist der Grund, warum der Zensus sich vollständig *anfühlen* konnte, ohne es zu sein: neunzehn Schreiboperationen passten in keine der drei Sorten, weil sie in keine gehören.
+
+**Zustandsübergänge, die Constraint-Zustand verwalten:** `finalize` / `finalizeUntil` (Festschreibung) · `closePeriod`/`reopenPeriod` · `closeFiscalYear`.
 
 **Projektionen** (Journal → Sicht; Mechanik Kern + Mapping Pack):
-`trialBalance`/SuSa · `balanceSheet` · `incomeStatement` (inkl. Monats-GuV) · `cashBasisReport`/EÜR · `vatReturn` · `ecSalesList`/ZM · `openItems` · `assetRegister` · `auditLog` · `unfinalizedEntries` · `costAllocationSheet`/BAB · `journalExport`/Z3 · `datevExport`.
+`accounts` · `accountSheet` · `assetRegister` · `assetSchedule` (Anlagengitter) · `auditDataExport` (AICPA ADS) · `auditLog` · `auditTrailIntegrity` · `balanceSheet` · `cashBasisReport`/EÜR · `cashJournal` · `costAllocationSheet`/BAB · `costingRuns` · `datevExport` · `deferralRegister` · `duplicateVouchers` · `ecSalesList`/ZM · `fiscalYears` · `gdpduExport` (Z3-Datenträger) · `incomeStatement` (inkl. Monats-GuV) · `inventoryValuation` · `journal` · `journalExport`/Z3 · `measurementConsistency` · `openItems` · `overheadRates` · `personalDataDescription` · `productionCost` · `provisionRegister` · `systemDescription` · `tenantConfiguration` · `trialBalance`/SuSa · `unappropriatedResult` · `unfinalizedEntries` · `vatReturn`.
 
 **Constraints** (Prädikate, die gelten müssen — durchgesetzt beim Schreiben; verwaltet durch Zustandsübergänge):
 Σ Soll = Σ Haben · Belegpflicht (`voucherId`) · Periode offen (Übergänge: `closePeriod`/`reopenPeriod`/`closeFiscalYear`) · Festschreibung unveränderbar · Dimensions-Validierung (Mechanik Kern + Pack-`dimensionRules`) · Belegpflichtfelder (z. B. USt-IdNr. bei igL → Pack) · Journalnummer-Lückenlosigkeit (NF-6) · EÜR nur bei Kalenderjahr (`E_CASHBASIS_DEVIATING_FISCAL_YEAR`). Die Durchsetzungsreihenfolge steht in `api.md` (Prüfreihenfolge), die Verstöße im Fehlerkatalog.
 
 > Hinweis zur Präzision: `correct` und `post` sind **Substrat**, keine Expansion (sie tragen keinen Stecker). `closePeriod`/`closeFiscalYear` sind **Operationen, die Constraint-Zustand verwalten** — der Constraint ist „Periode offen", die Operation ist der Übergang.
+
+> **Warum dieser Zensus jetzt geprüft wird** (2026-08-29): Er behauptet, die zentrale Aussage
+> „alles über dem Substrat ist genau eine von drei Sorten" *durch Aufzählung* prüfbar zu machen —
+> und war zuletzt vierzehn Operationen und elf Projektionen im Rückstand, also genau in dem Teil,
+> der die Behauptung tragen soll. Seit 2026-08-29 halten `ApiSpecDocTest` / `api-spec-doc.test.ts`
+> beide Listen (hier und in `50-spezifikation/api.md`) gegen
+> `testing/testsuite/schema/api-parameters.json`, den Vertrag, gegen den auch der Dispatcher
+> validiert. Die **Zuordnung** zur Politiksorte bleibt Menschenarbeit; dass keine Operation fehlt,
+> nicht mehr.
 
 ## Begriffsklärung (eine Linie durch drei Benennungen)
 

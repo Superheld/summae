@@ -70,6 +70,69 @@ and a fixture proves *that*, which is checkable today. **Built in the meantime: 
 deliberately: it is a decision about what the requirement means, and the same pass has already
 decided two of those.
 
+## IMPL-045 — the personal-data inventory stops at the exchange format
+
+**Found 2026-08-29** while reviewing what the HGB build pass left in the three censuses.
+
+§1 of `docs/gdpr-conformance.md` is *"the inventory an Art. 30 record needs"*, and
+`personalDataDescription` publishes the same list as a projection. Both enumerate seven fields, and
+every one of them is a record the **exchange format** declares (`partner`, `voucher`, `journalEntry`,
+`auditRecord`). That boundary was never stated and is not where the personal data stops.
+
+summae persists five aggregate kinds the exchange format does **not** declare — `asset`,
+`costingRun`, and since 2026-08-29 `provision`, `deferral`, `inventoryValuation`. Three of them carry
+operator-supplied free text: `asset.name`, `provision.reason`, `deferral.reason`. Nothing constrains
+what goes in there, and a provision is *by its nature* often about a named party — a dispute, a
+warranty claim, a severance. An Art. 30 record assembled from §1 does not mention any of them.
+
+**Why the rows were not simply added.** `GdprConformanceDocTest` / `gdpr-conformance-doc.test.ts`
+resolve every inventory row against `$defs` in `format.schema.json`; a row for a record the format
+does not declare turns the gate red. That guard is right — it is what keeps the inventory from
+describing fields that no longer exist — and the gap is upstream of it: **the format schema does not
+declare the aggregates the persistence adapters read back** (that half is IMPL-046). Adding prose to
+§1 that the guard cannot check would put the inventory back in the state the guard exists to prevent.
+
+**Built in the meantime:** the boundary is stated in §1 with the three fields named, and an operator
+answering an Art. 30 request is told to add them by hand. That is honest and it is not a fix.
+
+**What would close it.** Either the aggregates enter the format (IMPL-046) and the three fields
+become ordinary inventory rows with the guard behind them — the clean order — or
+`personalDataDescription` grows a second list for *stored* free text with its own guard, and §1
+follows it. The first is preferable: two lists of personal-data fields is how the two drift apart.
+
+## IMPL-046 — five persisted record kinds are a shared format that no shared oracle covers
+
+**Found 2026-08-29**, from the other side of IMPL-045.
+
+The root `CLAUDE.md` calls the adapters' JSON *"the shared data format"*, and the contract
+obligations say anything the engine reads is validated against `format.schema.json`. Both
+persistence adapters store aggregates as JSON and read them back through `restore()` — `asset`,
+`costingRun`, `provision`, `deferral`, `inventoryValuation`. **None of the five is in `$defs`.**
+Three of them arrived on 2026-08-29, so this went from a two-year-old blind spot to a five-kind one
+in a day.
+
+Three things say the same gap out loud:
+
+- The `Unreleased` CHANGELOG section states *"the data format gains four record kinds"* — while
+  `FORMAT_VERSION` stayed `0.9`, `format.schema.json` gained four **module kinds** and no `$defs`
+  entry, and `datenformat.md` has no section for any of them.
+- The cross-test (SF-15, *one DB, multiple engines, one truth*) compares `journalExport` and nothing
+  else. A provision written by PHP and read by Node is a real scenario for a shared database, and no
+  test in either language crosses that line — each side tests its own adapter against itself.
+- The three fixed-asset findings that reached the register through an embedding application
+  (IMPL-021 … IMPL-026) all lived in exactly this unschema'd half.
+
+**This is not a claim that the two implementations disagree.** They are mirrored by hand and both
+adapter suites pass. It is the claim that *nothing would notice if they stopped agreeing*, which is
+the same argument that produced the fixtures in the first place.
+
+**What would close it.** `$defs` entries for the five aggregates plus a `## v0.10` section in
+`datenformat.md` and a `FORMAT_VERSION` bump (the version is what makes a reader's validator
+correct); the schema validation test extended to a persisted round trip; and the cross-test reading
+back at least one aggregate written by the other engine. **Built in the meantime: nothing** — a
+format version is a published fact and bumping it inside a doc-review pass would be the kind of
+quiet decision this register exists to prevent.
+
 ## What is closed, and the pattern in it
 
 Everything else that stood here is in [`FINDINGS-CLOSED.md`](FINDINGS-CLOSED.md) with what was
@@ -105,8 +168,18 @@ times the estimate; IMPL-040 was sitting on a live bug that stopped a scale-3 te
 books; IMPL-042's blocker was in the shipped pack data all along. A finding is a lead, not a
 verdict.
 
-**The one entry above is what the pass could not close by building.** IMPL-043 is a claim about
-*meaning* — whether a fixture proves what its `covers` says — and that is the exact thing the guard
-built for IMPL-039 cannot check. It is here rather than folded into a green check on purpose.
+**IMPL-043 is what that pass could not close by building.** It is a claim about *meaning* —
+whether a fixture proves what its `covers` says — and that is the exact thing the guard built for
+IMPL-039 cannot check. It is here rather than folded into a green check on purpose.
+
+**IMPL-045 and IMPL-046 came out of the doc review on 2026-08-29 and are the same shape one more
+time.** Three censuses, a handbook, a CHANGELOG and both gates were green and current; what was
+behind was the *normative prose underneath them* — the API spec (26 of 80 operations missing, two
+names no implementation ever carried), the module-kind enum in the format spec (four short, for the
+second time in three days), and the policy-kind census that claims to make the architecture provable
+by enumeration (nineteen operations that fit none of its three buckets, because the fourth bucket was
+never written). Those three were fixed and guarded the same day (IMPL-044). What could **not** be
+fixed by writing is the pair above: both are about records the format does not declare, and that is
+a decision about the format, not a paragraph.
 
 The next one goes here.
