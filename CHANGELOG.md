@@ -10,7 +10,7 @@ versioning per SemVer (0.x: minor may break).
 > should describe what was released. The mapping lives at the top of
 > [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
 
-## Unreleased
+## 0.18.0 — 2026-08-29
 
 > **Minor when it ships, and it will break twice.** The data format gains four record kinds
 > (inventory valuations, provisions, deferrals and the assets' shadow depreciation plan), the account
