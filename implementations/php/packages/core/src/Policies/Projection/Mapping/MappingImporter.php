@@ -9,6 +9,7 @@ use Summae\Core\Composition\TenantConfigStore;
 use Summae\Core\Ledger\AuditWriter;
 use Summae\Core\Port\AccountRepository;
 use Summae\Core\Substrate\Account;
+use Summae\Core\Substrate\AccountType;
 use Summae\Core\Substrate\Uuid;
 
 /**
@@ -66,6 +67,19 @@ final readonly class MappingImporter
             if ($matches === []) {
                 $gapWarnings[] = ['account' => $account->number->value, 'assignedTo' => Unassigned::KEY];
             }
+
+            // The offsetting prohibition, at the one place a mapping enters a running tenant. The
+            // rule everybody knows and nothing checked: a position that draws a receivable range
+            // AND a payable range reports one netted figure, and every gate stays green because the
+            // statement still balances.
+            //
+            // Checked on the account TYPE, not on the balance. An overdrawn bank account is still an
+            // asset account and belongs on the assets side; a position holding it offsets nothing.
+            // What is forbidden is a position that SELECTS both kinds, because then no reader can
+            // tell what the figure is made of.
+            if ($mapping->kind === 'balance-sheet' && count($matches) === 1) {
+                $this->assertNotOffsetting($mapping, $matches[0], $account);
+            }
         }
 
         $this->registry->add($mapping);
@@ -85,6 +99,44 @@ final readonly class MappingImporter
             'kind' => $mapping->kind,
             'gapWarnings' => $gapWarnings,
         ];
+    }
+
+    /**
+     * @param Mapping $mapping the mapping being imported
+     */
+    private function assertNotOffsetting(Mapping $mapping, string $positionKey, Account $account): void
+    {
+        foreach ($mapping->leaves as $leaf) {
+            if ($leaf['key'] !== $positionKey) {
+                continue;
+            }
+
+            $side = $leaf['side'];
+            if ($side === null) {
+                return;
+            }
+
+            $belongs = $side === 'assets'
+                ? $account->type === AccountType::Asset
+                : in_array($account->type, [AccountType::Liability, AccountType::Equity], true);
+
+            if (!$belongs) {
+                throw new DomainError('E_MAPPING_SIDE_MIXED', sprintf(
+                    'Position %s is on the %s side and takes account %s, which is of type "%s"',
+                    $positionKey,
+                    $side,
+                    $account->number->value,
+                    $account->type->value,
+                ), [
+                    'position' => $positionKey,
+                    'side' => $side,
+                    'account' => $account->number->value,
+                    'type' => $account->type->value,
+                ]);
+            }
+
+            return;
+        }
     }
 
     /**
