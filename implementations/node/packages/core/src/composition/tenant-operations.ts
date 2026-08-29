@@ -138,6 +138,8 @@ export class TenantOperations {
         return this.tenant.assetService.writeDownAsset(input);
       case 'runDepreciation':
         return this.tenant.assetService.runDepreciation(input);
+      case 'valuateInventory':
+        return this.tenant.inventory.valuate(input);
       case 'allocate': {
         // Largest-remainder distribution (Money.allocate), scale from the tenant currency
         // (pack parameter currencyScale). Pure computation, no journal effect.
@@ -248,6 +250,8 @@ export class TenantOperations {
         return tenant.costing.productionCost(params);
       case 'measurementConsistency':
         return new MeasurementConsistencyProjection(tenant.costingRuns).compute(params);
+      case 'inventoryValuation':
+        return tenant.inventory.valuationReport(params);
       case 'ecSalesList':
         return new EcSalesListProjection(
           tenant.baseCurrency,

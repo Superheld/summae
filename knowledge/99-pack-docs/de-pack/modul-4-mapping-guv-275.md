@@ -1,7 +1,7 @@
 # Modul 4 — GuV §275 (`mapping`)
 
 ```
-kind: mapping · id: de-guv · version: 2026.1 · formatVersion: 0.6
+kind: mapping · id: de-guv · version: 2026.2 · formatVersion: 0.6
 contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "income-statement", version, positions[] }
 ```
@@ -23,6 +23,7 @@ nach § 275 HGB (Gesamtkostenverfahren). Reine Projektions-Daten. Schaltet SF-09
 | Pos | Label im Modul | Konten |
 |---|---|---|
 | 1 | Umsatzerlöse | 4000–4099 |
+| 1a | Erhöhung oder Verminderung des Bestands an fertigen und unfertigen Erzeugnissen | 4100–4199 |
 | 2 | Sonstige betriebliche Erträge | 4900–4999 |
 | 3 | Materialaufwand | 5000–5999 |
 | 4 | Personalaufwand | 6300–6399 |

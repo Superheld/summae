@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "us-gaap-balance-sheet",
   "kind": "mapping",
-  "version": "2026.2",
+  "version": "2026.3",
   "name": "Classified Balance Sheet US-GAAP (assets ordered by liquidity, on the US chart)",
   "contributes": ["mappings"],
   "dependsOn": [{ "kind": "accounts", "id": "us-accounts-2026" }],
@@ -10,11 +10,12 @@
     "mapping": {
       "id": "us-gaap-balance-sheet",
       "kind": "balance-sheet",
-      "version": "2026.2",
+      "version": "2026.3",
       "positions": [
         { "key": "A", "label": "Assets", "side": "assets", "children": [
           { "key": "A.I", "label": "Cash and Cash Equivalents", "accounts": [ { "from": "1000", "to": "1099" } ] },
           { "key": "A.II", "label": "Accounts Receivable and Other Current Assets", "accounts": [ { "from": "1200", "to": "1299" } ] },
+          { "key": "A.IIa", "label": "Inventory", "accounts": [ { "from": "1300", "to": "1399" } ] },
           { "key": "A.III", "label": "Prepaid Expenses", "accounts": [ { "from": "1400", "to": "1499" } ] },
           { "key": "A.IV", "label": "Property, Plant and Equipment", "accounts": [ { "from": "1500", "to": "1599" } ] }
         ] },

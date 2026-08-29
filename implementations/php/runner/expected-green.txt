@@ -14,6 +14,8 @@ allocation-method-refused
 overhead-rates
 overhead-rate-rounding
 measurement-consistency
+stock-valuation
+de-vorraete
 production-cost
 de-herstellungskosten
 us-inventory-costing
@@ -120,7 +122,7 @@ us-balance-income
 us-contra-revenue
 us-depreciation
 us-exempt-sale
-us-fiscal-year
+us-fiscal-year-current
 us-nexus
 us-sales-tax
 us-sales-tax-return

@@ -430,6 +430,7 @@ want to serve, you create one module:
 | balance sheet / income statement / cash-basis (projection) | `mapping` | `mapping` (`kind: balance-sheet\|income-statement\|cash-basis-categories`, `positions[]`) |
 | depreciation (expansion) | `depreciation` + `assetAccounts` | depreciation tables resp. the 5 asset contra-accounts |
 | rounding/scale (parameters) | `policy` | `packPolicy` (`roundingMode/taxRoundingGranularity/currencyScale`) |
+| stock valuation (expansion) | `inventory` | `categories[]` (`account`, `changeAccount`, `label?`) — which accounts hold stock and where each one's change is booked |
 
 `formatVersion` names the **data format the file was authored against**, not the pack's own
 version — a shipped module may declare an older one and stay perfectly valid, because a module
@@ -523,7 +524,7 @@ Validation runs in the test runners, so the core stays framework-free.
 balance-carrying (carry forward across years), `expense`/`revenue` are per
 fiscal year.
 
-`subtype` is a **closed repertoire** since format 0.9 — eleven values, and anything else is
+`subtype` is a **closed repertoire** since format 0.9 — twelve values, and anything else is
 refused rather than stored:
 
 | Value | Read by the engine for |
@@ -536,6 +537,7 @@ refused rather than stored:
 | `tax_in` | VAT return (input side), cash-basis, DATEV export |
 | `tax_out` | VAT return (output side), cash-basis, DATEV export |
 | `result_allocation` | where an appropriated result lands |
+| `inventory` | stock — the only accounts `valuateInventory` may value onto |
 | `fixed_asset` | *annotation only* — the asset expansion uses its own module |
 | `opening_balance` | *annotation only* — the chart's opening-balance account |
 | `private` | *annotation only* — owner's drawings and contributions |
@@ -1064,7 +1066,7 @@ Errors: `E_ACCOUNT_NUMBER_TAKEN`, `E_COA_FORMAT_INVALID`, `E_INPUT_INVALID` (a `
 its `validFrom` — a window that closes before it opens accepts no posting at all, so the account
 would be created dead; or a `subtype` outside the repertoire).
 
-**`subtype` is a closed repertoire** — one of the eleven canonical values listed under
+**`subtype` is a closed repertoire** — one of the twelve canonical values listed under
 `chartsOfAccounts[]`, or absent. A value outside it is `E_INPUT_INVALID` with the offending value
 and the known list in `details`, rather than being stored: before format 0.9 a hyphen for an
 underscore created a liability account that no VAT return would ever count, and the only way to
@@ -1645,6 +1647,66 @@ no-op `{ "alreadyRun": true, "entriesCreated": 0 }`. Error: `E_PERIOD_UNKNOWN`.
 { "fiscalYear": 2026 }   // → entriesCreated 1, totalDepreciation 500.00 (6/36 of 3000)
 ```
 
+#### valuateInventory
+
+Value stock at a reporting date and book the change. `fiscalYear` (yes), `period` (yes),
+`valuationDate` (yes), `categories[]` (yes), `runId` (no), `producedQuantity` (no),
+`actor` (no). Output:
+`{ "valuationId", "version", "closingTotal", "change", "posted", "entryId" }`.
+
+**What summae knows and what it refuses to know.** It does not know what is in your warehouse.
+There is no product master, no goods movement, no bill of material and no stock ledger — those are
+your application's data, and nothing here carries a quantity forward. What summae owns is the *act
+of valuing*: which accounts, which quantities, at what unit value, where that value came from, what
+a comparison with a market value did, and which entry it produced. That record is kept, and it is
+kept for the same reason the asset register is: an engine that books a change in stock and cannot
+say how it reached the number has not valued anything.
+
+Each entry of `categories[]`:
+
+| key | meaning |
+|---|---|
+| `account` | the stock account, and it **must** carry `subtype: "inventory"` — otherwise `E_INVENTORY_ACCOUNT_INVALID` |
+| `quantity` | the counted quantity, as a **decimal string**. Not a JSON number: `0.1` is not `0.1`, and a quantity that reads back differently in PHP and Node breaks byte parity at the first export |
+| `unitCost` | the cost per unit, as a decimal string. Optional — see below |
+| `marketValue` | the value per unit at the reporting date, as a decimal string. Optional |
+
+**Where a unit value comes from, and it is never guessed.** Give `unitCost` and it is used. Leave it
+out and summae derives it from a **released** costing run: `runId` supplies the production cost
+(the § 255 components you configured in `setAllocationScheme`), `producedQuantity` says what output
+that total relates to, and the division happens here — the one place where both numbers are declared
+inputs of the same call. A draft run is refused with `E_COSTING_RUN_NOT_RELEASED`: valuing a balance
+sheet out of a figure its own producer has not stood behind is not a rounding question.
+
+**Lower of cost or market.** Give `marketValue` and the lower of the two is used; the row says which
+(`unitValue`, `writtenDownToMarket`). Whether comparing is a duty, an option or forbidden is your
+jurisdiction's business — the arithmetic of taking the lower of two numbers and saying which one you
+took is not.
+
+**What gets booked.** Per category: the difference between the closing value and what the accounts
+already carry, debited to the stock account and credited to the account your pack names for that
+category (or the reverse for a decrease), in **one** entry for the whole valuation, finalized
+immediately like a depreciation run. If nothing changed, nothing is booked and `posted` is `false`.
+
+**Repeating it is safe, and that is not an accident.** A second valuation of the same period is a new
+*version*; because the posting is always the difference against the current book value, an unchanged
+period books nothing and a corrected one books the correction. There is no idempotency key to get
+wrong.
+
+```json
+{ "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+  "runId": "…", "producedQuantity": "3000",
+  "categories": [
+    { "account": "1120", "quantity": "800", "marketValue": "38.00" },
+    { "account": "1130", "quantity": "150", "unitCost": "12.00" }
+  ] }
+```
+
+Errors: `E_INVENTORY_ACCOUNT_INVALID`, `E_COSTING_RUN_NOT_RELEASED`, `E_COSTING_RUN_UNKNOWN`,
+`E_ACCOUNT_UNKNOWN`, `E_PACK_INCOHERENT` (the pack declares no stock categories, or none for this
+account), `E_INPUT_INVALID` (no categories at all — a valuation of nothing is not a valuation of
+zero; a negative quantity; a missing unit value with no run to derive one from).
+
 #### setAllocationScheme
 
 Allocation scheme. `method` (no, default `"step_ladder"`), `steps[]` (`sender` yes,
@@ -1932,7 +1994,7 @@ is `trialBalance`), no movements (`accountSheet`), no hashes.
 The two fields worth naming are the two that were hard to get before.
 **`subtype`** says what an account is *for* — which one is the bank, which the
 cash box, which receivables and payables — and it is what an application should
-use to preselect a counter account. It is one of eleven canonical values or
+use to preselect a counter account. It is one of twelve canonical values or
 `null` (the repertoire is listed under `chartsOfAccounts[]`), so a caller may switch on it
 exhaustively rather than defensively. Reading the **pack** instead is the trap: the
 pack is the chart the tenant *started* from, and one `createAccount` later it is
@@ -2291,6 +2353,25 @@ administration, and that single row of pack data is the whole difference.
 What this does **not** do is divide by a quantity. Per-unit production cost needs
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
+
+### inventoryValuation — what was valued, how, and out of what
+
+`fiscalYear` (no), `period` (no). Output: `valuations[]`, each
+`{ valuationId, fiscalYear, period, version, valuationDate, runId, categories[], closingTotal,
+change, entryId }`.
+
+The read side of `valuateInventory`, and the reason the act is recorded at all. Each category row
+carries `quantity`, `unitCost`, `marketValue`, the `unitValue` actually used, `source`
+(`"input"` or `"productionCost"` — where the unit cost came from), `openingValue`, `closingValue`,
+`change`, `changeAccount` and `writtenDownToMarket`.
+
+A valuation that showed only its own total would be unauditable, exactly as a production cost
+showing only its total would be — an inventory has to be able to show *how* it reached a figure,
+not just the figure. `entryId` is `null` where nothing was booked because nothing had changed;
+that is an answer, not a gap.
+
+Every version is reported, oldest first. A re-valuation is a correction somebody made, and the
+version it corrected is part of the story.
 
 ### measurementConsistency — did the way you measure change?
 

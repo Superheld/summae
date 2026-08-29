@@ -139,6 +139,19 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
         });
 
+        self::ensure($schema, 'inventory_valuations', static function (Blueprint $table): void {
+            // Same shape and the same reasoning as costing_runs: period and version are columns
+            // because they are what a valuation is FOUND by. No `status` — a valuation has no draft
+            // state; repeating one is the next version, and its posting is the difference.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->integer('fiscal_year');
+            $table->integer('period');
+            $table->integer('version');
+            $table->json('payload');
+            $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
+        });
+
         self::ensure($schema, 'tenants', static function (Blueprint $table): void {
             // The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
             //
@@ -176,7 +189,7 @@ final class SchemaInstaller
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'costing_runs', 'audit_log', 'tenants',
+            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'audit_log', 'tenants',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);
         }

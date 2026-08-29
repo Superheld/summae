@@ -106,3 +106,11 @@ back what it once wrote is the worse failure. Three of the eleven (`fixed_asset`
 shipped pack uses them, and a repertoire of only the eight would refuse all three shipped charts.
 **What would reopen it:** a pack needing an account role the engine genuinely does not have — the
 answer then is a twelfth registered value with its reader, not a free string again.
+
+**And on 2026-08-29 exactly that happened, which is why this paragraph is worth keeping rather than
+rewriting.** Stock was the missing role: `inventory` is the twelfth value, and it arrived the way
+the sentence above said it should — registered, with its reader (`InventoryService` refuses to value
+stock onto an account that is not a stock account, `E_INVENTORY_ACCOUNT_INVALID`). Without the
+reader the posting would balance, satisfy every invariant, and land in the wrong balance-sheet
+position, which is the same inert-annotation defect one step worse: a wrong number instead of a
+missing one. The repertoire is closed at twelve on the same terms.

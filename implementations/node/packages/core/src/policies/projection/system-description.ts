@@ -43,14 +43,16 @@ export const API_OPERATIONS = [
    'deactivatePartner', 'defineDimensionType', 'defineDimensionValue', 'disposeAsset', 'erasePartner',
    'expandTax', 'finalize', 'importChartOfAccounts', 'importMapping', 'lockAccount', 'post',
    'postVoucher', 'reactivatePartner', 'releaseCosting', 'reopenPeriod', 'reportAssetUsage',
-   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile', 'settle',
+   'reverse', 'runCosting', 'runDepreciation', 'setAllocationScheme', 'setEntityProfile', 'setTaxProfile',
+  'valuateInventory', 'settle',
    'unlockAccount', 'updatePartner', 'writeDownAsset',
 ] as const;
 
 export const API_PROJECTIONS = [
   'accountSheet', 'accounts', 'assetRegister', 'auditDataExport', 'auditLog', 'auditTrailIntegrity', 'balanceSheet',
   'cashBasisReport', 'cashJournal', 'costAllocationSheet', 'costingRuns', 'datevExport', 'duplicateVouchers', 'ecSalesList',
-  'fiscalYears', 'gdpduExport', 'incomeStatement', 'journal', 'journalExport', 'measurementConsistency', 'openItems',
+  'fiscalYears', 'gdpduExport', 'incomeStatement', 'inventoryValuation', 'journal', 'journalExport',
+  'measurementConsistency', 'openItems',
   'personalDataDescription', 'overheadRates',
   'productionCost', 'systemDescription', 'tenantConfiguration', 'trialBalance',
   'unappropriatedResult', 'unfinalizedEntries', 'vatReturn',
@@ -143,6 +145,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'dimensionType', actions: ['created'] },
   { objectType: 'dimensionValue', actions: ['created'] },
   { objectType: 'depreciationRun', actions: ['completed'] },
+  { objectType: 'inventoryValuation', actions: ['valued'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];
 

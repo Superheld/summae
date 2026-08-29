@@ -14,6 +14,9 @@ import {
   CalendarDate,
   CostingRun,
   type CostingRunRepository,
+  InventoryValuation,
+  type InventoryCategoryRow,
+  type InventoryValuationRepository,
   type Currency,
   type EntryStatus,
   FiscalYear,
@@ -536,6 +539,72 @@ export class DatabaseCostingRunRepository implements CostingRunRepository {
 
   private table() {
     return this.db.table(`${TABLE_PREFIX}costing_runs`);
+  }
+}
+
+/**
+ * Inventory valuations — payload as JSON, one row per act (F-CORE-050).
+ *
+ * Period and version are columns rather than payload fields for the reason the costing runs give:
+ * they are what a valuation is *found* by, and the next version of a period comes out of the store.
+ * There is no `save` — a valuation is never edited. Repeating one produces the next version, whose
+ * posting is the difference against what the books by then already carry.
+ */
+export class DatabaseInventoryValuationRepository implements InventoryValuationRepository {
+  constructor(
+    private readonly db: SyncDb,
+    private readonly tenantId: Uuid,
+    private readonly currency: Currency,
+  ) {}
+
+  add(valuation: InventoryValuation): void {
+    this.db.run(
+      this.table().insert({
+        id: valuation.id.value,
+        tenant_id: this.tenantId.value,
+        fiscal_year: valuation.period.fiscalYear,
+        period: valuation.period.period,
+        version: valuation.version,
+        payload: H.encode(valuation.toJSON()),
+      }),
+    );
+  }
+
+  byId(id: Uuid): InventoryValuation | null {
+    const row = this.db.first(this.table().where('tenant_id', this.tenantId.value).where('id', id.value));
+    return row === null ? null : this.hydrate(row);
+  }
+
+  all(): InventoryValuation[] {
+    return this.db
+      .all(
+        this.table()
+          .where('tenant_id', this.tenantId.value)
+          .orderBy('fiscal_year')
+          .orderBy('period')
+          .orderBy('version'),
+      )
+      .map((row) => this.hydrate(row));
+  }
+
+  private hydrate(row: Row): InventoryValuation {
+    const data = H.decode(row.payload);
+
+    return InventoryValuation.restore(
+      Uuid.fromString(str(row, 'id')),
+      new PeriodRef(Number(row.fiscal_year), Number(row.period)),
+      Number(row.version),
+      CalendarDate.of(typeof data.valuationDate === 'string' ? data.valuationDate : '1970-01-01'),
+      typeof data.runId === 'string' ? Uuid.fromString(data.runId) : null,
+      Array.isArray(data.categories) ? (data.categories as InventoryCategoryRow[]) : [],
+      H.money(H.isRecord(data.closingTotal) ? data.closingTotal : {}, this.currency),
+      H.money(H.isRecord(data.change) ? data.change : {}, this.currency),
+      typeof data.entryId === 'string' ? Uuid.fromString(data.entryId) : null,
+    );
+  }
+
+  private table() {
+    return this.db.table(`${TABLE_PREFIX}inventory_valuations`);
   }
 }
 

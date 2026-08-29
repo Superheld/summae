@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.4",
+  "version": "2026.5",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -15,6 +15,30 @@
         "name": "Anlagen",
         "type": "asset",
         "subtype": "fixed_asset"
+      },
+      {
+        "number": "1100",
+        "name": "Roh-, Hilfs- und Betriebsstoffe",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1110",
+        "name": "Unfertige Erzeugnisse",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1120",
+        "name": "Fertige Erzeugnisse",
+        "type": "asset",
+        "subtype": "inventory"
+      },
+      {
+        "number": "1130",
+        "name": "Waren",
+        "type": "asset",
+        "subtype": "inventory"
       },
       {
         "number": "1200",
@@ -151,6 +175,11 @@
       {
         "number": "4010",
         "name": "Erlöse ermäßigter Satz",
+        "type": "revenue"
+      },
+      {
+        "number": "4100",
+        "name": "Bestandsveränderungen fertige und unfertige Erzeugnisse",
         "type": "revenue"
       },
       {

@@ -105,6 +105,8 @@ final readonly class TenantOperations
             'acquireAsset' => $tenant->assetService->acquire($input),
             'disposeAsset' => $tenant->assetService->dispose($input),
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
+            'valuateInventory' => $tenant->inventory?->valuate($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "valuateInventory" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
             'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
@@ -217,6 +219,8 @@ final readonly class TenantOperations
             'overheadRates' => $tenant->costing->overheadRates($params),
             'productionCost' => $tenant->costing->productionCost($params),
             'measurementConsistency' => (new MeasurementConsistencyProjection($tenant->costingRuns))->compute($params),
+            'inventoryValuation' => $tenant->inventory?->valuationReport($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "inventoryValuation" is not defined'),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

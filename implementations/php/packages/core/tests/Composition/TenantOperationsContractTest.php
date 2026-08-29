@@ -31,7 +31,7 @@ final class TenantOperationsContractTest extends TestCase
         'createAccount', 'createFiscalYear', 'createPartner', 'updatePartner', 'acquireAsset',
         'disposeAsset', 'runDepreciation', 'allocate', 'setAllocationScheme', 'runCosting',
         'releaseCosting', 'lockAccount', 'unlockAccount', 'importChartOfAccounts', 'importMapping',
-        'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage',
+        'writeDownAsset', 'bookSpecialDepreciation', 'reportAssetUsage', 'valuateInventory',
         'defineDimensionType', 'defineDimensionValue', 'deactivatePartner', 'reactivatePartner',
         'appropriateResult', 'setEntityProfile', 'erasePartner',
     ];
@@ -42,7 +42,7 @@ final class TenantOperationsContractTest extends TestCase
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
         'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
-        'overheadRates', 'productionCost', 'measurementConsistency', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
+        'overheadRates', 'productionCost', 'measurementConsistency', 'inventoryValuation', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
         'tenantConfiguration', 'unappropriatedResult',
             'personalDataDescription',
     ];

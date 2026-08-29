@@ -92,6 +92,11 @@ const CODES: readonly string[] = [
   // which is the same argument the two combination codes were split for.
   'E_ACCOUNT_NOT_VALID_AT_DATE',
   'E_ACCOUNT_USE_FORBIDDEN',
+  // Stock (F-CORE-050). Two codes rather than one because a script reacts oppositely: a run that
+  // is merely a draft gets released, an account that is not a stock account gets replaced.
+  // Appended, never reordered — the position IS the exit code.
+  'E_COSTING_RUN_NOT_RELEASED',
+  'E_INVENTORY_ACCOUNT_INVALID',
 ];
 
 export function exitCodeFor(errorCode: string): number {

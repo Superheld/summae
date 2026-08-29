@@ -77,6 +77,7 @@ export type {
   OpenItemRepository,
   AssetRepository,
   CostingRunRepository,
+  InventoryValuationRepository,
   TenantRecordRepository,
   TenantRecordData,
   AuditCriteria,
@@ -101,6 +102,11 @@ export { AssetService } from './policies/expansion/assets/asset-service.js';
 // Costing
 export { CostingRun } from './policies/expansion/costing/costing-run.js';
 export {
+  InventoryValuation,
+  type InventoryCategoryRow,
+} from './policies/expansion/inventory/inventory-valuation.js';
+export { InventoryService } from './policies/expansion/inventory/inventory-service.js';
+export {
   CostingService,
   type OverheadRate,
   type ProductionCostResult,
@@ -111,7 +117,11 @@ export {
 export { Partner } from './partner/partner.js';
 export { PartnerService } from './partner/partner-service.js';
 export type { PartnerRepository } from './port.js';
-export { InMemoryPartnerRepository, InMemoryCostingRunRepository } from './in-memory.js';
+export {
+  InMemoryPartnerRepository,
+  InMemoryCostingRunRepository,
+  InMemoryInventoryValuationRepository,
+} from './in-memory.js';
 export { EcSalesListProjection } from './policies/projection/ec-sales-list.js';
 
 // Projektionen

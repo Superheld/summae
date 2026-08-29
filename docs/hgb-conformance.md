@@ -41,9 +41,9 @@ Status vocabulary, identical to its two siblings:
 | § 240 Abs. 1 — inventory: **fixed assets** | ✅ | `assetRegister`; `assets/gwg-and-depreciation`, 16 fixtures in `assets/` |
 | § 240 Abs. 1 — inventory: **receivables and payables** | ✅ | `openItems`; `core/open-items-settlement`, `core/open-items-partner-and-due` |
 | § 240 Abs. 1 — inventory: **cash and bank** | ✅ | `cashJournal`, `trialBalance`; `core/money-transit` |
-| **§ 240 Abs. 1 — inventory: stock (Vorräte)** | ⚠️ | **Nothing.** No `inventory` account subtype in the closed repertoire, no stock account in the `de` chart, no `B. I. Vorräte` position in `de-bilanz`, no valuation, no posting path. See §7 below. |
-| § 240 Abs. 3 — Festwert (fixed quantity carried at a fixed value) | ⚠️ | Not expressible. A simplification, not a duty — but a business using it cannot represent it. |
-| § 240 Abs. 4 — Gruppenbewertung (weighted average for like items) | ⚠️ | Not expressible; belongs with the stock work in §7. |
+| **§ 240 Abs. 1 — inventory: stock (Vorräte)** | ✅ | `valuateInventory`, `inventoryValuation`; `inventory/stock-valuation`, `pack/de-pack/de-vorraete`. The `inventory` subtype is the twelfth in the closed repertoire and the first value added on the condition F-CORE-046 named for reopening it. **What is deliberately absent stays absent:** summae values and books stock, it does not keep a stock ledger — quantities are input to one act and are not carried forward. Permanent inventory therefore still needs a system that counts (§ 241 below). |
+| § 240 Abs. 3 — Festwert (fixed quantity carried at a fixed value) | 🟡 | Expressible, not supported: a fixed quantity at a fixed value is `valuateInventory` with the same `quantity` and `unitCost` every period, which books nothing after the first — arithmetically right, and nothing in summae *knows* it is a Festwert or enforces the three-year re-count. A simplification, not a duty. |
+| § 240 Abs. 4 — Gruppenbewertung (weighted average for like items) | 🟡 | The mechanism is there — a category *is* a group, valued at one `unitCost` — and nothing computes the weighted average for you. That computation needs the entry-value history summae deliberately does not keep, which is the same wall as § 256 (row 6). |
 | § 241 — stocktaking simplifications (sampling, permanent, shifted) | ➖ | These are procedures for *counting*, and counting happens in the warehouse. **Permanente Inventur is the exception that is not purely ➖**: it requires a continuous stock record, and summae deliberately keeps none (see `proposals/library-boundary.md`). Whoever runs it needs a system that does. |
 
 ## 2. The annual accounts (§§ 242–245)
@@ -60,9 +60,9 @@ Status vocabulary, identical to its two siblings:
 
 | Obligation | Status | Where |
 |---|---|---|
-| § 246 Abs. 1 — completeness: **all** assets, debts, prepayments, expenses and income | ⚠️ | Cannot hold while §§ 249 and 240/Vorräte are open. A balance sheet missing two of § 266's main positions is not complete, however well it balances. |
+| § 246 Abs. 1 — completeness: **all** assets, debts, prepayments, expenses and income | ⚠️ | Half closed. Stock is in; **provisions are still missing**, and a balance sheet without one of § 266's main positions is not complete however well it balances. |
 | § 246 Abs. 2 — **prohibition of offsetting** (assets against liabilities, expenses against income) | ⚠️ | **Nothing states this as a rule.** A mapping position may pull asset *and* liability accounts, and no test objects — the pack author is trusted. This is the same shape as the defects the constraint policy kind was built for, one layer out: a rule everybody knows and nothing checks. |
-| § 247 Abs. 1 — fixed assets, current assets, equity, debts, prepayments shown separately | 🟡 | The `de-bilanz` mapping separates them — but its current-asset side has no stock position at all, so the separation is complete only for a business that holds none. |
+| § 247 Abs. 1 — fixed assets, current assets, equity, debts, prepayments shown separately | ✅ | `projections/balance-sheet-mapping`, `pack/de-pack/de-bilanz-guv`. The current-asset side now carries stock (`A.Ia`) beside receivables, securities and cash. |
 | § 248 Abs. 1/2 — capitalisation prohibitions; the option for internally generated intangibles | ⚠️ | Not expressible. The `productionCost` treatment table is the right mechanism and covers only production cost. |
 | **§ 249 — provisions (Rückstellungen)** | ⚠️ | **Nothing.** Zero occurrences in the core. No account in the `de` chart, no `B. Rückstellungen` position in `de-bilanz`, no formation, no use, no release, no re-assessment. § 249 Abs. 1 is a *duty*, not an option. See §7. |
 | § 250 — prepaid and deferred items (RAP) | 🟡 | The accounts exist (`1900` Aktive, `3900` Passive Rechnungsabgrenzung) and both balance-sheet positions exist. **What is missing is the release schedule.** A prepaid insurance premium can be booked and then has to be released by hand, month by month, from memory — which is precisely the failure mode `runDepreciation` exists to prevent for the identical arithmetic. |
@@ -80,12 +80,12 @@ Status vocabulary, identical to its two siblings:
 | § 253 Abs. 1 — recognition at acquisition or production cost | ✅ | `acquireAsset` (`assets/gwg-and-depreciation`); production cost components `costing/production-cost` |
 | § 253 Abs. 2 — discounting of provisions with more than a year to run | ⚠️ | Follows § 249. The Bundesbank rate is pack data, the discounting is core mechanism — the same split as depreciation rates. |
 | § 253 Abs. 3 — scheduled and unscheduled depreciation of fixed assets | ✅ | `runDepreciation`, `writeDownAsset`; `assets/asset-write-down`, `assets/declining-balance-depreciation`, `assets/special-depreciation` |
-| § 253 Abs. 4 — **strict lower-of-cost-or-market for current assets** | ⚠️ | No write-down of receivables (`6700 Forderungsverluste` writes an item *off*, which is a different act from valuing it down at the reporting date), no allowance — neither specific nor general — and no stock to write down. |
+| § 253 Abs. 4 — **strict lower-of-cost-or-market for current assets** | 🟡 | **For stock it holds:** `valuateInventory` takes a `marketValue` per unit, carries the lower of it and the cost, and says which it took (`unitValue`, `writtenDownToMarket`) — `inventory/stock-valuation`. **For receivables it does not:** `6700 Forderungsverluste` writes an item *off*, which is a different act from valuing it down at the reporting date, and there is no allowance, neither specific nor general. |
 | § 253 Abs. 5 — **write-up when the reason for a write-down ceases** | ⚠️ | **Nothing.** Zero occurrences. This is a *Gebot*, not an option (goodwill excepted), and summae has `writeDownAsset` with no counterpart. An asset written down in a bad year stays down for ever. |
 | § 254 — hedging units (Bewertungseinheiten) | ⚠️ | Not expressible. Rare, and named rather than omitted. |
 | § 255 Abs. 1 — acquisition cost, including incidental costs and reductions | ✅ | `acquireAsset`; `core/settlement-discount` for the reduction side |
 | § 255 Abs. 2/3 — **production cost**: mandatory parts, options, prohibitions | ✅ **for the figure** | `costing/production-cost`, `pack/de-pack/de-herstellungskosten`, `pack/us-pack/us-inventory-costing`. The treatment table is the model case of this project's layering — the core adds up, the pack says what may enter. |
-| § 255 Abs. 2/3 — **and the figure reaches the balance sheet** | ⚠️ | It does not. Nothing books it, no stock account receives it, no balance-sheet position holds it. The handbook's claim that this is *"the one cost-accounting figure that reaches the balance sheet"* is true only if the embedding application posts it to an account it invented. |
+| § 255 Abs. 2/3 — **and the figure reaches the balance sheet** | ✅ | `inventory/stock-valuation`. `valuateInventory` takes a **released** run's production cost and a produced quantity, derives the unit value, books the change to the stock account and the account the pack names — and the figure lands in `A.Ia` of `de-bilanz` and in position `1a` of `de-guv`. The handbook's claim about *"the one cost-accounting figure that reaches the balance sheet"* is true now; until 2026-08-29 it was true only if the embedding application posted it to an account it invented. |
 | § 255 Abs. 2a — development costs separated from research | ⚠️ | Follows § 248 Abs. 2. |
 | § 256 — **consumption sequence (Fifo, Lifo)** | ⚠️ | Follows the stock work, and is the hard part of it: a consumption sequence needs the history of entry values, which needs a stock record. See §7 for the first cut and what it defers. |
 | § 256a — **foreign currency translation at the reporting date** | ⚠️ | summae holds **one currency per tenant**; `Money` refuses arithmetic across currencies (`CurrencyMismatch`), which is right for a total and leaves no room for a receivable in USD. A German business with one foreign-currency invoice cannot represent its books here. **This one is a decision before it is a task** — see §7. |
@@ -98,10 +98,10 @@ owes none of it, which is why these rows are separated rather than mixed into §
 | Obligation | Status | Where |
 |---|---|---|
 | § 264 Abs. 1 — notes (Anhang) and management report | ➖ | Documents about the business, not derivable from the journal. The application's, and they need figures this library can supply. |
-| § 266 Abs. 2/3 — **the prescribed balance-sheet layout** | ⚠️ | The shipped `de-bilanz` mapping is missing two main positions: `B. I. Vorräte` on the assets side and `B. Rückstellungen` on the liabilities side. What it has — fixed assets, receivables, securities, cash, prepaid items · equity, result, liabilities, deferred items — is correct as far as it goes. |
+| § 266 Abs. 2/3 — **the prescribed balance-sheet layout** | 🟡 | Stock arrived (`A.Ia` in `de-bilanz` 2026.4); **`B. Rückstellungen` is still missing**. Worth recording *how* it arrived: the position was inserted with a letter suffix rather than by renumbering the positions after it, because a mapping key is an identifier somebody may have stored while the *order* of the statement comes from the order of the array. Renumbering would have made the statement right and every stored reference silently wrong — the shape of defect this project exists to refuse. |
 | § 268 Abs. 2 — **the fixed-asset movement schedule (Anlagengitter)** | ⚠️ | `assetRegister` reports the *stock*: acquisition cost, accumulated depreciation, book value, at a cutoff date. § 268 Abs. 2 wants the *movement*: opening cost, additions, disposals, transfers, write-ups, depreciation of the year and cumulative, closing value. The data is all in the journal; the projection that shapes it is not written. |
 | § 272 — equity, shown by its components | 🟡 | The `de-bilanz` mapping has one equity position plus the result. Subscribed capital, reserves and loss carried forward are not separated — adequate for a GbR, not for a GmbH. |
-| § 275 Abs. 2 — **income statement, Gesamtkostenverfahren** | 🟡 | The `de-guv` mapping follows the total-cost format and stops early: it has revenue, other operating income, material, personnel, depreciation and other operating expenses. Missing: **Nr. 2 changes in inventory**, Nr. 3 own work capitalised, Nr. 12/13 interest, and taxes on income. |
+| § 275 Abs. 2 — **income statement, Gesamtkostenverfahren** | 🟡 | **Nr. 2 changes in inventory arrived** (`de-guv` 2026.2, key `1a`) and is where the stock valuation books. Still missing: Nr. 3 own work capitalised, Nr. 12/13 interest, and taxes on income — row 9 of §7. |
 | § 275 Abs. 3 — Umsatzkostenverfahren | ⚠️ | Not offered. It is a second mapping, not a second mechanism — cheap once a business asks. |
 | § 277 Abs. 3 — unscheduled depreciation shown separately | ⚠️ | `writeDownAsset` posts to the ordinary depreciation account when the pack names no impairment account, so the two are indistinguishable in the income statement. |
 
@@ -130,7 +130,7 @@ Ordered by what unblocks what, not by severity.
 | # | Item | Size | Why it is where it is |
 |---|---|---|---|
 | ~~**1**~~ | ~~**Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)**~~ — **built 2026-08-29** | — | `measurementConsistency` + `costing/measurement-consistency` (F-CORE-049). The row stays rather than being deleted, for what it got wrong: it said a run does not record its election. A run has recorded it since runs were persisted; the missing half was the *comparison*. The size estimate was right for the wrong reason, which is an argument for reading a census row against the code before believing it. |
-| **2** | **Stock: recognition, measurement, posting** (§§ 240, 246, 247, 253 Abs. 4, 255 Abs. 2, 266, 275) | large | The single change that closes a hole in the balance sheet *and* finishes the cost-accounting chain. Design sketch in `proposals/library-boundary.md` §4 — an `inventory` subtype, pack accounts and mapping positions, a `valuateInventory` operation shaped like `runDepreciation`, quantities as **input** and never as stock. Defers § 256 Fifo/Lifo deliberately, which stays row 6. |
+| ~~**2**~~ | ~~**Stock: recognition, measurement, posting**~~ — **built 2026-08-29** | — | `valuateInventory` + `inventoryValuation` + the `inventory` subtype + `de-vorraete`/`us-inventory-accounts` + the two mapping positions (F-CORE-050). Built as sketched, with one thing the sketch did not foresee: the valuation had to become a **persisted aggregate**, not just a posting. An engine that books a change in stock and keeps no record of how it reached the number does exactly what this project refuses to let an embedder do, one level down. § 256 Fifo/Lifo stays deferred and stays row 6. |
 | **3** | **Provisions (§ 249, § 253 Abs. 2)** | large | The other missing main position. Formation, use, release, annual re-assessment, and discounting with the rate as pack data. Comparable in size to the asset register, and it needs an aggregate of its own for the same reason: the movement matters, not just the balance. |
 | **4** | **Write-up obligation (§ 253 Abs. 5)** | small | `writeDownAsset` has no counterpart. A mandatory rule with nothing behind it, and the smallest of the genuine legal gaps. |
 | **5** | **Release schedule for prepaid/deferred items (§ 250, § 252 Abs. 1 Nr. 5)** | small | Exactly the `runDepreciation` pattern over the accounts that already exist. |
@@ -163,18 +163,21 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 
 | Claim | Source | Value |
 |---|---|---|
-| engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `fixed_asset` `opening_balance` `private` |
-| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `valuateInventory` `writeUpAsset` `recognizeProvision` `useProvision` `releaseProvision` `remeasureProvision` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
-| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `inventoryValuation` `provisionRegister` `deferralRegister` `assetSchedule` |
-| `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.II` `A.III` `A.IV` `A.V` |
+| engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `inventory` `fixed_asset` `opening_balance` `private` |
+| operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `writeUpAsset` `recognizeProvision` `useProvision` `releaseProvision` `remeasureProvision` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
+| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `provisionRegister` `deferralRegister` `assetSchedule` |
+| `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.Ia` `A.II` `A.III` `A.IV` `A.V` |
 | `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.C` `P.D` |
-| `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `2` `3` `4` `5` `6` |
-| `de` chart, subtypes actually used | `pack-library/de-pack/accounts/de-konten.json` | `ap` `ar` `bank` `cash` `fixed_asset` `opening_balance` `private` `result_allocation` `tax_in` `tax_out` `transit` |
-| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `depreciation` `legalForms` `mapping` `policy` `productionCost` `resultAppropriation` `tax` |
+| `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `1a` `2` `3` `4` `5` `6` |
+| `de` chart, subtypes actually used | `pack-library/de-pack/accounts/de-konten.json` | `ap` `ar` `bank` `cash` `fixed_asset` `inventory` `opening_balance` `private` `result_allocation` `tax_in` `tax_out` `transit` |
+| `de` pack, module kinds | `pack-library/de-pack/de.json` → `modules` | `accounts` `assetAccounts` `constraint` `depreciation` `inventory` `legalForms` `mapping` `policy` `productionCost` `resultAppropriation` `tax` |
 
-Read the last three rows against §§ 1, 3 and 5: eleven subtypes with no `inventory` among them, five
-asset positions with no stock among them, ten module kinds with no provision and no input-tax
-adjustment among them. Those are the ⚠️ rows, stated as data instead of as an assurance.
+Read the last three rows against §§ 1, 3 and 5. On 2026-08-29 they said *eleven subtypes with no
+`inventory`, five asset positions with no stock, ten module kinds with no provision*; two of those
+three sentences are now obsolete, and this paragraph had to be rewritten because the gate refused to
+go green until it was. That is the mechanism working: the remaining reading is **eleven module kinds
+with no provision and no input-tax adjustment among them**, and a liabilities side that still has no
+`B. Rückstellungen`.
 
 ---
 

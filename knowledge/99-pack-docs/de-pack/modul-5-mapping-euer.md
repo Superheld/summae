@@ -1,7 +1,7 @@
 # Modul 5 — EÜR (Anlage EÜR) (`mapping`)
 
 ```
-kind: mapping · id: de-euer · version: 2026.4 · formatVersion: 0.6
+kind: mapping · id: de-euer · version: 2026.5 · formatVersion: 0.6
 contributes: ["mappings"] · dependsOn: [{kind: accounts, id: de-konten}]
 data.mapping = { id, kind: "cash-basis-categories", version, positions[] }
 ```
@@ -32,6 +32,7 @@ Buchung** — kein eigener Buchungsstil. Ordnet Konten den EÜR-Zeilen zu und st
 | E4 | Unentgeltliche Wertabgaben | 4050 · `includeNonCash` |
 | E5 | Betriebseinnahmen als Kleinunternehmer (§ 19 UStG) | 4040 |
 | E6 | Erträge aus Anlagenabgang | 4900 |
+| E7 | Bestandsveränderungen (bei der Einnahmen-Überschuss-Rechnung ohne Ansatz) | 4100–4199 |
 | A1 | Wareneinsatz und Fremdleistungen | 5000–5999 |
 | A2 | Personalkosten | 6300–6399 |
 | A3 | Abschreibungen (AfA und GWG) | 6500–6599 · `includeNonCash` |

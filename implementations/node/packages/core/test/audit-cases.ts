@@ -84,6 +84,11 @@ function freshOps(buildTenant: TenantBuilder): TenantOperations {
       forms: { limited: { label: 'Limited company', resolution: { required: true, deadlineMonths: 8 } } },
     },
   });
+  // And the stock categories, same reason again: without them `valuateInventory` refuses on a pack
+  // that declares no inventory instead of reaching the trail.
+  tenant.inventory.setRuleModule({
+    inventory: { categories: [{ account: '1140', changeAccount: '5200' }] },
+  });
   return new TenantOperations(tenant);
 }
 
@@ -519,6 +524,22 @@ const AUDITED: readonly Case[] = [
         depreciationMethod: 'units_of_production',
       });
       ops.execute('reportAssetUsage', { assetId: asset, fiscalYear: 2026, units: 10000, voucherId });
+    },
+  },
+  {
+    op: 'valuateInventory',
+    objectType: 'inventoryValuation',
+    action: 'valued',
+    run: (ops) => {
+      seed(ops);
+      ops.execute('createAccount', { number: '1140', name: 'Vorräte', type: 'asset', subtype: 'inventory' });
+      ops.execute('createAccount', { number: '5200', name: 'Bestandsveränderungen', type: 'revenue' });
+      ops.execute('valuateInventory', {
+        fiscalYear: 2026,
+        period: 12,
+        valuationDate: '2026-12-31',
+        categories: [{ account: '1140', quantity: '100', unitCost: '12.50' }],
+      });
     },
   },
   {

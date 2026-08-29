@@ -22,7 +22,7 @@ use Summae\Core\Substrate\CanonicalJson;
  */
 final class PackResolver
 {
-    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms'];
+    private const array MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory'];
     private const array ASSET_ACCOUNT_KEYS = [
         'acquisitionCounterAccount',
         'depreciationExpenseAccount',
@@ -226,6 +226,7 @@ final class PackResolver
         $depreciation = null;
         /** @var array<mixed>|null $productionCost */
         $productionCost = null;
+        $inventory = null;
         $resultAppropriation = null;
         $legalForms = null;
         /** @var list<array<mixed>> $dimensionRules */
@@ -299,6 +300,9 @@ final class PackResolver
                     break;
                 case 'productionCost':
                     $productionCost = $data;
+                    break;
+                case 'inventory':
+                    $inventory = $data;
                     break;
                 case 'legalForms':
                     $legalForms = $data;
@@ -490,6 +494,7 @@ final class PackResolver
             'assetAccounts' => $assetAccounts,
             'depreciation' => $depreciation,
             'productionCost' => $productionCost,
+            'inventory' => $inventory,
             'resultAppropriation' => $resultAppropriation,
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
@@ -559,6 +564,10 @@ final class PackResolver
             // Not spread like depreciation: the CostingService reads it under its own key, because
             // "treatments" is a word another module could plausibly want too.
             'productionCost' => is_array($pack['productionCost'] ?? null) ? $pack['productionCost'] : null,
+            // Which accounts hold stock and where each one's change is booked. A pack that stays
+            // silent simply does not support `valuateInventory`, which is the right answer for a
+            // jurisdiction-free one and for a service business alike.
+            'inventory' => is_array($pack['inventory'] ?? null) ? $pack['inventory'] : null,
             // The appropriation plug: which account the resolution books against, and which targets
             // the jurisdiction offers. A pack that stays silent simply does not support the operation.
             'resultAppropriation' => is_array($pack['resultAppropriation'] ?? null) ? $pack['resultAppropriation'] : null,

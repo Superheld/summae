@@ -1,0 +1,104 @@
+{
+  "fixture": "de-vorraete",
+  "description": "The shipped de pack values and books stock, and the figure lands where § 266 and § 275 put it. Materials of 40,000.00 and production wages of 20,000.00 are booked, the costing run makes them 60,000.00 of production cost for 2,000 units, and 1,500 units of finished goods are carried at 45,000.00 — into account 1120, which the German chart declares with subtype `inventory`, and out of 4100, which the German pack names as its change account. The two mapping positions are the point: `A.Ia Vorräte` on the balance sheet (§ 266 Abs. 2 B. I.) and position `1a` in the income statement (§ 275 Abs. 2 Nr. 2, the change in finished and unfinished goods). Before 2026-08-29 the production cost was computable and reached neither. Note the pack-level decision this fixture also pins: Germany books the change in FINISHED goods to its own income-statement line and the change in raw materials and merchandise against material expense, because the German income statement has both lines and the consumption figure is purchases minus the build-up. The engine does not know that; it books to whatever account the module names per category, which is why the us pack can name the same counter-account four times and be equally right.",
+  "covers": ["F-CORE-050", "F-CORE-015"],
+  "setup": {},
+  "steps": [
+    {
+      "op": "createTenant",
+      "input": { "name": "Vorrats GmbH", "baseCurrency": "EUR", "pack": "de", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1", "pack": { "id": "de" } } }
+    },
+    {
+      "op": "defineDimensionType",
+      "input": { "tenant": "$T1", "code": "costCenter" },
+      "expect": { "result": { "code": "costCenter" } }
+    },
+    {
+      "op": "defineDimensionValue",
+      "input": { "tenant": "$T1", "type": "costCenter", "code": "FERT" },
+      "expect": { "result": { "code": "FERT" } }
+    },
+    {
+      "op": "postVoucher",
+      "input": {
+        "tenant": "$T1",
+        "voucher": { "voucherNumber": "KOST-001", "voucherDate": "2026-12-31" },
+        "entryDate": "2026-12-31", "text": "Fertigungskosten",
+        "lines": [
+          { "account": "5000", "side": "debit", "money": { "amount": "40000.00", "currency": "EUR" } },
+          { "account": "6300", "side": "debit", "money": { "amount": "20000.00", "currency": "EUR" },
+            "dimensions": [ { "type": "costCenter", "code": "FERT" } ] },
+          { "account": "1200", "side": "credit", "money": { "amount": "60000.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "result": { "entry": { "sequenceNumber": 1 } } }
+    },
+    {
+      "op": "setAllocationScheme",
+      "input": {
+        "tenant": "$T1",
+        "steps": [],
+        "productionCost": {
+          "include": [],
+          "components": [
+            { "id": "materialDirect", "base": { "accounts": ["5000"] } },
+            { "id": "productionOverhead", "base": { "costCenters": ["FERT"] } }
+          ]
+        }
+      },
+      "expect": { "result": { "valid": true, "productionCostComponents": 2 } }
+    },
+    {
+      "op": "runCosting",
+      "input": { "tenant": "$T1", "fiscalYear": 2026, "period": 12 },
+      "expect": { "result": { "runId": "$R1" } }
+    },
+    {
+      "op": "releaseCosting",
+      "input": { "tenant": "$T1", "runId": "$R1" },
+      "expect": { "result": { "status": "released" } }
+    },
+    {
+      "op": "valuateInventory",
+      "input": {
+        "tenant": "$T1",
+        "fiscalYear": 2026, "period": 12, "valuationDate": "2026-12-31",
+        "runId": "$R1", "producedQuantity": "2000",
+        "categories": [ { "account": "1120", "quantity": "1500" } ]
+      },
+      "expect": {
+        "comment": "1.500 × (60.000,00 / 2.000) = 45.000,00 auf 1120 gegen 4100 — beide Konten aus dem ausgelieferten deutschen Rahmen",
+        "result": {
+          "closingTotal": { "amount": "45000.00", "currency": "EUR" },
+          "change": { "amount": "45000.00", "currency": "EUR" },
+          "posted": true
+        }
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "incomeStatement",
+      "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12, "mapping": "de-guv" },
+      "expect": {
+        "comment": "Position 1a ist § 275 Abs. 2 Nr. 2; der Materialaufwand bleibt in Position 3, weil Fertigerzeugnisse ihn nicht korrigieren",
+        "positions": [
+          { "key": "1a", "amount": "45000.00" },
+          { "key": "3", "amount": "-40000.00" },
+          { "key": "4", "amount": "-20000.00" }
+        ],
+        "netIncome": "-15000.00"
+      }
+    },
+    {
+      "name": "balanceSheet",
+      "params": { "tenant": "$T1", "asOf": "2026-12-31", "mapping": "de-bilanz", "incomeMapping": "de-guv" },
+      "expect": {
+        "comment": "Die Vorräte stehen als eigene Hauptposition da, wo § 266 Abs. 2 B. I. sie verlangt",
+        "assetsTotal": "-15000.00",
+        "liabilitiesAndEquityTotal": "-15000.00"
+      }
+    }
+  ]
+}

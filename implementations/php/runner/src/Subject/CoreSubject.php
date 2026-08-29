@@ -198,6 +198,7 @@ final class CoreSubject implements Subject
         $tenant->costing->setRuleModule($ruleModules);
         $tenant->resultAppropriation->setRuleModule($ruleModules);
         $tenant->legalForms->setRuleModule($ruleModules);
+        $tenant->inventory?->setRuleModule($ruleModules);
 
         $this->tenant = $tenant;
     }

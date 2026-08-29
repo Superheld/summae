@@ -901,7 +901,8 @@
             "productionCost",
             "constraint",
             "resultAppropriation",
-            "legalForms"
+            "legalForms",
+            "inventory"
           ]
         },
         "version": {
@@ -923,7 +924,8 @@
               "productionCost",
               "constraint",
               "resultAppropriation",
-              "legalForms"
+              "legalForms",
+              "inventory"
             ]
           }
         },
