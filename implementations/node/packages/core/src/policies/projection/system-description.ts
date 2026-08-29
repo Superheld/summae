@@ -146,6 +146,7 @@ export const AUDITED_EVENTS: ReadonlyArray<{ objectType: string; actions: readon
   { objectType: 'dimensionValue', actions: ['created'] },
   { objectType: 'depreciationRun', actions: ['completed'] },
   { objectType: 'inventoryValuation', actions: ['valued'] },
+  { objectType: 'provision', actions: ['recognized', 'used', 'released', 'remeasured'] },
   { objectType: 'costingRun', actions: ['created', 'released'] },
 ];
 

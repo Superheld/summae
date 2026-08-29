@@ -107,6 +107,14 @@ final readonly class TenantOperations
             'runDepreciation' => $tenant->assetService->runDepreciation($input),
             'valuateInventory' => $tenant->inventory?->valuate($input)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "valuateInventory" is not defined'),
+            'recognizeProvision' => $tenant->provisionService?->recognize($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "recognizeProvision" is not defined'),
+            'useProvision' => $tenant->provisionService?->use($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "useProvision" is not defined'),
+            'releaseProvision' => $tenant->provisionService?->release($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "releaseProvision" is not defined'),
+            'remeasureProvision' => $tenant->provisionService?->remeasure($input)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Operation "remeasureProvision" is not defined'),
             'writeDownAsset' => $tenant->assetService->writeDownAsset($input),
             'bookSpecialDepreciation' => $tenant->assetService->bookSpecialDepreciation($input),
             'reportAssetUsage' => $tenant->assetService->reportAssetUsage($input),
@@ -221,6 +229,8 @@ final readonly class TenantOperations
             'measurementConsistency' => (new MeasurementConsistencyProjection($tenant->costingRuns))->compute($params),
             'inventoryValuation' => $tenant->inventory?->valuationReport($params)
                 ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "inventoryValuation" is not defined'),
+            'provisionRegister' => $tenant->provisionService?->register($params)
+                ?? throw new DomainError('E_NOT_IMPLEMENTED', 'Projection "provisionRegister" is not defined'),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

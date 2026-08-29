@@ -16,6 +16,8 @@ overhead-rate-rounding
 measurement-consistency
 stock-valuation
 de-vorraete
+provisions
+de-rueckstellungen
 production-cost
 de-herstellungskosten
 us-inventory-costing

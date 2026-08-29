@@ -22,7 +22,7 @@ import { ACCOUNT_SUBTYPES, isAccountSubtype } from '../substrate/types.js';
  * precedence over coherence/integrity (4/5).
  */
 
-const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory'] as const;
+const MODULE_KINDS = ['accounts', 'tax', 'mapping', 'depreciation', 'policy', 'assetAccounts', 'productionCost', 'constraint', 'resultAppropriation', 'legalForms', 'inventory', 'provisions'] as const;
 const ASSET_ACCOUNT_KEYS = [
   'acquisitionCounterAccount',
   'depreciationExpenseAccount',
@@ -72,6 +72,7 @@ export interface ResolvedPack {
   depreciation: Record<string, unknown> | null;
   productionCost: Record<string, unknown> | null;
   inventory: Record<string, unknown> | null;
+  provisions: Record<string, unknown> | null;
   resultAppropriation: Record<string, unknown> | null;
   legalForms: Record<string, unknown> | null;
   dimensionRules: Record<string, unknown>[];
@@ -237,6 +238,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
   let depreciation: Record<string, unknown> | null = null;
   let productionCost: Record<string, unknown> | null = null;
   let inventory: Record<string, unknown> | null = null;
+  let provisions: Record<string, unknown> | null = null;
   let resultAppropriation: Record<string, unknown> | null = null;
   let legalForms: Record<string, unknown> | null = null;
   const dimensionRules: Record<string, unknown>[] = [];
@@ -297,6 +299,9 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
         break;
       case 'inventory':
         inventory = m.data;
+        break;
+      case 'provisions':
+        provisions = m.data;
         break;
       case 'resultAppropriation':
         resultAppropriation = m.data;
@@ -470,6 +475,7 @@ export function resolvePack(manifest: PackManifest, moduleSource: PackModule[]):
     depreciation,
     productionCost,
     inventory,
+    provisions,
     resultAppropriation,
     legalForms,
     dimensionRules,
@@ -507,6 +513,10 @@ export function ruleModulesFromResolved(pack: ResolvedPack): Record<string, unkn
     // simply does not support `valuateInventory`, which is the right answer for a jurisdiction-free
     // one and for a service business alike.
     inventory: isRecord(pack.inventory) ? pack.inventory : null,
+    // Which accounts hold provisions, what each books its expense and its release to, and whether
+    // long-dated ones must be discounted. A pack that stays silent does not support
+    // `recognizeProvision` — which is the right answer for a jurisdiction-free one.
+    provisions: isRecord(pack.provisions) ? pack.provisions : null,
     // The appropriation plug: which account the resolution books against, and which targets the
     // jurisdiction offers. A pack that stays silent simply does not support the operation.
     resultAppropriation: isRecord(pack.resultAppropriation) ? pack.resultAppropriation : null,

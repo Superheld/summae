@@ -2,12 +2,12 @@
   "formatVersion": "0.6",
   "id": "de",
   "name": "Deutschland — vollständiges Pack (neutraler Rahmen + DE-Zusatzkonten + USt + Mappings + AfA)",
-  "version": "2026.12",
+  "version": "2026.11",
   "modules": [
     {
       "kind": "accounts",
       "id": "de-konten",
-      "version": "2026.6"
+      "version": "2026.5"
     },
     {
       "kind": "tax",
@@ -17,7 +17,7 @@
     {
       "kind": "mapping",
       "id": "de-bilanz",
-      "version": "2026.5"
+      "version": "2026.4"
     },
     {
       "kind": "mapping",
@@ -57,11 +57,6 @@
     {
       "kind": "inventory",
       "id": "de-vorraete",
-      "version": "2026.1"
-    },
-    {
-      "kind": "provisions",
-      "id": "de-rueckstellungen",
       "version": "2026.1"
     },
     {

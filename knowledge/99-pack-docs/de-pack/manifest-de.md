@@ -1,7 +1,7 @@
 # Manifest — `de` (Deutschland)
 
 ```
-pack: de · version: 2026.11 · formatVersion: 0.9
+pack: de · version: 2026.12 · formatVersion: 0.9
 Datei: pack-library/de-pack/de.json · 14 Module · frühere Fassungen in versions/
 ```
 
@@ -24,9 +24,9 @@ Widerspruch: sie **addieren** sich, anders als `policy`, von dem es genau eines 
 
 | `kind` | `id` | Version |
 |---|---|---|
-| `accounts` | `de-konten` | 2026.5 |
+| `accounts` | `de-konten` | 2026.6 |
 | `tax` | `de-ust` | 2026.4 |
-| `mapping` | `de-bilanz` | 2026.4 |
+| `mapping` | `de-bilanz` | 2026.5 |
 | `mapping` | `de-guv` | 2026.2 |
 | `mapping` | `de-euer` | 2026.5 |
 | `depreciation` | `de-afa` | 2026.7 |
@@ -35,6 +35,7 @@ Widerspruch: sie **addieren** sich, anders als `policy`, von dem es genau eines 
 | `resultAppropriation` | `de-ergebnisverwendung` | 2026.1 |
 | `productionCost` | `de-herstellungskosten` | 2026.1 |
 | `inventory` | `de-vorraete` | 2026.1 |
+| `provisions` | `de-rueckstellungen` | 2026.1 |
 | `legalForms` | `de-rechtsformen` | 2026.1 |
 | `constraint` | `de-entgeltminderung` | 2026.1 |
 | `constraint` | `de-kleinunternehmer` | 2026.1 |

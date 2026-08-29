@@ -1545,6 +1545,86 @@ its term, and only the proceeds are booked.
 fallen due, so an asset disposed mid-month gets nothing for that month. Whether
 a jurisdiction grants the whole month is a pack question and not answered yet.
 
+#### recognizeProvision
+
+Form a provision. `account` (yes), `reason` (yes), `amount` (yes, Money — the **undiscounted**
+best estimate of what it will take to settle), `recognizedOn` (yes), `dueDate` (no),
+`discountRate` (no), `actor` (no). Output: `{ provisionId, settlementAmount, carryingAmount,
+discounted, discountRate, entryId }`.
+
+A provision is the one balance-sheet item you must recognise for something that has **not yet
+happened** — an obligation whose amount or timing is uncertain. That is why it is a duty and not
+an option: leaving it out overstates both your result and your equity, in the direction that
+flatters. Booked as an expense against the provision account; which expense account and which
+release account belong to which provision account is your pack's answer, not yours.
+
+`account` must carry `subtype: "provision"` and must be declared by the pack —
+`E_PROVISION_ACCOUNT_INVALID` for the first, `E_PACK_INCOHERENT` for the second, because the two
+need different fixes.
+
+**Discounting.** If your pack says long-dated provisions are discounted (Germany: from a remaining
+term of twelve months, § 253 Abs. 2 HGB) and `dueDate` puts this one past that line, a
+`discountRate` is **required** — `E_PROVISION_DISCOUNT_RATE_REQUIRED` otherwise, never a silent
+undiscounted booking. The rate is not in the pack on purpose: in Germany it is an average of the
+last seven years' market rates that the Bundesbank publishes **monthly**, and a legal rate sitting
+stale in a data file while looking authoritative is worse than one that is absent.
+
+The convention is stated rather than assumed: whole years compound, the remaining stub months
+accrue simple interest —
+
+```
+carrying = amount / ( (1 + r)^years × (1 + r × months/12) )
+```
+
+— because a genuine fractional power is a transcendental, and computing one in PHP and in Node
+would put the two a cent apart on some inputs.
+
+```json
+{ "account": "3600", "reason": "Gewährleistung 2029",
+  "amount": { "amount": "10000.00", "currency": "EUR" },
+  "recognizedOn": "2026-06-30", "dueDate": "2029-06-30", "discountRate": "2.00" }
+// → carryingAmount 9423.22 (three whole years at 2 %)
+```
+
+#### useProvision
+
+The obligation came true. `provisionId` (yes), `amount` (yes, Money — what it actually cost),
+`settlementAccount` (yes), `date` (yes), `actor` (no). Output:
+`{ provisionId, usedFromProvision, excessExpense, carryingAmount, status, entryId }`.
+
+**The overshoot is the case to understand.** If the invoice is larger than the provision, what was
+provided for comes out of the provision and the rest is an expense **of the year the invoice
+arrived** — not a retroactive correction of the year the provision was formed. Netting the two
+would move an expense across a year that is closed. `excessExpense` names that part explicitly;
+`0.00` means the estimate held.
+
+Using less than the provision carries leaves the rest standing. If the remainder is not needed,
+release it — that is a different event and it books to a different account.
+
+#### releaseProvision
+
+The reason ceased. `provisionId` (yes), `amount` (no — default: the whole carrying amount),
+`date` (yes), `actor` (no). Output: `{ provisionId, released, carryingAmount, status, entryId }`.
+
+Booked against the pack's release account: a released provision is **income the business never had
+to pay**, which is a genuinely different thing from an obligation that came true. Releasing more
+than the provision carries is `E_PROVISION_EXCEEDS_CARRYING` — the difference would be income
+invented out of a sign error.
+
+#### remeasureProvision
+
+The estimate moved while the obligation stands. `provisionId` (yes), `amount` (yes, Money — the new
+**undiscounted** estimate), `date` (yes), `discountRate` (no), `actor` (no). Output:
+`{ provisionId, change, carryingAmount, discounted, discountRate, status, entryId }`.
+
+An increase is further expense; a decrease books to the release account, because a partial reversal
+of a provision *is* a release — and using the same account keeps the two from being told apart by
+accident in the ledger. Discounting is re-applied from `date` to the original `dueDate`, so a
+provision that simply comes closer to maturity unwinds its discount here rather than silently.
+
+`change: 0.00` and `entryId: null` mean the estimate did not move; the movement is still recorded,
+because "we looked and it was still right" is part of the history.
+
 #### reportAssetUsage
 
 Depreciation by output. `assetId` (yes), `fiscalYear` (yes), `units` (yes, a whole
@@ -2353,6 +2433,31 @@ administration, and that single row of pack data is the whole difference.
 What this does **not** do is divide by a quantity. Per-unit production cost needs
 produced quantities, and summae carries none — goods movements and production orders
 are your application's data. summae answers what the components add up to and why.
+
+### provisionRegister — what is set aside, for what, and what happened to it
+
+`status` (no — `open` or `settled`), `asOf` (no). Output: `provisions[]` and `total` (the sum of
+the carrying amounts reported).
+
+Each row: `provisionId`, `reason`, `account`, `recognizedOn`, `dueDate`, `settlementAmount` (the
+undiscounted estimate), `carryingAmount`, `discountRate`, `status`, and `movements[]` — each
+`{ kind, date, amount, entryId, note }` with `kind` one of `recognized`, `used`, `released`,
+`remeasured`.
+
+**The movements are the point.** The balance of a provision account answers almost nothing an
+auditor asks. Was it *used* because the obligation materialised, *released* because the reason
+ceased, or *re-measured* because the estimate moved? Three different events, three different
+postings, three different meanings — and a netted balance shows none of them. Every movement names
+the entry it produced, so the register and the journal can be walked against each other in both
+directions.
+
+`asOf` cuts the **movements**, not the provisions: a provision recognised after the date is left
+out entirely, one recognised before it appears with only the movements up to that date. That is
+what makes the register usable as at a balance-sheet date rather than only as at today.
+
+`status: "settled"` means the carrying amount is zero, however it got there — the *how* is in the
+movements, and the difference between a release and a use is exactly what a status field must not
+collapse.
 
 ### inventoryValuation — what was valued, how, and out of what
 

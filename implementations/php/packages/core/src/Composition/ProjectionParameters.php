@@ -154,6 +154,10 @@ final class ProjectionParameters
         // the same grounds. Which framework demands the comparison, and what it permits by way of
         // exception, is the pack's business and the census's — not this table's.
         'measurementConsistency' => [],
+        'provisionRegister' => [
+            'status' => ['type' => 'string'],
+            'asOf' => ['type' => 'date'],
+        ],
         'inventoryValuation' => [
             'fiscalYear' => ['type' => 'integer'],
             'period' => ['type' => 'integer'],

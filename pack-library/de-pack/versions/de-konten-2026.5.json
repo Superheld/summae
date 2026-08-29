@@ -2,7 +2,7 @@
   "formatVersion": "0.6",
   "id": "de-konten",
   "kind": "accounts",
-  "version": "2026.6",
+  "version": "2026.5",
   "name": "Deutschland — Kontenrahmen (eigener Entwurf, keine SKR-Übernahme)",
   "contributes": [
     "accounts"
@@ -163,24 +163,6 @@
         "type": "liability"
       },
       {
-        "number": "3600",
-        "name": "Sonstige Rückstellungen",
-        "type": "liability",
-        "subtype": "provision"
-      },
-      {
-        "number": "3610",
-        "name": "Rückstellungen für Personalaufwand",
-        "type": "liability",
-        "subtype": "provision"
-      },
-      {
-        "number": "3620",
-        "name": "Steuerrückstellungen",
-        "type": "liability",
-        "subtype": "provision"
-      },
-      {
         "number": "3900",
         "name": "Passive Rechnungsabgrenzung",
         "type": "liability"
@@ -308,16 +290,6 @@
       {
         "number": "6700",
         "name": "Forderungsverluste",
-        "type": "expense"
-      },
-      {
-        "number": "6800",
-        "name": "Zuführung sonstige Rückstellungen",
-        "type": "expense"
-      },
-      {
-        "number": "6810",
-        "name": "Steueraufwand (Rückstellungszuführung)",
         "type": "expense"
       },
       {

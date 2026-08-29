@@ -19,6 +19,7 @@ use Summae\Core\InMemory\InMemoryJournalRepository;
 use Summae\Core\InMemory\InMemoryOpenItemRepository;
 use Summae\Core\InMemory\InMemoryCostingRunRepository;
 use Summae\Core\InMemory\InMemoryInventoryValuationRepository;
+use Summae\Core\InMemory\InMemoryProvisionRepository;
 use Summae\Core\InMemory\InMemoryPartnerRepository;
 use Summae\Core\InMemory\InMemoryTenantRecordRepository;
 use Summae\Core\InMemory\InMemoryVoucherRepository;
@@ -31,6 +32,7 @@ use Summae\Core\Port\AccountRepository;
 use Summae\Core\Port\AuditTrail;
 use Summae\Core\Port\CostingRunRepository;
 use Summae\Core\Port\InventoryValuationRepository;
+use Summae\Core\Port\ProvisionRepository;
 use Summae\Core\Port\FiscalYearRepository;
 use Summae\Core\Port\JournalRepository;
 use Summae\Core\Partner\PartnerService;
@@ -45,6 +47,7 @@ use Summae\Core\Substrate\SystemClock;
 use Summae\Core\Substrate\Uuid;
 use Summae\Core\Substrate\UuidV7IdGenerator;
 use Summae\Core\Policies\Expansion\Inventory\InventoryService;
+use Summae\Core\Policies\Expansion\Provisions\ProvisionService;
 use Summae\Core\Policies\Expansion\Tax\TaxCodeRegistry;
 use Summae\Core\Policies\Expansion\Tax\TaxProfile;
 use Summae\Core\Policies\Expansion\Tax\TaxService;
@@ -113,6 +116,9 @@ final readonly class Tenant
          */
         public ?InventoryValuationRepository $inventoryValuations = null,
         public ?InventoryService $inventory = null,
+        /** Provisions (F-CORE-051) — appended for the same reason as the two above. */
+        public ?ProvisionRepository $provisions = null,
+        public ?ProvisionService $provisionService = null,
     ) {
     }
 
@@ -156,6 +162,7 @@ final readonly class Tenant
         $partners = new InMemoryPartnerRepository();
         $costingRuns = new InMemoryCostingRunRepository();
         $inventoryValuations = new InMemoryInventoryValuationRepository();
+        $provisions = new InMemoryProvisionRepository();
         $assets2 = new InMemoryAssetRepository();
         $audit = new InMemoryAuditTrail();
 
@@ -237,6 +244,17 @@ final readonly class Tenant
             $auditWriter,
         );
 
+        $provisionService = new ProvisionService(
+            $baseCurrency,
+            $accounts,
+            $vouchers,
+            $provisions,
+            $ledger,
+            $ids,
+            [],
+            $auditWriter,
+        );
+
         return new self(
             $tenantId,
             $name,
@@ -266,6 +284,8 @@ final readonly class Tenant
             $entityProfile,
             $inventoryValuations,
             $inventory,
+            $provisions,
+            $provisionService,
         );
     }
 }

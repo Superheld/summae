@@ -152,6 +152,17 @@ final class SchemaInstaller
             $table->unique(['tenant_id', 'fiscal_year', 'period', 'version']);
         });
 
+        self::ensure($schema, 'provisions', static function (Blueprint $table): void {
+            // Account and status are columns rather than payload fields because they are what a
+            // provision is FOUND by — the open ones on a balance-sheet date, and the account they
+            // sit on. Everything else, movements included, travels in the payload.
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->string('account', 32);
+            $table->string('status', 16);
+            $table->json('payload');
+        });
+
         self::ensure($schema, 'tenants', static function (Blueprint $table): void {
             // The tenant itself (SPEC-015) — the one table that is not made of bookkeeping records.
             //
@@ -189,7 +200,8 @@ final class SchemaInstaller
     {
         foreach ([
             'accounts', 'fiscal_years', 'vouchers', 'journal_entries',
-            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'audit_log', 'tenants',
+            'open_items', 'partners', 'assets', 'costing_runs', 'inventory_valuations', 'provisions',
+            'audit_log', 'tenants',
         ] as $table) {
             $schema->dropIfExists(self::PREFIX . $table);
         }

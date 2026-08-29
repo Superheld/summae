@@ -27,14 +27,14 @@ namespace Summae\Core\Substrate;
  * constructor, so a database written before this repertoire existed would stop loading. A
  * validation that refuses to read what it once wrote is a worse failure than the one it prevents.
  *
- * **Two tiers, one list.** Nine of these the engine reads and branches on; `fixed_asset`,
+ * **Two tiers, one list.** Ten of these the engine reads and branches on; `fixed_asset`,
  * `opening_balance` and `private` are annotation that every shipped pack carries and no code
  * consults. They are in the repertoire because the packs use them, and keeping them here is what
  * makes the list safe to check against — a repertoire that only held the readable ones would refuse
  * the three shipped charts.
  *
- * **`inventory` is the twelfth, added 2026-08-29, and it is the case this enum named as the one
- * that would reopen it:** *a pack needing an account role the engine genuinely does not have*. Stock
+ * **Two values were added on 2026-08-29 — `inventory` and `provision` — and both are the case this
+ * enum named as the one that would reopen it:** *a pack needing an account role the engine genuinely does not have*. Stock
  * was that role. It arrives the way the note said it should — a registered value with a reader, not
  * a free string again — and the reader is `InventoryService`, which refuses to value stock onto an
  * account that is not one. Without it the figure would balance, satisfy every invariant, and land
@@ -60,6 +60,8 @@ enum AccountSubtype: string
     case ResultAllocation = 'result_allocation';
     /** Read: stock, the only account `valuateInventory` may value onto (F-CORE-050). */
     case Inventory = 'inventory';
+    /** Read: provisions, the only account `recognizeProvision` may form one on (F-CORE-051). */
+    case Provision = 'provision';
     /** Annotation: the packs mark their asset accounts; the asset expansion uses its own module. */
     case FixedAsset = 'fixed_asset';
     /** Annotation: the opening-balance account of a chart. */
