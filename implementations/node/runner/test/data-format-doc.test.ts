@@ -18,7 +18,13 @@ import { FORMAT_VERSION } from '@superheld/summae-core';
  *   1. the version in the document's title and in its `$id` line equals `FORMAT_VERSION`;
  *   2. no `## v0.x` section is missing between the oldest documented version and the current one,
  *      so a release cannot skip its own write-up the way 0.7 did;
- *   3. every `$defs` key the schema declares is named in the document.
+ *   3. every `$defs` key the schema declares is named in the document;
+ *   4. the module `kind` enum in the document is set-equal to the one in the schema.
+ *
+ * Check 4 was added on 2026-08-29 (IMPL-044), after the same table line fell four module kinds
+ * behind for the second time in three days. Check 3 could not see it: `module` *is* named, only its
+ * enumeration of the kinds was stale. An enumeration that presents itself as closed has to be held
+ * against the source it is closed over.
  *
  * The SAME checks live in the PHP DataFormatDocTest.
  */
@@ -26,6 +32,39 @@ import { FORMAT_VERSION } from '@superheld/summae-core';
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..');
 const DOC = join(REPO_ROOT, 'knowledge', '50-spezifikation', 'datenformat.md');
 const SCHEMA = join(REPO_ROOT, 'testing', 'testsuite', 'schema', 'format.schema.json');
+
+/**
+ * The module-kind enum, from the schema and from the document (IMPL-044).
+ *
+ * The document's own table row says "Maßgeblich ist format.schema.json" and then repeats the list —
+ * exactly the construction that drifts: a reader takes the prose, the prose points at the source,
+ * and nobody compares the two. It fell four kinds behind twice, on 2026-08-27 and on 2026-08-29.
+ */
+function schemaModuleKinds(): string[] {
+  const schema = JSON.parse(readFileSync(SCHEMA, 'utf8')) as {
+    $defs?: { module?: { properties?: { kind?: { enum?: string[] } } } };
+  };
+  const kinds = schema.$defs?.module?.properties?.kind?.enum ?? [];
+  expect(kinds.length, 'the schema declares no module kinds — did it change shape?').toBeGreaterThan(0);
+
+  return [...kinds].sort();
+}
+
+function documentedModuleKinds(): string[] {
+  const line = readDoc()
+    .split('\n')
+    .find((candidate) => candidate.startsWith('| `kind` | Enum '));
+  expect(line, 'the module table has no `kind` row — did § v0.6 change shape?').toBeDefined();
+
+  // The cell separates its values with escaped pipes, so those are parked before the row is split
+  // on the real column separator.
+  const cells = (line as string).replaceAll('\\|', '\u0000').split('|');
+  expect(cells[2], 'the `kind` row has no enum cell').toBeDefined();
+
+  const found = [...(cells[2] as string).matchAll(/`([a-zA-Z]+)`/gu)].map((match) => match[1] as string);
+
+  return [...new Set(found)].sort();
+}
 
 function readDoc(): string {
   return readFileSync(DOC, 'utf8');
@@ -104,5 +143,9 @@ describe('datenformat.md', () => {
       defs.filter((key) => !doc.includes(key)),
       'the schema declares these and the normative document never names them',
     ).toEqual([]);
+  });
+
+  it('enumerates the same module kinds as the schema', () => {
+    expect(documentedModuleKinds()).toEqual(schemaModuleKinds());
   });
 });

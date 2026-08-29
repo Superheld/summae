@@ -80,15 +80,29 @@ Each policy kind is a **socket** (the law-free mechanism in the core) fed by a
   Σ debit = Σ credit · voucher requirement · period open · finalization immutable ·
   required voucher fields (e.g. VAT ID on intra-community supply) · gapless journal
   numbering.
-- **Projection** — journal → view (never from stored balances): `trialBalance`,
-  `balanceSheet`, `incomeStatement`, `cashBasisReport`/EÜR, `vatReturn`,
-  `ecSalesList`/ZM, `openItems`, `assetRegister`, `auditLog`,
-  `costAllocationSheet`/BAB, `journalExport`/Z3, `datevExport`. Mechanism in the
-  core, **mapping** (plug) from the pack.
-- **Expansion** — intent → balanced postings: `expandTax`, `postVoucher`, `settle`
-  with a difference (cash discount/§ 17), `runDepreciation`, the low-value-asset
-  branch in `acquireAsset`, `disposeAsset`, `reverse` (general reversal), costing
-  allocations. Socket in the core, **plug** (rule data) from the pack.
+- **Projection** — journal → view (never from stored balances), *for example*
+  `trialBalance`, `balanceSheet`, `incomeStatement`, `cashBasisReport`/EÜR,
+  `vatReturn`, `ecSalesList`/ZM, `openItems`, `assetRegister`, `assetSchedule`,
+  `provisionRegister`, `deferralRegister`, `inventoryValuation`,
+  `measurementConsistency`, `auditLog`, `costAllocationSheet`/BAB,
+  `journalExport`/Z3, `gdpduExport`, `datevExport`. Mechanism in the core,
+  **mapping** (plug) from the pack.
+- **Expansion** — intent → balanced postings, *for example* `expandTax`,
+  `postVoucher`, `settle` with a difference (cash discount/§ 17), `runDepreciation`,
+  the low-value-asset branch in `acquireAsset`, `disposeAsset`, `writeDownAsset` /
+  `writeUpAsset`, `valuateInventory`, the four provision operations,
+  `recognizeDeferral` / `runDeferralRelease`, `adjustInputTax` (§ 15a),
+  `appropriateResult`, `reverse` (general reversal), costing allocations. Socket in
+  the core, **plug** (rule data) from the pack.
+
+> **These two lists are examples on purpose.** The *complete* enumeration lives where
+> it can be checked: `testing/testsuite/schema/api-parameters.json` is the contract the
+> dispatcher validates against, the manual documents every entry, and
+> `knowledge/50-spezifikation/api.md` plus the policy-kind census in
+> `knowledge/40-domaenenmodell/jurisdiction-profil.md` are held against it by
+> `ApiSpecDocTest` / `api-spec-doc.test.ts` in both languages. Until 2026-08-29 those
+> two claimed completeness and were 26 names behind (IMPL-044); an architecture
+> document that illustrates does not have to be complete, but it must not pretend.
 
 **Discretion boundary:** only what is *deterministically derivable from rule data +
 the posting set* is plug-driven (depreciation = table-driven). Valuation discretion
@@ -127,11 +141,15 @@ module **serves exactly one policy kind**, determined unambiguously by its `kind
 
 | `kind` | serves |
 |---|---|
-| `tax` · `depreciation` · `assetAccounts` | **Expansion** (the *plugs*) |
-| `mapping` | **Projection** (the *mappings*) |
+| `tax` · `depreciation` · `assetAccounts` · `productionCost` · `resultAppropriation` · `inventory` · `provisions` · `deferrals` · `inputTaxAdjustment` | **Expansion** (the *plugs*) |
+| `mapping` · `legalForms` | **Projection** (the *mappings*, and the legal-form catalogue a resolution deadline is read from) |
 | `accounts` | **Substrate** (the chart of accounts) |
 | `policy` | **Parameters** (rounding/scale — cross-cutting) |
-| *(`constraint` — no module kind yet)* | **Constraint** (today only generic in the core) |
+| `constraint` | **Constraint** — a real module kind since 2026-08-23, with conditional predicates (`dimensionRules`, account-combination rules). This row read *"no module kind yet"* until 2026-08-29, a year after the shipped `de` pack had one |
+
+The fourteen kinds are the schema's closed enum (`format.schema.json` → `module.kind`),
+and `knowledge/50-spezifikation/datenformat.md` is held against it — the same table row
+had fallen four kinds behind twice before that guard existed.
 
 Read backwards: *building a jurisdiction = supplying, per policy kind, the matching
 `kind` module.* A pack "draws on" the generic policy-kind mechanism in the core by

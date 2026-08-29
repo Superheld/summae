@@ -28,6 +28,9 @@ Die Abschnitte unten sind nach **Bounded Context** gegliedert (Ledger, Tax, Asse
 | `importChartOfAccounts` | Kontenrahmen-Daten (DATEV-kompatibel) → Anzahl Konten | `E_COA_FORMAT_INVALID` |
 | `post` (Beleg) | … | zusätzlich `E_VOUCHER_UNKNOWN` (voucherId gesetzt, Beleg fehlt) |
 | `createTenant` | Name, Währung, Profil → Tenant (sofort buchbar, SF-01) | `E_PROFILE_UNKNOWN` |
+| `createVoucher` | `voucher`-Objekt (dieselben Felder wie bei `postVoucher`, **unter** `voucher` geschachtelt) → `{id, voucherNumber}`; legt den Beleg an, **ohne** zu buchen (Vorstufe zu `post`, das einen vorhandenen Beleg verlangt) | `E_ENTRY_NO_VOUCHER` (Belegdatum fehlt/ungültig), `E_PARTNER_UNKNOWN`, `E_INPUT_INVALID` |
+| `unlockAccount` | Kontonummer → Account (Gegenstück zu `lockAccount`) | `E_ACCOUNT_UNKNOWN` |
+| `defineDimensionType` / `defineDimensionValue` | Dimensions-Achse (`code`) bzw. Wert (`type` + `code`) → Stammdatum der Dimensions-Validierung. **Mandanten-, nicht Pack-Daten** — eine Kostenstelle ist eine Tatsache über *eine* Firma, keine über eine Jurisdiktion; ein Mandant startet ohne Dimensionen | `E_DIMENSION_INVALID` (unbekannter Typ, leerer Code, bereits definiert) |
 
 **Maschinell erzeugte Buchungen werden sofort festgeschrieben** (v0.5/SPEC-009): Buchungen aus generierenden Operationen (`acquireAsset`, `disposeAsset`, `runDepreciation` und künftige Läufe) entstehen direkt im Status `finalized`, nicht `entered`. Andernfalls scheiterte `closeFiscalYear` an scheinbar offenen Buchungen, die kein Anwender je manuell festschreibt. GoBD-konform (Maschinenbuchungen sind unmittelbar verbindlich) und Voraussetzung dafür, dass der Jahresabschluss-Guard (`E_FISCALYEAR_UNFINALIZED_ENTRIES`) nur echte Entwurfsbuchungen meint.
 
@@ -42,13 +45,29 @@ Die Abschnitte unten sind nach **Bounded Context** gegliedert (Ledger, Tax, Asse
 ## Projektionen (lesend, deterministisch, `asOf`-fähig)
 
 `accounts` (Kontenrahmen) · `accountSheet` (Kontoblatt) · `assetRegister` (Anlageverzeichnis) ·
-`auditDataExport` (AICPA ADS) · `auditLog` (Änderungshistorie) · `balanceSheet` (Bilanz) ·
+`assetSchedule` (Anlagengitter, § 268 Abs. 2 — zwölf Größen je Gut und je Anlagekonto; `transfers`
+ist strukturell `0.00`, weil es keine Umgliederung zwischen Anlagepositionen gibt, und wird
+*gemeldet* statt weggelassen) · `auditDataExport` (AICPA ADS) · `auditLog` (Änderungshistorie) ·
+`auditTrailIntegrity` (Hash-Kette geprüft; zählt Schalen aus `erasePartner` getrennt, damit eine
+Löschung nie als stiller Durchlauf gelesen wird) · `balanceSheet` (Bilanz) ·
 `cashBasisReport` (EÜR, Regeln R1–R7) · `cashJournal` (Kassenbuch) · `costAllocationSheet` (BAB) ·
 `costingRuns` (welche Abrechnungsläufe es gibt) · `datevExport` (Buchungsstapel) ·
+`deferralRegister` (welche Abgrenzungen laufen, über wie viele Perioden, wie weit) ·
+`duplicateVouchers` (derselbe Beleg zweimal erfasst) ·
 `ecSalesList` (Zusammenfassende Meldung) · `fiscalYears` (Geschäftsjahre und Periodenstatus) ·
-`incomeStatement` (GuV) · `journal` (gefenstertes Journal) · `journalExport` (GoBD Z3) ·
-`openItems` (OP-Liste) · `overheadRates` (Kalkulationssätze) · `productionCost` (Herstellungskosten) ·
-`systemDescription` (technische Systembeschreibung) · `trialBalance` (SuSa) ·
+`gdpduExport` (Z3-Datenträger mit `index.xml`, Beschreibungsstandard 1.6 — F-IO-012) ·
+`incomeStatement` (GuV) · `inventoryValuation` (was bewertet wurde, woraus und in welcher Version) ·
+`journal` (gefenstertes Journal) · `journalExport` (GoBD Z3) ·
+`measurementConsistency` (Bewertungsstetigkeit, § 252 Abs. 1 Nr. 6: unter welcher Basis jeder
+freigegebene Lauf gerechnet wurde und wo sie wechselt — **meldet**, verweigert nicht, weil dieselbe
+Vorschrift die begründete Abweichung erlaubt) · `openItems` (OP-Liste) ·
+`overheadRates` (Kalkulationssätze) · `personalDataDescription` (wo vom Betreiber gelieferter
+Freitext sitzt, inkl. der tatsächlich belegten `address`-Schlüssel — Art. 30 DSGVO) ·
+`productionCost` (Herstellungskosten) · `provisionRegister` (welche Rückstellungen bestehen, wofür,
+und was mit ihnen geschah — die Bewegungsliste, die ein saldiertes Konto nicht zeigen kann) ·
+`systemDescription` (technische Systembeschreibung) · `tenantConfiguration` (womit dieser Mandant
+aufgesetzt ist) · `trialBalance` (SuSa) ·
+`unappropriatedResult` (noch nicht verwendetes Ergebnis je Geschäftsjahr) ·
 `unfinalizedEntries` (noch nicht festgeschriebene Buchungen) · `vatReturn` (USt-VA-Kennzahlen)
 
 > Diese Liste ist **die vollständige**, und sie muss es bleiben: `systemDescription` veröffentlicht
@@ -56,6 +75,18 @@ Die Abschnitte unten sind nach **Bounded Context** gegliedert (Ledger, Tax, Asse
 > Routing-Tabelle des Dispatchers — in beide Richtungen, in beiden Sprachen. Eine Projektion, die
 > hier fehlt und dort existiert, ist derselbe Defekt wie eine, die hier steht und nirgends
 > geroutet ist.
+>
+> **Bis 2026-08-29 hat diese Behauptung sich selbst widerlegt.** Der Contract-Test hielt
+> `systemDescription` gegen den Dispatcher — *diese Liste* hielt niemand gegen irgendetwas. Sie war
+> zehn Projektionen im Rückstand (`assetSchedule`, `auditTrailIntegrity`, `deferralRegister`,
+> `duplicateVouchers`, `gdpduExport`, `inventoryValuation`, `measurementConsistency`,
+> `personalDataDescription`, `provisionRegister`, `tenantConfiguration`), die Operationstabellen
+> sechzehn Operationen, und zwei Namen (`writeDown`, `writeUp`) trug keine Implementierung je. Eine
+> Liste, die sich selbst „die vollständige" nennt, ist die gefährlichste Sorte Dokumentation, wenn
+> nichts sie prüft. Seit 2026-08-29 tut es `ApiSpecDocTest` / `api-spec-doc.test.ts`: jede in
+> `testing/testsuite/schema/api-parameters.json` deklarierte Operation und Projektion muss in diesem
+> Dokument vorkommen — in beiden Sprachen, so wie `DataFormatDocTest` es für `datenformat.md` tut
+> (IMPL-037).
 
 Alle: Zeitraum/Stichtag + Optionen rein → strukturierte Daten raus. Kein Zustand, keine Seiteneffekte; gleiche Eingabe → byte-identisches Ergebnis (nach Kanonisierung) in allen Implementierungen.
 
@@ -87,7 +118,7 @@ Mischbelege: `expandTax` akzeptiert den Steuercode **je Position** (`netLines[].
 - **`trialBalance`-Zeilen verbindlich:** `openingBalance` (kumulierter Saldo vor dem GJ; 0 bei Erfolgskonten), `debitTotal`/`creditTotal` (Verkehrszahlen des Zeitraums), `balance` — die SuSa-Spalten der Praxis.
 - **`incomeStatement {fiscalYear, fromPeriod?, throughPeriod?}`** — Monats-/Quartalsauswertung (BWA-Grundlage, Buchhalter-G5); DATEV-BWA Form 01 ist ein Mapping-Regelmodul (Lieferaufgabe, kein Modellthema).
 - **`unfinalizedEntries {olderThanDays}`** — Projektion für die Festschreibe-Frist (GoBD: spätestens mit VA); Erinnern ist App-Sache, die Abfrage liefern wir.
-- **`systemDocumentation`** — generiert die technische Systembeschreibung (Baustein der Verfahrensdokumentation, GoBD Rz. 151 ff.): Formatversion, aktive Regelmodule + Versionen, Mandanten-Betriebsparameter, Unveränderbarkeits-/Exportmechanik (StB-3).
+- **`systemDescription`** (in v0.4 als `systemDocumentation` angekündigt, so heißt sie nirgends) — generiert die technische Systembeschreibung (Baustein der Verfahrensdokumentation, GoBD Rz. 151 ff.): Formatversion, aktive Regelmodule + Versionen, Mandanten-Betriebsparameter, Unveränderbarkeits-/Exportmechanik (StB-3).
 - **`runDepreciation`** unterstützt AfA-Methode `declining` inkl. automatischem Wechsel zu linear (StB-4); Sätze/Zeiträume aus dem Regelmodul.
 
 ## Tax
@@ -96,10 +127,50 @@ Mischbelege: `expandTax` akzeptiert den Steuercode **je Position** (`netLines[].
 |---|---|---|
 | `expandTax` | Belegdaten + taxCode + Datum + TaxProfile → vollständige Positionserweiterung | `E_TAXCODE_UNKNOWN`, `E_TAXCODE_NO_VALID_VERSION` |
 | `setTaxProfile` | Versteuerungsart/KU-Status mit `validFrom` → TaxProfile | `E_PROFILE_RETROACTIVE_CONFLICT` |
+| `adjustInputTax` | `originalInputTax` + `originalSharePercent` + `currentSharePercent` + `assetKind` + `reason` + `date` → gebuchte Vorsteuerkorrektur `{due, amount, correctionYears, sharePointsChanged, reportingKey, entryId}` (§ 15a UStG). **Expansion, keine Projektion:** sie liest kein Journal — jede Eingabe kommt von außen — und bucht die Korrektur, statt eine Zahl zurückzugeben | `E_PACK_INCOHERENT` (das Pack kennt diese `assetKind` nicht — nie ein Default, fünf Jahre statt zehn halbieren jede Korrektur), `E_ACCOUNT_UNKNOWN`, `E_INPUT_INVALID` |
+
+**Die Grenze bei § 15a läuft mitten durch die Regel** (2026-08-29): Das *Verzeichnis* — welche
+Güter im Berichtigungszeitraum stehen und bis wann — bleibt bei der App, und zwar aus einem Grund,
+der die Prüfung übersteht: Auslöser ist eine **Nutzungsänderung**, und die wird nie gebucht. Die
+*Arithmetik* ist umgekehrt nichts, was jede App nachbauen sollte — eine falsch gerechnete Zahl sieht
+genauso amtlich aus wie eine richtige. Alle Zahlen (Zeitraum je `assetKind`, beide Bagatellgrenzen
+nach § 44 UStDV, Konten, Kennzahl) sind Pack-Daten. Eine Schwellen-Antwort ist `due: false` **mit
+genannter Schwelle**, kein Betrag `0.00`: „keine Korrektur geschuldet" und „wir haben keine
+gerechnet" sind verschiedene Antworten.
 
 ## Assets
 
-`acquireAsset` (optional `dimensions[]` — Kostenstelle o. Ä. am Anlagegut; **jede** maschinelle Buchung dazu erbt sie, sonst wäre bei Pflichtdimension auf dem AfA-Konto gar keine Abschreibung buchbar) · `disposeAsset` (bucht die bis zum Abgangsdatum fällige AfA nach, schreibt dann den **Restbuchwert** vom Anlagekonto ab und stellt die Differenz zum Erlös als Gewinn (`disposalProceedsAccount`) oder Verlust (`disposalLossAccount`) ein; ein Gut, dessen Pack den Pool beim Abgang nicht vermindert, wird **nicht** ausgebucht — dort läuft die Pool-Rate weiter) · `runDepreciation({fiscalYear} | {fiscalYear, period})` — Jahres- oder Monatslauf; Monatsraten per `allocate` über die Gesamtlaufzeit (determinismus.md §2), idempotent je Lauf-Ziel (Wiederholung: No-op mit `alreadyRun: true`) · `writeDown` · `writeUp` (Zuschreibung, max. bis fortgeführte AHK)
+`acquireAsset` (optional `dimensions[]` — Kostenstelle o. Ä. am Anlagegut; **jede** maschinelle Buchung dazu erbt sie, sonst wäre bei Pflichtdimension auf dem AfA-Konto gar keine Abschreibung buchbar) · `disposeAsset` (bucht die bis zum Abgangsdatum fällige AfA nach, schreibt dann den **Restbuchwert** vom Anlagekonto ab und stellt die Differenz zum Erlös als Gewinn (`disposalProceedsAccount`) oder Verlust (`disposalLossAccount`) ein; ein Gut, dessen Pack den Pool beim Abgang nicht vermindert, wird **nicht** ausgebucht — dort läuft die Pool-Rate weiter) · `runDepreciation({fiscalYear} | {fiscalYear, period})` — Jahres- oder Monatslauf; Monatsraten per `allocate` über die Gesamtlaufzeit (determinismus.md §2), idempotent je Lauf-Ziel (Wiederholung: No-op mit `alreadyRun: true`) · `writeDownAsset` (außerplanmäßige Abwertung; ohne eigenes Pack-Konto fällt sie auf das AfA-Konto zurück — weniger aussagekräftig, nicht falsch) · `writeUpAsset` (Zuschreibung nach § 253 Abs. 5 HGB, **zwei** Deckel: nie mehr als je abgewertet wurde (`E_ASSET_WRITE_UP_EXCEEDS_WRITE_DOWN`) und nie über die **fortgeführten AHK** (`E_ASSET_WRITE_UP_EXCEEDS_CEILING`); dafür führt das Anlagegut einen **Schattenplan** — eine Abwertung senkt auch jede Restrate, der Buchwert steigt also über den unberührten Plan hinaus, und eine volle Rückgängigmachung führte Jahre später über die Anschaffungskosten. Das Ertragskonto ist **Pflicht**, anders als beim Abwerten: das einzige naheliegende Ausweichkonto wäre der Abgangsgewinn, und eine Zuschreibung ist keiner) · `bookSpecialDepreciation` (Sonderabschreibung neben dem Plan, § 7g Abs. 5 EStG; einmal bei `acquireAsset` gewählt, Satz und Fenster aus dem Pack — ohne Regel `E_PACK_INCOHERENT` statt erfundenem Satz) · `reportAssetUsage` (Leistungsabschreibung, § 7 Abs. 1 Satz 6 EStG: gemeldete Ausbringung seit der letzten Meldung; ein solches Gut hat **keinen** Plan, `runDepreciation` geht daran vorbei. Kumulativ gerechnet, damit die letzte Meldung exakt auf den AHK landet; über die Schätzung hinaus wird auf den Buchwert gedeckelt (`capped`), danach abgewiesen statt still `0.00` gebucht)
+
+**Die Namen sind bindend, auch hier:** bis 2026-08-29 standen an dieser Stelle `writeDown` und
+`writeUp`. So heißen die Operationen nirgends — der Dispatcher kennt sie als `writeDownAsset` /
+`writeUpAsset`. Ein Spec-Name, den keine Implementierung trägt, ist schlimmer als ein fehlender.
+
+## Bilanzierung: Vorräte, Rückstellungen, Rechnungsabgrenzung
+
+Die drei Bewertungsgegenstände, die der HGB-Zensus (`docs/hgb-conformance.md`) am 2026-08-29 als
+Löcher in § 266 gefunden hat. Alle drei sind **Expansionen** (Absicht → ausbalancierte Buchungen,
+Sockel Kern + Stecker Pack) und tragen je ein **persistiertes Aggregat**, weil eine Engine, die eine
+Bestandsänderung bucht und nicht sagen kann, wie sie auf die Zahl kam, genau das täte, was sie einer
+App verbietet.
+
+| Operation | Eingabe → Ergebnis | Wichtigste Fehler |
+|---|---|---|
+| `valuateInventory` | `fiscalYear` + `period` + `valuationDate` + `categories[]` (`account` mit `subtype: inventory`, `quantity`, `unitCost?`, `marketValue?` — Mengen und Werte als **Dezimal-Strings**, nicht als JSON-Zahlen) + optional `runId`/`producedQuantity` → `{valuationId, version, closingTotal, change, posted, entryId}`. Ohne `unitCost` kommt der Wert aus einem **freigegebenen** Costing-Lauf (Herstellungskosten ÷ `producedQuantity`). Mit `marketValue` gilt der niedrigere Wert, und die Zeile sagt welcher (`unitValue`, `writtenDownToMarket`). Gebucht wird die **Differenz** zum Buchwert, eine Buchung je Bewertung, sofort festgeschrieben; Wiederholung = neue `version`, kein Idempotenz-Schlüssel | `E_INVENTORY_ACCOUNT_INVALID` (Konto ist kein Vorratskonto — die Buchung ginge auf, der Betrag stünde in der falschen Bilanzposition), `E_COSTING_RUN_NOT_RELEASED` (eigener Code neben `E_COSTING_RUN_UNKNOWN`, weil die beiden **entgegengesetzte** Korrekturen verlangen), `E_COSTING_RUN_UNKNOWN`, `E_ACCOUNT_UNKNOWN`, `E_PACK_INCOHERENT`, `E_INPUT_INVALID` |
+| `recognizeProvision` | `account` (`subtype: provision`) + `reason` + `amount` (**undiskontierter** Erfüllungsbetrag) + `recognizedOn` + `dueDate?` + `discountRate?` → `{provisionId, settlementAmount, carryingAmount, discounted, discountRate, entryId}` | `E_PROVISION_ACCOUNT_INVALID`, `E_PROVISION_DISCOUNT_RATE_REQUIRED`, `E_PACK_INCOHERENT` |
+| `useProvision` | `provisionId` + `amount` + `date` + `settlementAccount` → Verbrauch (die Rückstellung wird in Anspruch genommen). **Eine höhere Rechnung als geschätzt wird nicht abgewiesen**, sondern als Aufwand des laufenden Jahres gebucht — das ist der Normalfall, kein Fehler | `E_PROVISION_UNKNOWN` |
+| `releaseProvision` | `provisionId` + `amount` + `date` → Auflösung als **Ertrag** | `E_PROVISION_EXCEEDS_CARRYING` (mehr auflösen als getragen wird, wäre erfundener Ertrag), `E_PROVISION_UNKNOWN` |
+| `remeasureProvision` | `provisionId` + `amount` + `date` + `discountRate?` → neu bewertet | `E_PROVISION_UNKNOWN`, `E_PROVISION_DISCOUNT_RATE_REQUIRED` |
+| `recognizeDeferral` | `kind` (`prepaidExpense` \| `deferredIncome`) + `reason` + `counterAccount` + `amount` + `recognizedOn` + `firstFiscalYear` + `firstPeriod` + `periods` → `{deferralId, kind, amount, periods, entryId}`. Das RAP-Konto nennt das **Pack**, das Gegenkonto der Aufrufer (welcher Aufwand/Ertrag gemeint ist, ist eine Tatsache über den Vorgang, keine über die Jurisdiktion) | `E_INPUT_INVALID` (eine dritte `kind` wäre eine dritte Buchungsrichtung, keine Variante), `E_ACCOUNT_UNKNOWN`, `E_PACK_INCOHERENT` |
+| `runDeferralRelease` | `fiscalYear` + `period` → `{entriesCreated, totalReleased}` bzw. `{alreadyRun: true}`. **Bewusst die Form des AfA-Laufs**, bis zur Antwort: eine Periode je Lauf, idempotent, und ein Lauf ist kein Nachholen (Periode 4 löst 2 und 3 nicht mit auf). Idempotent, weil jede Abgrenzung mitschreibt, **welche Perioden sie freigegeben hat** — nicht, weil ein Saldo geprüft wird, was nach einem Neustart doppelt buchte | `E_PERIOD_UNKNOWN`, `E_INPUT_INVALID` |
+
+**Vier Rückstellungs-Operationen statt einer `adjustProvision`**, weil § 249 Abs. 2 Satz 2
+*Verbrauch* und *Auflösung* unterscheidet und die Konten es auch tun: eine Auflösung ist Ertrag, den
+das Unternehmen nie zahlen musste. **Die Abzinsungs-Naht ist geteilt** (§ 253 Abs. 2): die **Regel**
+(ab welcher Restlaufzeit, mit Fundstelle) ist Pack-Datum, der **Satz** ist Eingabe je Vorgang — er
+wird monatlich neu veröffentlicht, ein Zahlenwert in einer Pack-Datei wäre veraltet, bevor ihn jemand
+aktualisiert, und ein veralteter Rechtssatz, der amtlich aussieht, ist schlimmer als ein fehlender.
+
 
 ## Regelmodul-Verwaltung
 
