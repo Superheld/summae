@@ -220,3 +220,68 @@ projections are ungated. A scenario for each is cheap and gates what this memo i
 
 Foreign currency (census row 11) is a decision before it is a task and is deliberately not in this
 order.
+
+## 10. Does the system design hold?
+
+Checked item by item against the architecture as it actually stands — one `Ledger`, one
+`baseCurrency` and ten ports on `Tenant`, all ten dealing in domain objects; three policy kinds;
+substrate closed under composition. The answer is *mostly yes*, and it is worth being precise about
+which parts rather than reassuring.
+
+**Four fit without touching anything structural.** Stock valuation is an **expansion**
+(`valuateInventory`: intent plus quantities → balanced postings, the `runDepreciation` shape) plus a
+**projection**, pack accounts and mapping positions, and one entry in the account-subtype
+repertoire. Provisions need an aggregate of their own, which is what `Asset` already is and where it
+already sits. The write-up obligation is an expansion with no new concepts at all. The prepaid-item
+release schedule is the depreciation pattern over accounts that exist. None of these is a new idea;
+they are the existing repertoire applied to positions the shipped mapping does not have yet.
+
+**Two did not fit as first framed, and both have a reframing that does.** Recording them because a
+plan that only lists what fits has not been checked.
+
+- **§ 15a as a projection fits nothing.** Projections are journal → view, and this one never reads
+  the journal: its inputs (the input tax originally deducted, the share then, the share now) all
+  come from outside. `allocate` is the only precedent for input → number, and it is substrate
+  arithmetic made reachable, not a policy. **As an expansion it fits exactly** — inputs in, the
+  correction posting out — and it is the better design for an unrelated reason: the correction gets
+  *booked* rather than computed and handed back for someone to book. The application keeps the
+  register and the deadline, and gains a posting it does not have to construct.
+- **Consistency of measurement (§ 252 Abs. 1 Nr. 6) as a constraint fits nothing.** The constraint
+  predicate sees exactly one entry — no deadlines, no reach across entries, and this rule reaches
+  across *years*. **As a projection that reports, it fits** — and it has to be a report rather than a
+  refusal on legal grounds, not architectural ones: § 252 Abs. 2 permits deviation in justified
+  exceptional cases, so a rule that refused would be wrong rather than merely strict. Same line
+  `vatReturn.gapWarnings` and `duplicateVouchers` already draw.
+
+**One is a genuinely new kind of port.** All ten ports today hand domain objects across the
+hexagon. A `DocumentStore` hands **bytes**. That is still ports and adapters — the core would own
+the contract that a voucher has a retrievable document and no adapter would leak into it — but it is
+an extension of the hexagon rather than an eleventh instance of what is already there, and it drags
+in a second immutability and retention regime plus GDPR erasure. Worth entering with open eyes.
+
+**One reaches the substrate, and it is the only one that does.** Foreign currency changes `Money`
+itself — today `(amount, currency)` refusing arithmetic across currencies, which is right for a
+total and leaves nowhere to put a receivable in USD — and `Tenant.baseCurrency` is singular. It
+therefore also changes the entry line, the data format (a version bump), every projection, and the
+byte-parity contract that SF-15 rests on. It *decomposes* correctly along the usual seam — the
+substrate would carry the pair of amounts and the rate, the pack would say which rate on which date
+(§ 256a's Devisenkassamittelkurs, the one-year imparity carve-out) — so the architecture is not
+wrong about it. It is simply the largest change on the list, and the only one that starts at the
+bottom.
+
+**And the single-circle/two-circle question turns out to be an architecture question with a new
+argument in it.** Under the single-circle model the Abgrenzungsrechnung fits no policy kind either:
+it reads the journal like a projection, and then *adds* values that are not in the journal at all
+(Zusatzkosten — imputed owner's salary, imputed rent), which no projection may do. Under the
+two-circle model it becomes a plain **expansion** — it produces postings, in the costing circle.
+The strain disappears rather than being worked around.
+
+What makes that affordable is the property the architecture was built on: **the substrate is closed
+under composition**, so a second accounting circle is a second `Ledger` and a second
+`JournalRepository` on `Tenant` — a *composition* change — and not a second substrate. The classical
+German answer says the same thing from the other side: GKR and IKR carry the Betriebsbuchhaltung in
+account class 9 as a second, double-entry circle linked by mirror accounts, and the shipped `de`
+chart is single-circle with no class 9 at all. The cost is real and is not architectural elegance:
+two circles mean two period regimes, two finalization rules, two audit trails and twice the
+persistence. **This remains open**, and it hangs on a product question — whether the municipal pack
+is still coming — that no document in this repository answers.
