@@ -612,6 +612,24 @@ final class CostingService
             ];
         }
 
+        // An election that names a component with no base configured does NOTHING, and until now it
+        // did nothing quietly. `include: ["administration"]` without an `administration` entry in
+        // `components` passed every check above — the component exists in the pack, it is not
+        // forbidden — and then never appeared in the run at all. The caller has asserted a
+        // measurement election and got no election; worse, the consistency report would show the
+        // basis as unchanged, which is true and useless. Same shape as the third rule above, one
+        // step later.
+        $configured = array_column($components, 'id');
+        foreach ($elected as $componentId) {
+            if (!in_array($componentId, $configured, true)) {
+                throw new DomainError('E_INPUT_INVALID', sprintf(
+                    'production-cost component "%s" was elected, but no base is configured for it — '
+                    . 'give it accounts or cost centres, or drop the election',
+                    $componentId,
+                ), ['component' => $componentId]);
+            }
+        }
+
         return $components;
     }
 

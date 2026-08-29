@@ -24,6 +24,7 @@ use Summae\Core\Policies\Projection\Mapping\MappingImporter;
 use Summae\Core\Policies\Projection\AccountsProjection;
 use Summae\Core\Policies\Projection\CostingRunsProjection;
 use Summae\Core\Policies\Projection\JournalProjection;
+use Summae\Core\Policies\Projection\MeasurementConsistencyProjection;
 use Summae\Core\Policies\Projection\FiscalYearsProjection;
 use Summae\Core\Policies\Projection\UnappropriatedResult;
 use Summae\Core\Policies\Projection\UnappropriatedResultProjection;
@@ -215,6 +216,7 @@ final readonly class TenantOperations
             'costAllocationSheet' => $tenant->costing->costAllocationSheet($params),
             'overheadRates' => $tenant->costing->overheadRates($params),
             'productionCost' => $tenant->costing->productionCost($params),
+            'measurementConsistency' => (new MeasurementConsistencyProjection($tenant->costingRuns))->compute($params),
             'journalExport' => (new JournalExportProjection(
                 $tenant->id,
                 $tenant->name,

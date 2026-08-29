@@ -42,7 +42,7 @@ final class TenantOperationsContractTest extends TestCase
         'costAllocationSheet', 'ecSalesList', 'incomeStatement', 'balanceSheet', 'vatReturn',
         'cashJournal',
         'cashBasisReport', 'journalExport', 'datevExport', 'auditDataExport', 'systemDescription',
-        'overheadRates', 'productionCost', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
+        'overheadRates', 'productionCost', 'measurementConsistency', 'accounts', 'fiscalYears', 'journal', 'costingRuns',
         'tenantConfiguration', 'unappropriatedResult',
             'personalDataDescription',
     ];

@@ -211,8 +211,11 @@ projections are ungated. A scenario for each is cheap and gates what this memo i
    and the row moved. A census of absences rots the opposite way from one of claims — nothing
    breaks when a hole is filled, the document just quietly understates the product — and only an
    inverted gate catches that.
-2. **Bewertungsstetigkeit** (census row 1): a costing run records the election it was computed
-   under. Small, and it protects the one measurement option that ships.
+2. ~~**Bewertungsstetigkeit** (census row 1): a costing run records the election it was computed
+   under.~~ **Built 2026-08-29** (`measurementConsistency`, F-CORE-049) — and the line above was
+   wrong about what was missing. A run has recorded its election since runs were persisted; what
+   nothing did was *compare two records*. The correction is worth keeping: a census row's size
+   estimate is a guess until somebody reads the code, and this one was right by accident.
 3. **Stock** (§4 here, census row 2). Closes a balance-sheet hole and the cost-accounting chain with
    one piece of work.
 4. **Provisions** (census row 3). The other missing main position; asset-register sized.

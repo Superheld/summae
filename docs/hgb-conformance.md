@@ -76,7 +76,7 @@ Status vocabulary, identical to its two siblings:
 | § 252 Abs. 1 Nr. 3 — individual measurement at the reporting date | ✅ for what exists | Assets are measured individually (`assets/*`). Untestable for stock while stock does not exist. |
 | § 252 Abs. 1 Nr. 4 — prudence, realisation, **imparity** | ⚠️ | The imparity principle is what §§ 249, 253 Abs. 4 and 256a *are*. All three are open, so the principle is stated nowhere and enforced nowhere. |
 | § 252 Abs. 1 Nr. 5 — accrual (expense and income in the period they belong to) | 🟡 | Accounts exist, the mechanism does not — see § 250 above. |
-| § 252 Abs. 1 Nr. 6 — **consistency of measurement methods** (Bewertungsstetigkeit) | ⚠️ | Nothing carries a measurement election across years. The one election that exists today — `productionCost.include`, the § 255 Abs. 2 Satz 4 options — is part of the tenant configuration and can be changed between two runs with nothing noticing that last year's inventory was valued on a different basis. § 6 Abs. 1 Nr. 1b EStG additionally requires the *same* election in the tax accounts. **This row is the cheapest real win in the document.** |
+| § 252 Abs. 1 Nr. 6 — **consistency of measurement methods** (Bewertungsstetigkeit) | ✅ | `measurementConsistency`; `costing/measurement-consistency`. It walks the released costing runs, states the basis each was computed under (`included` / `elected`) and reports every change with `acrossFiscalYears`. **Half of this was already built and the earlier ⚠️ overstated the gap:** a released run has always *frozen* its components with the pack's treatment, so the record existed — what did not exist was anybody comparing two records. It **reports** rather than refuses, and that is Abs. 2 rather than leniency: the same provision that demands consistency permits a justified departure, so a refusal would enforce half a rule. Electing a component with no base configured is now `E_INPUT_INVALID` instead of silently inert. |
 | § 253 Abs. 1 — recognition at acquisition or production cost | ✅ | `acquireAsset` (`assets/gwg-and-depreciation`); production cost components `costing/production-cost` |
 | § 253 Abs. 2 — discounting of provisions with more than a year to run | ⚠️ | Follows § 249. The Bundesbank rate is pack data, the discounting is core mechanism — the same split as depreciation rates. |
 | § 253 Abs. 3 — scheduled and unscheduled depreciation of fixed assets | ✅ | `runDepreciation`, `writeDownAsset`; `assets/asset-write-down`, `assets/declining-balance-depreciation`, `assets/special-depreciation` |
@@ -113,7 +113,7 @@ tax determination beyond VAT.
 | Provision | Status | Where |
 |---|---|---|
 | § 5 Abs. 1 — authoritativeness of the commercial balance sheet | ➖ | A relationship between two balance sheets. summae keeps one. |
-| § 6 Abs. 1 Nr. 1b — the § 255 Abs. 2 Satz 4 election must match in both | ⚠️ | Follows Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6 above). |
+| § 6 Abs. 1 Nr. 1b — the § 255 Abs. 2 Satz 4 election must match in both | ➖ | A relationship between two balance sheets, like § 5 Abs. 1 above; summae keeps one. What it *can* now do is state the election a given run used (`measurementConsistency`), which is the input somebody comparing the two needs — the comparison itself is not reachable here and is not claimed. |
 | § 6 Abs. 1 Nr. 2a — Lifo permitted for tax | ⚠️ | Follows § 256. |
 | § 7 — depreciation, straight-line and declining balance | ✅ | `assets/declining-balance-asset-class`, `assets/useful-life-override` |
 | § 7 Abs. 1 Satz 6 — depreciation by output | ✅ | `assets/units-of-production` — and the reason the quantity on an asset is bookkeeping data rather than an exception |
@@ -129,7 +129,7 @@ Ordered by what unblocks what, not by severity.
 
 | # | Item | Size | Why it is where it is |
 |---|---|---|---|
-| **1** | **Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)** for the `productionCost` election | small | The election already exists and is already stored with the tenant. What is missing is that a costing run *records which election it was computed under*, so two years can be compared. Cheapest row in the document and it protects the one measurement option that is shipped. |
+| ~~**1**~~ | ~~**Bewertungsstetigkeit (§ 252 Abs. 1 Nr. 6)**~~ — **built 2026-08-29** | — | `measurementConsistency` + `costing/measurement-consistency` (F-CORE-049). The row stays rather than being deleted, for what it got wrong: it said a run does not record its election. A run has recorded it since runs were persisted; the missing half was the *comparison*. The size estimate was right for the wrong reason, which is an argument for reading a census row against the code before believing it. |
 | **2** | **Stock: recognition, measurement, posting** (§§ 240, 246, 247, 253 Abs. 4, 255 Abs. 2, 266, 275) | large | The single change that closes a hole in the balance sheet *and* finishes the cost-accounting chain. Design sketch in `proposals/library-boundary.md` §4 — an `inventory` subtype, pack accounts and mapping positions, a `valuateInventory` operation shaped like `runDepreciation`, quantities as **input** and never as stock. Defers § 256 Fifo/Lifo deliberately, which stays row 6. |
 | **3** | **Provisions (§ 249, § 253 Abs. 2)** | large | The other missing main position. Formation, use, release, annual re-assessment, and discounting with the rate as pack data. Comparable in size to the asset register, and it needs an aggregate of its own for the same reason: the movement matters, not just the balance. |
 | **4** | **Write-up obligation (§ 253 Abs. 5)** | small | `writeDownAsset` has no counterpart. A mandatory rule with nothing behind it, and the smallest of the genuine legal gaps. |
@@ -165,7 +165,7 @@ evidence named. The gate does not merely notice progress; it refuses to let prog
 |---|---|---|
 | engine account subtypes | `AccountSubtype::all()` / `allAccountSubtypes()` | `bank` `cash` `transit` `ar` `ap` `tax_in` `tax_out` `result_allocation` `fixed_asset` `opening_balance` `private` |
 | operations the engine does not have | `testing/testsuite/schema/api-parameters.json` → `operations` | `valuateInventory` `writeUpAsset` `recognizeProvision` `useProvision` `releaseProvision` `remeasureProvision` `recognizeDeferral` `runDeferralRelease` `adjustInputTax` |
-| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `inventoryValuation` `provisionRegister` `deferralRegister` `assetSchedule` `measurementConsistency` |
+| projections the engine does not have | `testing/testsuite/schema/api-parameters.json` → `projections` | `inventoryValuation` `provisionRegister` `deferralRegister` `assetSchedule` |
 | `de` balance sheet, asset positions | `pack-library/de-pack/mappings/de-bilanz.json` | `A.I` `A.II` `A.III` `A.IV` `A.V` |
 | `de` balance sheet, liability positions | `pack-library/de-pack/mappings/de-bilanz.json` | `P.A1` `P.A2` `P.C` `P.D` |
 | `de` income statement positions | `pack-library/de-pack/mappings/de-guv.json` | `1` `2` `3` `4` `5` `6` |

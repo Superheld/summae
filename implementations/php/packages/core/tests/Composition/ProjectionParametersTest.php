@@ -31,17 +31,32 @@ final class ProjectionParametersTest extends TestCase
      * be recorded on the parameter it concerns — which is where a later reader will look — instead
      * of drifting into a file nobody opens. Everything else must match exactly.
      *
-     * @param array<string, array<string, array<string, mixed>>> $projections
+     * Stripped at **both** levels since 2026-08-29, and the second one was a real gap rather than
+     * tidiness: a projection that takes NO parameters had nowhere to record why. There are seven of
+     * them, every one deliberately parameterless, and the argument for each ("a tenant has exactly
+     * one configuration"; "a date window would hide the December-and-January duplicate") lived only
+     * in a code comment on the far side of the copy. `measurementConsistency` is the case that
+     * forced it: a fiscalYear filter would hide the across-year change the projection exists to
+     * report, which is precisely the kind of decision that must sit in the normative file.
      *
-     * @return array<string, array<string, array<string, mixed>>>
+     * @param array<string, mixed> $projections
+     *
+     * @return array<string, mixed>
      */
     private function withoutComments(array $projections): array
     {
         foreach ($projections as $name => $params) {
-            foreach ($params as $param => $spec) {
-                unset($spec['$comment']);
-                $projections[$name][$param] = $spec;
+            if (!is_array($params)) {
+                continue;
             }
+            unset($params['$comment']);
+            foreach ($params as $param => $spec) {
+                if (is_array($spec)) {
+                    unset($spec['$comment']);
+                }
+                $params[$param] = $spec;
+            }
+            $projections[$name] = $params;
         }
 
         return $projections;
