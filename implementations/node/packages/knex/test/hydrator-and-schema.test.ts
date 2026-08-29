@@ -1,3 +1,4 @@
+import { Currency } from '@superheld/summae-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as H from '../src/hydrator.js';
 import { dropSchema, installSchema, TABLE_PREFIX } from '../src/schema-installer.js';
@@ -46,13 +47,13 @@ beforeEach(() => {
 
 describe('hydrator: money', () => {
   it('reads an amount and a currency back', () => {
-    expect(H.money({ amount: '12.34', currency: 'EUR' }).amountAsString()).toBe('12.34');
+    expect(H.money({ amount: '12.34', currency: 'EUR' }, Currency.of('EUR')).amountAsString()).toBe('12.34');
   });
 
   it('falls back to the documented defaults rather than crashing', () => {
     // A malformed document must not take the process down mid-read; zero EUR is the documented
     // fallback, and the amount is still validated by Money itself.
-    const fallback = H.money({});
+    const fallback = H.money({}, Currency.of('EUR'));
     expect(fallback.amountAsString()).toBe('0.00');
     expect(fallback.currency.code).toBe('EUR');
   });
@@ -79,7 +80,7 @@ describe('hydrator: entry lines', () => {
         side: 'debit',
         money: { amount: '100.00', currency: 'EUR' },
       },
-    ]);
+    ], Currency.of('EUR'));
 
     expect(lines).toHaveLength(2);
     // `Side` is a union type here and an enum in PHP — the value on the wire is the same string,

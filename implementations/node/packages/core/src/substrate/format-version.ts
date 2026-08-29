@@ -11,4 +11,4 @@
  * schema's `$id`. Bumping the schema without bumping this now turns a build red instead of
  * shipping a mislabelled export.
  */
-export const FORMAT_VERSION = '0.8';
+export const FORMAT_VERSION = '0.9';

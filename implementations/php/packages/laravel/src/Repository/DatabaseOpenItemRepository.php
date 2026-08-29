@@ -11,6 +11,7 @@ use Summae\Core\Policies\Expansion\Settlement;
 use Summae\Core\Substrate\SettlementCause;
 use Summae\Core\Substrate\SettlementDifferenceKind;
 use Summae\Core\Port\OpenItemRepository;
+use Summae\Core\Substrate\Currency;
 use Summae\Core\Substrate\Uuid;
 use Summae\Laravel\Schema\SchemaInstaller;
 
@@ -19,6 +20,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
     public function __construct(
         private ConnectionInterface $connection,
         private Uuid $tenantId,
+        private Currency $currency,
     ) {
     }
 
@@ -30,7 +32,10 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
             'kind' => $item->kind->value,
             'origin_entry_id' => $item->originEntryId->value,
             'origin_line_index' => $item->originLineIndex,
-            'amount' => $item->money->amountAsString(),
+            // The one place an amount is written as a bare string rather than through a Money object,
+            // so the one place a writer could reshape it by hand. Everything else is serialised by
+            // Money itself, which is canonical by construction (IMPL-040).
+            'amount' => Hydrator::assertScale($item->money->amountAsString(), $this->currency),
             'currency' => $item->money->currency->code,
             'voucher_id' => $item->voucherId->value,
             'opened_at' => $item->openedAt->iso,
@@ -104,9 +109,9 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
 
             $settlements[] = new Settlement(
                 Uuid::fromString(is_string($data['entryId'] ?? null) ? $data['entryId'] : ''),
-                Hydrator::money($money),
+                Hydrator::money($money, $this->currency),
                 Hydrator::date($data['settledAt'] ?? null) ?? throw new \RuntimeException('settledAt missing'),
-                $differenceMoney === [] ? null : Hydrator::money($differenceMoney),
+                $differenceMoney === [] ? null : Hydrator::money($differenceMoney, $this->currency),
                 is_string($difference['kind'] ?? null) ? SettlementDifferenceKind::tryFrom($difference['kind']) : null,
                 SettlementCause::parse($data['cause'] ?? null),
             );
@@ -117,7 +122,7 @@ final readonly class DatabaseOpenItemRepository implements OpenItemRepository
             OpenItemKind::from($row->kind),
             Uuid::fromString($row->origin_entry_id),
             (int) $row->origin_line_index,
-            Hydrator::money(['amount' => $row->amount, 'currency' => $row->currency]),
+            Hydrator::money(['amount' => $row->amount, 'currency' => $row->currency], $this->currency),
             Uuid::fromString($row->voucher_id),
             Hydrator::date($row->opened_at) ?? throw new \RuntimeException('opened_at missing'),
             $row->partner_id === null ? null : Uuid::fromString($row->partner_id),

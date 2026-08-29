@@ -100,6 +100,11 @@ final readonly class TenantFactory
             ? array_values($this->ruleModules['accountCombinationRules'])
             : [];
 
+        /** @var list<array<string, mixed>> $accountUsageRules */
+        $accountUsageRules = is_array($this->ruleModules['accountUsageRules'] ?? null)
+            ? array_values($this->ruleModules['accountUsageRules'])
+            : [];
+
         $tenant = Tenant::inMemory(
             is_string($input['name'] ?? null) ? $input['name'] : 'Tenant',
             Currency::of(is_string($input['baseCurrency'] ?? null) ? $input['baseCurrency'] : 'EUR', $currencyScale),
@@ -112,7 +117,7 @@ final readonly class TenantFactory
             $granularity,
             $this->packIdentity(),
             null,
-            AccountCombinationRegistry::fromData($accountCombinationRules),
+            AccountCombinationRegistry::fromData($accountCombinationRules, $accountUsageRules),
         );
 
         $accountCount = 0;

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Summae\Core\Composition;
 
 use Summae\Core\DomainError;
+use Summae\Core\Policies\Expansion\Tax\TaxProfile;
+use Summae\Core\Substrate\AccountSubtype;
 use Summae\Core\Policies\Expansion\Tax\TaxMechanisms;
 use Summae\Core\Substrate\CanonicalJson;
 
@@ -37,7 +39,9 @@ final class PackResolver
      * A published `(id, version)` names one bundle for good, so a library may hold several
      * versions of the same pack side by side and an old pin keeps resolving what it always
      * resolved. A request without a version means "current", and current is the **highest**
-     * version by code point — the same rule module references already follow. Picking the
+     * version, compared segment by segment and numerically where both segments are numbers — the
+     * same rule module references already follow. It was a plain code-point compare until
+     * 2026-08-28, which put `2026.10` below `2026.9`. Picking the
      * first match instead would make the answer depend on directory iteration order, which
      * is not the same on two machines.
      *
@@ -67,12 +71,54 @@ final class PackResolver
 
         usort(
             $candidates,
-            static fn (array $a, array $b): int => strcmp(self::str($a['version'] ?? null) ?? '', self::str($b['version'] ?? null) ?? ''),
+            static fn (array $a, array $b): int => self::compareVersions(self::str($a['version'] ?? null) ?? '', self::str($b['version'] ?? null) ?? ''),
         );
 
         return $candidates[count($candidates) - 1];
     }
 
+
+    /**
+     * Order two published versions, newest last.
+     *
+     * **Segment by segment, numerically where both segments are numbers**, and by code point
+     * otherwise. This used to be a plain `strcmp` over the whole string, and that was correct for
+     * every version that has ever shipped and wrong for the next one: `2026.10` sorts BELOW
+     * `2026.9` by code point, because `'1' < '9'`. A request without a version means *current*, so
+     * the tenth release of a pack would silently have resolved the ninth — the pack would look
+     * published and nobody would be running it. The German pack reached `2026.9` on 2026-08-28,
+     * which is how close this was.
+     *
+     * Nothing that exists resolves differently: with single-digit segments the two orders agree,
+     * which is why the change is safe to make in one step rather than behind a flag. A segment that
+     * is not a number (`1.0-beta`) still compares by code point, so a pack that versions itself
+     * some other way keeps the behaviour it had.
+     */
+    private static function compareVersions(string $a, string $b): int
+    {
+        $left = explode('.', $a);
+        $right = explode('.', $b);
+        $count = max(count($left), count($right));
+
+        for ($i = 0; $i < $count; $i++) {
+            $l = $left[$i] ?? '';
+            $r = $right[$i] ?? '';
+            if ($l === $r) {
+                continue;
+            }
+            // A missing segment is lower than a present one: 2026.1 precedes 2026.1.1.
+            if ($l === '' || $r === '') {
+                return $l === '' ? -1 : 1;
+            }
+            if (ctype_digit($l) && ctype_digit($r)) {
+                return (int) $l <=> (int) $r;
+            }
+
+            return strcmp($l, $r) <=> 0;
+        }
+
+        return 0;
+    }
     /**
      * @param array<mixed>       $manifest
      * @param list<array<mixed>> $moduleSource
@@ -112,7 +158,7 @@ final class PackResolver
             }
         }
 
-        // 2. Resolve module references (version missing → highest per codepoint).
+        // 2. Resolve module references (version missing → highest version, see compareVersions).
         /** @var list<array<mixed>> $resolved */
         $resolved = [];
         foreach ($effective as $ref) {
@@ -134,7 +180,7 @@ final class PackResolver
             }
             usort(
                 $candidates,
-                static fn (array $a, array $b): int => strcmp(self::str($a['version'] ?? null) ?? '', self::str($b['version'] ?? null) ?? ''),
+                static fn (array $a, array $b): int => self::compareVersions(self::str($a['version'] ?? null) ?? '', self::str($b['version'] ?? null) ?? ''),
             );
             $resolved[] = $candidates[count($candidates) - 1];
         }
@@ -186,6 +232,8 @@ final class PackResolver
         $dimensionRules = [];
         /** @var list<array<mixed>> $accountCombinationRules */
         $accountCombinationRules = [];
+        /** @var list<array<mixed>> $accountUsageRules */
+        $accountUsageRules = [];
         /** @var array<mixed>|null $packPolicyModule */
         $packPolicyModule = null;
 
@@ -202,6 +250,19 @@ final class PackResolver
                             throw new DomainError('E_PACK_INCOHERENT', 'Duplicate account number: ' . $number);
                         }
                         $accountNumbers[$number] = true;
+                        $subtype = self::str($account['subtype'] ?? null);
+                        if ($subtype !== null && !AccountSubtype::isKnown($subtype)) {
+                            // Closed repertoire (Substrate/AccountSubtype): a misspelled subtype
+                            // used to resolve into a chart where the engine read nothing from it.
+                            // E_PACK_INCOHERENT because that is what it is — the modules resolve,
+                            // the bundle asks for something that does not exist — and here rather
+                            // than at the first posting, like every other coherence check.
+                            throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                                'Unknown account subtype "%s" on account %s',
+                                $subtype,
+                                $number,
+                            ), ['account' => $number, 'subtype' => $subtype, 'known' => AccountSubtype::all()]);
+                        }
                         $accounts[] = $account;
                     }
                     break;
@@ -256,6 +317,11 @@ final class PackResolver
                     foreach (is_array($data['accountCombinationRules'] ?? null) ? array_values($data['accountCombinationRules']) : [] as $rule) {
                         if (is_array($rule)) {
                             $accountCombinationRules[] = $rule;
+                        }
+                    }
+                    foreach (is_array($data['accountUsageRules'] ?? null) ? array_values($data['accountUsageRules']) : [] as $rule) {
+                        if (is_array($rule)) {
+                            $accountUsageRules[] = $rule;
                         }
                     }
                     break;
@@ -353,6 +419,32 @@ final class PackResolver
                 }
             }
         }
+        // I10: every tenant fact an `appliesWhen` names is one this bundle can actually produce.
+        // Without this a mistyped legal form leaves the rule permanently DORMANT — the pack looks
+        // like it forbids something and forbids nothing, which is the same silent failure the
+        // closed subtype repertoire and the closed mechanism repertoire were built against. The
+        // legal forms are the pack's own catalogue, so they can only be checked here, where the
+        // constraint modules and the legalForms module are in the same hand.
+        $declaredForms = is_array($legalForms['forms'] ?? null) ? array_keys($legalForms['forms']) : [];
+        foreach ([...$accountCombinationRules, ...$accountUsageRules] as $rule) {
+            $conditions = is_array($rule['appliesWhen'] ?? null) ? $rule['appliesWhen'] : [];
+            foreach (is_array($conditions['legalForm'] ?? null) ? $conditions['legalForm'] : [] as $form) {
+                if (!in_array($form, $declaredForms, true)) {
+                    throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                        'appliesWhen.legalForm names %s, which this pack does not declare (I10)',
+                        is_string($form) ? $form : gettype($form),
+                    ), ['legalForm' => $form, 'declared' => $declaredForms]);
+                }
+            }
+            foreach (is_array($conditions['taxationMethod'] ?? null) ? $conditions['taxationMethod'] : [] as $method) {
+                if (!in_array($method, TaxProfile::METHODS, true)) {
+                    throw new DomainError('E_PACK_INCOHERENT', sprintf(
+                        'appliesWhen.taxationMethod names %s, which is not a taxation method (I10)',
+                        is_string($method) ? $method : gettype($method),
+                    ), ['taxationMethod' => $method, 'known' => TaxProfile::METHODS]);
+                }
+            }
+        }
         // I2: every mapping selector hits >= 1 account.
         $numbers = array_keys($accountNumbers);
         foreach ($mappings as $mapping) {
@@ -402,6 +494,7 @@ final class PackResolver
             'legalForms' => $legalForms,
             'dimensionRules' => $dimensionRules,
             'accountCombinationRules' => $accountCombinationRules,
+            'accountUsageRules' => $accountUsageRules,
             'packPolicy' => $effectivePolicy,
             'profile' => $profile,
         ];
@@ -475,6 +568,7 @@ final class PackResolver
             // The first constraint plug: which accounts may not be posted without which dimension.
             'dimensionRules' => is_array($pack['dimensionRules'] ?? null) ? array_values($pack['dimensionRules']) : [],
             'accountCombinationRules' => is_array($pack['accountCombinationRules'] ?? null) ? array_values($pack['accountCombinationRules']) : [],
+            'accountUsageRules' => is_array($pack['accountUsageRules'] ?? null) ? array_values($pack['accountUsageRules']) : [],
             'packPolicy' => is_array($pack['packPolicy'] ?? null) ? $pack['packPolicy'] : [],
         ];
     }

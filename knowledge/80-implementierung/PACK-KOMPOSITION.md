@@ -1,6 +1,6 @@
 # Pack-Komposition — Bau-Flow-Lauf #1
 
-Der erste durchgespielte Lauf des [`METHODE-Bauflow.md`](../METHODE-Bauflow.md). Baut die
+Der erste durchgespielte Lauf der **Bau-Flow-Methode**. *(Der Link auf `METHODE-Bauflow.md` zeigte ins Leere — das Dokument lag in der Wissensbasis, als die noch außerhalb dieses Repos war, und ist beim Umzug 2026-08-26 nicht mitgekommen. Aufgefallen 2026-08-28 beim Link-Durchlauf.)* Baut die
 **komponierbaren Packs** (Modul / Manifest / Resolver) aus `40-domaenenmodell/jurisdiction-profil.md`
 — direkt als Komposition, inside-out, geldwürdig streng. Design-Quellen: `jurisdiction-profil.md`
 (Modul/Manifest/Resolver, Rosetta, Politiksorten-Zensus) + `00-projekt/entwurf-pack-policy-testpack-2026-06-09.md`

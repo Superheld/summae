@@ -28,7 +28,7 @@ docker compose --profile db run --rm -e SUMMAE_DB_DRIVER=pgsql -e SUMMAE_DB_HOST
   cli 87 %, runner 82 %), enforced by `runner/bin/coverage-gate.php` (pcov is in the
   image), which also fails when a package is measured without a floor or listed with
   a floor but missing from the report. `packages/laravel` is excluded — it has no
-  tests of its own (SPEC-FINDINGS IMPL-015). `make test` runs all of this.
+  tests of its own (IMPL-015). `make test` runs all of this.
 - **Conformance suite strict** against both subjects:
   `php runner/bin/run-fixtures.php --strict` and `--strict --subject=database`
   — all fixtures green **and** the double run byte-identical.
@@ -72,7 +72,7 @@ The `expected-green.txt` in `runner/` is the regression guard: without
 2. `make fixtures` — see what goes red (controlled failure, no crash).
 3. Read the spec files in `knowledge/50-spezifikation/` fresh (not from memory).
 4. Adjust until green; on a contradiction between spec/fixture →
-   [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md), do not bend the fixture.
+   [`FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md), do not bend the fixture.
 
 ## Determinism hooks (important for testing)
 

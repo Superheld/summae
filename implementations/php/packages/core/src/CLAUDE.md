@@ -89,3 +89,20 @@ another code's result and therefore an ordering between codes; **tax at payment 
 payment) is a timing question; a **margin scheme** needs the purchase price of the thing sold, which is not in
 the posting. Until a mechanism is describable as pure data — today's four differ in accounts, sides, reporting
 keys and gross delta, and now also in nothing else — closed/open stays settled.
+
+**Decided 2026-08-28 — the account `subtype` repertoire is *closed* too (F-CORE-046).** Third time
+this shape has come up and third identical answer, which is why it is written here rather than
+argued again: `subtype` tells the engine what an account *is* (profit-neutral movement, which side
+a tax account's tax stands on, which posting opens a receivable) and it was a free string, so
+`tax-out` for `tax_out` produced an account that looked annotated and was inert — the VAT return
+skipped it and nothing said a tax account had gone missing. Eleven values in
+`AccountSubtype.php` / `substrate/types.ts`, byte-equal in both languages. Enforced at the two
+places a subtype is **authored** — pack resolution (`E_PACK_INCOHERENT`) and the chart API
+(`E_INPUT_INVALID`, `E_COA_FORMAT_INVALID`) — and deliberately **not** in the `Account`
+constructor, where it would be shortest: hydration runs through that constructor, so a database
+written before the repertoire existed would stop loading, and a validation that refuses to read
+back what it once wrote is the worse failure. Three of the eleven (`fixed_asset`,
+`opening_balance`, `private`) are annotation no code consults; they are in the list because every
+shipped pack uses them, and a repertoire of only the eight would refuse all three shipped charts.
+**What would reopen it:** a pack needing an account role the engine genuinely does not have — the
+answer then is a twelfth registered value with its reader, not a free string again.

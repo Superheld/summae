@@ -10,7 +10,7 @@ implementation counts as conformant when **all fixtures are green** and a
 
 The fixtures are the normative source and are authored in `testing/testsuite/`. They are
 **append-only**: a behaviour change is a *new* fixture, never a quiet edit to an existing one
-— see "SPEC-FINDINGS" below.
+— see "Findings" below.
 
 ## How the runner works
 
@@ -62,16 +62,16 @@ From `determinismus.md` of the knowledge base — each has its own fixtures:
 - Spec status: v0.5 (data format). The loop implementation → findings → spec →
   retrofit was run through fully once (SPEC-001…SPEC-007).
 
-## SPEC-FINDINGS — the escalation path
+## Findings — the escalation path
 
 When spec, fixture, and model contradict each other or something is missing:
 **do not guess, do not change the fixture.** Instead:
 
-1. Document it in [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md) (what / where /
+1. Document it in [`FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md) (what / where /
    chosen behavior / proposal).
 2. Continue building with the next-most-plausible behavior.
 3. The finding flows back through the knowledge base (decision log) and returns
    as a sharpened spec + new/changed fixtures.
 
 This is not a stopgap but the intended back channel — it resolved SPEC-001…SPEC-007
-cleanly (history in [`SPEC-FINDINGS.md`](../SPEC-FINDINGS.md)).
+cleanly (history in [`FINDINGS-OPEN.md`](../../../FINDINGS-OPEN.md)).

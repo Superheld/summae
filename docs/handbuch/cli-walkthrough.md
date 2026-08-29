@@ -560,7 +560,7 @@ Three traps worth stating plainly:
   same shape an empty ledger produces. Empty output is not proof that the books
   are empty; check the parameter first.
 - **`cashBasisReport` without `year`** currently raises an uncaught
-  `InvalidValue` rather than a domain error (see SPEC-FINDINGS). Pass `year`.
+  `InvalidValue` rather than a domain error (see `FINDINGS-OPEN.md`). Pass `year`.
 
 ---
 

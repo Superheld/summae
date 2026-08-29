@@ -25,7 +25,12 @@ final class TaxProfile implements \JsonSerializable
     }
 
     /** @var list<string> */
-    private const array METHODS = ['accrual', 'cash'];
+    /**
+     * The two ways this engine can recognise revenue. Published because the pack resolver checks
+     * `appliesWhen.taxationMethod` against it (I10) — a private list could only be checked by
+     * copying it, and a copied repertoire is a repertoire that drifts.
+     */
+    public const array METHODS = ['accrual', 'cash'];
 
     /**
      * The filing windows assumed when a pack declares none — a **default, not a definition**

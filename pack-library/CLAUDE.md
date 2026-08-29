@@ -40,6 +40,14 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
 - **No code/law into the substrate.** A pack is data; a new *paradigm* with its own algorithm would be a
   composable module **behind the socket** — never smeared into the core (target model, root `CLAUDE.md`).
 - Consumers **reference** a pack by name instead of copying accounts/rules inline.
+- **An account's `subtype` is a closed repertoire — eleven values, nothing else resolves.** `bank`,
+  `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation` are read by the engine and
+  branch its behaviour; `fixed_asset`, `opening_balance`, `private` are annotation nothing consults.
+  An unknown value is `E_PACK_INCOHERENT` at `resolvePack` (since 2026-08-28, F-CORE-046). It used
+  to be a free string, and the failure that closed it is the one a pack author will not otherwise
+  catch: `tax-out` instead of `tax_out` resolved cleanly and produced a chart with **no output-tax
+  account** — the VAT return simply reported nothing on it, and no output said anything was wrong.
+  Leaving `subtype` out entirely is always fine; guessing at a value is not.
 - **Tests ship with the pack — building a pack means building its fixtures, in the same change.** Every
   capability the pack offers, **especially every legally-expected one** (tax collection, self-assessment,
   exemption/threshold, the tax **return/filing**, depreciation thresholds, cash-basis, balance-sheet &
@@ -56,7 +64,9 @@ Product data, **no tests** (conformance fixtures live in `testing/testsuite/`).
   version too, because a bundle is what it references. Keeping the old version resolvable is then a
   matter of leaving the old file in place next to the new one (the loader is content-based and
   recursive, so a `versions/` subfolder needs no code) — a request without a version means *current*,
-  which is the **highest** version by code point. `PackVersionIdentityTest` / `pack-version-identity`
+  which is the **highest** version — compared segment by segment and numerically where both
+  segments are numbers, so `2026.10` follows `2026.9` rather than preceding it, which is what a
+  plain code-point compare did until 2026-08-28. `PackVersionIdentityTest` / `pack-version-identity`
   refuse two files claiming the same published identity, and `resolvePack` returns a derived
   `contentDigest` that nobody can forget to change.
 - **A pack's numbers are not the conformance suite's to pin.** A fixture that pins a shipped pack's

@@ -8,9 +8,208 @@ versioning per SemVer (0.x: minor may break).
 > `F-0xx` → `SPEC-0xx`, `F-CROSS-001` → `SPEC-C01`, `NF-0xx` → `IMPL-0xx`; the numbers are
 > unchanged. These notes keep the IDs they were published with, because a released note
 > should describe what was released. The mapping lives at the top of
-> [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md).
+> [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md).
 
-## Unreleased
+## 0.17.0 — 2026-08-29
+
+> **Minor, not a patch.** The work below moves the data format 0.8 → 0.9, adds a projection
+> (`duplicateVouchers`), **closes** the account subtype repertoire — a pack that used a subtype word
+> the core does not know now fails to resolve instead of being carried along — and changes the
+> shipped `de` pack's behaviour: revenue booked as a small business (§ 19 UStG) together with an
+> output-VAT account is refused where it used to go through. Under 0.x a minor may break, and this
+> one does, in both places.
+
+### Six open findings closed, one opened
+
+Everything the register held open on 2026-08-28, worked through in one pass. Four of the six turned
+out to be larger or different than they were written up — a finding is a lead, not a verdict.
+
+**IMPL-037 — the normative data-format document is guarded now, not merely maintained.**
+`format.schema.json`'s `$id` was already held against `FORMAT_VERSION` in both languages, so code and
+schema could not drift; the prose both are derived *from* was checked by nobody, which put the
+authority on its head. It had drifted again in the meantime — schema and both constants on 0.9, the
+document on 0.8. `DataFormatDocTest` / `data-format-doc.test.ts` check three narrow claims: title and
+`$id` line equal `FORMAT_VERSION`, no `## v0.x` missing up to the current one, every `$defs` key
+named in the document. Writing 0.9 up exposed the rest: **0.3, 0.5 and 0.7 had no section either**
+(their content lived as `###` subsections under v0.2), and nine of 23 `$defs` keys appeared nowhere
+because the prose names them differently. Sections written, version blocks put in ascending order,
+and an index from schema key to section.
+
+**IMPL-038 — the GoBD Z3 field catalogue describes the whole data set.** Decided *complete*, which
+is the reading an auditor takes. The finding's blocker did not exist: `io/journal-export-z3-current`
+pins `fieldCatalogIncluded` — a boolean — not the rows, so the repair is additive and nothing was
+superseded. The gap was four times the estimate: `voucherDate` missing on the posting, 2 of 12
+voucher fields, 4 of 9 audit fields, and the whole **`partners` stream** — the one carrying names,
+VAT ids and addresses — undescribed. The catalogue is now filtered to the streams actually on the
+carrier, and `FieldCatalogCompletenessTest` / `field-catalog-completeness.test.ts` assert set
+equality per stream in both directions.
+
+**IMPL-039 — `covers` and the requirement lists are held against each other.** The quality gate is
+defined in terms of the requirements and the requirement lists were held by nobody.
+`CoversContractTest` / `covers-contract.test.ts`: every `covers` entry is a declared ID, every
+declared requirement is named by a **live** fixture (retired ones do not count), no `SF-` is counted
+that `lieferumfang.md` does not declare. Two exception lists with reasons, guarded in reverse, and an
+excuse naming substitute fixtures must name ones that exist and still run. `F-AST-007` was decided
+**not** to be merged into F-AST-002/005 — folding a requirement into two foreign ones to make a
+string match falsifies the list.
+
+**IMPL-040 — `E_AMOUNT_SCALE_MISMATCH` is raised, and the bug under it is gone.** The one catalogue
+code reachable through the API with nothing behind it. Building it found a live defect: **both
+hydrators rebuilt the currency at its ISO default** instead of the tenant's `currencyScale`, so a
+tenant at scale 3 could not read its own books back (a raw `InvalidValue` out of the adapter) and one
+at scale 0 had its amounts silently widened. An instrumented run counted 12,366 hydrations, every one
+at scale 2 — the wrong default was never contradicted. The tenant's currency is now threaded into the
+four repositories that hydrate money, and a stored amount must carry exactly the tenant's decimal
+places, mandatory zeros included. No fixture, deliberately: a fixture drives the API, and the API
+cannot produce a store on the wrong scale.
+
+**IMPL-041 — F-KLR-002 (Abgrenzungsrechnung) is IN scope**, not retired by the 2026-08-23 decision.
+That decision named three *decision-support* methods; this is the intake stage BAB and Umlage (both
+built) consume, and `F-KLR-005` — kalkulatorische Kosten, the content of its replace/add rules —
+stands unretired beside it. What its absence costs is now written down: **in summae, Kosten ==
+Aufwand**, so the anticorruption layer that justifies costing as its own bounded context does not
+exist. `lieferumfang.md` stops promising "Abgrenzung". No code — the design already stands in
+`costing-modell.md` § 2; the build is a job of its own.
+
+**IMPL-042 — F-IO-008 (DATEV Buchungsstapel import) deferred, blocker named.** The way back needs
+BU key → `taxCode` and `datevBu` maps forward only: five of ten `de` tax codes carry no `datevBu`,
+and `USt19`/`USt19WA` both carry `3`. Neither total nor injective, so an import would guess — and
+what it would guess is the **tax**. Unblocked by an injective reverse block in the pack plus a real
+batch to verify the format against.
+
+**IMPL-043 opened.** `F-KLR-005` is cited by three fixtures about production cost — the one place
+§ 255 Abs. 2 HGB forbids kalkulatorische Kosten. It is also the demonstration of what the IMPL-039
+guard cannot do: it checks that an ID is *declared*, never that the fixture *proves* it. That limit
+is written into the root `CLAUDE.md` so a green check is not read as more than it says.
+
+
+### The findings register is now `FINDINGS-OPEN.md` / `FINDINGS-CLOSED.md`
+
+Renamed from `SPEC-FINDINGS.md` / `SPEC-FINDINGS-RESOLVED.md`. Same register, same numbering, same
+split by state — the old names said "SPEC" while two of the three series in it (`IMPL-nnn`
+implementation defects, `SPEC-Cnn` cross-implementation) are not about the specification at all, and
+someone looking for open bugs had no reason to open a file named after a spec. The per-language
+pointers moved with them (`implementations/*/FINDINGS.md`).
+
+The **historical** knowledge-base register at `knowledge/80-implementierung/SPEC-FINDINGS.md` keeps
+its name deliberately: it is closed, its numbers are cited in commits, and it uses the same prefixes
+for *different* findings — renaming it would suggest the two are one register.
+
+**Five findings recorded**, four of them found by counting rather than by anything failing:
+
+- **IMPL-039** — nothing holds `covers` and the requirement lists together. 21 fixtures cited a
+  `F-PACK-*`/`F-RP-*` family that no requirements file declared; `SF-27` was counted by
+  `validate.py` and declared nowhere. Both repaired; the class is not, and the comparison that makes
+  it a finding is that the error catalogue *is* held against the exit-code tables as sets in both
+  directions, in both languages.
+- **IMPL-040** — `E_AMOUNT_SCALE_MISMATCH` is the one catalogue code reachable through the API with
+  no fixture and no check behind it.
+- **IMPL-041** — F-KLR-002 (Abgrenzungsrechnung) is not built and may have been retired by the
+  2026-08-23 scope decision without the row being struck. A decision, not a task.
+- **IMPL-042** — F-IO-008 (DATEV Buchungsstapel import) is not built. It hid because the root
+  `CLAUDE.md` attributed that ID to `gdpduExport`, which is F-IO-012.
+- **IMPL-036** — recorded late: the schema installers now add a missing nullable column instead of
+  assuming the table is current, fixed inside the F-CORE-045 work without a register entry of its
+  own.
+
+
+### Conditional constraints, and a word for "not this account at all" (F-CORE-047)
+
+Two new words in the `constraint` kind, closing proposal B of
+[`docs/proposals/constraint-vocabulary.md`](docs/proposals/constraint-vocabulary.md).
+
+**`appliesWhen`** conditions a constraint rule on a **closed** set of tenant facts — `legalForm` and
+`taxationMethod`. Closed on purpose: the moment conditions become an expression language a pack
+carries logic, and the point of the substrate/pack split is gone. `smallBusiness` and amount
+conditions are argued **out**, with the reasons carried into the schema and the code rather than
+left in the memo.
+
+**`accountUsageRules`** says an entry must not touch an account **at all** —
+`E_ACCOUNT_USE_FORBIDDEN`. This was not in the proposal, and the reason it exists is worth keeping:
+the memo expressed "this account may not be used" as `whenAccountIn: X` plus
+`forbidAccountIn: 0000–9999`, since every entry has at least two accounts. That fires, and it is
+wrong twice — it reads as a range, and account numbers compare by **code point**, so `0000`–`9999`
+does not cover a chart whose numbers begin with a letter and covers a six-digit chart only by
+accident. A prohibition whose correctness depends on how a foreign chart numbers its accounts is
+not a prohibition.
+
+**Shipped in `de@2026.10`:** a capital company (`gmbh`, `ug`, `ag`, `eg`) must not post to
+`2400 Privat`. Its assets are separate from its shareholders' (§ 13 Abs. 1 GmbHG, § 1 Abs. 1 AktG),
+so a withdrawal is salary, a loan, or an open or hidden distribution (§ 8 Abs. 3 Satz 2 KStG) —
+never a private withdrawal. The rule hangs on the **legal form** rather than the account because
+`2400` is exactly right for a sole trader, a GbR, an OHG and a KG, and the same German chart serves
+both worlds.
+
+**A missing fact makes a rule dormant, not failing.** A tenant that never called `setEntityProfile`
+has no legal form; refusing its postings would punish it for not having configured something, and
+applying the rule anyway would assume a precondition nobody checked. `tenantConfiguration` reports
+dormant rules, so a caller can tell "no such rule" from "waiting for a fact".
+
+**A mistyped condition fails loudly** (resolver invariant **I10**): a `legalForm` the pack does not
+declare, or a taxation method the engine does not know, is `E_PACK_INCOHERENT`. Otherwise the rule
+would sleep for ever and the pack would look stricter than it is — the same silent failure the
+closed subtype and mechanism repertoires exist against.
+
+**Proposal A — a predicate keyed on the account's `subtype` — was declined**, and not on cost.
+Checking its motivating rule against the shipped packs showed the memo was wrong about what `de`
+forbids (`4040` only; `4030` was excluded deliberately because a collective invoice may carry a
+taxable and an intra-community supply at once), and that the same objection generalises rather than
+disappearing when the key becomes a subtype — `us` `4100 Exempt Sales` meets `2100 Sales Tax
+Payable` on any mixed receipt. The full argument is in the memo.
+
+### `2026.10` is newer than `2026.9` (F-CORE-048)
+
+"Current" — what a request without a version resolves to — compared whole version strings by **code
+point**, and `'1' < '9'`. So `2026.10` sorted *below* `2026.9`: the tenth release of a pack would
+have looked published while every versionless tenant kept resolving the ninth, with `resolvePack`
+reporting a real, existing, wrong version. The German pack reached `2026.9` on 2026-08-28 and this
+was found by the next bump.
+
+Versions now compare **segment by segment**, numerically where both segments are numbers, code
+points otherwise (so `1.0-beta` keeps the behaviour it had). Nothing published resolves differently:
+with single-digit segments the two orders agree, which is why it could be changed in one step.
+
+
+### The account subtype repertoire is closed (F-CORE-046, format 0.9)
+
+`subtype` is the field through which a chart of accounts tells the engine what an account **is** —
+which movement is profit-neutral, which account is a tax account and on which side its tax stands,
+which posting opens a receivable — and it was a free string that took anything. The defect that
+follows is not a wrong figure but an **inert** one: a chart writing `tax-out` instead of `tax_out`
+produced an account that *looked* annotated and behaved like an unannotated one. The VAT return
+skipped it, the cash-basis projection did not treat it as tax, and nothing in any output said a tax
+account had gone missing. The only way to notice was to compare the return against the ledger.
+
+This is the third time the project has met that shape and the third identical answer: v0.8.0 closed
+the tax mechanisms after `reverse-charge` fell back to plain VAT under the ordinary reporting key,
+and `PartnerKind` was closed after `custommer` turned out to be a partner kind like any other.
+
+**Eleven values, two tiers, one list.** Eight the engine reads and branches on (`bank`, `cash`,
+`transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`); `fixed_asset`, `opening_balance`
+and `private` are annotation that every shipped pack carries and no code consults. They are in the
+repertoire because the packs use them — a list holding only the eight would refuse all three
+shipped charts.
+
+**Enforced where a subtype is authored, and nowhere else.** A pack fails at resolution
+(`E_PACK_INCOHERENT`, like every other coherence check, so at `resolvePack` rather than at the first
+posting); `createAccount` refuses with `E_INPUT_INVALID` and `importChartOfAccounts` with
+`E_COA_FORMAT_INVALID` naming the row. It is deliberately **not** checked in the `Account`
+constructor, where it would be shortest — hydrating a stored account runs through that constructor,
+so a database written before this repertoire existed would stop loading, and a validation that
+refuses to read back what it once wrote is a worse failure than the one it prevents. Existing data
+is therefore untouched; only new authoring is constrained.
+
+**Two fixtures were retired for it, and the register gained a second reason.** `xx-8` and `xx-9`
+carried `subtype: "vat"` on an account 177 — a value neither engine has ever read, copied from one
+fixture into the other before anyone noticed, which is the argument for closing a vocabulary rather
+than reviewing its uses. Their expectations were never wrong and are carried into
+`xx-8-…-current` / `xx-9-…-current` unchanged; what could not survive format 0.9 was their
+*setup*. `superseded.json` now says so explicitly, with the guard that keeps it narrow: if a
+successor's expectation differs by so much as a figure, it is a behaviour change and therefore a
+new fixture, not a retirement.
+
+Format version moves to **0.9**.
+
 
 ### An account's validity window is real now (F-CORE-045)
 
@@ -1055,8 +1254,8 @@ New fixtures `tax/consideration-reduction`, `core/ec-sales-list-gap-warnings` an
 
 ### The findings register is one file (docs)
 
-`implementations/php/SPEC-FINDINGS.md` and `implementations/node/SPEC-FINDINGS.md` are now thin
-pointers to a single [`SPEC-FINDINGS.md`](SPEC-FINDINGS.md) at the repository root. The
+`implementations/php/FINDINGS-OPEN.md` and `implementations/node/FINDINGS-OPEN.md` are now thin
+pointers to a single [`FINDINGS-OPEN.md`](FINDINGS-OPEN.md) at the repository root. The
 language-neutral findings had been living in both: seven `SPEC-` entries were byte-identical copies
 and **SPEC-014 had already drifted** — the PHP copy carried the decision, its reasoning and a
 related finding, the Node copy had shrunk to a summary ending in "full write-up on the PHP side".
@@ -1080,8 +1279,8 @@ Two findings from this release are recorded there:
 `docs/gobd-conformance.md` gains a row for **tamper evidence on the trail** — weighed and deferred,
 with the reason — and loses a stale count that had claimed 25 audited operations where there are 32.
 
-The register is also **split by state**: `SPEC-FINDINGS.md` holds the four open findings and
-nothing else — 198 lines, short enough to read whole — while `SPEC-FINDINGS-RESOLVED.md` holds the
+The register is also **split by state**: `FINDINGS-OPEN.md` holds the four open findings and
+nothing else — 198 lines, short enough to read whole — while `FINDINGS-CLOSED.md` holds the
 21 decided ones in full, with the status table over both. The reason is what happens when somebody
 is told "we have open findings": reading the register should not mean carrying 1,600 lines of
 settled history into the work. Closing a finding means moving its block across, which is the whole

@@ -43,6 +43,7 @@ neuer Packs.
 | 11 | `modul-11-legal-forms-de.md` | `legalForms` | `de-rechtsformen` | 2026.1 |
 | 12 | `modul-12-constraint-entgeltminderung.md` | `constraint` | `de-entgeltminderung` | 2026.1 |
 | 13 | `modul-13-constraint-kleinunternehmer.md` | `constraint` | `de-kleinunternehmer` | 2026.1 |
+| 14 | `modul-14-constraint-kapitalgesellschaft.md` | `constraint` | `de-kapitalgesellschaft` | 2026.1 |
 
 Dazu:
 

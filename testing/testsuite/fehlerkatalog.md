@@ -68,6 +68,7 @@ kein `E_INPUT_INVALID`: die Eingabe ist wohlgeformt, sie ist nur nicht erfüllba
 | `E_ACCOUNT_LOCKED` | Konto gesperrt | post-and-invariants |
 | `E_ACCOUNT_NUMBER_TAKEN` | Kontonummer doppelt (Repository-Kontrakt) | accounts-and-import |
 | `E_ACCOUNT_NOT_VALID_AT_DATE` | Buchung auf ein Konto außerhalb seines Gültigkeitsfensters `validFrom`/`validTo` (2026-08-28, F-CORE-045). `details`: `number`, `entryDate`, `validFrom`, `validTo` | account-validity |
+| `E_ACCOUNT_USE_FORBIDDEN` | Das Pack verbietet diesem Mandanten die Nutzung des Kontos überhaupt — `accountUsageRules`, ggf. unter `appliesWhen` (2026-08-28, F-CORE-047). `details`: `account`, `forbiddenFrom`, `forbiddenTo`, `appliesWhen` | xx-12-constraint-applies-when |
 | `E_COA_FORMAT_INVALID` | Kontenrahmen-Import nicht parsebar | accounts-and-import |
 
 
@@ -180,16 +181,31 @@ widersprüchlich. `E_PACK_UNRESOLVED_REF` hat Vorrang, wenn beide zugleich zutr�
 |---|---|---|
 | `E_PACK_UNRESOLVED_REF` | Eine Referenz im Manifest/Modul zeigt ins Leere: Modul-`id`/`version` im Modulbestand nicht gefunden, `dependsOn` zeigt auf ein nicht in der effektiven Liste enthaltenes Modul, oder ein gefalteter Beitrag referenziert ein fehlendes Ziel — `taxAccount` (bzw. `inputTaxAccount` bei `reverse_charge`) ohne Konto (I1), Mapping-Selektor trifft kein Konto / zeigt vollständig ins Leere (I2), eines der fünf `assetAccounts.*Account` fehlt (I3), ein vom Profil/Manifest referenzierter `taxCode` wird von keinem aufgelösten `tax`-Modul bereitgestellt (I4, mapping-frei) | resolver-errors |
 | `E_PACK_INCOHERENT` | Referenzen existieren, aber das Bündel passt nicht zusammen: Abhängigkeits-Zyklus, Konto-`number`-Kollision aus zwei Kontenrahmen (I6), doppelter `taxCode.code`/`mapping.id` oder mehr als ein `policy`-Modul (I7), kollidierender oder ins Leere greifender `override` (Doppel-Override, `replace` auf nicht gelistetes Modul), unbekanntes `kind`, **unbekannter `mechanism` an einem `taxCode`** (v0.8.0) | resolver-errors |
-| `E_POLICY_INVALID` | `packPolicy`-Wert ungültig oder inkonsistent: unbekannter `roundingMode`/`taxRoundingGranularity`-Enum, `currencyScale` nicht ganzzahlig oder außerhalb 0–4, ISO-Exponent-Widerspruch, Manifest-`packPolicy`-Kopie ≠ aufgelöstes `policy`-Modul, oder `currencyScale`-Änderung auf bestehendem Mandanten | ✗ |
-| `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | ✗ |
+| `E_POLICY_INVALID` | `packPolicy`-Wert ungültig oder inkonsistent: unbekannter `roundingMode`/`taxRoundingGranularity`-Enum, `currencyScale` nicht ganzzahlig oder außerhalb 0–4, ISO-Exponent-Widerspruch, Manifest-`packPolicy`-Kopie ≠ aufgelöstes `policy`-Modul, oder `currencyScale`-Änderung auf bestehendem Mandanten | resolver-policy-invalid |
+| `E_AMOUNT_SCALE_MISMATCH` | Betrag im Bestand hat eine andere Nachkommastellenzahl als der `currencyScale` des Mandanten verlangt (exakte Stellenzahl inkl. Pflicht-Nullen, kanonische Form) — Reader-/Writer-Prüfung jenseits des kontextfreien amount-Patterns | Adapter-Test |
 
-**Stand 2026-08-16: 44 Codes in Tabellen, 40 mit Fixture** (`validate.py`; es zählt 45,
-weil es auch `E_UNEXPECTED` aus dem Fließtext greift — der ist bewusst kein Katalogcode,
-siehe unten). Von den 4 Pack-Codes haben `E_PACK_UNRESOLVED_REF` und `E_PACK_INCOHERENT`
-Fixtures (`resolver-errors`). **Ohne Fixture (✗): `E_POLICY_INVALID` und
-`E_AMOUNT_SCALE_MISMATCH` (Fixtures in Gate 1) sowie `E_WORKSPACE_INVALID` und
-`E_NOT_IMPLEMENTED` — die beiden letzten sind über Fixtures gar nicht erreichbar und
-werden pro Sprache durch einen Kontrakt-Test geprüft, nicht durch die Suite.**
+**Die Zahlen stehen bewusst nicht mehr hier — `validate.py` zählt sie.** Bis 2026-08-28 stand an
+dieser Stelle „Stand 2026-08-16: 44 Codes in Tabellen, 40 mit Fixture", und beides war falsch
+geworden (es sind 53 und 49). Schlimmer als die Zahl war die Liste dahinter: sie führte
+`E_POLICY_INVALID` als „ohne Fixture", obwohl `resolver-policy-invalid` seit dem 2026-08-16 läuft —
+ein Katalog, der eine Lücke behauptet, die geschlossen ist, ist genauso unbrauchbar wie einer, der
+eine Lücke verschweigt. Eine handgepflegte Zahl neben einem Skript, das sie ausrechnet, veraltet;
+sie ist ersatzlos gestrichen.
+
+**Ohne Fixture, und je aus einem eigenen Grund:**
+
+- `E_AMOUNT_SCALE_MISMATCH` — **Persistenz-Ebene, über die Suite nicht erreichbar** (seit
+  2026-08-28 gebaut, IMPL-040). Er beurteilt einen Betrag, der **schon im Bestand steht**, nicht
+  einen, den ein Aufrufer anbietet — den beurteilt `E_ENTRY_INVALID_AMOUNT`, und `post-malformed`
+  nagelt das fest. Einen Bestand mit falscher Stellenzahl kann diese Engine gar nicht erzeugen; er
+  kommt aus einer anderen Runtime, einer Rücksicherung oder von Hand. Eine Fixture kann so einen
+  Bestand nicht herstellen, ein Adapter-Test schon: `AmountScaleTest` /
+  `amount-scale.test.ts`, je fünf Fälle, beide Richtungen. Er war bis dahin der einzige Code, der
+  deklariert war und von nichts ausgelöst wurde.
+- `E_WORKSPACE_INVALID` — CLI-Ebene, über die Suite gar nicht erreichbar; per Sprache durch einen
+  Kontrakt-Test belegt.
+- `E_NOT_IMPLEMENTED` und `E_UNEXPECTED` — Auffangcodes, die auszulösen bedeuten würde, den Fehler
+  zu bauen, den sie melden. Ebenfalls Kontrakt-Test statt Fixture.
 
 Hinweis: `runDepreciation` auf bereits gelaufene Periode ist **kein Fehler** (idempotent, `alreadyRun: true`) — bewusste Abweichung, siehe `api.md`.
 

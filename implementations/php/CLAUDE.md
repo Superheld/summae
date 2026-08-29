@@ -81,9 +81,9 @@ files the Node `walkthrough.test.ts` reads. Test landscape: `testing/README.md`.
 - `docs/entwicklung.md` — setup, what CI checks, conventions, branch/commit workflow,
   „adding a new operation/projection", spec retrofit, determinism hooks.
 - `docs/konformitaet.md` — the compatibility contract, how the runner works,
-  the most common cross-impl pitfalls, the SPEC-FINDINGS escalation path.
-- `SPEC-FINDINGS.md` — a pointer. The register is at the repo root and split by state:
-  `SPEC-FINDINGS.md` (**open**, short enough to read whole) and `SPEC-FINDINGS-RESOLVED.md`
+  the most common cross-impl pitfalls, the findings escalation path.
+- `FINDINGS.md` — a pointer. The register is at the repo root and split by state:
+  `FINDINGS-OPEN.md` (**open**, short enough to read whole) and `FINDINGS-CLOSED.md`
   (decided, in full, with the status table). Read the first one; reach for the second only when a
   comment sends you to a specific ID.
 

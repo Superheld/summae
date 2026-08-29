@@ -1,4 +1,91 @@
-# The constraint vocabulary beyond two words — ⚠️ **open, two decisions asked for**
+# The constraint vocabulary beyond two words — ✅ **decided 2026-08-28**
+
+**A was declined. B was built, with one deviation.** The reasoning below is the memo as it was
+written; this section is what happened when someone tried to build it, and the two do not agree.
+
+## What was decided
+
+### Proposal A — a predicate keyed on the account's `subtype`: **declined**
+
+Not on cost, and not on the subtype vocabulary, which was closed anyway (F-CORE-046 — worth doing on
+its own merits, exactly as this memo said, and it found two fixtures carrying an inert `subtype:
+"vat"` on the way). **A was declined because its motivating rule is not safely expressible by any
+per-entry predicate, keyed on subtypes or on numbers.**
+
+The memo's premise about the shipped pack is wrong, and checking it is what settled this. It says
+"`de` forbids `4030`/`4040` (tax-free revenue) from meeting `3100`–`3110`". `de` forbids **4040
+only**, and 4030 was excluded *deliberately*, with the reason written into the module doc on the day
+the rule shipped: a collective invoice may legitimately carry a taxable supply and an
+intra-community one at once, and then `4000`, `3100` and `4030` stand in one entry entirely
+correctly. A `forbid` rule on 4030 would refuse a right posting.
+
+That objection does not go away when the key changes from a number to a subtype — it **generalises**.
+`us` is the clearer case: `4100 Exempt Sales (resale / interstate / nontaxable)` meets
+`2100 Sales Tax Payable` on any mixed receipt with a taxable and an exempt line, which is what a
+grocery till produces all day. So tagging exempt revenue and shipping "an exempt supply may not
+carry output tax" would refuse correct postings in **both** packs, and in a third-party pack it
+would do so the moment its author tagged a chart, having never been told the rule existed.
+
+The reason is structural rather than particular: **`4040` is safe only because its prohibition is
+really about the tenant, not about the supply.** A small business has no output tax for a whole
+calendar year (§ 19 Abs. 1), so no single document mixes the two regimes. Every other candidate the
+audit produced fails the same way — an entry may bundle several supplies, and a per-entry predicate
+cannot see which line belongs to which. That includes the one that looked best on paper, "a private
+withdrawal may not carry input tax": a phone bill split business/private in one entry is the
+textbook posting.
+
+The mechanism itself is not unsafe; it has no safe shipped use. Since the memo's own sequencing rule
+is that a capability no pack speaks is not a guarantee, building it would have added a word to the
+vocabulary that nothing may say. **What would reopen it:** a rule that is genuinely impossible per
+entry, holds across jurisdictions, and needs the account's role rather than its number. The audit
+did not find one. Note that this is *not* an argument against subtypes carrying meaning — the closed
+repertoire (F-CORE-046) is exactly that argument's other half, and it shipped.
+
+### Proposal B — conditional constraints: **built, as `appliesWhen` restricted to `legalForm` and `taxationMethod`**
+
+Option A as recommended, and `smallBusiness` and amount conditions are argued out with their reasons
+carried into `format.schema.json`, `AccountCombinationRegistry` and F-CORE-047 so the next reader
+finds them where the omission is, not only here.
+
+**The deviation: a second new word, `accountUsageRules`.** The memo's own sketch expressed "a capital
+company has no `2400 Privat`" as `whenAccountIn: 2400–2400` plus `forbidAccountIn: 0000–9999`, on
+the reasoning that every entry has at least two accounts so the rule always fires. It does fire, and
+it is wrong twice. It reads as a *range*, so the next author has to deduce that the range means
+"everything"; and account numbers compare by **code point**, so `0000`–`9999` does not cover a chart
+whose numbers begin with a letter and covers a six-digit chart only by accident. A prohibition whose
+correctness depends on how a foreign chart happens to number its accounts is not a prohibition. The
+sentence the packs actually want to say — *this tenant may not touch this account at all* — is not a
+combination, so it got its own word and its own code (`E_ACCOUNT_USE_FORBIDDEN`).
+
+Two things the memo did not anticipate and the build had to settle:
+
+- **A missing fact makes a rule dormant, not failing.** A tenant that never called
+  `setEntityProfile` has no legal form. Refusing its postings would punish it for not having
+  configured something; applying the rule anyway would assume a precondition nobody checked. The
+  rule is still reported by `tenantConfiguration`, because otherwise a caller cannot tell "no such
+  rule" from "rule waiting for a fact".
+- **A mistyped condition is the same silent failure this memo was written about.** `legalForm:
+  ["gmhb"]` would leave the rule permanently dormant and the pack looking stricter than it is. The
+  resolver therefore checks every named legal form against the pack's own `legalForms` catalogue and
+  every taxation method against the engine's two (invariant **I10**, `E_PACK_INCOHERENT`).
+
+Shipped in `de@2026.10` as `de-kapitalgesellschaft`; the mechanism is pinned by
+`xx-12-constraint-applies-when` on a pack that fixture brings itself.
+
+### Found on the way, unrelated to either proposal
+
+Bumping `de` from `2026.9` to `2026.10` exposed that "current = the highest version" compared whole
+strings by **code point**, so `2026.10` sorted *below* `2026.9`. The tenth release of any pack would
+have looked published while every versionless tenant kept resolving the ninth, and `resolvePack`
+would have reported a real, existing, wrong version. Fixed to compare segment by segment, numerically
+where both segments are numbers (F-CORE-048, `xx-13-pack-version-ordering`). Nothing published
+resolves differently — with single-digit segments the two orders agree.
+
+---
+
+*Below: the memo as written, before any of the above was known.*
+
+---
 
 **Written 2026-08-28**, out of an audit of "which postings are impossible, and which of those can
 summae see?" Two of that audit's findings were built the same day (`de-kleinunternehmer`, § 19 UStG,

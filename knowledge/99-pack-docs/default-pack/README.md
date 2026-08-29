@@ -30,4 +30,4 @@ Zwei Verwendungen, und die zweite ist die wichtigere:
 Ohne `mapping`-Modul sind `balanceSheet`, `incomeStatement` und `cashBasisReport` nicht
 aufrufbar — sie verlangen alle einen `mapping`-Parameter, und das Pack liefert keinen. Das ist
 Absicht (eine Gliederung ist immer jurisdiktionell), aber heute erfährt es der Aufrufer über
-`E_INPUT_INVALID` statt über eine Aussage: **IMPL-032** in `SPEC-FINDINGS.md`.
+`E_INPUT_INVALID` statt über eine Aussage: **IMPL-032** in `FINDINGS-OPEN.md`.

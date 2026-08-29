@@ -153,9 +153,14 @@ festlegt, **welcher** Fehler bei mehreren Verstößen gewinnt:
    vor `replace`, in Array-Reihenfolge). Jeder Override MUSS greifen.
 2. **Modul-Referenzen auflösen** — jede `{kind, id, version?}` gegen den Modulbestand.
    Fehlt `version`, gilt die höchste verfügbare Version je `(kind, id)` nach
-   **String-Codepoint-Vergleich** (Determinismus-Sortierregel — explizit und
-   reproduzierbar, kein semver-„neuer als"-Raten). Modul/Version nicht gefunden →
-   `E_PACK_UNRESOLVED_REF`.
+   **segmentweisem Vergleich**: an `.` getrennt, numerisch wo beide Segmente Zahlen sind,
+   sonst Codepoint; ein fehlendes Segment ist kleiner als ein vorhandenes (`2026.1` vor
+   `2026.1.1`). Explizit und reproduzierbar, kein semver-„neuer als"-Raten. Modul/Version
+   nicht gefunden → `E_PACK_UNRESOLVED_REF`.
+   *Bis 2026-08-28 wurde die ganze Zeichenkette per Codepoint verglichen — damit sortierte
+   `2026.10` **unter** `2026.9`, und die zehnte Veröffentlichung eines Packs hätte
+   veröffentlicht ausgesehen, während jeder Mandant ohne Pin die neunte weiter auflöst
+   (F-CORE-048).*
 3. **Abhängigkeits-DAG bilden** aus `dependsOn`, topologisch sortiert über `(kind, id)`
    mit stabiler Tie-Break-Ordnung (Codepoint). Eine `dependsOn`-Referenz, die in der
    effektiven Liste fehlt → `E_PACK_UNRESOLVED_REF`. **Zyklus** → `E_PACK_INCOHERENT`.
@@ -272,7 +277,7 @@ unabhängig: Pack-Auflösung geschieht beim Mandanten-Aufbau, Buchungsvalidierun
 
 ## Fehlerkatalog
 
-Vollständige Liste mit Bedeutung, auslösender Invariante und Fixture-Referenz: `fehlerkatalog.md` (alle Codes abgedeckt). Neu mit der Pack-Komposition: `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` (Resolver, siehe **Pack-Resolver**) sowie `E_AMOUNT_SCALE_MISMATCH` (Betrag ≠ deklarierte `currencyScale` — Reader/Writer-Prüfung, kein Resolver-Fehler). Weitere Festlegungen: Storno eines Stornos ist zulässig (normale Buchung mit `reverses` auf die Stornobuchung); Überzahlung ist App-Muster (Verrechnungskonto/neuer OP) — der Kern weist nur Über-Zuordnung ab (`E_SETTLEMENT_EXCEEDS_ITEM`).
+Vollständige Liste mit Bedeutung, auslösender Invariante und Fixture-Referenz: `fehlerkatalog.md` (alle Codes abgedeckt). Neu mit der Pack-Komposition: `E_PACK_UNRESOLVED_REF`, `E_PACK_INCOHERENT`, `E_POLICY_INVALID` (Resolver, siehe **Pack-Resolver**) sowie `E_AMOUNT_SCALE_MISMATCH` (Betrag im **Bestand** ≠ deklarierte `currencyScale` — Reader/Writer-Prüfung in der Persistenz, kein Resolver-Fehler und **nicht** die Eingabeprüfung: einen vom Aufrufer angebotenen Betrag beurteilt `E_ENTRY_INVALID_AMOUNT`). Weitere Festlegungen: Storno eines Stornos ist zulässig (normale Buchung mit `reverses` auf die Stornobuchung); Überzahlung ist App-Muster (Verrechnungskonto/neuer OP) — der Kern weist nur Über-Zuordnung ab (`E_SETTLEMENT_EXCEEDS_ITEM`).
 
 ## Offene Punkte
 

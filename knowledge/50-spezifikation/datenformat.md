@@ -1,24 +1,27 @@
-# Datenformat-Spezifikation v0.8 (Entwurf)
+# Datenformat-Spezifikation v0.9 (Entwurf)
 
-> Schema-Datei `$id` → **0.8** (Hash-Kette im Audit-Trail). Die beiden jüngsten Schritte sind rein
-> **additiv**: 0.7 gab `partner` ein optionales `status` (`active`/`inactive`), 0.8 gibt jedem
-> Audit-Satz `previousRecordHash` und `recordHash` (§ v0.8 unten). Bestehende Bestände bleiben
-> gültig und werden von `auditTrailIntegrity` als *unchained* gemeldet, ausdrücklich nicht als
-> gebrochen.
+> Schema-Datei `$id` → **0.9** (geschlossenes `subtype`-Repertoire, bedingte Constraints).
+> Anders als die vier Schritte davor ist dies **kein rein additiver**: `account.subtype` war ein
+> freier String und ist jetzt eine Aufzählung, das Schema akzeptiert also **weniger** als vorher.
+> Bestehende Bestände, die ausschließlich kanonische Subtypen tragen — was auf jedes ausgelieferte
+> Pack zutrifft —, bleiben byte-identisch gültig; ein selbst erfundener Subtyp wird abgewiesen, und
+> genau dafür ist der Schritt da (§ v0.9 unten).
 >
-> **0.7 stand bis 2026-08-28 nirgends in diesem Dokument**, obwohl das Schema die Version trug und
-> ausrollte — die normative Quelle beschrieb ein Format, das das Produkt hinter sich gelassen hatte.
-> Das ist derselbe Verfall, den der GoBD-Zensus §15 seit 2026-08-28 maschinell verhindert, eine Ebene
-> tiefer; hier hält ihn bisher nur die Sorgfalt beim Anfassen auf.
->
-> Zur Historie: Schema-Datei `$id` → **0.6** war (E-B, Pack-Komposition). Anders als bei v0.5 ist dies
-> **kein** rein additiver Schritt: `packPolicy` an Objekten mit `additionalProperties:
-> false` (Profil, Pack-Manifest) und das gelockerte amount-Pattern ändern die vom Schema
-> **akzeptierte Sprache** — ein 0.4-Validator lehnt neue Bestände ab. Die Versionsnummer
-> signalisiert genau das. **Bestehende Bestände bleiben byte-identisch gültig** (additives
-> Feld mit DE-Default, amount-Pattern als echte Obermenge — siehe § packPolicy /
+> Zur Historie der additiven Schritte: 0.7 gab `partner` ein optionales `status`
+> (`active`/`inactive`), 0.8 gibt jedem Audit-Satz `previousRecordHash` und `recordHash`; bestehende
+> Bestände bleiben dabei gültig und werden von `auditTrailIntegrity` als *unchained* gemeldet,
+> ausdrücklich nicht als gebrochen. **0.6** (E-B, Pack-Komposition) war ebenfalls kein rein
+> additiver Schritt: `packPolicy` an Objekten mit `additionalProperties: false` (Profil,
+> Pack-Manifest) und das gelockerte amount-Pattern änderten die vom Schema **akzeptierte Sprache**
+> — ein 0.4-Validator lehnt neue Bestände ab. Bestehende Bestände blieben byte-identisch gültig
+> (additives Feld mit DE-Default, amount-Pattern als echte Obermenge — siehe § packPolicy /
 > Migration). Frühere additive v0.5-Felder (`streams`/`hashAlgorithm` im Export-Manifest,
 > `side`/`includesNetIncome` am Mapping, `assetAccounts`) sind in 0.6 enthalten.
+>
+> **Jede Version hat unten ihren eigenen `## v0.x`-Abschnitt, und das ist seit 2026-08-28 geprüft**
+> statt gepflegt — siehe § *Wer dieses Dokument gegen das Produkt hält*. Vorher stand 0.7 wochenlang
+> nirgends hier, obwohl das Schema die Version trug und ausrollte: die normative Quelle beschrieb
+> ein Format, das das Produkt hinter sich gelassen hatte (IMPL-037).
 
 **Die Published Language des Ledger-Kontexts** — zugleich Kompatibilitätsvertrag aller Implementierungen (laufzeitübergreifend; erste: PHP ✅, dann Node, Python) und Grundlage des GoBD-Exports. Feldnamen kommen aus dem Glossar (EN-Spalte). Änderungen an diesem Dokument sind Context-Map-Änderungen → Entscheidungslog.
 
@@ -30,7 +33,7 @@
 4. **Daten/Zeiten:** ISO 8601; Datum `"2026-06-07"`, Zeitstempel mit Zone `"2026-06-07T14:30:00+02:00"`.
 5. **Versionierung:** jede Datei/jeder Datensatzstrom trägt `formatVersion` (semver). Migrationspfade n→n+1 sind Teil künftiger Spec-Versionen.
 6. **Append-only-freundlich:** Journal als fortlaufende, unveränderliche Einträge; alles Abgeleitete ist nicht Teil des Formats (Projektionen werden berechnet, nie ausgetauscht).
-7. **Selbstbeschreibend für GoBD Z3:** Feldkatalog (Name, Typ, Bedeutung) ist Bestandteil dieser Spec → Export nach Beschreibungsstandard ist eine Abbildung, keine Erfindung. **Seit 2026-08-28 macht summae diese Abbildung selbst** (`gdpduExport`, F-IO-012): Flachdateien + `index.xml` nach Beschreibungsstandard **1.6 (01.03.2019)**, DTD `gdpdu-01-03-2019.dtd`. Der Satz stimmte immer — er wurde nur jahrelang als Begründung gelesen, die Abbildung *nicht* zu liefern.
+7. **Selbstbeschreibend für GoBD Z3:** Feldkatalog (Name, Typ, Bedeutung) ist Bestandteil dieser Spec → Export nach Beschreibungsstandard ist eine Abbildung, keine Erfindung. **Der Katalog ist VOLLSTÄNDIG und beschreibt genau die Ströme, die der Export trägt** — seit 2026-08-28, vorher beschrieb er 4 der 8 Kontofelder, 2 der 12 Belegfelder, 4 der 9 Audit-Felder und den `partners`-Strom gar nicht (IMPL-038). Ein Datensatz, der sich selbst unvollständig beschreibt, ist genau der Fall, gegen den dieser Punkt geschrieben ist; geprüft von `FieldCatalogCompletenessTest`/`field-catalog-completeness.test.ts` in beiden Sprachen, in beide Richtungen. **Seit 2026-08-28 macht summae diese Abbildung selbst** (`gdpduExport`, F-IO-012): Flachdateien + `index.xml` nach Beschreibungsstandard **1.6 (01.03.2019)**, DTD `gdpdu-01-03-2019.dtd`. Der Satz stimmte immer — er wurde nur jahrelang als Begründung gelesen, die Abbildung *nicht* zu liefern.
 
 ## Kernobjekte
 
@@ -229,6 +232,13 @@ Das Manifest führt `streams` (Liste der enthaltenen Objektströme) und `hashAlg
 
 Exportprofil (kein Mapping-Sonderfall, eigene Projektion `datevExport`): Felder Umsatz (Betrag, Soll/Haben-Kennzeichen), Konto, Gegenkonto, BU-Schlüssel (aus der Alias-Spalte des Steuerschlüssel-Regelmoduls — eigene Codes bleiben führend, DATEV-BU ist Mapping), Belegdatum, Belegfeld 1 (voucherNumber), Buchungstext, Festschreibungskennzeichen. Nur einfache Soll/Haben-Paare sind direkt abbildbar; zusammengesetzte Buchungen werden in DATEV-konforme Teilzeilen aufgelöst (Aufteilungsregel deterministisch: Reihenfolge der Positionen). Exakte EXTF-Header-Version: Implementierungsdetail, bei JOB-011/Phase 4 gegen aktuelle DATEV-Doku verifizieren.
 
+## v0.3 — Audit-Trail, EÜR-Schalter, Generalumkehr
+
+Der Schritt ist **additiv** und an drei Stellen oben ausformuliert, statt hier wiederholt zu werden:
+`auditLog.jsonl` als eigener Strom (§ oben, Review-Befund G3), `includeNonCash` am EÜR-Mapping
+(§ oben, Regel R7) und die **Generalumkehr** mit negierten Positionsbeträgen (§ `journalEntry`,
+Invarianten). Dazu das abweichende Geschäftsjahr (§ `fiscalYear`).
+
 ## v0.4 — Ergänzungen (Buchhalter- + StB-Review)
 
 ### Leistungsdatum (Buchhalter-G1 — steuerlich entscheidend)
@@ -269,42 +279,16 @@ Degressive AfA ist **aktiv** (Investitionsbooster: Anschaffung 01.07.2025–31.1
 
 ### DATEV beide Richtungen (StB-1 + Buchhalter-M)
 
-`datevExport` zusätzlich mit `kind: entries | accounts | partners` (Buchungsstapel, Kontenbeschriftungen, Geschäftspartner-Stammdaten). Rückweg `importDatevBatch` (Stapel vom Steuerberater → Buchungen) als Fähigkeit spezifiziert; exaktes Format bei JOB-011 gegen aktuelle DATEV-Doku verifizieren.
+`datevExport` zusätzlich mit `kind: entries | accounts | partners` (Buchungsstapel, Kontenbeschriftungen, Geschäftspartner-Stammdaten) — **gebaut**.
 
-## v0.8 — Hash-Kette im Audit-Trail (F-CORE-043)
+Der Rückweg `importDatevBatch` (Stapel vom Steuerberater → Buchungen) ist als Fähigkeit spezifiziert und **nicht gebaut**; seit 2026-08-28 ausdrücklich zurückgestellt statt offen geführt (F-IO-008, IMPL-042). Der Blocker sitzt nicht im Format, sondern in den Daten: die Rückrichtung braucht BU-Schlüssel → `taxCode`, und `datevBu` bildet nur vorwärts ab. Im `de`-Pack tragen fünf von zehn Steuercodes gar keinen `datevBu`, und `USt19`/`USt19WA` tragen beide die `3` — die Umkehrung ist weder total noch eindeutig. Ein Import müsste raten, und geraten würde die Steuer. Ein injektiver Rückabbildungs-Block im Pack und ein echter Buchungsstapel zur Formatverifikation sind die Voraussetzungen; bis dahin ist der Rückweg App-Sache, wie bei CAMT und XRechnung.
 
-Jeder Satz in `auditLog.jsonl` trägt zwei zusätzliche Felder:
+## v0.5 — Export-Manifest, Bilanzseiten, Bemessungsgrundlage beim Storno
 
-```json
-{ "id": "0190…", "at": "…", "actor": "…", "objectType": "account", "objectId": "0190…",
-  "action": "created", "changes": { … },
-  "previousRecordHash": "9f2c…|null", "recordHash": "1a7d…|null" }
-```
-
-- **`previousRecordHash`** — SHA-256 des **Vorgängersatzes** über kanonisches JSON (RFC 8785, § Grundsätze 1).
-  `null` beim ersten Satz eines Mandanten *und* bei jedem Satz, der vor 0.8 geschrieben wurde.
-- **`recordHash`** — SHA-256 **dieses** Satzes über kanonisches JSON **ohne dieses Feld selbst**,
-  `previousRecordHash` eingeschlossen. Deshalb entwertet jede Änderung an einem früheren Satz alle
-  späteren Glieder.
-
-**Warum am Audit-Satz und nicht an der Buchung.** Die reservierten Felder (§ oben) sperren
-`previousEntryHash` an der Buchung: Writer DÜRFEN es in v0.x nicht belegen, Reader MÜSSEN es
-ignorieren. Eine Kette, die jeder konforme Leser überspringen *muss*, ist Nachweis für niemanden.
-Der Audit-Satz trägt keine solche Reservierung, und die offene Pflicht
-(`docs/gobd-conformance.md` §14 5c) betraf ohnehin den **Trail**. Die Reservierung an der Buchung
-bleibt bestehen (SPEC-022).
-
-**Gelöschte Sätze hinterlassen eine Hülle, kein Loch.** Wird ein Satz nach Löschrecht entfernt
-(`erasePartner`, F-CORE-040), bleibt die Zeile mit **beiden Hashes** stehen; `actor`, `objectType`,
-`action` tragen den reservierten Wert `"redacted"`, `objectId` zeigt auf den Satz selbst, `changes`
-ist leer. Sonst wäre eine rechtmäßige Löschung von einer Manipulation nicht zu unterscheiden — und
-schlimmer: sie bräche die Kette dauerhaft, sodass jede spätere Prüfung eine Manipulation meldete,
-die nie stattfand. Der Inhalt einer Hülle lässt sich nicht mehr gegen ihren Hash prüfen; genau das
-heißt Löschung.
-
-**Prüfung:** Projektion `auditTrailIntegrity` (ohne Parameter) → `records`, `chained`, `unchained`,
-`redacted`, `head`, `intact`, `breaks[]`. `head` wird veröffentlicht, weil **keine** Kette bemerkt,
-wenn am **Ende** Sätze fehlen: dafür muss der Kopf außerhalb aufbewahrt und verglichen werden.
+Additiv, aus den Befunden SPEC-005/007/008: `streams` und `hashAlgorithm` im Export-Manifest
+(§ oben), `side` an jedem Wurzelknoten eines `balance-sheet`-Mappings und `includesNetIncome`
+(§ `mapping`), `assetAccounts` im Regelmodul, sowie die Festlegung, dass `taxTag.baseMoney` bei
+einer Stornobuchung **unverändert kopiert** und nicht negiert wird (§ `taxTag`).
 
 ## v0.6 — Komponierbare Packs (Modul / Pack-Manifest)
 
@@ -423,19 +407,21 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 
 ```json
 {
-  "formatVersion": "0.6",
-  "id": "de-complete",
-  "name": "Deutschland — vollständig (EÜR + Bilanz)",
-  "version": "2026.1",
+  "formatVersion": "0.9",
+  "id": "de",
+  "name": "Deutschland",
+  "version": "2026.10",
   "modules": [
-    { "kind": "accounts", "id": "summae-base", "version": "2026.1" },
-    { "kind": "tax", "id": "de-ust-2026", "version": "2026.1" },
-    { "kind": "mapping", "id": "de-hgb-bilanz-266" },
-    { "kind": "mapping", "id": "de-guv-275" },
-    { "kind": "mapping", "id": "de-anlage-euer-2026" },
-    { "kind": "depreciation", "id": "afa-de" },
-    { "kind": "assetAccounts", "id": "summae-base-asset-accounts" },
-    { "kind": "policy", "id": "de-eur" }
+    { "kind": "accounts", "id": "de-konten", "version": "2026.4" },
+    { "kind": "tax", "id": "de-ust", "version": "2026.4" },
+    { "kind": "mapping", "id": "de-bilanz", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-guv", "version": "2026.1" },
+    { "kind": "mapping", "id": "de-euer", "version": "2026.2" },
+    { "kind": "depreciation", "id": "de-afa", "version": "2026.7" },
+    { "kind": "assetAccounts", "id": "de-assets", "version": "2026.1" },
+    { "kind": "policy", "id": "de-policy", "version": "2026.1" },
+    { "kind": "legalForms", "id": "de-rechtsformen", "version": "2026.1" },
+    { "kind": "constraint", "id": "de-kleinunternehmer", "version": "2026.1" }
   ],
   "overrides": [],
   "taxCodes": ["USt19", "VSt19"],
@@ -448,11 +434,19 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 }
 ```
 
+> **Gekürzt, nicht vollständig** — das ausgelieferte `de`-Manifest führt mehr Module; die
+> maßgebliche Liste steht in `pack-library/de-pack/de.json`, nicht hier.
+>
+> *Bis 2026-08-28 stand hier ein Manifest `de-complete` mit den Modul-`id`s `summae-base`,
+> `de-ust-2026`, `afa-de` und `summae-base-asset-accounts` — **keine davon hat je existiert**, und
+> das Pack `de-complete` gibt es nicht. Das Beispiel beschrieb ein Produkt aus der Entwurfsphase.
+> IMPL-034 hat den Namen an anderer Stelle entfernt; diese Stelle blieb stehen.*
+
 | Feld | Typ | Bedeutung |
 |---|---|---|
 | `formatVersion` | semver | `0.6`. |
 | `id` / `name` / `version` | String | Pack-Identität; der Mandant **pinnt `id`+`version`**. |
-| `modules` | Array `{kind, id, version?}` | Kuratierte Liste. Fehlt `version` → Resolver wählt deterministisch die höchste verfügbare (String-Codepoint-Vergleich, `api.md`). |
+| `modules` | Array `{kind, id, version?}` | Kuratierte Liste. Fehlt `version` → Resolver wählt deterministisch die höchste verfügbare (**segmentweiser Vergleich**, numerisch wo beide Segmente Zahlen sind, sonst Codepoint — `2026.10` folgt damit auf `2026.9`; bis 2026-08-28 war es ein Codepoint-Vergleich der ganzen Zeichenkette, F-CORE-048). |
 | `overrides` | Array `{op, ref, with?}` | Module **weglassen** (`op: "remove"`) oder **ersetzen** (`op: "replace"`, `with: {kind,id,version?}`) — Nutzungsweg 2. **Nur** `remove`/`replace`, kein Feld-Patch (würde Modul-Versionierung/Determinismus unterlaufen). Eigene Mandanten-Konten/-Schlüssel legt die App **darüber** (F-CORE-007), nicht via Override. |
 | `taxCodes` | Array von Strings | `taxCode`-Auswahl des **synthetisierten Profils** (reale `profile.taxCodes`-Form). Resolver-Prüfung I4: jeder Code wird von einem aufgelösten `tax`-Modul bereitgestellt, sonst `E_PACK_UNRESOLVED_REF`. |
 | `defaults` | Objekt `{taxationMethod, smallBusiness, vatPeriod}` | Reale Profil-`defaults` (`TaxProfile::fromData`: `taxationMethod` accrual\|cash · `smallBusiness` bool\|Segmentliste · `vatPeriod` monthly\|quarterly). Geht ins synthetisierte Profil; Quelle des ResolvedPack-Felds `taxProfileDefaults`. Mit `additionalProperties: false` damit **kein** Widerspruch — `defaults` ist explizit Teil des Pack-Manifest-Schemas. |
@@ -460,18 +454,154 @@ löst es **einmal beim Aufbau** auf (Resolver, `api.md`).
 
 `additionalProperties: false`.
 
-> **Kanonische `de-complete`-Modulliste:** Die hier gezeigte 8-Modul-Liste ist
-> **byte-identisch** zu design § 2 (eine kuratierte Liste, **ein** Namensschema
-> `<jurisd>-<gegenstand>-<jahr>`: `de-ust-2026`, `de-hgb-bilanz-266`, `de-guv-275`,
-> `de-anlage-euer-2026`, `afa-de`, `summae-base`, `summae-base-asset-accounts`,
-> `de-eur`). Der mitgelieferte Default-Kontenrahmen ist `summae-base` (jurisdiktions-
-> neutraler Basis-Rahmen); SKR03/04 werden **nicht** gebündelt, bleiben aber per
-> `importChartOfAccounts` verfügbar. Die USt-VA braucht **kein** Mapping-Modul (mapping-frei). Diese Liste ist das
-> Regressions-Orakel („DE komponiert == DE heute") und **muss** in design § 2, hier und in
-> der PACK-KOMPOSITION-Doku identisch geführt werden.
+> **Kein mitgelieferter Kontenrahmen ist „der" Basis-Rahmen.** SKR03/04 werden **nicht**
+> gebündelt (Lizenzentscheidung 2026-06-21), bleiben aber per `importChartOfAccounts` verfügbar;
+> der jurisdiktionsneutrale Rahmen ist der des `default`-Packs. Die USt-VA braucht **kein**
+> Mapping-Modul (mapping-frei).
+>
+> *Hier stand eine „kanonische Modulliste", die laut eigener Aussage in drei Dokumenten
+> byte-identisch geführt werden musste. Sie benannte Module, die es nicht gibt, und die zwei
+> anderen Dokumente existieren nicht mehr — eine Sync-Pflicht zwischen drei Orten ist genau die
+> Sorte Regel, die eine Liste veralten lässt, statt sie zu pflegen. Das Regressions-Orakel „DE
+> komponiert == DE heute" ist eine **Fixture** (F-PACK-001/002), und dort gehört es hin.*
+
+## v0.7 — `partner.status`
+
+Rein additiv, ein Feld: `partner` trägt ein optionales `status` (`active` | `inactive`); fehlend
+gilt als `active`. Bestehende Bestände bleiben byte-identisch gültig.
+
+**Dieser Abschnitt entstand am 2026-08-28 nachträglich** — 0.7 war ausgerollt, während dieses
+Dokument noch v0.6 im Titel trug. Er steht hier auch als das kleinste Beispiel dafür, wofür der
+Wächter unten da ist: ein Schritt, der zu klein wirkte, um aufgeschrieben zu werden, und genau
+deshalb keinen Eintrag bekam.
+
+## v0.8 — Hash-Kette im Audit-Trail (F-CORE-043)
+
+Jeder Satz in `auditLog.jsonl` trägt zwei zusätzliche Felder:
+
+```json
+{ "id": "0190…", "at": "…", "actor": "…", "objectType": "account", "objectId": "0190…",
+  "action": "created", "changes": { … },
+  "previousRecordHash": "9f2c…|null", "recordHash": "1a7d…|null" }
+```
+
+- **`previousRecordHash`** — SHA-256 des **Vorgängersatzes** über kanonisches JSON (RFC 8785, § Grundsätze 1).
+  `null` beim ersten Satz eines Mandanten *und* bei jedem Satz, der vor 0.8 geschrieben wurde.
+- **`recordHash`** — SHA-256 **dieses** Satzes über kanonisches JSON **ohne dieses Feld selbst**,
+  `previousRecordHash` eingeschlossen. Deshalb entwertet jede Änderung an einem früheren Satz alle
+  späteren Glieder.
+
+**Warum am Audit-Satz und nicht an der Buchung.** Die reservierten Felder (§ oben) sperren
+`previousEntryHash` an der Buchung: Writer DÜRFEN es in v0.x nicht belegen, Reader MÜSSEN es
+ignorieren. Eine Kette, die jeder konforme Leser überspringen *muss*, ist Nachweis für niemanden.
+Der Audit-Satz trägt keine solche Reservierung, und die offene Pflicht
+(`docs/gobd-conformance.md` §14 5c) betraf ohnehin den **Trail**. Die Reservierung an der Buchung
+bleibt bestehen (SPEC-022).
+
+**Gelöschte Sätze hinterlassen eine Hülle, kein Loch.** Wird ein Satz nach Löschrecht entfernt
+(`erasePartner`, F-CORE-040), bleibt die Zeile mit **beiden Hashes** stehen; `actor`, `objectType`,
+`action` tragen den reservierten Wert `"redacted"`, `objectId` zeigt auf den Satz selbst, `changes`
+ist leer. Sonst wäre eine rechtmäßige Löschung von einer Manipulation nicht zu unterscheiden — und
+schlimmer: sie bräche die Kette dauerhaft, sodass jede spätere Prüfung eine Manipulation meldete,
+die nie stattfand. Der Inhalt einer Hülle lässt sich nicht mehr gegen ihren Hash prüfen; genau das
+heißt Löschung.
+
+**Prüfung:** Projektion `auditTrailIntegrity` (ohne Parameter) → `records`, `chained`, `unchained`,
+`redacted`, `head`, `intact`, `breaks[]`. `head` wird veröffentlicht, weil **keine** Kette bemerkt,
+wenn am **Ende** Sätze fehlen: dafür muss der Kopf außerhalb aufbewahrt und verglichen werden.
+
+## v0.9 — Geschlossenes `subtype`-Repertoire und bedingte Constraints
+
+Zwei Änderungen, eine davon **nicht** rein additiv.
+
+**`account.subtype` ist ein geschlossenes Repertoire** (F-CORE-046). Bis 0.8 ein freier String, seit
+0.9 elf Werte: `bank`, `cash`, `transit`, `ar`, `ap`, `tax_in`, `tax_out`, `result_allocation`,
+`fixed_asset`, `opening_balance`, `private`. Die ersten acht liest die Engine und verzweigt darauf;
+die letzten drei sind Annotation, die die ausgelieferten Packs tragen und kein Code konsultiert —
+sie stehen im Repertoire, weil die Packs sie benutzen. Das **verengt** die vom Schema akzeptierte
+Sprache: ein Bestand mit einem selbst erfundenen Subtyp validiert nicht mehr. Genau das ist der
+Zweck — ein Pack, das `tax-out` statt `tax_out` schrieb, erzeugte ein Konto, das annotiert *aussah*
+und inert war, und nichts in der Ausgabe sagte, dass ein Steuerkonto fehlte. Geprüft wird an den
+zwei Stellen, an denen ein Subtyp *verfasst* wird (Pack-Auflösung und Konten-API), ausdrücklich
+**nicht** im Konstruktor: das Laden eines gespeicherten Kontos läuft durch denselben Konstruktor,
+und eine Prüfung, die zurückzulesen verweigert, was sie selbst geschrieben hat, wäre der schlimmere
+Fehler. Die kanonische Liste in § v0.4 (`### Kanonische subtype-Liste`) war seit 0.4 vorhanden und
+bis 0.9 unverbindlich.
+
+**Die Constraint-Sorte bekommt ein drittes Wort und eine Bedingung** (F-CORE-047, § `module` →
+`kind: constraint`):
+
+- **`accountUsageRules`** — welche Konten dieser Mandant **überhaupt nicht** bebuchen darf,
+  `forbidAccountIn` ohne `when`. Bewusst keine Kombinationsregel mit `forbidAccountIn: 0000–9999`:
+  der Trick greift, weil jede Buchung mindestens zwei Konten hat, liest sich als Bereich und ist
+  zweimal falsch — Kontonummern vergleichen über **Codepoints**, also deckt `0000–9999` einen
+  Kontenrahmen mit Buchstaben nicht ab und einen sechsstelligen nur zufällig.
+- **`appliesWhen`** — bedingt eine Regel **beider** Sorten auf eine **geschlossene** Menge von
+  Mandantentatsachen (`legalForm`, `taxationMethod`). Geschlossen mit Absicht: sobald Bedingungen
+  eine Ausdruckssprache werden, trägt ein Pack Logik, und die Trennung Substrat/Pack ist dahin.
+  `smallBusiness` und Betragsgrenzen sind ausdrücklich nicht dabei, mit Begründung in
+  `docs/proposals/constraint-vocabulary.md`.
+
+Eine unbekannte Bedingung ist `E_PACK_INCOHERENT`, eine `legalForm`, die das Pack nicht deklariert,
+ebenfalls (Resolver-Invariante I10) — sonst wäre die Regel dauerhaft **schlafend**, also genau der
+stille Fehler, gegen den das geschlossene Repertoire gebaut wurde. Eine Regel, deren Bedingung nicht
+erfüllbar ist, weil die Tatsache fehlt (kein `setEntityProfile`), greift **nicht**;
+`tenantConfiguration` meldet sie trotzdem, damit ein Aufrufer „keine Regel" von „Regel wartet auf
+eine Angabe" unterscheiden kann.
+
+## Wer dieses Dokument gegen das Produkt hält
+
+Bis 2026-08-28 niemand, und das war der Befund IMPL-037: `format.schema.json` wird gegen
+`FORMAT_VERSION` gehalten (`FormatVersionTest` / `format-version.test.ts`, beide Sprachen), Code und
+Schema konnten also nicht auseinanderlaufen — die **normative Quelle**, aus der beide abgeleitet
+sind, prüfte keiner. Die Autorität stand damit auf dem Kopf. 0.7 stand deshalb wochenlang nirgends
+hier, bei grünem Gate; 0.9 wäre der nächste Fall geworden.
+
+Seit 2026-08-28 prüfen `DataFormatDocTest` / `data-format-doc.test.ts` (beide Sprachen, neben dem
+GoBD-Zensus) drei enge Behauptungen — keine Prosaprüfung, die wäre weder erreichbar noch gewollt:
+
+1. Die Version in der Überschrift **und** in der `$id`-Zeile dieses Dokuments ist `FORMAT_VERSION`.
+2. Zwischen der ältesten hier beschriebenen Version und der aktuellen fehlt **kein** `## v0.x`.
+   Deshalb tragen auch die kleinen Schritte (0.3, 0.5, 0.7) einen eigenen Abschnitt: eine
+   Veröffentlichung kann ihren eigenen Eintrag nicht mehr überspringen.
+3. Jeder `$defs`-Schlüssel des Schemas kommt in diesem Dokument vor. Ein Objekt, das das Schema
+   kennt und die Spezifikation nicht nennt, ist dieselbe Lücke aus der anderen Richtung.
+
+### Wo jeder `$defs`-Schlüssel spezifiziert ist
+
+Der Index zu Punkt 3 — und er ist selbst der Grund, warum die Behauptung prüfbar wurde: neun der
+23 Schlüssel kamen im Fließtext gar nicht vor, weil das Dokument sie unter *fachlichen* Namen
+beschreibt (`entryLine` heißt hier „Position", `manifest` „Export-Manifest") und die Modul-`data`-
+Formen nur als `kind` auftauchen. Ein Leser, der vom Schema herkommt, fand sie deshalb nicht.
+
+| `$defs` | spezifiziert in |
+|---|---|
+| `uuid` | § Grundsätze 3 (UUIDv7) |
+| `date` | § Grundsätze 4 |
+| `timestamp` | § Grundsätze 4 |
+| `money` | § Grundsätze 2 |
+| `dimensionValue` | § `dimensionType` / Stammdaten |
+| `taxTag` | § v0.2 → `taxTag` |
+| `entryLine` | § `journalEntry` (Positionen) |
+| `journalEntry` | § `journalEntry` |
+| `account` | § `account`; Subtyp-Repertoire § v0.9 |
+| `voucher` | § `voucher`; Belegart § v0.4 |
+| `partner` | § v0.4 → `partner`; `status` § v0.7 |
+| `openItem` | § `openItem` |
+| `profile` | § v0.2 → `profile` |
+| `packPolicy` | § v0.2 → `packPolicy` |
+| `module` | § v0.6 → `module` |
+| `packManifest` | § v0.6 → `packManifest` |
+| `mapping` | § v0.2 → `mapping` |
+| `mappingPosition` | § v0.2 → `mapping` (Positionen) |
+| `constraintData` | § v0.6 → `module`, `kind: constraint`; erweitert § v0.9 |
+| `depreciationData` | § v0.6 → `module`, `kind: depreciation` |
+| `productionCostData` | § v0.6 → `module`, `kind: productionCost` |
+| `auditRecord` | § v0.3 / § `auditLog.jsonl`; Hashes § v0.8 |
+| `manifest` | § Mandant & Export-Manifest; präzisiert § v0.5 |
 
 ## Offene Punkte v0.4 → v0.5
 
 - Kommunale Erweiterung (Finanzrechnungs-Kreis, Produkt-Pflichtdimension) — wartet auf Budgeting-Kontext
-- Rückfluss der SPEC-FINDINGS aus der PHP-Implementierung
+- Rückfluss der Befunde aus der PHP-Implementierung
 - Regelmodul-Inhalte als eigene Lieferaufgabe: DATEV-BWA Form 01, USt-Jahreserklärungs-Mapping, Anlage-EÜR-Vollmapping

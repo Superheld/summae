@@ -45,6 +45,7 @@ the safety net, not the plan.
 | `policy/de` | policy | EUR, half-up per voucher (`perVoucher`), scale 2; defaults: cash (EÜR), standard taxation, quarterly |
 | `constraint/de-entgeltminderung` | constraint | § 17 UStG: an entry on 4020 must carry its output-VAT correction, one on 5010 its input-VAT correction (`E_COMBINATION_REQUIRED`) |
 | `constraint/de-kleinunternehmer` | constraint | § 19 UStG: an entry on 4040 (small-business revenue) must not touch an output-VAT account (`E_COMBINATION_FORBIDDEN`) |
+| `constraint/de-kapitalgesellschaft` | constraint | § 13 GmbHG / § 1 AktG: a capital company (`gmbh`, `ug`, `ag`, `eg`) must not post to 2400 Privat at all — its assets are separate from its shareholders', and the withdrawal is salary, a loan, or an open or hidden distribution (`E_ACCOUNT_USE_FORBIDDEN`) |
 
 The German tax/HGB background (VAT §13b, intra-community supply, small business §19, deemed
 supply, EÜR, HGB balance sheet/P&L, depreciation) is maintained internally; the rules this pack

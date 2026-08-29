@@ -1,0 +1,188 @@
+{
+  "fixture": "xx-12-constraint-applies-when",
+  "description": "F-CORE-047, the mechanism, on a pack this fixture brings itself. TWO NEW WORDS are pinned here and nowhere else. `appliesWhen` conditions a constraint rule on a CLOSED set of tenant facts — `legalForm` and `taxationMethod`, and closed on purpose: the moment conditions become an expression language a pack carries logic, and the point of the substrate/pack split is gone. `accountUsageRules` says an entry must not touch an account AT ALL, which is a different sentence from `these two accounts must not meet` and had no word before. WHY THAT SECOND WORD RATHER THAN THE TRICK: the old vocabulary could express `this account may not be used` as `whenAccountIn: X` plus `forbidAccountIn: 0000–9999`, because every entry has at least two accounts. It is wrong twice — it reads as a range, so the next author has to deduce that the range means `everything`; and account numbers compare by CODE POINT, so `0000`–`9999` does not cover a chart whose numbers begin with a letter and covers a six-digit chart only by accident. A prohibition whose correctness depends on how a foreign chart happens to number its accounts is not a prohibition. THE DORMANT CASE IS THE ONE WORTH READING TWICE: a rule conditioned on a fact the tenant has not supplied does NOT apply, and it is still reported. Refusing the posting would punish a tenant for not having configured something; applying the rule anyway would assume a precondition nobody checked; hiding the rule would leave a caller unable to tell `no such rule` from `waiting for a fact`. THE TWO CONDITIONS DIFFER IN WHEN THEY ARE KNOWN, which is why both are here: `taxationMethod` comes from the pack at creation and is fixed, so its rule is live from the first posting; `legalForm` arrives later through `setEntityProfile`, so its rule switches on mid-life — and the ledger therefore reads the fact on every posting rather than snapshotting it, which a fixture that only ever declared the profile up front could not have caught.",
+  "covers": ["F-CORE-047", "F-CORE-035"],
+  "setup": {
+    "pack": {
+      "manifest": {
+        "formatVersion": "0.9",
+        "id": "xx-conditional",
+        "name": "Fiktive Jurisdiktion XX (bedingte Regeln)",
+        "version": "2026.1",
+        "modules": [
+          { "kind": "accounts", "id": "xx-cond-konten", "version": "2026.1" },
+          { "kind": "legalForms", "id": "xx-cond-formen", "version": "2026.1" },
+          { "kind": "constraint", "id": "xx-cond-regeln", "version": "2026.1" }
+        ],
+        "overrides": [],
+        "defaults": { "taxationMethod": "cash" },
+        "packPolicy": {
+          "roundingMode": "halfUpAwayFromZero",
+          "taxRoundingGranularity": "perVoucher",
+          "currencyScale": 2
+        }
+      },
+      "modules": [
+        {
+          "formatVersion": "0.9",
+          "id": "xx-cond-konten",
+          "kind": "accounts",
+          "version": "2026.1",
+          "name": "XX Kontenrahmen (bedingte Regeln)",
+          "contributes": ["accounts"],
+          "dependsOn": [],
+          "data": {
+            "accounts": [
+              { "number": "100", "name": "Bank", "type": "asset", "subtype": "bank" },
+              { "number": "177", "name": "Umsatzsteuer", "type": "liability", "subtype": "tax_out" },
+              { "number": "400", "name": "Erloese", "type": "revenue" },
+              { "number": "900", "name": "Privatentnahme", "type": "equity", "subtype": "private" }
+            ]
+          }
+        },
+        {
+          "formatVersion": "0.9",
+          "id": "xx-cond-formen",
+          "kind": "legalForms",
+          "version": "2026.1",
+          "name": "XX Rechtsformen",
+          "contributes": ["legalForms"],
+          "dependsOn": [],
+          "data": {
+            "sizeClasses": ["small", "large"],
+            "forms": {
+              "solo": { "label": "Einzelkaufmann", "resolution": { "required": false } },
+              "ag": { "label": "Kapitalgesellschaft", "resolution": { "required": true, "deadlineMonths": 6, "basis": "XX-Gesetz § 1" } }
+            }
+          }
+        },
+        {
+          "formatVersion": "0.9",
+          "id": "xx-cond-regeln",
+          "kind": "constraint",
+          "version": "2026.1",
+          "name": "XX bedingte Regeln",
+          "contributes": ["constraint"],
+          "dependsOn": [
+            { "kind": "accounts", "id": "xx-cond-konten" },
+            { "kind": "legalForms", "id": "xx-cond-formen" }
+          ],
+          "data": {
+            "accountCombinationRules": [
+              {
+                "appliesWhen": { "taxationMethod": ["cash"] },
+                "whenAccountIn": { "from": "400", "to": "400" },
+                "forbidAccountIn": { "from": "177", "to": "177" },
+                "note": "Fiktiv: unter Ist-Versteuerung entsteht die Steuer erst bei Vereinnahmung, ein Erloes traegt sie in dieser Jurisdiktion also nicht schon bei der Rechnung."
+              }
+            ],
+            "accountUsageRules": [
+              {
+                "appliesWhen": { "legalForm": ["ag"] },
+                "forbidAccountIn": { "from": "900", "to": "900" },
+                "note": "Fiktiv: eine Kapitalgesellschaft hat kein Privatkonto."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "steps": [
+    { "op": "createTenant",
+      "input": { "name": "XX Bedingt AG", "baseCurrency": "EUR", "pack": "xx-conditional", "firstFiscalYear": 2026 },
+      "expect": { "result": { "id": "$T1" } } },
+
+    { "op": "createVoucher",
+      "input": { "tenant": "$T1", "voucher": { "voucherNumber": "BEL-1", "voucherDate": "2026-02-10" } },
+      "expect": { "result": { "id": "$V1" } } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Erloes mit Steuer",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "119.00", "currency": "EUR" } },
+          { "account": "400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "177", "side": "credit", "money": { "amount": "19.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "A CONDITION THAT IS ALREADY TRUE AT CREATION. The pack's defaults put this tenant on cash taxation, so the rule is live from the first posting — no configuration call was needed to switch it on, and a tenant of the same pack on accrual would have posted this without a word.",
+        "error": "E_COMBINATION_FORBIDDEN"
+      } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Erloes ohne Steuer",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": { "comment": "The rule is a prohibition, not a requirement: without the tax account nothing fires.", "result": { "id": "$E1" } } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Entnahme, bevor eine Rechtsform erklaert ist",
+        "lines": [
+          { "account": "900", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "100", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "DORMANT. The usage rule names a legal form and this tenant has declared none, so its condition cannot be satisfied and the rule does not apply. It is reported all the same — see the projection.",
+        "result": { "id": "$E2" }
+      } },
+
+    { "op": "setEntityProfile",
+      "input": { "tenant": "$T1", "legalForm": "ag" },
+      "expect": { "result": { "legalForm": "ag" } } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Dieselbe Entnahme als Kapitalgesellschaft",
+        "lines": [
+          { "account": "900", "side": "debit", "money": { "amount": "50.00", "currency": "EUR" } },
+          { "account": "100", "side": "credit", "money": { "amount": "50.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "THE FACT ARRIVED AFTER THE LEDGER EXISTED. The identical posting is now refused, which is only possible because the ledger reads the declared legal form on every posting instead of copying it once at construction — a fixture that declared the profile before the first posting could not tell the two implementations apart.",
+        "error": "E_ACCOUNT_USE_FORBIDDEN"
+      } },
+
+    { "op": "post",
+      "input": {
+        "tenant": "$T1", "entryDate": "2026-02-10", "voucherId": "$V1", "text": "Erloes derselben Gesellschaft",
+        "lines": [
+          { "account": "100", "side": "debit", "money": { "amount": "100.00", "currency": "EUR" } },
+          { "account": "400", "side": "credit", "money": { "amount": "100.00", "currency": "EUR" } }
+        ]
+      },
+      "expect": {
+        "comment": "A usage rule refuses ONE account and nothing else. This is the step the `forbidAccountIn: 0000–9999` trick would have failed, because under that formulation the entry above is refused for touching 100 as much as for touching 900.",
+        "result": { "id": "$E3" }
+      } }
+  ],
+  "projections": [
+    { "name": "tenantConfiguration", "params": { "tenant": "$T1" },
+      "expect": {
+        "comment": "Both lists, with their conditions, read back through one projection. Pinning them whole is legitimate HERE and would not be on a shipped pack: this pack is the fixture's own data, so the list cannot move underneath the expectation — the distinction the superseded register exists for.",
+        "accountCombinationRules": [
+          { "whenAccountIn": { "from": "400", "to": "400" }, "forbidAccountIn": { "from": "177", "to": "177" }, "appliesWhen": { "taxationMethod": ["cash"] } }
+        ],
+        "accountUsageRules": [
+          { "forbidAccountIn": { "from": "900", "to": "900" }, "appliesWhen": { "legalForm": ["ag"] } }
+        ]
+      } },
+    { "name": "trialBalance", "params": { "tenant": "$T1", "fiscalYear": 2026, "throughPeriod": 12 },
+      "expect": {
+        "comment": "What survived: two revenue postings and the one withdrawal made while the rule was dormant. The two refusals left nothing behind.",
+        "rows": [
+          { "account": "100", "balance": "150.00" },
+          { "account": "400", "balance": "-200.00" },
+          { "account": "900", "balance": "50.00" }
+        ]
+      } }
+  ]
+}

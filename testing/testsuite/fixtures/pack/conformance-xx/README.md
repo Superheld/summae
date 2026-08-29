@@ -58,7 +58,7 @@ Alle vier Fixtures laufen gegen die **unveränderte** Kern-Implementierung — k
 nur Pack-Daten + `packPolicy`, gespeist aus dem aufgelösten Pack-Manifest. Erst dann ist
 die Jurisdiktionsfreiheit *erzwungen*, nicht behauptet.
 
-## Offene Nähte / Finding-Kandidaten (für SPEC-FINDINGS bei Review)
+## Offene Nähte / Finding-Kandidaten (für `FINDINGS-OPEN.md` bei Review)
 
 - **`setup.pack` vs. `setup.ruleModules`:** Bestehende Fixtures reichen Regelmodul-Daten
   über `setup.ruleModules` (`profiles`/`chartsOfAccounts`/`taxCodes`). Diese Fixtures
